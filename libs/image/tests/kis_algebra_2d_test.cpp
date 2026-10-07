@@ -2005,25 +2005,39 @@ void KisAlgebra2DTest::testMultiplyWrappedRectVertical()
 void KisAlgebra2DTest::testIsPolygonTrulyConvex_data()
 {
     QTest::addColumn<QPolygonF>("polygon");
+    QTest::addColumn<qreal>("maxAngle");
     QTest::addColumn<bool>("isConvex");
 
-    QTest::addRow("nearly rectangle") << QPolygonF(QVector<QPointF> {QPointF(0,64), QPointF(8.00001,64), QPointF(8.00001,72), QPointF(0,72)}) << true;
-    QTest::addRow("concave polygon") << QPolygonF(QVector<QPointF> {QPointF(0,0), QPointF(10,0), QPointF(10, 10), QPointF(-10, -5)}) << false;
-    QTest::addRow("concave polygon 2") << QPolygonF(QVector<QPointF> {QPointF(10,0), QPointF(10, 10), QPointF(-10, -5), QPointF(0,0)}) << false;
+    const qreal ignoreMaxAlpha = 180.0;
 
-    QTest::addRow("tangled polygon") << QPolygonF(QVector<QPointF> {QPointF(9,3), QPointF(8, 6), QPointF(4, 4), QPointF(7,3), QPointF(4,8), QPointF(1,5), QPointF(2,2), QPointF(4,1), QPointF(6,1)}) << false;
-    QTest::addRow("untangled polygon") << QPolygonF(QVector<QPointF> {QPointF(9,3), QPointF(8, 6), QPointF(4, 8), QPointF(1,5), QPointF(2,2), QPointF(4,1), QPointF(6,1)}) << true;
-    QTest::addRow("untangled polygon 2") << QPolygonF(QVector<QPointF> {QPointF(9,3), QPointF(8, 6), QPointF(4, 4), QPointF(6,1)}) << true;
+    QTest::addRow("nearly rectangle") << QPolygonF(QVector<QPointF> {QPointF(0,64), QPointF(8.00001,64), QPointF(8.00001,72), QPointF(0,72)}) << ignoreMaxAlpha << true;
+    QTest::addRow("concave polygon") << QPolygonF(QVector<QPointF> {QPointF(0,0), QPointF(10,0), QPointF(10, 10), QPointF(-10, -5)}) << ignoreMaxAlpha << false;
+    QTest::addRow("concave polygon 2") << QPolygonF(QVector<QPointF> {QPointF(10,0), QPointF(10, 10), QPointF(-10, -5), QPointF(0,0)}) << ignoreMaxAlpha << false;
 
-
-
-    QTest::addRow("tangled polygon ccw") << QPolygonF(QVector<QPointF> {QPointF(6,1), QPointF(4,1), QPointF(2,2), QPointF(1,5), QPointF(4,8), QPointF(7,3), QPointF(4, 4), QPointF(8, 6), QPointF(9,3)}) << false;
-    QTest::addRow("untangled polygon ccw") << QPolygonF(QVector<QPointF> {QPointF(6,1), QPointF(4,1), QPointF(2,2), QPointF(1,5), QPointF(4, 8), QPointF(8, 6), QPointF(9,3)}) << true;
-    QTest::addRow("untangled polygon 2 ccw") << QPolygonF(QVector<QPointF> {QPointF(6,1), QPointF(4, 4), QPointF(8, 6), QPointF(9,3)}) << true;
+    QTest::addRow("tangled polygon") << QPolygonF(QVector<QPointF> {QPointF(9,3), QPointF(8, 6), QPointF(4, 4), QPointF(7,3), QPointF(4,8), QPointF(1,5), QPointF(2,2), QPointF(4,1), QPointF(6,1)}) << ignoreMaxAlpha << false;
+    QTest::addRow("untangled polygon") << QPolygonF(QVector<QPointF> {QPointF(9,3), QPointF(8, 6), QPointF(4, 8), QPointF(1,5), QPointF(2,2), QPointF(4,1), QPointF(6,1)}) << ignoreMaxAlpha << true;
+    QTest::addRow("untangled polygon 2") << QPolygonF(QVector<QPointF> {QPointF(9,3), QPointF(8, 6), QPointF(4, 4), QPointF(6,1)}) << ignoreMaxAlpha << true;
 
 
-    QTest::addRow("tangled polygon ccw, double start point") << QPolygonF(QVector<QPointF> {QPointF(6,1), QPointF(4,1), QPointF(2,2), QPointF(1,5), QPointF(4,8), QPointF(7,3), QPointF(4, 4), QPointF(8, 6), QPointF(9,3), QPointF(6,1)}) << false;
-    QTest::addRow("untangled polygon ccw, double start point") << QPolygonF(QVector<QPointF> {QPointF(6,1), QPointF(4,1), QPointF(2,2), QPointF(1,5), QPointF(4, 8), QPointF(8, 6), QPointF(9,3), QPointF(6,1)}) << true;
+
+    QTest::addRow("tangled polygon ccw") << QPolygonF(QVector<QPointF> {QPointF(6,1), QPointF(4,1), QPointF(2,2), QPointF(1,5), QPointF(4,8), QPointF(7,3), QPointF(4, 4), QPointF(8, 6), QPointF(9,3)}) << ignoreMaxAlpha << false;
+    QTest::addRow("untangled polygon ccw") << QPolygonF(QVector<QPointF> {QPointF(6,1), QPointF(4,1), QPointF(2,2), QPointF(1,5), QPointF(4, 8), QPointF(8, 6), QPointF(9,3)}) << ignoreMaxAlpha << true;
+    QTest::addRow("untangled polygon 2 ccw") << QPolygonF(QVector<QPointF> {QPointF(6,1), QPointF(4, 4), QPointF(8, 6), QPointF(9,3)}) << ignoreMaxAlpha << true;
+
+
+    QTest::addRow("tangled polygon ccw, double start point") << QPolygonF(QVector<QPointF> {QPointF(6,1), QPointF(4,1), QPointF(2,2), QPointF(1,5), QPointF(4,8), QPointF(7,3), QPointF(4, 4), QPointF(8, 6), QPointF(9,3), QPointF(6,1)}) << ignoreMaxAlpha << false;
+    QTest::addRow("untangled polygon ccw, double start point") << QPolygonF(QVector<QPointF> {QPointF(6,1), QPointF(4,1), QPointF(2,2), QPointF(1,5), QPointF(4, 8), QPointF(8, 6), QPointF(9,3), QPointF(6,1)}) << ignoreMaxAlpha << true;
+
+    QTest::addRow("flat degenerate, no maxAlpha") << QPolygonF(QVector<QPointF> {QPointF(4,1), QPointF(6,1), QPointF(8,1), QPointF(6,2)}) << ignoreMaxAlpha << true;
+
+    QTest::addRow("flat degenerate, maxAlpha 179") << QPolygonF(QVector<QPointF> {QPointF(4,1), QPointF(6,1), QPointF(8,1), QPointF(6,2)}) << 179.9 << false;
+    QTest::addRow("flat almost degenerate, maxAlpha 179") << QPolygonF(QVector<QPointF> {QPointF(4,1), QPointF(6,1), QPointF(8,1.00001), QPointF(6,2)}) << 179.9 << false;
+
+    QTest::addRow("flat degenerate last, maxAlpha 179") << QPolygonF(QVector<QPointF> {QPointF(6,2), QPointF(4,1), QPointF(6,1), QPointF(8,1)}) << 179.9 << false;
+    QTest::addRow("flat almost degenerate last, maxAlpha 179") << QPolygonF(QVector<QPointF> {QPointF(6,2), QPointF(4,1), QPointF(6,1), QPointF(8,1.00001)}) << 179.9 << false;
+
+    QTest::addRow("flat returning degenerate, no maxAlpha") << QPolygonF(QVector<QPointF> {QPointF(4,1), QPointF(6,1), QPointF(5,1), QPointF(6,2)}) << ignoreMaxAlpha << false;
+    QTest::addRow("flat returning almost degenerate, no maxAlpha") << QPolygonF(QVector<QPointF> {QPointF(4,1), QPointF(6,1), QPointF(5,1.00001), QPointF(6,2)}) << ignoreMaxAlpha << false;
 }
 
 
@@ -2031,9 +2045,10 @@ void KisAlgebra2DTest::testIsPolygonTrulyConvex()
 {
 
     QFETCH(QPolygonF, polygon);
+    QFETCH(qreal, maxAngle);
     QFETCH(bool, isConvex);
 
-    QCOMPARE(isConvex, KisAlgebra2D::isPolygonTrulyConvex(polygon));
+    QCOMPARE(KisAlgebra2D::isPolygonTrulyConvex(polygon, true, maxAngle), isConvex);
 
 }
 

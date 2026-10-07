@@ -894,7 +894,7 @@ bool isPolygonPixelAlignedRect(const Polygon &poly, Difference tolerance) {
 }
 
 template <class T>
-bool isPolygonTrulyConvex(const QVector<T> &polygon, bool ensureNoLoops = true) {
+bool isPolygonTrulyConvex(const QVector<T> &polygon, bool ensureNoLoops = true, qreal maxAngle = 180.0) {
     int numPoints = polygon.size();
     if (numPoints < 3)
         return true;
@@ -923,6 +923,13 @@ bool isPolygonTrulyConvex(const QVector<T> &polygon, bool ensureNoLoops = true) 
         }
 
         angleSum += angle;
+
+        const bool checkMinAngle = !qFuzzyCompare(maxAngle, 180.0);
+        const qreal minAngle = kisDegreesToRadians(180.0 - maxAngle);
+
+        if (checkMinAngle && qAbs(angle) < minAngle) {
+            return false;
+        }
 
         if (sign == 0) {
             sign = signZZ(angle);
