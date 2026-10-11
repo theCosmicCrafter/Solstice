@@ -47,6 +47,8 @@ private:
         qint64 differentPixels = 0;
         qint64 coverageMismatches = 0;
         qint64 pixels = 0;
+        int avx2Compared = 0;
+        int grayCompared = 0;
     };
 
     static void compare(const QImage &expected, const QImage &actual, Stats &stats)
@@ -106,13 +108,36 @@ private:
                 qWarning() << "createImage() differs from renderDescribed()";
                 stats.maxDifference = 1000;
             }
+            // gray levels unpremultiply one channel for all three: the
+            // same as all three
+            if (geometry.gray) {
+                KisQImagePyramid::DabGeometry color = geometry;
+                color.gray = false;
+                if (KisQImagePyramid::renderDescribed(color) != reference) {
+                    qWarning() << "the gray path differs, case" << i;
+                    stats.maxDifference = 1000;
+                }
+                ++stats.grayCompared;
+            }
+            // the AVX2 kernels (when the CPU has them) equal the SSE2 ones
+            if (KisImageTipSampler::avx2Enabled()) {
+                KisImageTipSampler::setAvx2EnabledForTesting(false);
+                const QImage sse2 = KisQImagePyramid::renderDescribed(geometry);
+                KisImageTipSampler::setAvx2EnabledForTesting(true);
+                if (sse2 != reference) {
+                    qWarning() << "AVX2 differs from SSE2, case" << i;
+                    stats.maxDifference = 1000;
+                }
+                ++stats.avx2Compared;
+            }
             compare(pyramid.createImageWithQPainter(shape, subX, subY).convertToFormat(QImage::Format_ARGB32),
                     actual,
                     stats);
         }
         qInfo() << (rotate ? "rotated" : "scaled") << "described" << stats.described << "of" << cases
                 << "max channel difference" << stats.maxDifference << "different pixels" << stats.differentPixels
-                << "of" << stats.pixels << "coverage mismatches" << stats.coverageMismatches;
+                << "of" << stats.pixels << "coverage mismatches" << stats.coverageMismatches << "AVX2 compared"
+                << stats.avx2Compared << "gray compared" << stats.grayCompared;
         return stats;
     }
 
@@ -125,6 +150,12 @@ private Q_SLOTS:
             QVERIFY(stats.maxDifference <= 1);
             QCOMPARE(stats.coverageMismatches, qint64(0));
         }
+    }
+    void testAvx2Available()
+    {
+        // The kernels compare only when the CPU has AVX2 (the development
+        // machine does); report it so that a skipped comparison is visible.
+        qInfo() << "AVX2 kernels" << KisImageTipSampler::avx2Enabled();
     }
     void testRotatedTips()
     {
@@ -149,7 +180,10 @@ private Q_SLOTS:
                                                                                        : "opaque tip");
             for (const bool rotate : {false, true}) {
                 QElapsedTimer timer;
-                for (const bool painter : {true, false}) {
+                for (const int path : {0, 1, 2}) {
+                    // QPainter, described (AVX2 when available), described SSE2
+                    const bool painter = path == 0;
+                    KisImageTipSampler::setAvx2EnabledForTesting(path != 2);
                     QRandomGenerator random(3);
                     timer.start();
                     qint64 checksum = 0;
@@ -163,9 +197,29 @@ private Q_SLOTS:
                                                      : pyramid.createImage(shape, sx, sy);
                         checksum += image.width();
                     }
-                    qInfo() << (rotate ? "rotated" : "scaled") << (painter ? "QPainter" : "described")
+                    qInfo() << (rotate ? "rotated" : "scaled")
+                            << (painter                                 ? "QPainter"
+                                    : KisImageTipSampler::avx2Enabled() ? "described AVX2"
+                                                                        : "described SSE2")
                             << "ms per 400 dabs" << timer.elapsed() << checksum;
                 }
+                KisImageTipSampler::setAvx2EnabledForTesting(true);
+                // the description alone (describeImage())
+                QRandomGenerator random(3);
+                timer.start();
+                qint64 rows = 0;
+                for (int i = 0; i < 400; ++i) {
+                    const KisDabShape shape(0.3 + random.generateDouble(),
+                                            1.0,
+                                            rotate ? random.generateDouble() * 6 : 0.0);
+                    const qreal sx = random.generateDouble();
+                    const qreal sy = random.generateDouble();
+                    KisQImagePyramid::DabGeometry geometry;
+                    pyramid.describeImage(shape, sx, sy, &geometry);
+                    rows += geometry.rows.size();
+                }
+                qInfo() << (rotate ? "rotated" : "scaled") << "describeImage() only, ms per 400 dabs" << timer.elapsed()
+                        << rows;
             }
         }
     }

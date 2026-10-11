@@ -273,6 +273,7 @@ QSize levelSize = image.size();
                    image.height() + 2 * QPAINTER_WORKAROUND_BORDER);
     PyramidLevel level(tmp, levelSize);
     level.premultiplied = KisImageTipSampler::premultiply(tmp);
+    level.gray = KisImageTipSampler::isGray(tmp);
     m_levels.append(level);
 }
 
@@ -393,6 +394,7 @@ bool KisQImagePyramid::describeImage(KisDabShape const &shape,
     *geometry = DabGeometry();
     geometry->source = srcImage;
     geometry->premultiplied = m_levels[level].premultiplied;
+    geometry->gray = m_levels[level].gray;
     if (srcImage.format() != QImage::Format_ARGB32 || !geometry->premultiplied)
         return false;
 

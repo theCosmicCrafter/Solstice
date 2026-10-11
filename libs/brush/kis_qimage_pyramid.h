@@ -88,6 +88,7 @@ private:
         QSize size;
         // Solstice: image as premultiplied QRgba64 (describeImage())
         QSharedPointer<const QVector<quint64>> premultiplied;
+        bool gray = false; // KisImageTipSampler::isGray()
     };
 
     QVector<PyramidLevel> m_levels;

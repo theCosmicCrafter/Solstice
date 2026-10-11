@@ -91,8 +91,9 @@ brushes) used as an alpha mask, the default for gray tips, are also drawn
 on the GPU on RGBA 32-bit float layers, at any size and rotation and with
 textures. To make this possible, Solstice now transforms image tips with
 its own code instead of Qt's painter, on the CPU too: the result can differ
-from Krita's by at most one step of 8-bit precision, and the CPU spends
-about twice as long transforming each image tip. Painting the masking
+from Krita's by at most one step of 8-bit precision, and on processors with
+AVX2 the CPU spends about a third longer than Krita transforming each image
+tip (twice as long without AVX2). Painting the masking
 brush's mask, colour (image stamp), Lightness map and Gradient map tips,
 animated (.gih) and text tips, the Lightness and Gradient texture modes
 and the brush Sharpness option remain CPU operations; large or densely

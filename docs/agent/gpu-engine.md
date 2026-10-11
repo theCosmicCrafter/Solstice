@@ -749,9 +749,26 @@ vendors), so even the CPU output depended on the machine.
   (`KisQImagePyramidDescribeTest`, about 100 million pixels): at most one
   step of the alpha-mask value `UINT8_MULT(255 - red, alpha)` and of the
   alpha; no coverage differences for scale-only dabs, 2 pixels in 13.6
-  million for rotated dabs. Cost: about twice QPainter's time for the tip
-  transform alone (400 dabs of a 256px tip: 29-39 ms with QPainter, 66-75
-  ms described, scale and rotation measured separately).
+  million for rotated dabs.
+- CPU speed (2026-10-11, after phase 4.103): `render()` has AVX2 kernels
+  (four pixels per step, chosen at run time with
+  `__builtin_cpu_supports("avx2")`, functions compiled with
+  `__attribute__((target("avx2")))`; the SSE2 path remains the fallback and
+  the reference). They pair-load each row's two neighbouring texels instead
+  of gathering (edge pixels keep a gather path). Gray levels
+  (`KisImageTipSampler::isGray()`, every visible texel red == green ==
+  blue, stored per pyramid level as `KisImageTipGeometry::gray`)
+  unpremultiply one channel for all three, which gives the same bytes.
+  Only the pixels outside each row are cleared. Pitfall: interpolating an
+  opaque tip gives alpha 0xfffe (both mulhi terms round down, as in Qt), so
+  nearly every pixel takes the unpremultiply path; that arithmetic, not
+  the factor table lookup, was the cost (an exact double division for the
+  factor was slower than the table on Zen 5).
+  `KisQImagePyramidDescribeTest` checks AVX2 against SSE2 and the gray path
+  against three channels on every case, and its benchmark reports both.
+  400 dabs of a 256px tip (Ryzen 9 9950X): scaled QPainter 28-34 ms, AVX2
+  40-46, SSE2 53-59; rotated QPainter 53-63, AVX2 66-75, SSE2 96-107
+  (before: 66-80 and 110-131 ms).
 - Description: `KisProceduralCircleDab::ImageTip` (kind 3) with
   `imageTip` (the geometry); the alpha is
   `Uint8ToFloat(UINT8_MULT(255 - red, alpha))` of the sampled ARGB32 pixel,

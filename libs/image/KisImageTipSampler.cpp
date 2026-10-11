@@ -7,9 +7,17 @@
 
 #include <QRgba64>
 #include <algorithm>
+#include <atomic>
 
 #if defined(__SSE2__) || defined(_M_X64)
 #include <emmintrin.h>
+#endif
+
+// AVX2 kernels compiled for that target and chosen at run time
+#if defined(__x86_64__) && (defined(__clang__) || defined(__GNUC__))
+#define KIS_IMAGE_TIP_AVX2 1
+#include <immintrin.h>
+#define KIS_AVX2_TARGET __attribute__((target("avx2")))
 #endif
 
 /*
@@ -65,15 +73,21 @@ inline quint32 to8(quint32 c)
 #endif
 
 // unpremultiplied() and toArgb32() of an interpolated QRgba64
-inline quint32 storePixel(quint64 value, const quint64 *factors)
+inline quint32 storePixel(quint64 value, const quint64 *factors, bool gray)
 {
     const quint32 a = quint32(value >> 48);
     if (a != 0xffff && a != 0) {
         const quint64 fa = factors[a];
         quint64 unpremultiplied = quint64(a) << 48;
-        for (int i = 0; i < 3; ++i) {
-            const quint64 c = (value >> (16 * i)) & 0xffff;
-            unpremultiplied |= (((c * fa + 0x80000000) >> 32) & 0xffff) << (16 * i);
+        if (gray) {
+            // red == green == blue: the same result for each
+            const quint64 c = (((value & 0xffff) * fa + 0x80000000) >> 32) & 0xffff;
+            unpremultiplied |= c | (c << 16) | (c << 32);
+        } else {
+            for (int i = 0; i < 3; ++i) {
+                const quint64 c = (value >> (16 * i)) & 0xffff;
+                unpremultiplied |= (((c * fa + 0x80000000) >> 32) & 0xffff) << (16 * i);
+            }
         }
         value = unpremultiplied;
     }
@@ -96,11 +110,11 @@ inline quint32 storePixel(quint64 value, const quint64 *factors)
 
 #if defined(__SSE2__) || defined(_M_X64)
 // storePixel() for a value in the low 64 bits of an SSE register
-inline quint32 storePixelSse(__m128i v, const quint64 *factors)
+inline quint32 storePixelSse(__m128i v, const quint64 *factors, bool gray)
 {
     const quint32 a = quint32(_mm_extract_epi16(v, 3));
     if (a != 0xffff && a != 0)
-        return storePixel(quint64(_mm_cvtsi128_si64(v)), factors);
+        return storePixel(quint64(_mm_cvtsi128_si64(v)), factors, gray);
     v = _mm_shufflelo_epi16(v, _MM_SHUFFLE(3, 0, 1, 2));
     v = _mm_unpacklo_epi16(v, _mm_setzero_si128());
     v = _mm_add_epi32(v, _mm_set1_epi32(128));
@@ -124,7 +138,7 @@ inline __m128i horizontalWeights(quint32 dist)
  * unpremultiplied() and toArgb32().
  */
 inline quint32
-samplePixel(const quint64 *src, int stride, int width, int height, int fx, int fy, const quint64 *factors)
+samplePixel(const quint64 *src, int stride, int width, int height, int fx, int fy, const quint64 *factors, bool gray)
 {
     int x1 = fx >> 16;
     int x2 = x1 + 1;
@@ -163,7 +177,7 @@ samplePixel(const quint64 *src, int stride, int width, int height, int fx, int f
         vt = _mm_add_epi16(vt, _mm_srli_si128(vt, 8));
     }
     Q_UNUSED(c);
-    return storePixelSse(vt, factors);
+    return storePixelSse(vt, factors, gray);
 #else
     for (int i = 0; i < 4; ++i) {
         const int shift = 16 * i;
@@ -180,10 +194,308 @@ samplePixel(const quint64 *src, int stride, int width, int height, int fx, int f
 #endif
     // c: red, green, blue, alpha (QRgba64 order)
 #if !(defined(__SSE2__) || defined(_M_X64))
-    return storePixel(quint64(c[0]) | (quint64(c[1]) << 16) | (quint64(c[2]) << 32) | (quint64(c[3]) << 48), factors);
+    return storePixel(quint64(c[0]) | (quint64(c[1]) << 16) | (quint64(c[2]) << 32) | (quint64(c[3]) << 48),
+                      factors,
+                      gray);
 #endif
 }
+#ifdef KIS_IMAGE_TIP_AVX2
+bool cpuHasAvx2()
+{
+    static const bool result = __builtin_cpu_supports("avx2");
+    return result;
+}
+
+std::atomic<bool> s_avx2{true};
+
+/*
+ * The AVX2 kernels: four pixels (one QRgba64 per 64-bit lane) with exactly
+ * the integer operations of samplePixel() and storePixel(). Lane dist values
+ * are 32-bit (16.16 fractions); a zero dist skips the interpolation step,
+ * as Qt does (its weight 0x10000 does not fit in 16 bits).
+ */
+
+// dist of each pixel in its four 16-bit channels
+KIS_AVX2_TARGET inline __m256i avxReplicate(__m128i dist)
+{
+    const __m256i pattern = _mm256_setr_epi8(0,
+                                             1,
+                                             0,
+                                             1,
+                                             0,
+                                             1,
+                                             0,
+                                             1,
+                                             8,
+                                             9,
+                                             8,
+                                             9,
+                                             8,
+                                             9,
+                                             8,
+                                             9,
+                                             0,
+                                             1,
+                                             0,
+                                             1,
+                                             0,
+                                             1,
+                                             0,
+                                             1,
+                                             8,
+                                             9,
+                                             8,
+                                             9,
+                                             8,
+                                             9,
+                                             8,
+                                             9);
+    return _mm256_shuffle_epi8(_mm256_cvtepu32_epi64(dist), pattern);
+}
+
+// interpolate_4_pixels_rgb64() step: mulhi(a, 0x10000 - dist) + mulhi(b, dist)
+KIS_AVX2_TARGET inline __m256i avxLerp(__m256i a, __m256i b, __m128i dist)
+{
+    const __m256i weight = avxReplicate(dist);
+    const __m256i inverse = _mm256_sub_epi16(_mm256_setzero_si256(), weight);
+    const __m256i result = _mm256_add_epi16(_mm256_mulhi_epu16(a, inverse), _mm256_mulhi_epu16(b, weight));
+    const __m256i skip = _mm256_cmpeq_epi64(_mm256_cvtepu32_epi64(dist), _mm256_setzero_si256());
+    return _mm256_blendv_epi8(result, a, skip);
+}
+
+// toArgb32() of 32-bit channels
+KIS_AVX2_TARGET inline __m256i avxTo8(__m256i x)
+{
+    x = _mm256_add_epi32(x, _mm256_set1_epi32(128));
+    x = _mm256_sub_epi32(x, _mm256_srli_epi32(x, 8));
+    return _mm256_srli_epi32(x, 8);
+}
+
+// storePixel() of four pixels into out[0..3]
+KIS_AVX2_TARGET inline void avxStore(__m256i v, const quint64 *factors, bool gray, quint32 *out)
+{
+    const __m256i mask16 = _mm256_set1_epi64x(0xffff);
+    const __m256i alpha = _mm256_srli_epi64(v, 48);
+    const __m256i keep =
+        _mm256_or_si256(_mm256_cmpeq_epi64(alpha, _mm256_setzero_si256()), _mm256_cmpeq_epi64(alpha, mask16));
+    if (_mm256_movemask_epi8(keep) != -1) {
+        // unpremultiplied_64bit(): (c * fa + 0x80000000) >> 32 with the
+        // 64-bit fa split into 32-bit halves
+        const __m256i fa = _mm256_i64gather_epi64(reinterpret_cast<const long long *>(factors), alpha, 8);
+        const __m256i faHigh = _mm256_srli_epi64(fa, 32);
+        const __m256i half = _mm256_set1_epi64x(0x80000000LL);
+        __m256i result = _mm256_slli_epi64(alpha, 48);
+        for (int k = 0; k < (gray ? 1 : 3); ++k) {
+            const __m256i c = _mm256_and_si256(_mm256_srli_epi64(v, 16 * k), mask16);
+            const __m256i low = _mm256_mul_epu32(c, fa);
+            const __m256i high = _mm256_mul_epu32(c, faHigh);
+            const __m256i r =
+                _mm256_and_si256(_mm256_add_epi64(_mm256_srli_epi64(_mm256_add_epi64(low, half), 32), high), mask16);
+            result = _mm256_or_si256(result, _mm256_slli_epi64(r, 16 * k));
+            if (gray) {
+                // red == green == blue: the same result for each
+                result = _mm256_or_si256(result, _mm256_slli_epi64(r, 16));
+                result = _mm256_or_si256(result, _mm256_slli_epi64(r, 32));
+            }
+        }
+        v = _mm256_blendv_epi8(result, v, keep);
+    }
+    // toArgb32(): blue, green, red, alpha bytes
+    v = _mm256_shufflelo_epi16(v, _MM_SHUFFLE(3, 0, 1, 2));
+    v = _mm256_shufflehi_epi16(v, _MM_SHUFFLE(3, 0, 1, 2));
+    const __m256i first = avxTo8(_mm256_cvtepu16_epi32(_mm256_castsi256_si128(v))); // pixels 0, 1
+    const __m256i second = avxTo8(_mm256_cvtepu16_epi32(_mm256_extracti128_si256(v, 1))); // pixels 2, 3
+    const __m256i words = _mm256_packus_epi32(first, second); // 0, 2 | 1, 3
+    const __m256i bytes = _mm256_packus_epi16(words, words); // 0, 2, 0, 2 | 1, 3, 1, 3
+    const __m256i ordered = _mm256_permutevar8x32_epi32(bytes, _mm256_setr_epi32(0, 4, 1, 5, 0, 0, 0, 0));
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(out), _mm256_castsi256_si128(ordered));
+}
+
+// fetchTransformedBilinear_pixelBounds() of four positions: v1 and v2
+KIS_AVX2_TARGET inline void avxBounds(__m128i v, __m128i last, __m128i *v1, __m128i *v2)
+{
+    const __m128i zero = _mm_setzero_si128();
+    *v1 = _mm_min_epi32(_mm_max_epi32(v, zero), last);
+    *v2 = _mm_min_epi32(_mm_max_epi32(_mm_add_epi32(v, _mm_set1_epi32(1)), zero), last);
+}
+
+/// The horizontal step of four pixels whose (left, right) pairs are the
+/// 128-bit lanes of pairs01 (pixels 0, 1) and pairs23 (2, 3).
+KIS_AVX2_TARGET inline __m256i avxHorizontal(__m256i pairs01, __m256i pairs23, __m128i distx)
+{
+    auto step = [](__m256i pairs, __m128i dist) KIS_AVX2_TARGET {
+        // [dist0, dist0, dist1, dist1]: the left value's weight is
+        // 0x10000 - dist, the right value's dist
+        const __m128i doubled = _mm_shuffle_epi32(dist, _MM_SHUFFLE(1, 1, 0, 0));
+        const __m256i weight = avxReplicate(doubled);
+        const __m256i weights = _mm256_blend_epi32(weight, _mm256_sub_epi16(_mm256_setzero_si256(), weight), 0x33);
+        const __m256i products = _mm256_mulhi_epu16(pairs, weights);
+        const __m256i sum = _mm256_add_epi16(products, _mm256_srli_si256(products, 8));
+        const __m256i skip = _mm256_cmpeq_epi64(_mm256_cvtepu32_epi64(doubled), _mm256_setzero_si256());
+        return _mm256_blendv_epi8(sum, pairs, skip); // the low quadword of each lane
+    };
+    const __m256i r01 = step(pairs01, distx);
+    const __m256i r23 = step(pairs23, _mm_srli_si128(distx, 8));
+    return _mm256_permute4x64_epi64(_mm256_unpacklo_epi64(r01, r23), _MM_SHUFFLE(3, 1, 2, 0));
+}
+
+// the (left, right) pairs at four indices of src
+KIS_AVX2_TARGET inline void avxLoadPairs(const quint64 *src, __m128i index, __m256i *pairs01, __m256i *pairs23)
+{
+    alignas(16) qint32 i[4];
+    _mm_store_si128(reinterpret_cast<__m128i *>(i), index);
+    *pairs01 = _mm256_loadu2_m128i(reinterpret_cast<const __m128i *>(src + i[1]),
+                                   reinterpret_cast<const __m128i *>(src + i[0]));
+    *pairs23 = _mm256_loadu2_m128i(reinterpret_cast<const __m128i *>(src + i[3]),
+                                   reinterpret_cast<const __m128i *>(src + i[2]));
+}
+
+// whether all four v are in [0, last - 1] (both neighbours unclamped)
+KIS_AVX2_TARGET inline bool avxInterior(__m128i v, int last)
+{
+    const __m128i outside =
+        _mm_or_si128(_mm_cmpgt_epi32(_mm_setzero_si128(), v), _mm_cmpgt_epi32(v, _mm_set1_epi32(last - 1)));
+    return _mm_testz_si128(outside, outside);
+}
+
+/// samplePixel() for the first length / 4 * 4 pixels of a row; returns
+/// how many were written.
+KIS_AVX2_TARGET int avxTransformedRow(const quint64 *src,
+                                      int width,
+                                      int height,
+                                      int fx,
+                                      int fy,
+                                      int fdx,
+                                      int fdy,
+                                      int length,
+                                      const quint64 *factors,
+                                      bool gray,
+                                      quint32 *out)
+{
+    const long long *texels = reinterpret_cast<const long long *>(src);
+    const __m128i steps = _mm_setr_epi32(0, 1, 2, 3);
+    __m128i vx = _mm_add_epi32(_mm_set1_epi32(fx), _mm_mullo_epi32(steps, _mm_set1_epi32(fdx)));
+    __m128i vy = _mm_add_epi32(_mm_set1_epi32(fy), _mm_mullo_epi32(steps, _mm_set1_epi32(fdy)));
+    const __m128i stepX = _mm_set1_epi32(int(quint32(fdx) * 4));
+    const __m128i stepY = _mm_set1_epi32(int(quint32(fdy) * 4));
+    const __m128i lastX = _mm_set1_epi32(width - 1);
+    const __m128i lastY = _mm_set1_epi32(height - 1);
+    const __m128i stride = _mm_set1_epi32(width);
+    const __m128i fraction = _mm_set1_epi32(0xffff);
+    const int count = length / 4 * 4;
+    for (int i = 0; i < count; i += 4) {
+        const __m128i x = _mm_srai_epi32(vx, 16);
+        const __m128i y = _mm_srai_epi32(vy, 16);
+        const __m128i distx = _mm_and_si128(vx, fraction);
+        const __m128i disty = _mm_and_si128(vy, fraction);
+        if (avxInterior(x, width - 1) && avxInterior(y, height - 1)) {
+            // no clamping: each row's two neighbours are adjacent texels
+            const __m128i index = _mm_add_epi32(_mm_mullo_epi32(y, stride), x);
+            __m256i top01, top23, bottom01, bottom23;
+            avxLoadPairs(src, index, &top01, &top23);
+            avxLoadPairs(src, _mm_add_epi32(index, stride), &bottom01, &bottom23);
+            const __m256i pairs01 = avxLerp(top01, bottom01, _mm_shuffle_epi32(disty, _MM_SHUFFLE(1, 1, 0, 0)));
+            const __m256i pairs23 = avxLerp(top23, bottom23, _mm_shuffle_epi32(disty, _MM_SHUFFLE(3, 3, 2, 2)));
+            avxStore(avxHorizontal(pairs01, pairs23, distx), factors, gray, out + i);
+            vx = _mm_add_epi32(vx, stepX);
+            vy = _mm_add_epi32(vy, stepY);
+            continue;
+        }
+        __m128i x1, x2, y1, y2;
+        avxBounds(x, lastX, &x1, &x2);
+        avxBounds(y, lastY, &y1, &y2);
+        const __m128i top = _mm_mullo_epi32(y1, stride);
+        const __m128i bottom = _mm_mullo_epi32(y2, stride);
+        const __m256i tl = _mm256_i32gather_epi64(texels, _mm_add_epi32(top, x1), 8);
+        const __m256i tr = _mm256_i32gather_epi64(texels, _mm_add_epi32(top, x2), 8);
+        const __m256i bl = _mm256_i32gather_epi64(texels, _mm_add_epi32(bottom, x1), 8);
+        const __m256i br = _mm256_i32gather_epi64(texels, _mm_add_epi32(bottom, x2), 8);
+        const __m256i left = avxLerp(tl, bl, disty);
+        const __m256i right = avxLerp(tr, br, disty);
+        avxStore(avxLerp(left, right, distx), factors, gray, out + i);
+        vx = _mm_add_epi32(vx, stepX);
+        vy = _mm_add_epi32(vy, stepY);
+    }
+    return count;
+}
+
+/// The vertical blend of source columns first..last (scale-only rows)
+KIS_AVX2_TARGET void
+avxBlendColumns(const quint64 *top, const quint64 *bottom, quint32 disty, int first, int last, quint64 *blended)
+{
+    const __m256i wt = _mm256_set1_epi16(short(0x10000 - disty));
+    const __m256i wb = _mm256_set1_epi16(short(disty));
+    int c = first;
+    for (; c + 3 <= last; c += 4) {
+        const __m256i vt = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(top + c));
+        const __m256i vb = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(bottom + c));
+        _mm256_storeu_si256(reinterpret_cast<__m256i *>(blended + c),
+                            _mm256_add_epi16(_mm256_mulhi_epu16(vt, wt), _mm256_mulhi_epu16(vb, wb)));
+    }
+    for (; c <= last; ++c) {
+        const __m128i vt = _mm_cvtsi64_si128(qint64(top[c]));
+        const __m128i vb = _mm_cvtsi64_si128(qint64(bottom[c]));
+        blended[c] = quint64(_mm_cvtsi128_si64(_mm_add_epi16(_mm_mulhi_epu16(vt, _mm256_castsi256_si128(wt)),
+                                                             _mm_mulhi_epu16(vb, _mm256_castsi256_si128(wb)))));
+    }
+}
+
+/// The horizontal step of a scale-only row from the blended columns, for
+/// the first length / 4 * 4 pixels; returns how many were written.
+KIS_AVX2_TARGET int avxScaledRow(const quint64 *blended,
+                                 int width,
+                                 int fx,
+                                 int fdx,
+                                 int length,
+                                 const quint64 *factors,
+                                 bool gray,
+                                 quint32 *out)
+{
+    const long long *columns = reinterpret_cast<const long long *>(blended);
+    __m128i vx = _mm_add_epi32(_mm_set1_epi32(fx), _mm_mullo_epi32(_mm_setr_epi32(0, 1, 2, 3), _mm_set1_epi32(fdx)));
+    const __m128i stepX = _mm_set1_epi32(int(quint32(fdx) * 4));
+    const __m128i lastX = _mm_set1_epi32(width - 1);
+    const __m128i fraction = _mm_set1_epi32(0xffff);
+    const int count = length / 4 * 4;
+    for (int i = 0; i < count; i += 4) {
+        const __m128i x = _mm_srai_epi32(vx, 16);
+        const __m128i distx = _mm_and_si128(vx, fraction);
+        if (avxInterior(x, width - 1)) {
+            __m256i pairs01, pairs23;
+            avxLoadPairs(blended, x, &pairs01, &pairs23);
+            avxStore(avxHorizontal(pairs01, pairs23, distx), factors, gray, out + i);
+            vx = _mm_add_epi32(vx, stepX);
+            continue;
+        }
+        __m128i x1, x2;
+        avxBounds(x, lastX, &x1, &x2);
+        const __m256i left = _mm256_i32gather_epi64(columns, x1, 8);
+        const __m256i right = _mm256_i32gather_epi64(columns, x2, 8);
+        avxStore(avxLerp(left, right, distx), factors, gray, out + i);
+        vx = _mm_add_epi32(vx, stepX);
+    }
+    return count;
+}
+#endif
 } // namespace
+
+bool KisImageTipSampler::avx2Enabled()
+{
+#ifdef KIS_IMAGE_TIP_AVX2
+    return cpuHasAvx2() && s_avx2.load(std::memory_order_relaxed);
+#else
+    return false;
+#endif
+}
+
+void KisImageTipSampler::setAvx2EnabledForTesting(bool enabled)
+{
+#ifdef KIS_IMAGE_TIP_AVX2
+    s_avx2.store(enabled);
+#else
+    Q_UNUSED(enabled);
+#endif
+}
 
 quint32 KisImageTipSampler::pixel(const KisImageTipGeometry &geometry, int x, int y)
 {
@@ -203,7 +515,8 @@ quint32 KisImageTipSampler::pixel(const KisImageTipGeometry &geometry, int x, in
                        source.height(),
                        row.fx + step * geometry.fdx,
                        row.fy + step * geometry.fdy,
-                       unpremultiplyFactors());
+                       unpremultiplyFactors(),
+                       geometry.gray);
 }
 
 QImage KisImageTipSampler::render(const KisImageTipGeometry &geometry)
@@ -213,22 +526,53 @@ QImage KisImageTipSampler::render(const KisImageTipGeometry &geometry)
         return source.copy(1, 1, source.width() - 2 * 1, source.height() - 2 * 1);
     }
     QImage image(geometry.size, QImage::Format_ARGB32);
-    image.fill(0);
     const quint64 *src = geometry.premultiplied->constData();
     const quint64 *factors = unpremultiplyFactors();
     const int width = source.width();
     const int height = source.height();
+    for (int y = geometry.rows.size(); y < geometry.size.height(); ++y) {
+        std::fill_n(reinterpret_cast<quint32 *>(image.scanLine(y)), geometry.size.width(), 0u);
+    }
     QVector<quint64> columns; // scale only: the vertical blend of each source column
+    const bool avx2 = avx2Enabled();
+    const bool gray = geometry.gray;
     for (int y = 0; y < geometry.size.height() && y < geometry.rows.size(); ++y) {
         const KisImageTipGeometry::Row &row = geometry.rows[y];
-        if (!row.length)
-            continue;
-        quint32 *line = reinterpret_cast<quint32 *>(image.scanLine(y)) + row.x;
+        // only the pixels outside the row are transparent
+        quint32 *scanLine = reinterpret_cast<quint32 *>(image.scanLine(y));
+        const int imageWidth = geometry.size.width();
+        if (!row.length || row.x < 0 || row.x + row.length > imageWidth) {
+            std::fill_n(scanLine, imageWidth, 0u);
+            if (!row.length)
+                continue;
+        } else {
+            std::fill_n(scanLine, row.x, 0u);
+            std::fill_n(scanLine + row.x + row.length, imageWidth - row.x - row.length, 0u);
+        }
+        quint32 *line = scanLine + row.x;
         int fx = row.fx;
         int fy = row.fy;
         if (geometry.fdy != 0) {
-            for (int i = 0; i < row.length; ++i) {
-                line[i] = samplePixel(src, width, width, height, fx, fy, factors);
+            int i = 0;
+#ifdef KIS_IMAGE_TIP_AVX2
+            if (avx2) {
+                i = avxTransformedRow(src,
+                                      width,
+                                      height,
+                                      fx,
+                                      fy,
+                                      geometry.fdx,
+                                      geometry.fdy,
+                                      row.length,
+                                      factors,
+                                      gray,
+                                      line);
+                fx = int(quint32(fx) + quint32(i) * quint32(geometry.fdx));
+                fy = int(quint32(fy) + quint32(i) * quint32(geometry.fdy));
+            }
+#endif
+            for (; i < row.length; ++i) {
+                line[i] = samplePixel(src, width, width, height, fx, fy, factors, gray);
                 fx += geometry.fdx;
                 fy += geometry.fdy;
             }
@@ -253,6 +597,10 @@ QImage KisImageTipSampler::render(const KisImageTipGeometry &geometry)
         if (!disty) {
             for (int c = first; c <= last; ++c)
                 blended[c] = top[c];
+#ifdef KIS_IMAGE_TIP_AVX2
+        } else if (avx2) {
+            avxBlendColumns(top, bottom, disty, first, last, blended);
+#endif
         } else {
 #if defined(__SSE2__) || defined(_M_X64)
             const __m128i wt = _mm_set1_epi16(short(0x10000 - disty));
@@ -283,7 +631,14 @@ QImage KisImageTipSampler::render(const KisImageTipGeometry &geometry)
             }
 #endif
         }
-        for (int i = 0; i < row.length; ++i) {
+        int i = 0;
+#ifdef KIS_IMAGE_TIP_AVX2
+        if (avx2) {
+            i = avxScaledRow(blended, width, fx, geometry.fdx, row.length, factors, gray, line);
+            fx = int(quint32(fx) + quint32(i) * quint32(geometry.fdx));
+        }
+#endif
+        for (; i < row.length; ++i) {
             int x1 = fx >> 16;
             int x2 = x1 + 1;
             if (Q_UNLIKELY(x1 < 0 || x1 >= width - 1))
@@ -302,7 +657,7 @@ QImage KisImageTipSampler::render(const KisImageTipGeometry &geometry)
                 vt = _mm_mulhi_epu16(_mm_set_epi64x(qint64(right), qint64(left)), horizontalWeights(distx));
                 vt = _mm_add_epi16(vt, _mm_srli_si128(vt, 8));
             }
-            line[i] = storePixelSse(vt, factors);
+            line[i] = storePixelSse(vt, factors, gray);
 #else
             quint64 value = left;
             if (distx) {
@@ -314,11 +669,27 @@ QImage KisImageTipSampler::render(const KisImageTipGeometry &geometry)
                     value |= quint64((((l * (0x10000 - distx)) >> 16) + ((r * distx) >> 16)) & 0xffff) << shift;
                 }
             }
-            line[i] = storePixel(value, factors);
+            line[i] = storePixel(value, factors, gray);
 #endif
         }
     }
     return image;
+}
+
+bool KisImageTipSampler::isGray(const QImage &level)
+{
+    if (level.format() != QImage::Format_ARGB32)
+        return false;
+    for (int y = 0; y < level.height(); ++y) {
+        const quint32 *line = reinterpret_cast<const quint32 *>(level.constScanLine(y));
+        for (int x = 0; x < level.width(); ++x) {
+            const quint32 p = line[x];
+            // transparent texels premultiply to zero in every channel
+            if ((p >> 24) && (qRed(p) != qGreen(p) || qRed(p) != qBlue(p)))
+                return false;
+        }
+    }
+    return true;
 }
 
 QSharedPointer<const QVector<quint64>> KisImageTipSampler::premultiply(const QImage &level)
