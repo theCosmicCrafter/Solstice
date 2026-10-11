@@ -571,3 +571,18 @@ measurements: [gpu-engine.md](../../gpu-engine.md), "Masking brush".
   paying for a masking composite and a projection merge.
 - Tests: `testMaskingCompositeMatchesCpu` (ten modes) and the masked rows of
   `testTexturedMaskedStroke`.
+
+## GPU textured dabs (phase 4.102)
+
+2026-10-11, user request. RGBA32F circle dabs with a pattern texture in the
+14 alpha-only texturing modes are generated and textured on the GPU; once a
+mask kind is verified, the CPU generation and texturing are skipped.
+Details and measurements: [gpu-engine.md](../../gpu-engine.md), "Textured
+dabs".
+
+- The texture is a postprocessing step; the description had to separate the
+  brush tip's reflection (before texturing) from canvas mirroring (after).
+- The CPU fallback (materialization after a refused batch) runs the real
+  `KisTextureOption` code through a small applier, so the C++ side needs no
+  copy of the texture math; the shader's copy is covered by the stroke tests
+  of every mode.

@@ -28,6 +28,10 @@ details are in the phase records, now in the wiki history pages (see
   (RGBA16F, strength modes, no shaderFloat64, `KRITA_GPU_MASKING=0`) stay on
   the CPU brush with a CPU Wash preview and merge
   (`KisIndirectPaintingSupport::temporaryTargetPaintedOnCpu()`).
+- Textured dabs on the GPU (phase 4.102, 2026-10-11; section "Textured
+  dabs"): RGBA32F circle dabs with a pattern texture in one of the 14
+  alpha-only modes are generated and textured on the GPU; Lightness,
+  Gradient, sharpness and RGBA16F stay on the CPU.
 - Phase: **4 (brush prototype), opt-in; phases 4.1–4.5 manually checked,
   phases 4.6 and 4.8 add brush-job and full stroke-strategy coverage.** Phase
   4.7 is also manually confirmed, with combined four-pass painting recorded
@@ -625,6 +629,75 @@ composite ran on the CPU, so masked strokes stayed on the CPU brush.
   the CPU (an alpha device).
 - Manual check reported OK by the user on 2026-10-10.
 
+### Textured dabs (phase 4.102)
+
+Before phase 4.102 a dab with a pattern texture (`KisTextureOption`) was
+generated and textured on the CPU and uploaded as pixels: the texture made
+the dab "postprocessed" (`DabGenerationInfo::needsPostprocessing`), which
+excluded it from GPU descriptions. Textured RGBA32F strokes now describe the
+circle and its texture, and the GPU evaluates both.
+
+- Scope: RGBA32F circle auto-brush dabs (default, Gaussian, Soft) whose only
+  postprocessing is a texture in one of the 14 alpha-only modes (Multiply,
+  Subtract, Darken, Overlay, Color Dodge, Color Burn, Linear Dodge, Linear
+  Burn, Hard Mix and Hard Mix Softer (Photoshop), Height, Linear Height, Height
+  and Linear Height (Photoshop)), hard and soft texturing, any strength
+  (pressure). Lightness and Gradient (they change the dab color), sharpness,
+  RGBA16F dabs and predefined (image) tips stay on the CPU.
+- Description: `KisProceduralDabTexture` (`libs/image/KisProceduralCircleDab.h`),
+  attached as `KisProceduralCircleDab::texture`: the alpha8 pattern texels
+  (`KisTextureMaskInfo::alphaBytes()`, computed once in `recalculateMask()`),
+  the patch origin `offset % size - effectiveOffset` of `apply()`, the
+  `KisMaskingBrushCompositeFuncTypes` mode, the soft flag, the composite
+  function constants as their constructors compute them in float (strength,
+  `0.99 * strength` for Height and Linear Height, its inverse, the
+  10x/9x Photoshop weights), and the brush tip's reflection flips.
+  `KisTextureOption::gpuDescription()` builds it; `apply()` now shares
+  `applyAlphaMask()` with the description's CPU applier.
+- Jobs (`KisDabRenderingJob.cpp`): `buildCircleDab()` accepts a dab whose
+  postprocessing is a GPU texture (`gpuTexture()`). While a mask kind is
+  being verified (phase 4.85), textured dabs are generated and textured on the
+  CPU, and the circle is verified against the original (untextured) pixels.
+  Once the kind is verified, a textured dab skips both the CPU generation and
+  the CPU texturing: the postprocess branch replaces the job's description
+  with the circle plus that dab's texture (`texturedDescriptionCount()`).
+  Postprocess jobs (repeated dab shapes) build their own texture description.
+- Reflections: the brush tip's mirroring (`mirrorFlips(di)`) happens before
+  texturing, canvas mirroring after it. `proceduralFlips` holds both; the
+  shader samples the texture at the generation coordinate reflected by
+  `textureBrushFlips`. `KisRenderedDab::materialize()` renders the circle with
+  the brush flips, applies the CPU texture (`CpuApplier`, the real
+  `KisTextureOption` code), then mirrors by the remaining flips.
+- GPU: `KisGpuDabCompositor::Circle` grows to 176 bytes (texture and table
+  addresses, origin, size, mode, soft, strength, inverted strength, weight,
+  brush flips). The pattern bytes and the 256-entry byte-to-float table
+  (`KoColorSpaceMaths<quint8, float>::scaleToA`) are uploaded once per batch
+  and distinct pointer. `paint_dabs.comp`: `textureTexel()` wraps like
+  `KisFillPainter::fillRect()` (positive modulo), `texturedAlpha()` repeats
+  the strength composite functions of `KisMaskingBrushCompositeOp.h` with
+  `precise` float operations and double divisions, including qMin/qMax/
+  kisBoundFast NaN behaviour.
+- Separate shader builds: the texture code (and the 176-byte Circle
+  fields) is compiled only into `paint_dabs_textured` and
+  `paint_dabs_textured_extended` (`DAB_TEXTURE`, RGBA32F); the compositor
+  uses them only for batches with a textured dab, and the untextured
+  variants keep their previous source. Pitfall: with the (unused) texture
+  code in the existing variants, RGBA16F dabs changed by one half ULP
+  (`KisGpuBrushTest::testHalfDabs` and others) and the RGBA32F Soft circle
+  stopped being bit-exact (`testGeneratedCircleDabsExact`): extra code
+  changes how the driver compiles the existing exact paths.
+- Tests: `KisGpuStrokeTest::testTextureModes` (14 modes x hard/soft at
+  strength 0.6 with a texture offset, some mirrored, plus Lightness as the
+  CPU case; layer and projection against the CPU path, generated, skipped and
+  textured-description counters) and the textured rows of
+  `testTexturedMaskedStroke` (now expected on the GPU).
+- Measurements (`KisGpuStrokeTest`, median of 5, no validation, ms; CPU /
+  GPU projection / GPU brush): 300px textured Buildup 54 / 62 / 16 (GPU brush
+  57 before); 300px textured Wash 65 / 76 / 19 (53 before); 300px masked
+  textured 85 / 99 / 38 (106 before); temporary dense rows (spacing 0.03,
+  both mirrors, masked, textured) 40px 30 / 38 / 31 (36 before), 80px
+  51 / 57 / 27 (41 before).
+
 ## Phase 0 technology decisions
 
 | Topic | Decision | Reason |
@@ -1046,6 +1119,12 @@ Phase 0 has no user-visible behavior. From phase 3 on:
    40px and at a large size, a masked preset in Wash and Buildup, another
    masking mode (e.g. Darken or Subtract), Undo/Redo; the stroke looks like
    the CPU brush (GPU brush off) and does not lag behind it.
+10. Textured dabs on the GPU brush (phase 4.102) on an RGBA32F layer: a
+    textured round brush (Multiply, then Subtract and a Height mode, hard and
+    soft texturing, strength on pressure) at small and large sizes, with
+    mirrors, in Wash and Buildup; the texture lines up between dabs and with
+    the CPU brush (GPU brush off); Undo/Redo; a Lightness-mode texture
+    still paints (CPU).
 
 ## Phase history
 
@@ -1149,6 +1228,7 @@ Section index:
 - [GPU Gaussian blur family (phase 4.98)](wiki/history/gpu-phases-4.93-.md#gpu-gaussian-blur-family-phase-498)
 - [GPU Puppet Warp mesh rendering (phase 4.96)](wiki/history/gpu-phases-4.93-.md#gpu-puppet-warp-mesh-rendering-phase-496)
 - [GPU masking brush composite (phase 4.101)](wiki/history/gpu-phases-4.93-.md#gpu-masking-brush-composite-phase-4101)
+- [GPU textured dabs (phase 4.102)](wiki/history/gpu-phases-4.93-.md#gpu-textured-dabs-phase-4102)
 
 ## Risks and open questions
 

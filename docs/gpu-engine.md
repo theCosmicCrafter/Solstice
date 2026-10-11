@@ -82,9 +82,14 @@ GPU work completes, preserving selections, layer updates and Undo/Redo.
 Large textured brushes now reuse available GPU transfer buffers when the
 memory limit prevents keeping all three buffers. The masking brush's mask
 is combined with the stroke on the GPU on RGBA 32-bit float layers (see the
-GPU brush notes below). These changes reduce avoidable waits, but texture
-generation and painting the masking brush's mask remain CPU operations;
-large or densely spaced strokes can still take time to catch up.
+GPU brush notes below). Round auto-brush dabs with a pattern texture are
+generated and textured on the GPU on RGBA 32-bit float layers, for every
+texturing mode except Lightness and Gradient (which change the brush
+color); for example, a large textured stroke takes about a third of the
+CPU time. Painting the masking brush's mask, textures of image-based
+tips, the Lightness and Gradient modes and the brush Sharpness option
+remain CPU operations; large or densely spaced strokes using them can
+still take time to catch up.
 
 Automated checks compare complete strokes and their layer projections with
 CPU drawing, including Buildup/Wash, mirror painting, selections, alpha lock

@@ -48,6 +48,10 @@ public:
 
     bool hasAlpha();
 
+    /// GPU engine (Solstice): the alpha8 mask texels (maskBounds, row-major),
+    /// or null for an RGB mask (Lightness/Gradient).
+    QSharedPointer<const QVector<quint8>> alphaBytes() const;
+
 private:
     int m_levelOfDetail = 0;
     bool m_preserveAlpha = false;
@@ -66,6 +70,7 @@ private:
 
     KisPaintDeviceSP m_mask;
     QRect m_maskBounds;
+    QSharedPointer<const QVector<quint8>> m_alphaBytes;
 
 };
 

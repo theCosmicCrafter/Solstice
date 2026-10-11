@@ -78,6 +78,8 @@ public:
 
     /// GPU engine (Solstice): dabs whose CPU generation was skipped (tests).
     static quint64 skippedGenerationCount();
+    /// Solstice: pending dabs described with their pattern texture (GPU).
+    static quint64 texturedDescriptionCount();
 
 private:
     KisDabRenderingJobSP m_job;

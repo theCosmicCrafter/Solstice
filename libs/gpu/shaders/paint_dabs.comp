@@ -41,6 +41,14 @@ struct Circle {
     float fadeStart; float fadeStartValue; float fadeCoeff; uint kind;
     uint antialias; uint halfPixels;
     uint64_t curveTable; float curveResolution; uint padding1; uint padding2; uint padding3;
+#ifdef DAB_TEXTURE
+    // KisGpuDabCompositor::Circle is 176 bytes; the untextured builds read
+    // only its first 112.
+    uint64_t texture; uint64_t textureLut;
+    int textureOriginX; int textureOriginY; uint textureWidth; uint textureHeight;
+    uint textureMode; uint textureSoft; float textureStrength; float textureInvertedStrength;
+    float textureWeight; uint textureBrushFlips; uint padding4; uint padding5;
+#endif
 };
 layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer CurveTable { float value[]; };
 layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer Circles { Circle circle; };
@@ -286,6 +294,190 @@ vec4 generatedCircle(Circle c, ivec2 p)
     return vec4(c.color.rgb, alpha);
 }
 
+#ifdef DAB_TEXTURE
+// Textured generated dab (Circle.texture != 0, RGBA32F only; see
+// KisProceduralDabTexture): the pattern texel is composited into the dab
+// alpha like KisMaskingBrushCompositeOp<float, mode, true, true, soft>.
+// KoColorSpaceMathsTraits<float>::compositetype is float: every operation
+// rounds to float in the CPU's order (`precise`), and divisions are done in
+// double and rounded once, the correctly rounded float division.
+layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer TextureBytes { uint word[]; };
+layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer TextureLut { float value[]; };
+
+float txMul(float a, float b) { precise float r = a * b; return r; }
+float txMul3(float a, float b, float c) { precise float ab = a * b; precise float r = ab * c; return r; }
+float txDiv(float a, float b) { precise double q = double(a) / double(b); return float(q); }
+float txInv(float a) { precise float r = 1.0 - a; return r; }
+float txUnion(float a, float b) { const float m = txMul(a, b); precise float s = a + b; precise float r = s - m; return r; }
+// qMin/qMax/kisBoundFast(0, v, 1), including their NaN behaviour
+float txMin(float a, float b) { return a < b ? a : b; }
+float txMax(float a, float b) { return a < b ? b : a; }
+float txBound(float v) { return txMax(0.0, txMin(1.0, v)); }
+bool txFuzzyZero(float v) { return abs(v) <= 0.00001; }
+bool txFuzzyCompare(float a, float b) { precise float d = abs(a - b) * 100000.0; return d <= min(abs(a), abs(b)); }
+
+// CFHardLight<float>::composeChannel(src, dst)
+float txHardLight(float src, float dst)
+{
+    if (txFuzzyCompare(src, 0.5)) return dst;
+    precise float src2 = src + src;
+    if (src > 0.5) {
+        src2 = src2 - 1.0;
+        return txUnion(src2, dst);
+    }
+    return txMul(src2, dst);
+}
+// CFOverlay: hard light with the arguments swapped
+float txOverlay(float src, float dst) { return txHardLight(dst, src); }
+// colorDodgeAlpha<float>
+float txDodge(float src, float dst)
+{
+    if (txFuzzyCompare(src, 1.0)) return txFuzzyZero(dst) ? 0.0 : 1.0;
+    const float result = txBound(txDiv(dst, txInv(src)));
+    return (isnan(result) || isinf(result)) ? 1.0 : result;
+}
+// CFColorBurn<float>
+float txBurn(float src, float dst)
+{
+    if (dst == 1.0) return 1.0;
+    const float quotient = txDiv(txInv(dst), src);
+    if (isnan(quotient) || isinf(quotient)) return 0.0;
+    return 1.0 - clamp(quotient, 0.0, 1.0);
+}
+// CFHardMixPhotoshop<float>
+float txHardMix(float src, float dst) { precise float sum = src + dst; return sum > 1.0 ? 1.0 : 0.0; }
+// hardMixSofterPhotoshopAlpha<float>
+float txHardMixSofter(float src, float dst)
+{
+    precise float a = 3.0 * dst;
+    precise float b = 2.0 * txInv(src);
+    precise float r = a - b;
+    return txBound(r);
+}
+
+float texturedAlpha(Circle c, float src, float dst)
+{
+    const float s = c.textureStrength;
+    const float is = c.textureInvertedStrength;
+    const float w = c.textureWeight;
+    const bool soft = c.textureSoft != 0;
+    switch (c.textureMode) {
+    case 0: // MULT
+        return soft ? txMul(txUnion(src, is), dst) : txMul3(src, dst, s);
+    case 1: // DARKEN
+        return soft ? txMin(txUnion(src, is), dst) : txMin(src, txMul(dst, s));
+    case 2: // OVERLAY
+        return soft ? txOverlay(txUnion(src, is), dst) : txOverlay(src, txMul(dst, s));
+    case 3: // DODGE
+        return soft ? txDodge(txMul(src, s), dst) : txDodge(src, txMul(dst, s));
+    case 4: // BURN
+        return soft ? txBurn(txUnion(src, is), dst) : txBurn(src, txMul(dst, s));
+    case 5: { // LINEAR_BURN
+        if (soft) {
+            precise float sum = txUnion(src, is) + dst;
+            precise float r = sum - 1.0;
+            return txMax(0.0, r);
+        }
+        precise float sum = src + txMul(dst, s);
+        precise float r = sum - 1.0;
+        return txMax(0.0, r);
+    }
+    case 6: { // LINEAR_DODGE
+        if (txFuzzyZero(dst)) return 0.0;
+        precise float sum = soft ? txMul(src, s) + dst : src + txMul(dst, s);
+        return txMin(sum, 1.0);
+    }
+    case 7: // HARD_MIX_PHOTOSHOP
+        return soft ? txMul(txHardMix(txUnion(src, is), dst), txUnion(dst, s)) : txHardMix(src, txMul(dst, s));
+    case 8: // HARD_MIX_SOFTER_PHOTOSHOP
+        return soft ? txHardMixSofter(txMul(src, s), dst) : txHardMixSofter(src, txMul(dst, s));
+    case 9: { // SUBTRACT
+        if (soft) {
+            precise float r = dst - txMul(src, s);
+            return txMax(0.0, r);
+        }
+        precise float sum = src + is;
+        precise float r = dst - sum;
+        return txMax(0.0, r);
+    }
+    case 10: { // HEIGHT
+        const float modified = txDiv(dst, is);
+        if (soft) {
+            precise float r = modified - txMul(src, s);
+            return txBound(r);
+        }
+        precise float sum = src + is;
+        precise float r = modified - sum;
+        return txBound(r);
+    }
+    case 11: { // LINEAR_HEIGHT
+        if (soft) {
+            const float modified = txDiv(dst, is);
+            const float srcTimesStrength = txMul(src, s);
+            precise float multiply = modified * txInv(srcTimesStrength);
+            precise float height = modified - srcTimesStrength;
+            return txBound(txMax(multiply, height));
+        }
+        precise float modified = txDiv(dst, is) - is;
+        precise float multiply = modified * txInv(src);
+        precise float height = modified - src;
+        return txBound(txMax(multiply, height));
+    }
+    case 12: { // HEIGHT_PHOTOSHOP
+        precise float weighted = dst * w;
+        if (soft) {
+            precise float sum = dst + weighted;
+            precise float r = sum - txMul(src, s);
+            return txBound(r);
+        }
+        precise float r = weighted - src;
+        return txBound(r);
+    }
+    default: { // LINEAR_HEIGHT_PHOTOSHOP
+        precise float weighted = dst * w;
+        if (soft) {
+            precise float modified = dst + weighted;
+            const float srcTimesStrength = txMul(src, s);
+            precise float multiply = modified * txInv(srcTimesStrength);
+            precise float height = modified - srcTimesStrength;
+            return txBound(txMax(multiply, height));
+        }
+        precise float multiply = txInv(src) * weighted;
+        precise float height = weighted - src;
+        return txBound(txMax(multiply, height));
+    }
+    }
+}
+
+// The pattern texel of textured-layout pixel p (KisFillPainter's wrap).
+float textureTexel(Circle c, ivec2 p)
+{
+    const int w = int(c.textureWidth);
+    const int h = int(c.textureHeight);
+    const int x = c.textureOriginX + p.x;
+    const int y = c.textureOriginY + p.y;
+    const int tx = x >= 0 ? x % w : w - (-x - 1) % w - 1;
+    const int ty = y >= 0 ? y % h : h - (-y - 1) % h - 1;
+    const uint index = uint(ty * w + tx);
+    const uint packed = TextureBytes(c.texture).word[index / 4];
+    return TextureLut(c.textureLut).value[(packed >> (8 * (index % 4))) & 255];
+}
+
+// A generated dab: the circle, then its texture if any. The texture was
+// applied after the brush tip's mirroring (textureBrushFlips).
+vec4 generatedDab(Circle c, ivec2 p, int width, int height)
+{
+    vec4 source = generatedCircle(c, p);
+    if (c.texture != uint64_t(0)) {
+        ivec2 tp = p;
+        if ((c.textureBrushFlips & 1) != 0) tp.x = width - 1 - tp.x;
+        if ((c.textureBrushFlips & 2) != 0) tp.y = height - 1 - tp.y;
+        source.a = texturedAlpha(c, textureTexel(c, tp), source.a);
+    }
+    return source;
+}
+#endif
+
 vec4 over(vec4 dst, vec4 src, float opacity, float coverage)
 {
     float a = (src.a * opacity) * coverage;
@@ -381,8 +573,13 @@ void main()
             if (p.x < 0 || p.y < 0 || p.x >= dab.width || p.y >= dab.height) continue;
             if ((dab.mirrorFlags & 1) != 0) p.x = dab.width - 1 - p.x;
             if ((dab.mirrorFlags & 2) != 0) p.y = dab.height - 1 - p.y;
+#ifdef DAB_TEXTURE
+            vec4 source = (dab.mirrorFlags & 4) != 0 ? generatedDab(Circles(dab.pixels).circle, p, dab.width, dab.height)
+                                                     : vec4(Pixels(dab.pixels).px[p.y * dab.width + p.x]);
+#else
             vec4 source = (dab.mirrorFlags & 4) != 0 ? generatedCircle(Circles(dab.pixels).circle, p)
                                                      : vec4(Pixels(dab.pixels).px[p.y * dab.width + p.x]);
+#endif
 #ifdef TILE_F16
             if (params.mode == 3) {
                 value = eraseHalf(value, source, dab.opacity, coverage, params.mask != uint64_t(0));

@@ -53,7 +53,22 @@ struct KisRenderedDab
             return;
         }
         device->lazyGrowBufferWithoutInitialization();
-        procedural->render(device->data(), device->bounds().width(), device->bounds().height(), proceduralFlips & 3);
+        if (procedural->texture && procedural->texture->cpu) {
+            // The circle as textured, the CPU texture, then the reflections
+            // made since texturing.
+            const quint32 brushFlips = procedural->texture->brushFlips & 3;
+            procedural->render(device->data(), device->bounds().width(), device->bounds().height(), brushFlips);
+            procedural->texture->cpu->apply(device);
+            const quint32 later = (proceduralFlips & 3) ^ brushFlips;
+            if (later) {
+                device->mirror(later & 1, later & 2);
+            }
+        } else {
+            procedural->render(device->data(),
+                               device->bounds().width(),
+                               device->bounds().height(),
+                               proceduralFlips & 3);
+        }
         pixelsPending = false;
     }
 

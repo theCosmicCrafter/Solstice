@@ -241,6 +241,19 @@ void KisTextureMaskInfo::recalculateMask()
         m_mask->convertFromQImage(mask, 0);
     }
     m_maskBounds = QRect(0, 0, width, height);
+
+    // GPU engine (Solstice): the texels the GPU brush samples.
+    m_alphaBytes.reset();
+    if (!useAlpha && m_mask->pixelSize() == 1) {
+        QSharedPointer<QVector<quint8>> bytes(new QVector<quint8>(width * height));
+        m_mask->readBytes(bytes->data(), m_maskBounds);
+        m_alphaBytes = bytes;
+    }
+}
+
+QSharedPointer<const QVector<quint8>> KisTextureMaskInfo::alphaBytes() const
+{
+    return m_alphaBytes;
 }
 
 bool KisTextureMaskInfo::hasAlpha() {

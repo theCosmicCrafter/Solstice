@@ -17,6 +17,8 @@
 #include "KisBrushOpResources.h"
 #include "KisDabCacheUtils.h"
 #include "KisDabRenderingQueue.h"
+#include "KisSharpnessOption.h"
+#include "kis_texture_option.h"
 
 #include <KoColorModelStandardIds.h>
 #include <KoColorSpace.h>
@@ -91,6 +93,7 @@ constexpr int VerifiedDabsBeforeSkipping = 16;
 std::atomic<int> s_verifiedDabs[3] = {{0}, {0}, {0}};
 std::atomic<bool> s_mismatch[3] = {{false}, {false}, {false}};
 std::atomic<quint64> s_skippedGenerations{0};
+std::atomic<quint64> s_texturedDescriptions{0};
 
 int kindIndex(const KisProceduralCircleDab &circle)
 {
@@ -114,14 +117,33 @@ bool gpuDabsWanted(KisDabCacheUtils::DabRenderingResources *resources)
     return brushResources ? brushResources->gpuDabs : KisGpuBrushPainter::isEnabled();
 }
 
+/// GPU engine (Solstice, "Textured dabs"): the GPU description of the
+/// texture of the dab @p di, when the pattern texture is its only
+/// postprocessing and can run on the GPU (alpha-only modes, RGBA F32).
+QSharedPointer<const KisProceduralDabTexture> gpuTexture(const KisDabCacheUtils::DabGenerationInfo &di,
+                                                         KisDabCacheUtils::DabRenderingResources *resources,
+                                                         const KoColorSpace *dabColorSpace)
+{
+    if (!di.needsPostprocessing || !resources->textureOption || !resources->textureOption->m_enabled
+        || (resources->sharpnessOption && resources->sharpnessOption->isChecked())) {
+        return {};
+    }
+    return resources->textureOption->gpuDescription(di.dstDabRect.topLeft(), di.info, dabColorSpace, mirrorFlips(di));
+}
+
 /// The GPU description of the dab @p di generates, or null when the dab is
-/// not an RGBA F32 vectorized circle auto-brush dab.
+/// not an RGBA F32 vectorized circle auto-brush dab. A dab whose only
+/// postprocessing is a GPU texture (gpuTexture()) is described too; its
+/// description is the circle before texturing.
 QSharedPointer<KisProceduralCircleDab> buildCircleDab(const KisDabCacheUtils::DabGenerationInfo &di,
                                                       KisDabCacheUtils::DabRenderingResources *resources,
                                                       const KisFixedPaintDeviceSP &dab)
 {
-    if (!gpuDabsWanted(resources) || !di.solidColorFill || di.needsPostprocessing || !dab || !resources->brush
+    if (!gpuDabsWanted(resources) || !di.solidColorFill || !dab || !resources->brush
         || resources->brush->brushApplication() == IMAGESTAMP) {
+        return {};
+    }
+    if (di.needsPostprocessing && !gpuTexture(di, resources, dab->colorSpace())) {
         return {};
     }
     const KoColorSpace *cs = dab->colorSpace();
@@ -239,6 +261,11 @@ quint64 KisDabRenderingJobRunner::skippedGenerationCount()
     return s_skippedGenerations.load();
 }
 
+quint64 KisDabRenderingJobRunner::texturedDescriptionCount()
+{
+    return s_texturedDescriptions.load();
+}
+
 KisDabRenderingJobRunner::KisDabRenderingJobRunner(KisDabRenderingJobSP job,
                                                    KisDabRenderingQueue *parentQueue,
                                                    KisRunnableStrokeJobsInterface *runnableJobsInterface)
@@ -306,6 +333,22 @@ int KisDabRenderingJobRunner::executeOneJob(KisDabRenderingJob *job,
                 *job->postprocessedDevice = *job->originalDevice;
             }
 
+            // GPU engine (Solstice, "Textured dabs"): a pending dab whose
+            // texture runs on the GPU stays pending; its description is the
+            // circle with this dab's texture.
+            QSharedPointer<const KisProceduralDabTexture> texture;
+            if (job->pixelsPending && job->procedural) {
+                texture = gpuTexture(job->generationInfo, resources, job->postprocessedDevice->colorSpace());
+            }
+            if (texture) {
+                QSharedPointer<KisProceduralCircleDab> textured(new KisProceduralCircleDab(*job->procedural));
+                textured->texture = texture;
+                job->procedural = textured;
+                job->proceduralFlips = texture->brushFlips;
+                s_texturedDescriptions++;
+                return executionTime.nsecsElapsed() / 1000;
+            }
+
             // GPU engine (Solstice): the shared original of a pending dab
             // has no pixels; render them into this job's own copy.
             if (job->pixelsPending && job->procedural) {
@@ -332,8 +375,16 @@ int KisDabRenderingJobRunner::executeOneJob(KisDabRenderingJob *job,
 
     if (generated) {
         job->proceduralFlips = 0;
-        job->procedural =
-            describeCircleDab(job->generationInfo, resources, job->postprocessedDevice, &job->proceduralFlips);
+        if (job->generationInfo.needsPostprocessing) {
+            // Textured: verify the circle against the original pixels (the
+            // kind then skips CPU generation); the CPU-textured pixels are
+            // not described.
+            quint32 flips = 0;
+            describeCircleDab(job->generationInfo, resources, job->originalDevice, &flips);
+        } else {
+            job->procedural =
+                describeCircleDab(job->generationInfo, resources, job->postprocessedDevice, &job->proceduralFlips);
+        }
     }
 
     return executionTime.nsecsElapsed() / 1000;

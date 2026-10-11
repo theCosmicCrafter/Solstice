@@ -682,3 +682,16 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   feature requirements; `KRITA_GPU_ALLOW_SOFTWARE_DEVICE=1` re-enables
   software devices for diagnostics.
 - User manual check OK on 2026-10-11.
+
+## 2026-10-11 ingest: GPU textured dabs (phase 4.102)
+
+- RGBA32F circle dabs with a pattern texture in the 14 alpha-only modes are
+  generated and textured on the GPU ([gpu-engine.md](../gpu-engine.md),
+  "Textured dabs"; [history](history/gpu-phases-4.93-.md#gpu-textured-dabs-phase-4102)).
+  300px textured strokes: CPU 54 ms, GPU brush 57 -> 15 ms.
+- Lesson: keep the CPU fallback on the real CPU code (an applier object)
+  instead of a second C++ copy of the math; test the shader copy per mode.
+- Pitfall: adding unused code to an existing exact shader variant changed
+  its results (RGBA16F by one half ULP, the Soft circle no longer
+  bit-exact); new features get their own shader variants.
+- User manual check OK on 2026-10-11.

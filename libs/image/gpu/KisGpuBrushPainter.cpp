@@ -185,6 +185,22 @@ bool KisGpuBrushPainter::paintMirrored(KisPainter *painter,
         return false;
     return paintImpl(painter, dabs, &paintRects, true);
 }
+namespace
+{
+/// KoColorSpaceMaths<quint8, float>::scaleToA() (KoLuts::Uint8ToFloat), the
+/// texture byte values KisMaskingBrushCompositeOp composites ("Textured dabs").
+const float *uint8ToFloatTable()
+{
+    static const std::array<float, 256> table = []() {
+        std::array<float, 256> values{};
+        for (int i = 0; i < 256; ++i)
+            values[size_t(i)] = KoColorSpaceMaths<quint8, float>::scaleToA(quint8(i));
+        return values;
+    }();
+    return table.data();
+}
+} // namespace
+
 bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
                                    const QList<KisRenderedDab> &dabs,
                                    const QVector<QRect> *paintRects,
@@ -262,7 +278,9 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
             // reflections since generation combine with this pass's reflection.
             // RGBA32F and (phase 4.86) RGBA16F descriptions; the dab color
             // space already equals the device's.
-            const bool generated = dab.procedural && pixelSize == (dab.procedural->halfPixels ? 8 : 16);
+            // Textured descriptions ("Textured dabs") are RGBA32F only.
+            const bool generated = dab.procedural && pixelSize == (dab.procedural->halfPixels ? 8 : 16)
+                && (!dab.procedural->texture || (pixelSize == 16 && dab.procedural->texture->pattern));
             KisGpuDabCompositor::Circle circle;
             if (generated) {
                 const KisProceduralCircleDab &source = *dab.procedural;
@@ -286,6 +304,18 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
                 circle.curveResolution = source.curveResolution;
                 std::copy(source.color, source.color + 4, circle.color);
                 circle.antialias = source.antialias ? 1 : 0;
+                if (const KisProceduralDabTexture *texture = source.texture.data()) {
+                    circle.textureOriginX = texture->originX;
+                    circle.textureOriginY = texture->originY;
+                    circle.textureWidth = quint32(texture->width);
+                    circle.textureHeight = quint32(texture->height);
+                    circle.textureMode = texture->mode;
+                    circle.textureSoft = texture->soft ? 1 : 0;
+                    circle.textureStrength = texture->strength;
+                    circle.textureInvertedStrength = texture->invertedStrength;
+                    circle.textureWeight = texture->weight;
+                    circle.textureBrushFlips = texture->brushFlips & 3;
+                }
             }
             for (const QRect &clip : clipped) {
                 if (inputs.size() >= 65536)
@@ -307,6 +337,10 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
                         return false;
                     input.curveTable = dab.procedural->curveTable->constData();
                     input.curveTableSize = dab.procedural->curveTable->size();
+                }
+                if (generated && dab.procedural->texture) {
+                    input.texture = dab.procedural->texture->pattern->constData();
+                    input.textureLut = uint8ToFloatTable();
                 }
                 inputs << input;
             }

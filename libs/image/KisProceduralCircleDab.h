@@ -15,6 +15,41 @@
 
 #include <half.h>
 
+#include "kis_types.h"
+
+/**
+ * GPU engine (Solstice): the pattern texture of a described dab
+ * (KisTextureOption, the alpha-only texturing modes), applied on the GPU
+ * after the circle (docs/agent/gpu-engine.md, "Textured dabs"). Dab pixel
+ * (x, y) of the textured layout reads pattern texel
+ * ((originX + x) mod width, (originY + y) mod height) and composites it
+ * into the dab alpha like KisMaskingBrushCompositeOp<float, mode, true,
+ * true, soft>. The textured layout is the generation layout reflected by
+ * brushFlips (the brush tip's mirroring happens before texturing).
+ */
+struct KisProceduralDabTexture {
+    /// Applies the same texture on the CPU, for materialized dabs.
+    struct CpuApplier {
+        virtual ~CpuApplier() = default;
+        virtual void apply(KisFixedPaintDeviceSP dab) const = 0;
+    };
+
+    QSharedPointer<const QVector<quint8>> pattern; // alpha8 texels, row-major
+    int width = 0;
+    int height = 0;
+    int originX = 0;
+    int originY = 0;
+    quint32 mode = 0; // KisMaskingBrushCompositeFuncTypes
+    bool soft = false;
+    // The composite function's constants, as its constructor computes
+    // them in float (StrengthCompositeFunctionBase and the weights).
+    float strength = 0.0f;
+    float invertedStrength = 0.0f;
+    float weight = 0.0f;
+    quint32 brushFlips = 0;
+    QSharedPointer<const CpuApplier> cpu;
+};
+
 /**
  * GPU engine (Solstice): the parameters of an RGBA F32 dab of a circle auto
  * brush (KisCircleMaskGenerator or KisGaussCircleMaskGenerator, vectorized
@@ -64,6 +99,10 @@ struct KisProceduralCircleDab {
     /// RGBA F16 dab (phase 4.86): the color holds exact half values, and the
     /// alpha is stored as half(alphaAt()) (Imath, round to nearest even).
     bool halfPixels = false;
+    /// Optional pattern texture (RGBA F32 only). render() and
+    /// matchesPixel() describe the circle without it; KisRenderedDab::
+    /// materialize() applies it.
+    QSharedPointer<const KisProceduralDabTexture> texture;
 
     inline float fadeAt(int x, int y) const
     {

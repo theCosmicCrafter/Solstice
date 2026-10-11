@@ -61,7 +61,8 @@ public:
     /**
      * A default or Gaussian circle auto-brush dab evaluated on the GPU
      * instead of uploaded pixels (RGBA32F or RGBA16F; KisProceduralCircleDab
-     * in kritaimage defines the math). Shader layout: 112 bytes.
+     * in kritaimage defines the math), optionally textured (RGBA32F;
+     * KisProceduralDabTexture). Shader layout: 176 bytes.
      */
     struct Circle {
         float color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -79,6 +80,16 @@ public:
         VkDeviceAddress curveTable = 0; // kind 2: set by record()
         float curveResolution = 0.0f; // kind 2
         quint32 padding1[3] = {0, 0, 0};
+        // Pattern texture: set by record() from Dab::texture; zero means none.
+        VkDeviceAddress texture = 0;
+        VkDeviceAddress textureLut = 0;
+        qint32 textureOriginX = 0, textureOriginY = 0;
+        quint32 textureWidth = 0, textureHeight = 0;
+        quint32 textureMode = 0, textureSoft = 0; // KisMaskingBrushCompositeFuncTypes
+        float textureStrength = 0.0f, textureInvertedStrength = 0.0f;
+        float textureWeight = 0.0f;
+        quint32 textureBrushFlips = 0;
+        quint32 padding2[2] = {0, 0};
     };
     struct Dab {
         const void *pixels = nullptr; // RGBA32F, or RGBA16F when pixelSize is 8; unused when generated
@@ -93,6 +104,11 @@ public:
         Circle circle;
         const float *curveTable = nullptr; // Soft kind: uploaded once per distinct pointer
         int curveTableSize = 0;
+        // Textured generated dab: alpha8 texels (circle.textureWidth x
+        // textureHeight) and the 256-entry byte-to-float table
+        // (KoLuts::Uint8ToFloat), each uploaded once per distinct pointer.
+        const quint8 *texture = nullptr;
+        const float *textureLut = nullptr;
     };
     struct Mask {
         const quint8 *pixels;
@@ -137,6 +153,9 @@ private:
     std::shared_ptr<KisGpuComputePipeline> m_extendedPipeline;
     std::shared_ptr<KisGpuComputePipeline> m_halfPipeline;
     std::shared_ptr<KisGpuComputePipeline> m_halfExtendedPipeline;
+    // Textured dabs (phase 4.102), RGBA32F
+    std::shared_ptr<KisGpuComputePipeline> m_texturedPipeline;
+    std::shared_ptr<KisGpuComputePipeline> m_texturedExtendedPipeline;
     std::unique_ptr<KisGpuBuffer> m_upload;
 };
 #endif

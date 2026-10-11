@@ -79,6 +79,14 @@ temporary-target flag and the GPU job in `doMaskingBrushUpdates()` in
 `m_maskedStroke` and the masked GPU-brush decision and update period in
 `plugins/paintops/defaultpaintops/brush/kis_brushop.{h,cpp}`.
 
+GPU phase 4.102 (textured dabs on the GPU) changes upstream files:
+`KisTextureOption::gpuDescription()`, `alphaCompositeOpId()`, `applyAlphaMask()` and the
+`KisTextureCpuApplier` class in `plugins/paintops/libpaintop/kis_texture_option.{h,cpp}`
+(`apply()` now calls `applyAlphaMask()`); `alphaBytes()` in
+`plugins/paintops/libpaintop/KisTextureMaskInfo.{h,cpp}`; `gpuTexture()` and the textured
+description branch in `plugins/paintops/defaultpaintops/brush/KisDabRenderingJob.{h,cpp}`;
+the textured branch of `materialize()` in `libs/image/KisRenderedDab.h`.
+
 GPU phases 4.36-4.37 forward per-channel layer flags in
 `libs/image/gpu/KisGpuMergeBatch.*`, allow F16 channel masks in
 `KisGpuProjectionCompositor.cpp`, and align the established F16 generic blend

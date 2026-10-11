@@ -173,6 +173,60 @@ private Q_SLOTS:
         });
         runStroke(false);
     }
+    void testTextureModes_data()
+    {
+        QTest::addColumn<int>("diameter");
+        QTest::addColumn<bool>("wash");
+        QTest::addColumn<bool>("mirrors");
+        QTest::addColumn<bool>("restricted");
+        QTest::addColumn<bool>("distant");
+        QTest::addColumn<bool>("alphaOnly");
+        QTest::addColumn<int>("textureMode");
+        QTest::addColumn<bool>("soft");
+        const QList<QPair<int, QString>> modes{
+            {KisTextureOptionData::MULTIPLY, QStringLiteral("multiply")},
+            {KisTextureOptionData::SUBTRACT, QStringLiteral("subtract")},
+            {KisTextureOptionData::DARKEN, QStringLiteral("darken")},
+            {KisTextureOptionData::OVERLAY, QStringLiteral("overlay")},
+            {KisTextureOptionData::COLOR_DODGE, QStringLiteral("dodge")},
+            {KisTextureOptionData::COLOR_BURN, QStringLiteral("burn")},
+            {KisTextureOptionData::LINEAR_DODGE, QStringLiteral("linear_dodge")},
+            {KisTextureOptionData::LINEAR_BURN, QStringLiteral("linear_burn")},
+            {KisTextureOptionData::HARD_MIX_PHOTOSHOP, QStringLiteral("hard_mix")},
+            {KisTextureOptionData::HARD_MIX_SOFTER_PHOTOSHOP, QStringLiteral("hard_mix_softer")},
+            {KisTextureOptionData::HEIGHT, QStringLiteral("height")},
+            {KisTextureOptionData::LINEAR_HEIGHT, QStringLiteral("linear_height")},
+            {KisTextureOptionData::HEIGHT_PHOTOSHOP, QStringLiteral("height_photoshop")},
+            {KisTextureOptionData::LINEAR_HEIGHT_PHOTOSHOP, QStringLiteral("linear_height_photoshop")},
+            // CPU texturing (changes the dab color): never described
+            {KisTextureOptionData::LIGHTNESS, QStringLiteral("lightness")}};
+        int row = 0;
+        for (const auto &mode : modes) {
+            for (bool soft : {false, true}) {
+                const bool mirrors = row % 5 == 2;
+                QTest::newRow(qPrintable(
+                    QStringLiteral("%1-%2%3").arg(mode.second, soft ? "soft" : "hard", mirrors ? "-mirrors" : "")))
+                    << 80 << (row % 2 == 1) << mirrors << false << false << false << mode.first << soft;
+                ++row;
+            }
+        }
+    }
+    void testTextureModes()
+    {
+        // GPU textured dabs ("Textured dabs"): every alpha-only texturing
+        // mode, hard and soft, at strength 0.6 with a texture offset.
+        QFETCH(int, textureMode);
+        QFETCH(bool, soft);
+        m_textureMode = textureMode;
+        m_softTexturing = soft;
+        m_textureStrength = 0.6;
+        auto restore = qScopeGuard([this]() {
+            m_textureMode = -1;
+            m_softTexturing = false;
+            m_textureStrength = 1.0;
+        });
+        runStroke(false, false, -1, QString(), false, true);
+    }
     void testGaussStroke()
     {
         // Phase 4.84: the Gaussian circle mask (the measured Basic-4 preset family).
@@ -446,6 +500,10 @@ private Q_SLOTS:
 
 private:
     QString m_maskGenerator = QStringLiteral("default");
+    // Texture settings of textured strokes (testTextureModes); -1: Multiply.
+    int m_textureMode = -1;
+    bool m_softTexturing = false;
+    qreal m_textureStrength = 1.0;
     int m_refusePendingBatches = 0;
     void runStroke(bool erase,
                    bool selectionOnly = false,
@@ -525,7 +583,19 @@ private:
             KisTextureOptionData texture;
             texture.isEnabled = true;
             texture.textureData = KisEmbeddedTextureData::fromPattern(pattern);
+            if (m_textureMode >= 0) {
+                texture.texturingMode = KisTextureOptionData::TexturingMode(m_textureMode);
+                texture.useSoftTexturing = m_softTexturing;
+                texture.offsetX = 5;
+                texture.offsetY = 11;
+            }
             texture.write(settings.data());
+            if (m_textureStrength != 1.0) {
+                KisStrengthOptionData strength;
+                strength.useCurve = false;
+                strength.strengthValue = m_textureStrength;
+                strength.write(settings.data());
+            }
         }
         KisPaintOpPresetSP preset(new KisPaintOpPreset());
         preset->setSettings(settings);
@@ -604,6 +674,7 @@ private:
                 const auto firstBatch = KisGpuBrushPainter::batchCount();
                 const auto firstGenerated = KisGpuBrushPainter::generatedDabCount();
                 const auto firstSkipped = KisDabRenderingJobRunner::skippedGenerationCount();
+                const auto firstTexturedDescriptions = KisDabRenderingJobRunner::texturedDescriptionCount();
                 const auto firstMaterialized = KisBrushOp::materializedDabCount();
                 const auto firstMaskingRuns = KisGpuMaskingWorker::runCount();
                 KisGpuBrushPainter::refusePendingBatchesForTesting(path == 2 ? m_refusePendingBatches : 0);
@@ -667,22 +738,33 @@ private:
                 else if (!gpuBrush)
                     QCOMPARE(batches, quint64(0));
                 // Phase 4.83: the circle dabs of RGBA32F strokes are evaluated
-                // on the GPU; textured dabs and RGBA16F keep their pixels.
+                // on the GPU. "Textured dabs": RGBA32F dabs with an alpha-only
+                // texture too; Lightness/Gradient and RGBA16F textures keep
+                // their pixels.
+                const bool gpuTexture = textured && !half && m_textureMode != KisTextureOptionData::LIGHTNESS
+                    && m_textureMode != KisTextureOptionData::GRADIENT;
+                const bool describable = !textured || gpuTexture;
                 const auto generated = KisGpuBrushPainter::generatedDabCount() - firstGenerated;
                 // Phase 4.86: RGBA16F dabs are generated too.
-                if (gpuBrush && !textured && !m_refusePendingBatches)
+                if (gpuBrush && describable && !m_refusePendingBatches)
                     QVERIFY(generated > 0);
-                else if (!gpuBrush || textured)
+                else if (!gpuBrush || !describable)
                     QCOMPARE(generated, quint64(0));
                 // Phase 4.85: after the first verified dabs of each mask kind,
                 // their CPU generation is skipped; every CPU use materializes them.
                 const auto skipped = KisDabRenderingJobRunner::skippedGenerationCount() - firstSkipped;
-                if (gpuBrush && !textured)
+                if (gpuBrush && describable)
                     QVERIFY(skipped > 0);
                 else
                     QCOMPARE(skipped, quint64(0));
+                const auto texturedDescriptions =
+                    KisDabRenderingJobRunner::texturedDescriptionCount() - firstTexturedDescriptions;
+                if (gpuBrush && gpuTexture)
+                    QVERIFY(texturedDescriptions > 0);
+                else
+                    QCOMPARE(texturedDescriptions, quint64(0));
                 const auto materialized = KisBrushOp::materializedDabCount() - firstMaterialized;
-                if (gpuBrush && !textured && m_refusePendingBatches)
+                if (gpuBrush && describable && m_refusePendingBatches)
                     QVERIFY(materialized > 0);
                 KisGpuBrushPainter::refusePendingBatchesForTesting(0);
                 const auto after = pixels(layer->paintDevice());

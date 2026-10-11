@@ -36,6 +36,12 @@
 #include <KoResourceLoadResult.h>
 #include <kis_paint_information.h>
 
+// GPU engine (Solstice): textured dab descriptions
+#include <KisProceduralCircleDab.h>
+#include <KoColorModelStandardIds.h>
+#include <KoColorSpaceMaths.h>
+#include <strokes/KisMaskingBrushCompositeOp.h>
+
 /**********************************************************************/
 /*       KisTextureOption                                             */
 /**********************************************************************/
@@ -311,6 +317,56 @@ void KisTextureOption::apply(KisFixedPaintDeviceSP dab, const QPoint &offset, co
     // Compute final strength
     qreal strength = m_strengthOption.apply(info);
 
+    const QString compositeOpId = alphaCompositeOpId(m_texturingMode);
+    if (compositeOpId.isEmpty()) {
+        return;
+    }
+    applyAlphaMask(dab, maskPatch, maskPatchRect, compositeOpId, strength, m_useSoftTexturing);
+}
+
+QString KisTextureOption::alphaCompositeOpId(KisTextureOptionData::TexturingMode mode)
+{
+    switch (mode) {
+    case KisTextureOptionData::MULTIPLY:
+        return COMPOSITE_MULT;
+    case KisTextureOptionData::SUBTRACT:
+        return COMPOSITE_SUBTRACT;
+    case KisTextureOptionData::DARKEN:
+        return COMPOSITE_DARKEN;
+    case KisTextureOptionData::OVERLAY:
+        return COMPOSITE_OVERLAY;
+    case KisTextureOptionData::COLOR_DODGE:
+        return COMPOSITE_DODGE;
+    case KisTextureOptionData::COLOR_BURN:
+        return COMPOSITE_BURN;
+    case KisTextureOptionData::LINEAR_DODGE:
+        return COMPOSITE_LINEAR_DODGE;
+    case KisTextureOptionData::LINEAR_BURN:
+        return COMPOSITE_LINEAR_BURN;
+    case KisTextureOptionData::HARD_MIX_PHOTOSHOP:
+        return COMPOSITE_HARD_MIX_PHOTOSHOP;
+    case KisTextureOptionData::HARD_MIX_SOFTER_PHOTOSHOP:
+        return COMPOSITE_HARD_MIX_SOFTER_PHOTOSHOP;
+    case KisTextureOptionData::HEIGHT:
+        return QStringLiteral("height");
+    case KisTextureOptionData::LINEAR_HEIGHT:
+        return QStringLiteral("linear_height");
+    case KisTextureOptionData::HEIGHT_PHOTOSHOP:
+        return QStringLiteral("height_photoshop");
+    case KisTextureOptionData::LINEAR_HEIGHT_PHOTOSHOP:
+        return QStringLiteral("linear_height_photoshop");
+    default:
+        return QString();
+    }
+}
+
+void KisTextureOption::applyAlphaMask(KisFixedPaintDeviceSP dab,
+                                      KisPaintDeviceSP maskPatch,
+                                      const QRect &maskPatchRect,
+                                      const QString &compositeOpId,
+                                      qreal strength,
+                                      bool useSoftTexturing)
+{
     // Select mask compositing op
     KoChannelInfo::enumChannelValueType alphaChannelType = KoChannelInfo::UINT8;
     int alphaChannelOffset = -1;
@@ -330,28 +386,12 @@ void KisTextureOption::apply(KisFixedPaintDeviceSP dab, const QPoint &offset, co
     }
 
     QScopedPointer<KisMaskingBrushCompositeOpBase> compositeOp;
-    QString compositeOpId;
-
-    switch (m_texturingMode) {
-    case KisTextureOptionData::MULTIPLY: compositeOpId = COMPOSITE_MULT; break;
-    case KisTextureOptionData::SUBTRACT: compositeOpId = COMPOSITE_SUBTRACT; break;
-    case KisTextureOptionData::DARKEN: compositeOpId = COMPOSITE_DARKEN; break;
-    case KisTextureOptionData::OVERLAY: compositeOpId = COMPOSITE_OVERLAY; break;
-    case KisTextureOptionData::COLOR_DODGE: compositeOpId = COMPOSITE_DODGE; break;
-    case KisTextureOptionData::COLOR_BURN: compositeOpId = COMPOSITE_BURN; break;
-    case KisTextureOptionData::LINEAR_DODGE: compositeOpId = COMPOSITE_LINEAR_DODGE; break;
-    case KisTextureOptionData::LINEAR_BURN: compositeOpId = COMPOSITE_LINEAR_BURN; break;
-    case KisTextureOptionData::HARD_MIX_PHOTOSHOP: compositeOpId = COMPOSITE_HARD_MIX_PHOTOSHOP; break;
-    case KisTextureOptionData::HARD_MIX_SOFTER_PHOTOSHOP: compositeOpId = COMPOSITE_HARD_MIX_SOFTER_PHOTOSHOP; break;
-    case KisTextureOptionData::HEIGHT: compositeOpId = "height"; break;
-    case KisTextureOptionData::LINEAR_HEIGHT: compositeOpId = "linear_height"; break;
-    case KisTextureOptionData::HEIGHT_PHOTOSHOP: compositeOpId = "height_photoshop"; break;
-    case KisTextureOptionData::LINEAR_HEIGHT_PHOTOSHOP: compositeOpId = "linear_height_photoshop"; break;
-    default: return;
-    }
-    compositeOp.reset(KisMaskingBrushCompositeOpFactory::createForAlphaSrc(
-                        compositeOpId, alphaChannelType, dab->pixelSize(),
-                        alphaChannelOffset, strength, m_useSoftTexturing));
+    compositeOp.reset(KisMaskingBrushCompositeOpFactory::createForAlphaSrc(compositeOpId,
+                                                                           alphaChannelType,
+                                                                           dab->pixelSize(),
+                                                                           alphaChannelOffset,
+                                                                           strength,
+                                                                           useSoftTexturing));
 
     // Apply the mask to the dab
     {
@@ -394,4 +434,134 @@ void KisTextureOption::apply(KisFixedPaintDeviceSP dab, const QPoint &offset, co
             rowsRemaining -= rows;
         }
     }
+}
+
+/**
+ * GPU engine (Solstice): applies a described texture on the CPU when a
+ * pending dab is materialized (the GPU refused the batch): the same mask
+ * patch and composite as KisTextureOption::apply().
+ */
+class KisTextureCpuApplier : public KisProceduralDabTexture::CpuApplier
+{
+public:
+    KisTextureCpuApplier(KisTextureMaskInfoSP maskInfo,
+                         QPoint patchOrigin,
+                         QString compositeOpId,
+                         qreal strength,
+                         bool soft)
+        : m_maskInfo(maskInfo)
+        , m_patchOrigin(patchOrigin)
+        , m_compositeOpId(compositeOpId)
+        , m_strength(strength)
+        , m_soft(soft)
+    {
+    }
+
+    void apply(KisFixedPaintDeviceSP dab) const override
+    {
+        const QRect rect = dab->bounds();
+        const QRect maskPatchRect(m_patchOrigin, rect.size());
+        KisPaintDeviceSP maskPatch = new KisPaintDevice(KoColorSpaceRegistry::instance()->alpha8());
+        KisFillPainter fillPainter(maskPatch);
+        fillPainter.setCompositeOpId(COMPOSITE_COPY);
+        fillPainter.fillRect(kisGrowRect(maskPatchRect, 1), m_maskInfo->mask(), m_maskInfo->maskBounds());
+        fillPainter.end();
+        KisTextureOption::applyAlphaMask(dab, maskPatch, maskPatchRect, m_compositeOpId, m_strength, m_soft);
+    }
+
+private:
+    KisTextureMaskInfoSP m_maskInfo;
+    QPoint m_patchOrigin;
+    QString m_compositeOpId;
+    qreal m_strength;
+    bool m_soft;
+};
+
+QSharedPointer<const KisProceduralDabTexture> KisTextureOption::gpuDescription(const QPoint &offset,
+                                                                               const KisPaintInformation &info,
+                                                                               const KoColorSpace *dabColorSpace,
+                                                                               quint32 brushFlips) const
+{
+    if (!m_enabled || !m_maskInfo || !m_maskInfo->isValid() || !dabColorSpace
+        || dabColorSpace->colorModelId() != RGBAColorModelID || dabColorSpace->colorDepthId() != Float32BitsColorDepthID
+        || dabColorSpace->pixelSize() != 16) {
+        return {};
+    }
+    const QString compositeOpId = alphaCompositeOpId(m_texturingMode);
+    const QSharedPointer<const QVector<quint8>> pattern = m_maskInfo->alphaBytes();
+    const QRect maskBounds = m_maskInfo->maskBounds();
+    if (compositeOpId.isEmpty() || !pattern || maskBounds.topLeft() != QPoint()
+        || pattern->size() != maskBounds.width() * maskBounds.height()) {
+        return {};
+    }
+    using namespace KisMaskingBrushCompositeDetail;
+    QSharedPointer<KisProceduralDabTexture> texture(new KisProceduralDabTexture());
+    texture->pattern = pattern;
+    texture->width = maskBounds.width();
+    texture->height = maskBounds.height();
+    // The patch origin of apply()
+    texture->originX = offset.x() % maskBounds.width() - effectiveOffsetX(info);
+    texture->originY = offset.y() % maskBounds.height() - effectiveOffsetY(info);
+    const qreal strength = m_strengthOption.apply(info);
+    texture->soft = m_useSoftTexturing;
+    texture->brushFlips = brushFlips & 3;
+    // The composite function constants, computed as their constructors do
+    // (KisMaskingBrushCompositeOp.h).
+    switch (m_texturingMode) {
+    case KisTextureOptionData::MULTIPLY:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_MULT;
+        break;
+    case KisTextureOptionData::SUBTRACT:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_SUBTRACT;
+        break;
+    case KisTextureOptionData::DARKEN:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_DARKEN;
+        break;
+    case KisTextureOptionData::OVERLAY:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_OVERLAY;
+        break;
+    case KisTextureOptionData::COLOR_DODGE:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_DODGE;
+        break;
+    case KisTextureOptionData::COLOR_BURN:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_BURN;
+        break;
+    case KisTextureOptionData::LINEAR_DODGE:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_LINEAR_DODGE;
+        break;
+    case KisTextureOptionData::LINEAR_BURN:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_LINEAR_BURN;
+        break;
+    case KisTextureOptionData::HARD_MIX_PHOTOSHOP:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_HARD_MIX_PHOTOSHOP;
+        break;
+    case KisTextureOptionData::HARD_MIX_SOFTER_PHOTOSHOP:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_HARD_MIX_SOFTER_PHOTOSHOP;
+        break;
+    case KisTextureOptionData::HEIGHT:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_HEIGHT;
+        break;
+    case KisTextureOptionData::LINEAR_HEIGHT:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_LINEAR_HEIGHT;
+        break;
+    case KisTextureOptionData::HEIGHT_PHOTOSHOP:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_HEIGHT_PHOTOSHOP;
+        break;
+    case KisTextureOptionData::LINEAR_HEIGHT_PHOTOSHOP:
+        texture->mode = KIS_MASKING_BRUSH_COMPOSITE_LINEAR_HEIGHT_PHOTOSHOP;
+        break;
+    default:
+        return {};
+    }
+    const bool height = texture->mode == KIS_MASKING_BRUSH_COMPOSITE_HEIGHT
+        || texture->mode == KIS_MASKING_BRUSH_COMPOSITE_LINEAR_HEIGHT;
+    texture->strength = StrengthCompositeFunctionBase<float>(height ? 0.99 * strength : strength).strength;
+    texture->invertedStrength = Arithmetic::inv(texture->strength);
+    texture->weight = (m_useSoftTexturing ? float(9) : float(10)) * texture->strength;
+    texture->cpu.reset(new KisTextureCpuApplier(m_maskInfo,
+                                                QPoint(texture->originX, texture->originY),
+                                                compositeOpId,
+                                                strength,
+                                                m_useSoftTexturing));
+    return texture;
 }

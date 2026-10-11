@@ -18,6 +18,8 @@
 
 #include "KisTextureMaskInfo.h"
 
+struct KisProceduralDabTexture;
+class KoColorSpace;
 
 class KoPattern;
 class KoResource;
@@ -49,6 +51,18 @@ public:
     static QList<KoResourceLoadResult> prepareEmbeddedResources(const KisPropertiesConfigurationSP setting, KisResourcesInterfaceSP resourcesInterface);
     bool applyingGradient() const;
 
+    /**
+     * GPU engine (Solstice): the texture apply() would give the dab at
+     * @p offset, as a GPU description (KisProceduralDabTexture), or null
+     * when it cannot run on the GPU: disabled or invalid, Lightness and
+     * Gradient, or a dab color space other than RGBA F32. @p brushFlips are
+     * the brush tip reflections of the dab (before texturing).
+     */
+    QSharedPointer<const KisProceduralDabTexture> gpuDescription(const QPoint &offset,
+                                                                 const KisPaintInformation &info,
+                                                                 const KoColorSpace *dabColorSpace,
+                                                                 quint32 brushFlips) const;
+
     static bool applyingGradient(const KisPropertiesConfiguration *settings);
     static bool requiresEffectiveCompositeOp(const KisPropertiesConfiguration *settings);
 
@@ -58,6 +72,18 @@ private:
     void fillProperties(const KisPropertiesConfiguration *setting, KisResourcesInterfaceSP resourcesInterface, KoCanvasResourcesInterfaceSP canvasResourcesInterface);
     int effectiveOffsetX(const KisPaintInformation &info) const;
     int effectiveOffsetY(const KisPaintInformation &info) const;
+    /// The masking composite id of an alpha-only texturing mode, or empty.
+    static QString alphaCompositeOpId(KisTextureOptionData::TexturingMode mode);
+    /// Composites the mask patch (alpha8, @p maskPatchRect) into the dab
+    /// alpha; shared by apply() and the GPU description's CPU applier.
+    static void applyAlphaMask(KisFixedPaintDeviceSP dab,
+                               KisPaintDeviceSP maskPatch,
+                               const QRect &maskPatchRect,
+                               const QString &compositeOpId,
+                               qreal strength,
+                               bool useSoftTexturing);
+    friend class KisTextureCpuApplier;
+
 private:
 
     int m_offsetX {0};
