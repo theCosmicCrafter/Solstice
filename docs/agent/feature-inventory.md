@@ -87,6 +87,14 @@ GPU phase 4.102 (textured dabs on the GPU) changes upstream files:
 description branch in `plugins/paintops/defaultpaintops/brush/KisDabRenderingJob.{h,cpp}`;
 the textured branch of `materialize()` in `libs/image/KisRenderedDab.h`.
 
+GPU phase 4.103 (image tip dabs on the GPU) changes upstream files:
+`KisQImagePyramid::createImage()` in `libs/brush/kis_qimage_pyramid.{h,cpp}` draws
+described transforms with `KisImageTipSampler` instead of QPainter (the old body is
+`createImageWithQPainter()`; new `describeImage()`, `renderDescribed()`,
+`describedPixel()`, the premultiplied copy of each level); `KisBrush::proceduralImageDab()`
+in `libs/brush/kis_brush.{h,cpp}`; `libs/brush/tests/CMakeLists.txt`
+(`KisQImagePyramidDescribeTest`); `libs/image/CMakeLists.txt` (`KisImageTipSampler.cpp`).
+
 GPU phases 4.36-4.37 forward per-channel layer flags in
 `libs/image/gpu/KisGpuMergeBatch.*`, allow F16 channel masks in
 `KisGpuProjectionCompositor.cpp`, and align the established F16 generic blend

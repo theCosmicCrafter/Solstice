@@ -17,6 +17,9 @@
 
 #include "kis_types.h"
 
+#include <KisImageTipSampler.h>
+#include <KoColorSpaceMaths.h>
+
 /**
  * GPU engine (Solstice): the pattern texture of a described dab
  * (KisTextureOption, the alpha-only texturing modes), applied on the GPU
@@ -69,6 +72,12 @@ struct KisProceduralCircleDab {
         DefaultCircle = 0,
         GaussCircle = 1,
         SoftCircle = 2, // KisCurveCircleMaskGenerator (phase 4.87)
+        /// A predefined (image) brush tip in alpha-mask mode ("Image tip
+        /// dabs"): the alpha of pixel (x, y) is
+        /// Uint8ToFloat(UINT8_MULT(255 - red, alpha)) of the ARGB32 pixel
+        /// KisImageTipSampler::pixel() gives (KoColorSpaceTrait::
+        /// fillGrayBrushWithColor()); RGBA F32 only.
+        ImageTip = 3,
     };
     Kind kind = DefaultCircle;
 
@@ -103,6 +112,15 @@ struct KisProceduralCircleDab {
     /// matchesPixel() describe the circle without it; KisRenderedDab::
     /// materialize() applies it.
     QSharedPointer<const KisProceduralDabTexture> texture;
+    /// ImageTip: the transformed tip (KisQImagePyramid::describeImage()).
+    QSharedPointer<const KisImageTipGeometry> imageTip;
+
+    /// UINT8_MULT(255 - red, alpha) of an ARGB32 tip pixel, as a float alpha
+    static inline float imageTipAlpha(quint32 pixel)
+    {
+        const quint32 t = (255 - ((pixel >> 16) & 0xff)) * (pixel >> 24) + 0x80;
+        return KoColorSpaceMaths<quint8, float>::scaleToA(quint8(((t >> 8) + t) >> 8));
+    }
 
     inline float fadeAt(int x, int y) const
     {
@@ -111,6 +129,9 @@ struct KisProceduralCircleDab {
 
     inline float alphaAt(int x, int y) const
     {
+        if (kind == ImageTip) {
+            return imageTipAlpha(KisImageTipSampler::pixel(*imageTip, x, y));
+        }
         return 1.0f * (1.0f - fadeAt(x, y));
     }
 
@@ -121,6 +142,24 @@ struct KisProceduralCircleDab {
      */
     inline void render(quint8 *pixels, int width, int height, quint32 flips) const
     {
+        if (kind == ImageTip) {
+            const QImage tip = KisImageTipSampler::render(*imageTip);
+            float *out = reinterpret_cast<float *>(pixels);
+            for (int y = 0; y < height; y++) {
+                const int gy = (flips & 2) ? height - 1 - y : y;
+                const quint32 *line =
+                    gy < tip.height() ? reinterpret_cast<const quint32 *>(tip.constScanLine(gy)) : nullptr;
+                for (int x = 0; x < width; x++) {
+                    const int gx = (flips & 1) ? width - 1 - x : x;
+                    out[0] = color[0];
+                    out[1] = color[1];
+                    out[2] = color[2];
+                    out[3] = line && gx < tip.width() ? imageTipAlpha(line[gx]) : 0.0f;
+                    out += 4;
+                }
+            }
+            return;
+        }
         if (halfPixels) {
             half *out = reinterpret_cast<half *>(pixels);
             const half red(color[0]), green(color[1]), blue(color[2]);

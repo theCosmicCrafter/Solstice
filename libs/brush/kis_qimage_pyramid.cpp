@@ -10,6 +10,10 @@
 #include <QPainter>
 #include <kis_debug.h>
 
+// GPU engine (Solstice): describeImage(), renderDescribed()
+#include <KisImageTipSampler.h>
+#include <cmath>
+
 #define MIPMAP_SIZE_THRESHOLD 512
 #define MAX_MIPMAP_SCALE 8.0
 
@@ -267,13 +271,29 @@ QSize levelSize = image.size();
                    -QPAINTER_WORKAROUND_BORDER,
                    image.width() + 2 * QPAINTER_WORKAROUND_BORDER,
                    image.height() + 2 * QPAINTER_WORKAROUND_BORDER);
-    m_levels.append(PyramidLevel(tmp, levelSize));
+    PyramidLevel level(tmp, levelSize);
+    level.premultiplied = KisImageTipSampler::premultiply(tmp);
+    m_levels.append(level);
 }
 
 QImage KisQImagePyramid::createImage(KisDabShape const& shape,
                                      qreal subPixelX, qreal subPixelY) const
 {
     if (m_levels.isEmpty()) return QImage();
+
+    // GPU engine (Solstice): deterministic, repeated by the GPU brush; see
+    // KisImageTipSampler.cpp for why QPainter is no longer used here
+    DabGeometry geometry;
+    if (describeImage(shape, subPixelX, subPixelY, &geometry)) {
+        return renderDescribed(geometry);
+    }
+    return createImageWithQPainter(shape, subPixelX, subPixelY);
+}
+
+QImage KisQImagePyramid::createImageWithQPainter(KisDabShape const &shape, qreal subPixelX, qreal subPixelY) const
+{
+    if (m_levels.isEmpty())
+        return QImage();
 
     qreal baseScale = -1.0;
     int level = findNearestLevel(shape.scale(), &baseScale);
@@ -346,4 +366,158 @@ QImage KisQImagePyramid::getClosestWithoutWorkaroundBorder(QTransform transform,
                QPAINTER_WORKAROUND_BORDER,
                image.width() - 2 * QPAINTER_WORKAROUND_BORDER,
                image.height() - 2 * QPAINTER_WORKAROUND_BORDER);
+}
+
+namespace
+{
+constexpr int QtFixedScale = 1 << 16;
+constexpr int QtHalfPoint = 1 << 15;
+} // namespace
+
+bool KisQImagePyramid::describeImage(KisDabShape const &shape,
+                                     qreal subPixelX,
+                                     qreal subPixelY,
+                                     DabGeometry *geometry) const
+{
+    if (m_levels.isEmpty() || !geometry)
+        return false;
+
+    qreal baseScale = -1.0;
+    const int level = findNearestLevel(shape.scale(), &baseScale);
+    const QImage &srcImage = m_levels[level].image;
+
+    QTransform transform;
+    QSize dstSize;
+    calculateParams(shape, subPixelX, subPixelY, m_originalSize, baseScale, m_levels[level].size, &transform, &dstSize);
+
+    *geometry = DabGeometry();
+    geometry->source = srcImage;
+    geometry->premultiplied = m_levels[level].premultiplied;
+    if (srcImage.format() != QImage::Format_ARGB32 || !geometry->premultiplied)
+        return false;
+
+    if (transform.isIdentity()) {
+        geometry->identity = true;
+        geometry->size = QSize(srcImage.width() - 2 * QPAINTER_WORKAROUND_BORDER,
+                               srcImage.height() - 2 * QPAINTER_WORKAROUND_BORDER);
+        return true;
+    }
+    geometry->size = dstSize;
+
+    while (transform.type() == QTransform::TxTranslate) {
+        const qreal scale = transform.m11();
+        const qreal fakeScale = scale - 10 * std::numeric_limits<qreal>::epsilon();
+        transform *= QTransform::fromScale(fakeScale, fakeScale);
+    }
+    const QTransform matrix =
+        QTransform::fromTranslate(-QPAINTER_WORKAROUND_BORDER, -QPAINTER_WORKAROUND_BORDER) * transform;
+    const bool scaleOnly = matrix.type() == QTransform::TxScale;
+
+    // QRasterPaintEngine::drawImage(const QRectF &r, img, sr) with r = sr
+    const QRectF r(0, 0, srcImage.width(), srcImage.height());
+    QTransform copy = matrix;
+    copy.translate(r.x(), r.y());
+    copy.translate(-r.x(), -r.y());
+
+    // QSpanData::setupMatrix()
+    QTransform delta;
+    delta.translate(1.0 / 65536, 1.0 / 65536);
+    const QTransform inv = (delta * copy).inverted();
+    const qreal m11 = inv.m11();
+    const qreal m12 = inv.m12();
+    const qreal m21 = inv.m21();
+    const qreal m22 = inv.m22();
+    const qreal dx = inv.dx();
+    const qreal dy = inv.dy();
+    const qreal f1 = m11 * m11 + m21 * m21;
+    const qreal f2 = m12 * m12 + m22 * m22;
+    const bool fastMatrix = inv.isAffine() && f1 < 1e4 && f2 < 1e4 && f1 > (1.0 / 65536) && f2 > (1.0 / 65536)
+        && qAbs(dx) < 1e4 && qAbs(dy) < 1e4;
+    if (!fastMatrix)
+        return false;
+
+    // Scale only: fillRect_normalized() of the rounded target rect, clipped
+    // to the image. Rotated: in every row, the pixels whose centers map into
+    // the bordered source rect (like QRasterizer's spans; outside it the
+    // samples are the transparent border). Each row starts its 16.16
+    // position at its first pixel, as Qt does per span.
+    int x1 = 0;
+    int y1 = 0;
+    int x2 = dstSize.width();
+    int y2 = dstSize.height();
+    if (scaleOnly) {
+        const QRectF rr = matrix.mapRect(r);
+        x1 = qMax(qRound(rr.x()), 0);
+        y1 = qMax(qRound(rr.y()), 0);
+        x2 = qMin(qRound(rr.right()), dstSize.width());
+        y2 = qMin(qRound(rr.bottom()), dstSize.height());
+    }
+    geometry->rows.resize(dstSize.height());
+    if (x2 <= x1 || y2 <= y1)
+        return true;
+
+    geometry->fdx = int(m11 * QtFixedScale);
+    geometry->fdy = int(m12 * QtFixedScale);
+    for (int y = y1; y < y2; ++y) {
+        const qreal cy = y + qreal(0.5);
+        int rowX1 = x1;
+        int rowX2 = x2;
+        if (!scaleOnly) {
+            // centers t = x + 0.5 with 0 <= m11 t + m21 cy + dx <= width and
+            // 0 <= m12 t + m22 cy + dy <= height
+            qreal tMin = -std::numeric_limits<qreal>::infinity();
+            qreal tMax = std::numeric_limits<qreal>::infinity();
+            auto limit = [&tMin, &tMax](qreal a, qreal b, qreal hi) {
+                if (qAbs(a) < 1e-12) {
+                    if (b < 0 || b > hi) {
+                        tMin = 1;
+                        tMax = 0;
+                    }
+                    return;
+                }
+                const qreal t1 = (0 - b) / a;
+                const qreal t2 = (hi - b) / a;
+                tMin = qMax(tMin, qMin(t1, t2));
+                tMax = qMin(tMax, qMax(t1, t2));
+            };
+            limit(m11, m21 * cy + dx, r.width());
+            limit(m12, m22 * cy + dy, r.height());
+            if (!(tMin <= tMax))
+                continue;
+            rowX1 = qMax(x1, int(std::ceil(tMin - 0.5)));
+            rowX2 = qMin(x2, int(std::floor(tMax - 0.5)) + 1);
+            if (rowX2 <= rowX1)
+                continue;
+        }
+        const int length = rowX2 - rowX1;
+        const qreal cx = rowX1 + qreal(0.5);
+        // canUseFastMatrixPath()
+        qreal fx = (m21 * cy + m11 * cx + dx) * QtFixedScale;
+        qreal fy = (m22 * cy + m12 * cx + dy) * QtFixedScale;
+        qreal minc = std::min(fx, fy);
+        qreal maxc = std::max(fx, fy);
+        fx += std::trunc(m11 * QtFixedScale) * length;
+        fy += std::trunc(m12 * QtFixedScale) * length;
+        minc = std::min(minc, std::min(fx, fy));
+        maxc = std::max(maxc, std::max(fx, fy));
+        if (!(minc >= std::numeric_limits<int>::min() && maxc <= std::numeric_limits<int>::max()))
+            return false;
+
+        DabGeometry::Row &row = geometry->rows[y];
+        row.x = rowX1;
+        row.length = length;
+        row.fx = int((m21 * cy + m11 * cx + dx) * QtFixedScale) - QtHalfPoint;
+        row.fy = int((m22 * cy + m12 * cx + dy) * QtFixedScale) - QtHalfPoint;
+    }
+    return true;
+}
+
+quint32 KisQImagePyramid::describedPixel(const DabGeometry &geometry, int x, int y)
+{
+    return KisImageTipSampler::pixel(geometry, x, y);
+}
+
+QImage KisQImagePyramid::renderDescribed(const DabGeometry &geometry)
+{
+    return KisImageTipSampler::render(geometry);
 }

@@ -586,3 +586,22 @@ dabs".
   `KisTextureOption` code through a small applier, so the C++ side needs no
   copy of the texture math; the shader's copy is covered by the stroke tests
   of every mode.
+
+## GPU image tip dabs (phase 4.103)
+
+2026-10-11, user request (decision "A2"). RGBA32F dabs of predefined image
+tips in alpha-mask mode are generated on the GPU; the CPU transforms image
+tips with the same deterministic integer code (`KisImageTipSampler`)
+instead of QPainter. Details and measurements:
+[gpu-engine.md](../../gpu-engine.md), "Image tip dabs".
+
+- QPainter's result depends on the CPU (Qt's run-time SIMD dispatch), so a
+  bit-exact GPU copy of it was impossible; the user chose to replace it
+  (accepting one 8-bit step from upstream) over a tolerance.
+- Rotated rows must restart the 16.16 position at each row's first covered
+  pixel, as `QRasterizer` spans do; accumulating from x = 0 drifted by up to
+  4 steps.
+- The first CPU version was about 5 times slower than QPainter; SSE2, a
+  factor table for the unpremultiply and a separable vertical blend for
+  scale-only rows brought it to about 2 times.
+- The shader computes only red and alpha (the alpha mask needs no more).

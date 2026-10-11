@@ -1119,6 +1119,95 @@ private Q_SLOTS:
             }
         }
     }
+    void testGeneratedImageTipDabs()
+    {
+        // "Image tip dabs": the GPU evaluation of KisProceduralCircleDab::
+        // ImageTip reproduces every CPU alpha bit for bit (Over at full
+        // opacity on a transparent device copies the dab alpha), for an
+        // identity tip, scaled and rotated rows, and positions outside the
+        // level (Qt's edge clamping).
+        QImage level(37, 29, QImage::Format_ARGB32);
+        for (int y = 0; y < level.height(); ++y) {
+            for (int x = 0; x < level.width(); ++x) {
+                const int value = (x * 37 + y * 91 + x * y * 7) % 256;
+                int alpha = (x * 13 + y * 29) % 256;
+                if ((x + y) % 11 == 0)
+                    alpha = 0;
+                if ((x * y) % 7 == 3)
+                    alpha = 255;
+                level.setPixel(x, y, qRgba(value, (value * 3 + y) % 256, (x * 5) % 256, alpha));
+            }
+        }
+        auto geometry = [&](QSize size, double scale, double angle, int startX, int startY) {
+            QSharedPointer<KisImageTipGeometry> tip(new KisImageTipGeometry());
+            tip->source = level;
+            tip->premultiplied = KisImageTipSampler::premultiply(level);
+            tip->size = size;
+            tip->fdx = int(std::cos(angle) * scale * 65536);
+            tip->fdy = int(std::sin(angle) * scale * 65536);
+            for (int y = 0; y < size.height(); ++y) {
+                KisImageTipGeometry::Row row;
+                row.x = (y * 3) % 7;
+                row.length = y % 9 == 5 ? 0 : size.width() - row.x - (y % 4);
+                row.fx = startX + int(-std::sin(angle) * scale * 65536) * y + row.x * tip->fdx;
+                row.fy = startY + int(std::cos(angle) * scale * 65536) * y + row.x * tip->fdy;
+                tip->rows << row;
+            }
+            return tip;
+        };
+        QVector<QSharedPointer<KisImageTipGeometry>> tips;
+        QSharedPointer<KisImageTipGeometry> identity(new KisImageTipGeometry());
+        identity->source = level;
+        identity->premultiplied = KisImageTipSampler::premultiply(level);
+        identity->size = QSize(level.width() - 2, level.height() - 2);
+        identity->identity = true;
+        tips << identity;
+        tips << geometry(QSize(50, 40), 0.7, 0.0, 12345, 23456); // scale only
+        tips << geometry(QSize(30, 25), 1.3, 0.0, -70000, -50000); // starts outside
+        tips << geometry(QSize(60, 60), 0.6, 0.83, 400000, -100000); // rotated
+        tips << geometry(QSize(45, 50), 0.9, -2.4, 2000000, 1500000); // rotated, mostly outside
+        const float color[4] = {0.4f, 0.7f, 1.3f, 1.0f};
+        for (int i = 0; i < tips.size(); ++i) {
+            const QSize size = tips[i]->size;
+            QSharedPointer<KisProceduralCircleDab> description(new KisProceduralCircleDab());
+            description->kind = KisProceduralCircleDab::ImageTip;
+            std::copy(color, color + 4, description->color);
+            description->imageTip = tips[i];
+            KisFixedPaintDeviceSP device = new KisFixedPaintDevice(space(false));
+            device->setRect(QRect(QPoint(), size));
+            device->lazyGrowBufferWithoutInitialization();
+            description->render(device->data(), size.width(), size.height(), 0);
+            const auto *cpu = reinterpret_cast<const float *>(device->constData());
+            for (int p = 0; p < size.width() * size.height(); ++p) {
+                QVERIFY(description->matchesPixel(device->constData(),
+                                                  size.width(),
+                                                  p % size.width(),
+                                                  p / size.width(),
+                                                  p % size.width(),
+                                                  p / size.width()));
+            }
+            KisRenderedDab dab(new KisFixedPaintDevice(*device));
+            dab.offset = QPoint(-31, 17);
+            std::fill_n(dab.device->data(), size.width() * size.height() * 16, quint8(0));
+            dab.procedural = description;
+            KisPaintDeviceSP target = new KisPaintDevice(space(false));
+            KisPainter painter(target);
+            painter.setCompositeOpId(COMPOSITE_OVER);
+            QVERIFY(KisGpuBrushPainter::paint(&painter, {dab}));
+            const auto painted = pixels(target, dab.realBounds());
+            int mismatches = 0;
+            int covered = 0;
+            for (int p = 0; p < size.width() * size.height(); ++p) {
+                covered += cpu[4 * p + 3] > 0.0f ? 1 : 0;
+                if (painted[size_t(4 * p + 3)] != cpu[4 * p + 3] && !mismatches++) {
+                    qWarning() << "tip" << i << "pixel" << p % size.width() << p / size.width() << "GPU"
+                               << painted[size_t(4 * p + 3)] << "CPU" << cpu[4 * p + 3];
+                }
+            }
+            QVERIFY2(covered > 0, qPrintable(QStringLiteral("tip %1 is empty").arg(i)));
+            QVERIFY2(mismatches == 0, qPrintable(QStringLiteral("tip %1: %2 alpha mismatches").arg(i).arg(mismatches)));
+        }
+    }
     void testPendingDabsFallBackToMaterializedPixels()
     {
         // Phase 4.85: a refused GPU batch of pending dabs is painted on the CPU

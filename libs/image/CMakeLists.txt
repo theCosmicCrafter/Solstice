@@ -267,6 +267,7 @@ set(kritaimage_LIB_SRCS
    kis_node_progress_proxy.cpp
    kis_busy_progress_indicator.cpp
    kis_node_visitor.cpp
+   KisImageTipSampler.cpp
    kis_paint_device.cc
    kis_paint_device_debug_utils.cpp
    kis_fixed_paint_device.cpp

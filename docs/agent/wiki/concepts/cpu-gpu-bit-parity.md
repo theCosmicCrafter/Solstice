@@ -1,7 +1,8 @@
 ---
 type: concept
-updated: 2026-10-07
+updated: 2026-10-11
 sources:
+  - libs/image/KisImageTipSampler.* (phase 4.103, image tips without QPainter)
   - libs/gpu/shaders/transform_pass.comp (phase 4.94, commit 3828911e98)
   - libs/gpu/shaders/grid_warp.comp (phase 4.97, commit 29912c4daf)
   - libs/image/gpu/KisGpuTransformWorker.*, libs/image/gpu/KisGpuGridWarpWorker.*
@@ -86,6 +87,14 @@ related:
      the CPU path.
    Restrict `canRun()` to cases where the CPU behavior is deterministic; see
    [Krita copy semantics](krita-copy-semantics.md) for a case that is not.
+8. **Replace CPU code that is not deterministic.** QPainter's
+   `drawImage()` (brush image tips) is not: Qt swaps its pixel conversions
+   at run time for AVX2/SSE4 versions with different rounding, and the
+   SSE4 unpremultiply uses `rcpps`, whose result differs between CPU
+   vendors. Phase 4.103 replaced it, with the user's approval, by integer
+   code that follows Qt's portable path (`KisImageTipSampler`) and that the
+   CPU and the shader both run; the difference from Qt is at most one 8-bit
+   step. Ask before changing upstream CPU output like this.
 
 ## Test pattern
 

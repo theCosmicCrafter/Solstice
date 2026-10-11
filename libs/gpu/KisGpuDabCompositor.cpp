@@ -51,7 +51,7 @@ struct PushConstants {
     qint32 maskX, maskY, maskWidth, maskHeight;
 };
 static_assert(sizeof(DabRecord) == 64 && sizeof(PushConstants) == 64, "shader layout");
-static_assert(sizeof(KisGpuDabCompositor::Circle) == 176, "shader circle layout");
+static_assert(sizeof(KisGpuDabCompositor::Circle) == 224, "shader circle layout");
 constexpr quint32 GeneratedDabFlag = 4;
 static_assert(sizeof(TileRecord) == 16, "shader tile layout");
 VkDeviceSize aligned(VkDeviceSize bytes)
@@ -64,6 +64,7 @@ struct UploadLayout {
     QHash<const void *, VkDeviceSize> sourceOffsets;
     QHash<const float *, VkDeviceSize> tableOffsets; // Soft curve tables and texture tables
     QHash<const quint8 *, VkDeviceSize> textureOffsets; // pattern textures
+    QHash<const void *, VkDeviceSize> imageOffsets; // image tip levels and row tables
 };
 bool planUpload(int tileCount,
                 const QVector<KisGpuDabCompositor::Dab> &dabs,
@@ -94,8 +95,31 @@ bool planUpload(int tileCount,
                 && (pixelSize != 16 || !dab.textureLut || dab.circle.textureWidth == 0 || dab.circle.textureHeight == 0
                     || dab.circle.textureMode > 13 || dab.circle.textureBrushFlips > 3))
                 return false;
+            const bool imageTip = dab.circle.kind == 3;
+            if (imageTip) {
+                // RGBA32F; identity tips read texel (x + 1, y + 1) of the level.
+                const KisGpuDabCompositor::Circle &c = dab.circle;
+                if (pixelSize != 16 || !dab.textureLut || !dab.imageTexels || c.imageWidth < 2 || c.imageHeight < 2
+                    || qint64(c.imageWidth) * c.imageHeight > qint64(KisGpuDabCompositor::MaxUploadBytes / 4)
+                    || (c.imageIdentity ? dab.size != QSize(c.imageWidth - 2, c.imageHeight - 2) : !dab.imageRows))
+                    return false;
+            } else if (dab.circle.kind > 2) {
+                return false;
+            }
             layout.offsets << bytes;
             bytes += sizeof(KisGpuDabCompositor::Circle);
+            if (imageTip && !layout.imageOffsets.contains(dab.imageTexels)) {
+                layout.imageOffsets.insert(dab.imageTexels, bytes);
+                bytes += aligned(VkDeviceSize(dab.circle.imageWidth) * dab.circle.imageHeight * 4);
+            }
+            if (imageTip && !dab.circle.imageIdentity && !layout.imageOffsets.contains(dab.imageRows)) {
+                layout.imageOffsets.insert(dab.imageRows, bytes);
+                bytes += aligned(VkDeviceSize(dab.size.height()) * 16);
+            }
+            if (imageTip && !layout.tableOffsets.contains(dab.textureLut)) {
+                layout.tableOffsets.insert(dab.textureLut, bytes);
+                bytes += aligned(256 * sizeof(float));
+            }
             if (dab.circle.kind == 2 && !layout.tableOffsets.contains(dab.curveTable)) {
                 layout.tableOffsets.insert(dab.curveTable, bytes);
                 bytes += aligned(VkDeviceSize(dab.curveTableSize) * sizeof(float));
@@ -214,8 +238,9 @@ bool KisGpuDabCompositor::record(KisGpuCommandList &commands,
     if (!planUpload(tiles.size(), dabs, mask, layout, error, pixelSize))
         return false;
     const bool extended = mode >= CompositeMode::SoftLightSvg;
+    // Textured and image tip dabs (kind 3) use the DAB_TEXTURE builds.
     const bool textured = std::any_of(dabs.cbegin(), dabs.cend(), [](const Dab &dab) {
-        return dab.generated && dab.texture;
+        return dab.generated && (dab.texture || dab.circle.kind == 3);
     });
     if (textured && !extended && !m_texturedPipeline) {
         m_texturedPipeline =
@@ -277,6 +302,7 @@ bool KisGpuDabCompositor::record(KisGpuCommandList &commands,
     auto *records = reinterpret_cast<DabRecord *>(out + tableOffset);
     QSet<const float *> copiedTables;
     QSet<const quint8 *> copiedTextures;
+    QSet<const void *> copiedImages;
     for (int i = 0; i < dabs.size(); ++i) {
         const auto &dab = dabs[i];
         const QRect clip = dab.clip.isNull() ? QRect(dab.origin, dab.size) : dab.clip;
@@ -323,6 +349,35 @@ bool KisGpuDabCompositor::record(KisGpuCommandList &commands,
             } else {
                 circle.texture = 0;
                 circle.textureLut = 0;
+            }
+            if (circle.kind == 3) {
+                const VkDeviceSize texelOffset = layout.imageOffsets.value(dab.imageTexels);
+                const VkDeviceSize lutOffset = layout.tableOffsets.value(dab.textureLut);
+                circle.imageTexels = m_upload->deviceAddress() + texelOffset;
+                circle.textureLut = m_upload->deviceAddress() + lutOffset;
+                if (!copiedImages.contains(dab.imageTexels)) {
+                    copiedImages.insert(dab.imageTexels);
+                    std::memcpy(out + texelOffset,
+                                dab.imageTexels,
+                                size_t(circle.imageWidth) * size_t(circle.imageHeight) * 4);
+                }
+                if (!circle.imageIdentity) {
+                    const VkDeviceSize rowsOffset = layout.imageOffsets.value(dab.imageRows);
+                    circle.imageRows = m_upload->deviceAddress() + rowsOffset;
+                    if (!copiedImages.contains(dab.imageRows)) {
+                        copiedImages.insert(dab.imageRows);
+                        std::memcpy(out + rowsOffset, dab.imageRows, size_t(dab.size.height()) * 16);
+                    }
+                } else {
+                    circle.imageRows = 0;
+                }
+                if (!copiedTables.contains(dab.textureLut)) {
+                    copiedTables.insert(dab.textureLut);
+                    std::memcpy(out + lutOffset, dab.textureLut, 256 * sizeof(float));
+                }
+            } else {
+                circle.imageTexels = 0;
+                circle.imageRows = 0;
             }
             std::memcpy(out + offsets[i], &circle, sizeof(circle));
         } else if (sourceOffsets.remove(dab.pixels)) {

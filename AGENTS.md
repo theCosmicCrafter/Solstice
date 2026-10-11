@@ -110,6 +110,7 @@ Read these before adding or updating any feature:
   2026-10-10: GPU brush about 5 ms against 18-22 ms on the CPU; masking brush
   composite on the GPU (phase 4.101) done and manually checked 2026-10-10;
   textured dabs on the GPU (phase 4.102) done and manually checked 2026-10-11;
+  image tip dabs on the GPU (phase 4.103) done and manually checked 2026-10-11;
   priority 4 in progress):
   `docs/agent/gpu-work-priorities.md`
 - Brush Stroke Preview:

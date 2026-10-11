@@ -32,6 +32,11 @@ details are in the phase records, now in the wiki history pages (see
   dabs"): RGBA32F circle dabs with a pattern texture in one of the 14
   alpha-only modes are generated and textured on the GPU; Lightness,
   Gradient, sharpness and RGBA16F stay on the CPU.
+- Image tip dabs on the GPU (phase 4.103, 2026-10-11; section "Image tip
+  dabs"): RGBA32F dabs of predefined (GBR, PNG, SVG, ABR) tips in alpha-mask
+  mode are generated on the GPU, also textured; the CPU now transforms
+  image tips with the same deterministic code instead of QPainter (at most
+  one 8-bit step from upstream Krita).
 - Phase: **4 (brush prototype), opt-in; phases 4.1–4.5 manually checked,
   phases 4.6 and 4.8 add brush-job and full stroke-strategy coverage.** Phase
   4.7 is also manually confirmed, with combined four-pass painting recorded
@@ -650,7 +655,8 @@ circle and its texture, and the GPU evaluates both.
   Burn, Hard Mix and Hard Mix Softer (Photoshop), Height, Linear Height, Height
   and Linear Height (Photoshop)), hard and soft texturing, any strength
   (pressure). Lightness and Gradient (they change the dab color), sharpness,
-  RGBA16F dabs and predefined (image) tips stay on the CPU.
+  RGBA16F dabs and predefined (image) tips stay on the CPU (image tips:
+  phase 4.103).
 - Description: `KisProceduralDabTexture` (`libs/image/KisProceduralCircleDab.h`),
   attached as `KisProceduralCircleDab::texture`: the alpha8 pattern texels
   (`KisTextureMaskInfo::alphaBytes()`, computed once in `recalculateMask()`),
@@ -704,6 +710,93 @@ circle and its texture, and the GPU evaluates both.
   textured 85 / 99 / 38 (106 before); temporary dense rows (spacing 0.03,
   both mirrors, masked, textured) 40px 30 / 38 / 31 (36 before), 80px
   51 / 57 / 27 (41 before).
+
+### Image tip dabs (phase 4.103)
+
+Before phase 4.103 every dab of a predefined (image) brush tip (GBR, PNG,
+SVG, ABR) was transformed with QPainter on the CPU and uploaded as pixels.
+QPainter could not be repeated on the GPU: Qt replaces its pixel
+conversions at run time with AVX2/SSE4 versions that round differently
+(the SSE4 unpremultiply uses `rcpps`, whose result differs between CPU
+vendors), so even the CPU output depended on the machine.
+
+- Decision (user, 2026-10-11, "A2"): replace QPainter in
+  `KisQImagePyramid::createImage()` with a deterministic implementation
+  shared by the CPU and the GPU brush. Up to one 8-bit step per channel of
+  difference from upstream Krita is accepted.
+- Sampler: `KisImageTipSampler` (`libs/image/KisImageTipSampler.{h,cpp}`,
+  so that the dab description in kritaimage can use it) with the
+  description `KisImageTipGeometry` (bordered ARGB32 pyramid level, its
+  premultiplied QRgba64 copy computed once per level, dab size, identity
+  flag, 16.16 increments and one row per dab row: first pixel, length and
+  the source position at the first pixel). The arithmetic follows Qt 6.8's
+  raster engine for `drawImage()` into ARGB32 (KDE qtbase fe3936871d):
+  `QSpanData::setupMatrix()` with its 1/65536 delta,
+  `fetchTransformedBilinear64_uint32()` with Qt's edge clamping,
+  `QRgba64::premultiplied()`, the 16-bit `_mm_mulhi_epu16` interpolation of
+  `interpolate_4_pixels_rgb64()`, `unpremultiplied_64bit()` (a 65536-entry
+  factor table on the CPU) and `toArgb32()`. Scale-only transforms use
+  Qt's rounded target rectangle; rotated dabs cover whole rows of pixels
+  whose centres map into the bordered level, with the position computed at
+  each row start like `QRasterizer` spans (accumulating from x = 0 gave
+  differences of 4).
+- `KisQImagePyramid`: `describeImage()` builds the geometry (false outside
+  Qt's fast fixed-point range; `createImage()` then keeps QPainter, now
+  `createImageWithQPainter()`), `renderDescribed()` and `describedPixel()`
+  forward to the sampler. The CPU path is separable for scale-only rows
+  (the vertical blend once per source column) and uses SSE2.
+- Accuracy against QPainter on this machine
+  (`KisQImagePyramidDescribeTest`, about 100 million pixels): at most one
+  step of the alpha-mask value `UINT8_MULT(255 - red, alpha)` and of the
+  alpha; no coverage differences for scale-only dabs, 2 pixels in 13.6
+  million for rotated dabs. Cost: about twice QPainter's time for the tip
+  transform alone (400 dabs of a 256px tip: 29-39 ms with QPainter, 66-75
+  ms described, scale and rotation measured separately).
+- Description: `KisProceduralCircleDab::ImageTip` (kind 3) with
+  `imageTip` (the geometry); the alpha is
+  `Uint8ToFloat(UINT8_MULT(255 - red, alpha))` of the sampled ARGB32 pixel,
+  as `KoColorSpaceTrait::fillGrayBrushWithColor()` computes it for RGBA F32
+  (no SIMD specialisation exists for float). `render()` uses
+  `KisImageTipSampler::render()`. RGBA32F only.
+- `KisBrush::proceduralImageDab()` describes the dab of
+  `generateMaskAndApplyMaskOrCreateDab()` (the same pyramid and
+  `KisDabShape(scale * d->scale, ratio, -normalizeAngle(rotation +
+  d->angle))`) for alpha-mask brushes without preserve-lightness or a
+  gradient; auto, image pipe (`.gih`) and text brushes are refused (they
+  generate their dabs differently).
+- Jobs: `buildCircleDab()` tries the image tip when the brush is not an auto
+  brush; the description's size must equal the dab bounds. The kind gets its
+  own verification counter (`s_verifiedDabs[3]`), so CPU generation is
+  skipped after 16 verified image tip dabs; textures (phase 4.102),
+  mirroring and materialization work unchanged.
+- GPU: `KisGpuDabCompositor::Circle` grows to 224 bytes (level and row
+  table addresses, level size, increments, identity flag). The ARGB32 level
+  and each dab's row table are uploaded once per batch and distinct pointer,
+  with the byte-to-float table. `paint_dabs.comp` evaluates kind 3 only in
+  the `DAB_TEXTURE` builds (the compositor selects them for batches with an
+  image tip); it computes only the red and alpha channels in 32- and 64-bit
+  integers (the unpremultiply divides in uint64).
+- Memory and transfer: each pyramid level keeps its premultiplied copy
+  (8 bytes per texel, besides the 4-byte ARGB32 level), and every GPU batch
+  uploads the levels its dabs use. A level larger than the 64 MiB staging
+  budget makes the batch fall back to materialized CPU pixels.
+- Tests: `KisQImagePyramidDescribeTest` (accuracy against QPainter, the
+  described image equals `createImage()`, a benchmark),
+  `KisGpuBrushTest::testGeneratedImageTipDabs` (identity, scaled, rotated and
+  out-of-level rows; GPU alpha equals the CPU alpha bit for bit, and
+  `render()` equals `alphaAt()`), `KisGpuStrokeTest::testImageTipStroke`
+  (a GBR tip at 48 and 160px, rotation, Wash and Buildup, mirrors, a
+  textured row, scale 1; layer and projection against the CPU path,
+  generated and skipped counters).
+- Measurements (`KisGpuStrokeTest::testImageTipStroke`, median of 5, no
+  validation, ms; CPU / GPU projection / GPU brush; short 24-segment
+  strokes): 160px Buildup 9.6 / 13.7 / 11.0, rotated 9.9 / 15.8 / 12.5;
+  160px rotated Wash with mirrors 26.2 / 32.2 / 21.8; 120px textured with
+  mirrors 17.9 / 22.0 / 17.4, rotated 19.1 / 26.1 / 17.7; 48px 5.1 / 9.1 /
+  9.3 (no gain at small sizes, like the round dabs).
+- Not covered: image stamp (colour) tips, Lightness map, gradient map,
+  image pipe and text brushes, RGBA16F, and dabs with other postprocessing
+  (sharpness, Lightness/Gradient textures) keep their pixels.
 
 ## Phase 0 technology decisions
 
@@ -1132,6 +1225,13 @@ Phase 0 has no user-visible behavior. From phase 3 on:
     mirrors, in Wash and Buildup; the texture lines up between dabs and with
     the CPU brush (GPU brush off); Undo/Redo; a Lightness-mode texture
     still paints (CPU).
+11. Image tip dabs on the GPU brush (phase 4.103) on an RGBA32F layer: a
+    predefined GBR or PNG tip and an imported ABR tip at small and large
+    sizes, with rotation (fixed angle and Drawing Angle), mirrors, a texture,
+    Wash and Buildup; the stroke matches the CPU brush (GPU brush off) and
+    the brush outline; Undo/Redo; an image stamp (colour) tip and a
+    Lightness map tip still paint (CPU). On an 8-bit layer image tips look
+    as before.
 
 ## Phase history
 
@@ -1236,6 +1336,7 @@ Section index:
 - [GPU Puppet Warp mesh rendering (phase 4.96)](wiki/history/gpu-phases-4.93-.md#gpu-puppet-warp-mesh-rendering-phase-496)
 - [GPU masking brush composite (phase 4.101)](wiki/history/gpu-phases-4.93-.md#gpu-masking-brush-composite-phase-4101)
 - [GPU textured dabs (phase 4.102)](wiki/history/gpu-phases-4.93-.md#gpu-textured-dabs-phase-4102)
+- [GPU image tip dabs (phase 4.103)](wiki/history/gpu-phases-4.93-.md#gpu-image-tip-dabs-phase-4103)
 
 ## Risks and open questions
 

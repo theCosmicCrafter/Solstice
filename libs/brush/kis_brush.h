@@ -25,6 +25,7 @@ class KisPaintInformation;
 class KisPaintopLodLimitations;
 class KoAbstractGradient;
 class KisOptimizedBrushOutline;
+struct KisProceduralCircleDab;
 typedef QSharedPointer<KoAbstractGradient> KoAbstractGradientSP;
 
 enum enumBrushType {
@@ -315,6 +316,19 @@ public:
         double subPixelX = 0, double subPixelY = 0,
         qreal softnessFactor = DEFAULT_SOFTNESS_FACTOR) const;
 
+    /**
+     * GPU engine (Solstice, "Image tip dabs"): describes the dab that
+     * generateMaskAndApplyMaskOrCreateDab() produces with the plain RGBA F32
+     * @p color for an image tip in alpha-mask mode (KisProceduralCircleDab::
+     * ImageTip), so that the GPU brush can evaluate it. False for other
+     * brushes (auto, image pipe, text), other brush applications, and
+     * transforms KisQImagePyramid::describeImage() does not describe.
+     */
+    bool proceduralImageDab(KisDabShape const &shape,
+                            double subPixelX,
+                            double subPixelY,
+                            const quint8 *color,
+                            KisProceduralCircleDab *dab) const;
 
     /**
      * Serialize this brush to XML.

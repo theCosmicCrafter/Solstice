@@ -62,7 +62,8 @@ public:
      * A default or Gaussian circle auto-brush dab evaluated on the GPU
      * instead of uploaded pixels (RGBA32F or RGBA16F; KisProceduralCircleDab
      * in kritaimage defines the math), optionally textured (RGBA32F;
-     * KisProceduralDabTexture). Shader layout: 176 bytes.
+     * KisProceduralDabTexture), or an image tip (kind 3, RGBA32F;
+     * KisImageTipSampler). Shader layout: 224 bytes.
      */
     struct Circle {
         float color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -74,7 +75,7 @@ public:
         // kind 1: Gaussian circle
         float distfactor = 0.0f, center = 0.0f, alphafactor = 0.0f, radius = 0.0f;
         float fadeStart = 0.0f, fadeStartValue = 0.0f, fadeCoeff = 0.0f;
-        quint32 kind = 0; // 0 default, 1 Gaussian, 2 Soft (curve)
+        quint32 kind = 0; // 0 default, 1 Gaussian, 2 Soft (curve), 3 image tip
         quint32 antialias = 0;
         quint32 halfPixels = 0; // RGBA16F: alpha rounded to half like Imath
         VkDeviceAddress curveTable = 0; // kind 2: set by record()
@@ -90,6 +91,16 @@ public:
         float textureWeight = 0.0f;
         quint32 textureBrushFlips = 0;
         quint32 padding2[2] = {0, 0};
+        // Image tip (kind 3): addresses set by record() from Dab::imageTexels
+        // and Dab::imageRows. The level is imageWidth x imageHeight ARGB32
+        // texels; rows are (x, length, fx, fy) per dab row, unused for an
+        // identity tip (the level's interior).
+        VkDeviceAddress imageTexels = 0;
+        VkDeviceAddress imageRows = 0;
+        qint32 imageWidth = 0, imageHeight = 0;
+        qint32 imageFdx = 0, imageFdy = 0;
+        quint32 imageIdentity = 0;
+        quint32 padding3[3] = {0, 0, 0};
     };
     struct Dab {
         const void *pixels = nullptr; // RGBA32F, or RGBA16F when pixelSize is 8; unused when generated
@@ -109,6 +120,11 @@ public:
         // (KoLuts::Uint8ToFloat), each uploaded once per distinct pointer.
         const quint8 *texture = nullptr;
         const float *textureLut = nullptr;
+        // Image tip (kind 3, "Image tip dabs"): the ARGB32 level texels and
+        // size.height() rows of 4 ints, each uploaded once per distinct
+        // pointer; textureLut is the byte-to-float table.
+        const quint32 *imageTexels = nullptr;
+        const qint32 *imageRows = nullptr;
     };
     struct Mask {
         const quint8 *pixels;

@@ -86,10 +86,17 @@ GPU brush notes below). Round auto-brush dabs with a pattern texture are
 generated and textured on the GPU on RGBA 32-bit float layers, for every
 texturing mode except Lightness and Gradient (which change the brush
 color); for example, a large textured stroke takes about a third of the
-CPU time. Painting the masking brush's mask, textures of image-based
-tips, the Lightness and Gradient modes and the brush Sharpness option
-remain CPU operations; large or densely spaced strokes using them can
-still take time to catch up.
+CPU time. Image-based brush tips (Predefined tips and imported Photoshop
+brushes) used as an alpha mask, the default for gray tips, are also drawn
+on the GPU on RGBA 32-bit float layers, at any size and rotation and with
+textures. To make this possible, Solstice now transforms image tips with
+its own code instead of Qt's painter, on the CPU too: the result can differ
+from Krita's by at most one step of 8-bit precision, and the CPU spends
+about twice as long transforming each image tip. Painting the masking
+brush's mask, colour (image stamp), Lightness map and Gradient map tips,
+animated (.gih) and text tips, the Lightness and Gradient texture modes
+and the brush Sharpness option remain CPU operations; large or densely
+spaced strokes using them can still take time to catch up.
 
 Automated checks compare complete strokes and their layer projections with
 CPU drawing, including Buildup/Wash, mirror painting, selections, alpha lock

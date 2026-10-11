@@ -43,6 +43,11 @@
 #include <KisOptimizedBrushOutline.h>
 #include <KisStaticInitializer.h>
 
+// GPU engine (Solstice): proceduralImageDab()
+#include "kis_auto_brush.h"
+#include "kis_imagepipe_brush.h"
+#include "kis_text_brush.h"
+#include <KisProceduralCircleDab.h>
 
 KIS_DECLARE_STATIC_INITIALIZER {
     qRegisterMetaType<KisBrushSP>("KisBrushSP");
@@ -586,6 +591,36 @@ void KisBrush::generateMaskAndApplyMaskOrCreateDab(KisFixedPaintDeviceSP dst,
                                                    double subPixelX, double subPixelY, qreal softnessFactor) const
 {
     generateMaskAndApplyMaskOrCreateDab(dst, coloringInformation, shape, info_, subPixelX, subPixelY, softnessFactor, DEFAULT_LIGHTNESS_STRENGTH);
+}
+
+bool KisBrush::proceduralImageDab(KisDabShape const &shape,
+                                  double subPixelX,
+                                  double subPixelY,
+                                  const quint8 *color,
+                                  KisProceduralCircleDab *dab) const
+{
+    // Brushes that generate their dabs differently, and the brush
+    // applications that do not use fillGrayBrushWithColor().
+    if (!valid() || !color || !dab || dynamic_cast<const KisAutoBrush *>(this)
+        || dynamic_cast<const KisImagePipeBrush *>(this) || dynamic_cast<const KisTextBrush *>(this)
+        || brushApplication() != ALPHAMASK || preserveLightness() || applyingGradient()) {
+        return false;
+    }
+    // The same pyramid and shape as generateMaskAndApplyMaskOrCreateDab()
+    QSharedPointer<KisImageTipGeometry> geometry(new KisImageTipGeometry());
+    if (!d->brushPyramid.value(this)->describeImage(
+            KisDabShape(shape.scale() * d->scale, shape.ratio(), -normalizeAngle(shape.rotation() + d->angle)),
+            subPixelX,
+            subPixelY,
+            geometry.data())
+        || geometry->size.isEmpty()) {
+        return false;
+    }
+    *dab = KisProceduralCircleDab();
+    dab->kind = KisProceduralCircleDab::ImageTip;
+    std::memcpy(dab->color, color, sizeof(dab->color));
+    dab->imageTip = geometry;
+    return true;
 }
 
 void KisBrush::generateMaskAndApplyMaskOrCreateDab(KisFixedPaintDeviceSP dst,

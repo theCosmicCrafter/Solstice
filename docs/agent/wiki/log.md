@@ -706,3 +706,17 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   4.102 the GPU minimum period made no measurable difference
   ([gpu-engine.md](../gpu-engine.md), "Masking brush").
 - User check OK on 2026-10-11.
+
+## 2026-10-11 ingest: GPU image tip dabs (phase 4.103)
+
+- RGBA32F dabs of predefined image tips (GBR, PNG, SVG, ABR) in alpha-mask
+  mode are generated on the GPU, also textured
+  ([gpu-engine.md](../gpu-engine.md), "Image tip dabs";
+  [history](history/gpu-phases-4.93-.md#gpu-image-tip-dabs-phase-4103)).
+- Decision (user, "A2"): `KisQImagePyramid::createImage()` no longer uses
+  QPainter, whose output depends on the CPU; the shared integer code is at
+  most one 8-bit step from upstream and about twice as slow on the CPU
+  ([parity](concepts/cpu-gpu-bit-parity.md), technique 8).
+- 160px rotated Wash with mirrors: CPU 26 ms, GPU canvas only 32, GPU
+  brush 22; at 48px no gain.
+- User manual check OK on 2026-10-11.

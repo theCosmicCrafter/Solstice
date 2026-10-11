@@ -42,12 +42,16 @@ struct Circle {
     uint antialias; uint halfPixels;
     uint64_t curveTable; float curveResolution; uint padding1; uint padding2; uint padding3;
 #ifdef DAB_TEXTURE
-    // KisGpuDabCompositor::Circle is 176 bytes; the untextured builds read
+    // KisGpuDabCompositor::Circle is 224 bytes; the untextured builds read
     // only its first 112.
     uint64_t texture; uint64_t textureLut;
     int textureOriginX; int textureOriginY; uint textureWidth; uint textureHeight;
     uint textureMode; uint textureSoft; float textureStrength; float textureInvertedStrength;
     float textureWeight; uint textureBrushFlips; uint padding4; uint padding5;
+    // kind 3: image tip
+    uint64_t imageTexels; uint64_t imageRows;
+    int imageWidth; int imageHeight; int imageFdx; int imageFdy;
+    uint imageIdentity; uint padding6; uint padding7; uint padding8;
 #endif
 };
 layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer CurveTable { float value[]; };
@@ -463,11 +467,100 @@ float textureTexel(Circle c, ivec2 p)
     return TextureLut(c.textureLut).value[(packed >> (8 * (index % 4))) & 255];
 }
 
-// A generated dab: the circle, then its texture if any. The texture was
-// applied after the brush tip's mirroring (textureBrushFlips).
+// Image tip dabs (kind 3, RGBA32F; see KisImageTipSampler): the transformed
+// predefined brush tip in integer arithmetic, identical to the CPU's. Only
+// the red and alpha channels are computed; the dab alpha is
+// Uint8ToFloat(UINT8_MULT(255 - red, alpha)) (fillGrayBrushWithColor()).
+layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer ImageTexels { uint texel[]; };
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer ImageRows { ivec4 row[]; };
+
+// QRgba64::fromArgb32(p).premultiplied(): red and alpha
+uvec2 tipPremultiplied(uint p)
+{
+    const uint a = (p >> 24) * 257u;
+    const uint r = ((p >> 16) & 255u) * 257u;
+    if (a == 65535u)
+        return uvec2(r, a);
+    if (a == 0u)
+        return uvec2(0u);
+    const uint m = r * a;
+    return uvec2(((m + (m >> 16) + 0x8000u) >> 16) & 0xffffu, a);
+}
+
+// interpolate_4_pixels_rgb64(): _mm_mulhi_epu16 per 16-bit channel, dist != 0
+uvec2 tipLerp(uvec2 a, uvec2 b, uint dist)
+{
+    return (((a * (0x10000u - dist)) >> 16) + ((b * dist) >> 16)) & 0xffffu;
+}
+
+uvec2 tipTexel(Circle c, int x, int y)
+{
+    return tipPremultiplied(ImageTexels(c.imageTexels).texel[y * c.imageWidth + x]);
+}
+
+// fetchTransformedBilinear_pixelBounds()
+ivec2 tipBounds(int v, int last)
+{
+    if (v < 0)
+        return ivec2(0);
+    if (v >= last)
+        return ivec2(last);
+    return ivec2(v, v + 1);
+}
+
+// QRgba64::toArgb32() of one 16-bit channel
+uint tipTo8(uint c)
+{
+    c += 128u;
+    return (c - (c >> 8)) >> 8;
+}
+
+float imageTipAlpha(Circle c, ivec2 p)
+{
+    uint red;
+    uint alpha;
+    if (c.imageIdentity != 0u) {
+        const uint v = ImageTexels(c.imageTexels).texel[(p.y + 1) * c.imageWidth + p.x + 1];
+        red = (v >> 16) & 255u;
+        alpha = v >> 24;
+    } else {
+        const ivec4 row = ImageRows(c.imageRows).row[p.y];
+        if (p.x < row.x || p.x >= row.x + row.y)
+            return TextureLut(c.textureLut).value[0];
+        const int i = p.x - row.x;
+        const int fx = row.z + i * c.imageFdx;
+        const int fy = row.w + i * c.imageFdy;
+        const ivec2 xs = tipBounds(fx >> 16, c.imageWidth - 1);
+        const ivec2 ys = tipBounds(fy >> 16, c.imageHeight - 1);
+        const uint distx = uint(fx) & 0xffffu;
+        const uint disty = uint(fy) & 0xffffu;
+        uvec2 left = tipTexel(c, xs.x, ys.x);
+        uvec2 right = tipTexel(c, xs.y, ys.x);
+        if (disty != 0u) {
+            left = tipLerp(left, tipTexel(c, xs.x, ys.y), disty);
+            right = tipLerp(right, tipTexel(c, xs.y, ys.y), disty);
+        }
+        if (distx != 0u)
+            left = tipLerp(left, right, distx);
+        // QRgba64::unpremultiplied_64bit(), then toArgb32()
+        uint r = left.x;
+        const uint a = left.y;
+        if (a != 0xffffu && a != 0u) {
+            const uint64_t fa = (0xffff00008000ul + uint64_t(a / 2u)) / uint64_t(a);
+            r = uint((uint64_t(r) * fa + 0x80000000ul) >> 32) & 0xffffu;
+        }
+        red = tipTo8(r);
+        alpha = tipTo8(a);
+    }
+    const uint t = (255u - red) * alpha + 0x80u;
+    return TextureLut(c.textureLut).value[((t >> 8) + t) >> 8];
+}
+
+// A generated dab: the circle or image tip, then its texture if any. The
+// texture was applied after the brush tip's mirroring (textureBrushFlips).
 vec4 generatedDab(Circle c, ivec2 p, int width, int height)
 {
-    vec4 source = generatedCircle(c, p);
+    vec4 source = c.kind == 3 ? vec4(c.color.rgb, imageTipAlpha(c, p)) : generatedCircle(c, p);
     if (c.texture != uint64_t(0)) {
         ivec2 tp = p;
         if ((c.textureBrushFlips & 1) != 0) tp.x = width - 1 - tp.x;

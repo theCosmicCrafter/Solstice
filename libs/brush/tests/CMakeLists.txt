@@ -10,5 +10,6 @@ kis_add_tests(
     TestAbrStorage.cpp
     TestAbrParser.cpp
     KisBrushModelTest.cpp
+    KisQImagePyramidDescribeTest.cpp
     LINK_LIBRARIES kritaimage kritalibbrush kritatestsdk
     )

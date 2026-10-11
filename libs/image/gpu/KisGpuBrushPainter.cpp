@@ -279,8 +279,12 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
             // RGBA32F and (phase 4.86) RGBA16F descriptions; the dab color
             // space already equals the device's.
             // Textured descriptions ("Textured dabs") are RGBA32F only.
+            // Image tip descriptions ("Image tip dabs") are RGBA32F only.
             const bool generated = dab.procedural && pixelSize == (dab.procedural->halfPixels ? 8 : 16)
-                && (!dab.procedural->texture || (pixelSize == 16 && dab.procedural->texture->pattern));
+                && (!dab.procedural->texture || (pixelSize == 16 && dab.procedural->texture->pattern))
+                && (dab.procedural->kind != KisProceduralCircleDab::ImageTip
+                    || (pixelSize == 16 && dab.procedural->imageTip
+                        && dab.procedural->imageTip->source.format() == QImage::Format_ARGB32));
             KisGpuDabCompositor::Circle circle;
             if (generated) {
                 const KisProceduralCircleDab &source = *dab.procedural;
@@ -316,6 +320,13 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
                     circle.textureWeight = texture->weight;
                     circle.textureBrushFlips = texture->brushFlips & 3;
                 }
+                if (const KisImageTipGeometry *tip = source.imageTip.data()) {
+                    circle.imageWidth = tip->source.width();
+                    circle.imageHeight = tip->source.height();
+                    circle.imageFdx = tip->fdx;
+                    circle.imageFdy = tip->fdy;
+                    circle.imageIdentity = tip->identity ? 1 : 0;
+                }
             }
             for (const QRect &clip : clipped) {
                 if (inputs.size() >= 65536)
@@ -340,6 +351,14 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
                 }
                 if (generated && dab.procedural->texture) {
                     input.texture = dab.procedural->texture->pattern->constData();
+                    input.textureLut = uint8ToFloatTable();
+                }
+                if (generated && dab.procedural->kind == KisProceduralCircleDab::ImageTip) {
+                    const KisImageTipGeometry &tip = *dab.procedural->imageTip;
+                    if (!tip.identity && tip.rows.size() != input.size.height())
+                        return false;
+                    input.imageTexels = reinterpret_cast<const quint32 *>(tip.source.constBits());
+                    input.imageRows = tip.identity ? nullptr : reinterpret_cast<const qint32 *>(tip.rows.constData());
                     input.textureLut = uint8ToFloatTable();
                 }
                 inputs << input;

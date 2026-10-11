@@ -90,16 +90,17 @@ namespace
 /// kind only after this many of its dabs matched their description exactly
 /// in this process; any mismatch disables skipping for that kind.
 constexpr int VerifiedDabsBeforeSkipping = 16;
-std::atomic<int> s_verifiedDabs[3] = {{0}, {0}, {0}};
-std::atomic<bool> s_mismatch[3] = {{false}, {false}, {false}};
+std::atomic<int> s_verifiedDabs[4] = {{0}, {0}, {0}, {0}};
+std::atomic<bool> s_mismatch[4] = {{false}, {false}, {false}, {false}};
 std::atomic<quint64> s_skippedGenerations{0};
 std::atomic<quint64> s_texturedDescriptions{0};
 
 int kindIndex(const KisProceduralCircleDab &circle)
 {
     return circle.kind == KisProceduralCircleDab::GaussCircle ? 1
-        : circle.kind == KisProceduralCircleDab::SoftCircle  ? 2
-                                                             : 0;
+        : circle.kind == KisProceduralCircleDab::SoftCircle   ? 2
+        : circle.kind == KisProceduralCircleDab::ImageTip     ? 3
+                                                              : 0;
 }
 
 quint32 mirrorFlips(const KisDabCacheUtils::DabGenerationInfo &di)
@@ -132,7 +133,8 @@ QSharedPointer<const KisProceduralDabTexture> gpuTexture(const KisDabCacheUtils:
 }
 
 /// The GPU description of the dab @p di generates, or null when the dab is
-/// not an RGBA F32 vectorized circle auto-brush dab. A dab whose only
+/// not an RGBA F32 vectorized circle auto-brush dab (or RGBA F16), or an
+/// RGBA F32 image tip dab ("Image tip dabs"). A dab whose only
 /// postprocessing is a GPU texture (gpuTexture()) is described too; its
 /// description is the circle before texturing.
 QSharedPointer<KisProceduralCircleDab> buildCircleDab(const KisDabCacheUtils::DabGenerationInfo &di,
@@ -155,15 +157,26 @@ QSharedPointer<KisProceduralCircleDab> buildCircleDab(const KisDabCacheUtils::Da
     }
     const auto *autoBrush = dynamic_cast<const KisAutoBrush *>(resources->brush.data());
     QSharedPointer<KisProceduralCircleDab> circle(new KisProceduralCircleDab());
-    if (!autoBrush
-        || !autoBrush->proceduralCircleDab(di.shape,
-                                           di.info,
-                                           di.subPixel.x(),
-                                           di.subPixel.y(),
-                                           di.softnessFactor,
-                                           di.paintColor.data(),
-                                           circle.data(),
-                                           f16)) {
+    if (!autoBrush) {
+        // An image tip (predefined brush) in alpha-mask mode, RGBA F32 only
+        if (!f32
+            || !resources->brush->proceduralImageDab(di.shape,
+                                                     di.subPixel.x(),
+                                                     di.subPixel.y(),
+                                                     di.paintColor.data(),
+                                                     circle.data())) {
+            return {};
+        }
+        return circle;
+    }
+    if (!autoBrush->proceduralCircleDab(di.shape,
+                                        di.info,
+                                        di.subPixel.x(),
+                                        di.subPixel.y(),
+                                        di.softnessFactor,
+                                        di.paintColor.data(),
+                                        circle.data(),
+                                        f16)) {
         return {};
     }
     return circle;
@@ -187,7 +200,8 @@ QSharedPointer<const KisProceduralCircleDab> describeCircleDab(const KisDabCache
     }
 
     const QRect bounds = dab->bounds();
-    if (bounds.isEmpty() || bounds.topLeft() != QPoint()) {
+    if (bounds.isEmpty() || bounds.topLeft() != QPoint()
+        || (circle->imageTip && circle->imageTip->size != bounds.size())) {
         return {};
     }
     const quint32 mirror = mirrorFlips(di);
@@ -244,7 +258,7 @@ describeWithoutPixels(const KisDabCacheUtils::DabGenerationInfo &di,
         resources->brush->maskWidth(di.shape, di.subPixel.x(), di.subPixel.y(), di.info);
     const int height =
         resources->brush->maskHeight(di.shape, di.subPixel.x(), di.subPixel.y(), di.info);
-    if (width <= 0 || height <= 0) {
+    if (width <= 0 || height <= 0 || (circle->imageTip && circle->imageTip->size != QSize(width, height))) {
         return {};
     }
     // The same bounds as generateMaskAndApplyMaskOrCreateDab(); the buffer

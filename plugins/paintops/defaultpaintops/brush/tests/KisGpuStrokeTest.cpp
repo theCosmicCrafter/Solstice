@@ -28,6 +28,7 @@
 #include <gpu/KisGpuMergeBatch.h>
 #include <gpu/KisGpuTileBackend.h>
 #include <kis_canvas_resource_provider.h>
+#include <kis_gbr_brush.h>
 #include <kis_image.h>
 #include <kis_paint_device.h>
 #include <kis_paint_layer.h>
@@ -226,6 +227,42 @@ private Q_SLOTS:
             m_textureStrength = 1.0;
         });
         runStroke(false, false, -1, QString(), false, true);
+    }
+    void testImageTipStroke_data()
+    {
+        QTest::addColumn<int>("diameter");
+        QTest::addColumn<bool>("wash");
+        QTest::addColumn<bool>("mirrors");
+        QTest::addColumn<bool>("restricted");
+        QTest::addColumn<bool>("distant");
+        QTest::addColumn<bool>("alphaOnly");
+        QTest::addColumn<double>("tipAngle");
+        QTest::addColumn<bool>("textured");
+        for (int diameter : {48, 160})
+            for (double angle : {0.0, 0.37})
+                for (bool wash : {false, true})
+                    QTest::newRow(
+                        qPrintable(QString("%1-angle%2-%3").arg(diameter).arg(angle).arg(wash ? "wash" : "buildup")))
+                        << diameter << wash << (angle != 0.0 && wash) << false << false << false << angle << false;
+        for (double angle : {0.0, 0.37})
+            QTest::newRow(qPrintable(QString("textured-angle%1").arg(angle)))
+                << 120 << false << true << false << false << false << angle << true;
+        // the level's interior, untransformed (scale 1, no rotation)
+        QTest::newRow("identity") << 40 << false << false << false << false << false << 0.0 << false;
+    }
+    void testImageTipStroke()
+    {
+        // GPU image tip dabs ("Image tip dabs"): a predefined (GBR) tip in
+        // alpha-mask mode, scaled and rotated, textured and mirrored.
+        QFETCH(double, tipAngle);
+        QFETCH(bool, textured);
+        m_imageTip = true;
+        m_imageTipAngle = tipAngle;
+        auto restore = qScopeGuard([this]() {
+            m_imageTip = false;
+            m_imageTipAngle = 0.0;
+        });
+        runStroke(false, false, -1, QString(), false, textured);
     }
     void testGaussStroke()
     {
@@ -505,6 +542,9 @@ private:
     bool m_softTexturing = false;
     qreal m_textureStrength = 1.0;
     int m_refusePendingBatches = 0;
+    // A predefined brush tip instead of the auto brush (testImageTipStroke)
+    bool m_imageTip = false;
+    double m_imageTipAngle = 0.0;
     void runStroke(bool erase,
                    bool selectionOnly = false,
                    int channelBits = -1,
@@ -552,6 +592,35 @@ private:
                 .arg(diameter)
                 .arg(diameter == 300 ? 0.02 : 0.1)
                 .arg(m_maskGenerator));
+        if (m_imageTip) {
+            // gray values and alpha varying over the whole range, with fully
+            // transparent and opaque pixels
+            QImage tipImage(40, 40, QImage::Format_ARGB32);
+            for (int y = 0; y < tipImage.height(); ++y) {
+                for (int x = 0; x < tipImage.width(); ++x) {
+                    const int value = (x * 29 + y * 53 + x * y * 7) % 256;
+                    const qreal d = std::hypot(x - 19.5, y - 19.5);
+                    int alpha = d < 18 ? int(255 * (1 - d / 18)) : 0;
+                    if ((x * y) % 9 == 4)
+                        alpha = 255;
+                    tipImage.setPixel(x, y, qRgba(value, value, value, alpha));
+                }
+            }
+            KisGbrBrushSP tip(new KisGbrBrush(tipImage, QStringLiteral("GPU test tip")));
+            tip->setFilename(QStringLiteral("gpu-test-tip.gbr"));
+            tip->setMD5Sum(QStringLiteral("fedcba9876543210fedcba9876543210"));
+            tip->setValid(true);
+            tip->setSpacing(0.1);
+            tip->setAngle(m_imageTipAngle);
+            tip->setScale(diameter / 40.0);
+            QCOMPARE(tip->brushApplication(), ALPHAMASK);
+            localResources->addResource(tip);
+            QDomDocument document;
+            QDomElement element = document.createElement(QStringLiteral("Brush"));
+            KisBrushSP(tip)->toXML(document, element); // public in KisBrush
+            document.appendChild(element);
+            settings->setProperty("brush_definition", document.toString());
+        }
         KisPaintingModeOptionData paintingMode;
         paintingMode.paintingMode = wash ? enumPaintingMode::WASH : enumPaintingMode::BUILDUP;
         paintingMode.write(settings.data());
