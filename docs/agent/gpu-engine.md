@@ -615,6 +615,13 @@ composite ran on the CPU, so masked strokes stayed on the CPU brush.
   composite and a projection merge, and with CPU-generated (textured) dabs the
   GPU minimum made about seven times more batches (300px textured masked:
   113 -> 89 ms; CPU 78 ms, GPU projection only 90 ms).
+  Re-measured after phase 4.102 (textured dabs on the GPU, 2026-10-11):
+  with the GPU minimum period for masked strokes too, masked and dense
+  mirrored rows finished within noise of the adaptive period (for example
+  300px masked textured 36.9 / 35.8 ms, 80px dense mirrored textured
+  30.5 / 29.9 ms) with the same submission counts. The adaptive period
+  stays: it still protects masked strokes whose dabs are generated on the
+  CPU (Lightness or Gradient textures, sharpness, RGBA16F textures).
 - Measurements (`KisGpuStrokeTest`, median of 5, no validation, ms; CPU /
   GPU projection / GPU brush): masked 300px 51 / 56 / 30; masked 300px
   textured 78 / 90 / 89; masked 150px 11 / 16 / 13; temporary dense rows

@@ -167,8 +167,11 @@ can retain GPU pixels, and CPU filters, FFT convolution, affine transforms
 and layer flips now batch their GPU readbacks.
 
 The GPU brush can be turned off with **Paint brush strokes on the GPU** next
-to the GPU engine option; `KRITA_GPU_BRUSH=1` or `0` overrides the setting. Dab generation, texture generation, masking, filter calculations
-and most transform calculations still run on the CPU; the Transform Tool's
+to the GPU engine option; `KRITA_GPU_BRUSH=1` or `0` overrides the setting. On RGBA32F
+layers, round auto-brush dabs, their pattern textures and the masking
+brush composite are also computed on the GPU. Image-based brush tips, the
+masking brush's own mask, most filter calculations and most transform
+calculations still run on the CPU; the Transform Tool's
 affine transforms, Liquify, Puppet Warp and Gaussian Blur (also inside
 Unsharp Mask and Gaussian High Pass) are applied on the GPU for float layers. Large mirrored brushes with
 Alpha Lock can still catch up after pen release; further tuning of that case
@@ -183,19 +186,19 @@ be included in a published build.
 **These numbers measure specific engine operations, not overall application
 performance.** They are not frame rates or pen-to-screen latency measurements.
 
-Measured on October 7, 2026, with an AMD Ryzen 9 9950X and NVIDIA RTX PRO 6000
+Measured on October 11, 2026, with an AMD Ryzen 9 9950X and NVIDIA RTX PRO 6000
 Blackwell (driver 596.86), using local development builds:
 
 | Workload | CPU | GPU |
 | --- | ---: | ---: |
-| Resident full layer projection, 4096 x 4096 RGBA32F, 16 layers | 254 ms | 58.2 ms |
-| Canvas data preparation, 4096 x 4096 RGBA32F, 8 layers | 1088 ms | 1.70 ms |
-| Four mirror passes, 14 dabs of 73 x 73 pixels | 0.994 ms | 0.435 ms |
-| Four mirror passes, 32 dabs of 256 x 256 pixels | 47.7 ms | 2.06 ms |
-| Transform Tool apply, scale + rotate (bicubic), 2480 x 3508 RGBA32F | 470 ms | 64.1 ms |
-| Liquify apply, 20 strokes, 2480 x 3508 RGBA32F | 225 ms | 57.8 ms |
-| Gaussian Blur apply, radius 30, 2480 x 3508 RGBA32F | 213 ms | 62.0 ms |
-| Puppet Warp apply, 3 pins, 2480 x 3508 RGBA32F | 713 ms | 190 ms |
+| Resident full layer projection, 4096 x 4096 RGBA32F, 16 layers | 270 ms | 60.6 ms |
+| Canvas data preparation, 4096 x 4096 RGBA32F, 8 layers | 1215 ms | 1.81 ms |
+| Four mirror passes, 14 dabs of 73 x 73 pixels | 0.949 ms | 0.437 ms |
+| Four mirror passes, 32 dabs of 256 x 256 pixels | 51.1 ms | 2.08 ms |
+| Transform Tool apply, scale + rotate (bicubic), 2480 x 3508 RGBA32F | 502 ms | 61.5 ms |
+| Liquify apply, 20 strokes, 2480 x 3508 RGBA32F | 253 ms | 63.5 ms |
+| Gaussian Blur apply, radius 30, 2480 x 3508 RGBA32F | 212 ms | 68.0 ms |
+| Puppet Warp apply, 3 pins, 2480 x 3508 RGBA32F | 750 ms | 212 ms |
 
 The affine transform and Liquify results are identical to the CPU results,
 pixel for pixel; so are Puppet Warp's parts, which are then combined on the
@@ -209,26 +212,29 @@ warming all three brush staging slots; transform results are medians of three
 calls with a CPU-resident source layer. The Gaussian Blur CPU value splits the
 layer into 32 parallel bands, like the Filter dialog's patches; the GPU value
 is one call. Projection excludes full CPU readback
-(46-49 ms). Canvas preparation starts with GPU-resident projection pixels and
+(53-57 ms). Canvas preparation starts with GPU-resident projection pixels and
 excludes projection work and final OpenGL texture copies. Mirror measurements
 include reflection and uploads, compare against serial CPU painting, and
 exclude dab generation, scheduling and display.
 
 Completed-stroke measurements from the same day show both the remaining
-overhead and a workload that benefits from GPU brushes:
+overhead and workloads that benefit from GPU brushes:
 
 | Queued stroke | CPU only | GPU projection and brush |
 | --- | ---: | ---: |
-| RGBA32F, 64px Normal Wash | 6.04 ms | 10.54 ms |
-| RGBA32F, 256px Normal Buildup | 8.07 ms | 11.76 ms |
-| RGBA16F, 128px Soft Light (SVG) Wash, selection and both mirrors | 70.00 ms | 12.55 ms |
+| RGBA32F, 64px Normal Wash | 6.19 ms | 10.88 ms |
+| RGBA32F, 256px Normal Buildup | 8.15 ms | 10.70 ms |
+| RGBA16F, 128px Soft Light (SVG) Wash, selection and both mirrors | 73.60 ms | 11.46 ms |
+| RGBA32F, 300px textured (pattern) Buildup | 53.35 ms | 18.42 ms |
+| RGBA32F, 300px textured with a masking brush, Wash | 80.51 ms | 37.45 ms |
 
 These use a 1024 x 1024 document, four layers and 24 queued line segments.
 Each value is the median of five-sample medians from three fresh processes.
 They include brush generation, final merging and completed projection, but
 exclude tablet input and screen presentation. These are different workloads,
-not an F16-versus-F32 comparison. See the
-[measurement details and ranges](docs/agent/wiki/benchmarks/transform-and-filter-costs.md#readme-refresh-2026-10-07).
+not an F16-versus-F32 comparison. Pattern textures and masking brushes are
+applied on the GPU since October 10-11, 2026. See the
+[measurement details and ranges](docs/agent/wiki/benchmarks/transform-and-filter-costs.md#readme-refresh-2026-10-11).
 
 **Complete short strokes can still be slower on the GPU.** Work-buffer reuse
 removed an avoidable wait, but its before/after timing ranges overlap and do
@@ -238,9 +244,8 @@ see [the input-to-display comparison](docs/gpu-engine.md#input-to-display)).
 
 See the [current benchmark results and limitations](docs/gpu-engine.md#current-benchmarks)
 and [reproduction notes](docs/agent/wiki/history/gpu-phases-4.17-4.57.md#current-build-benchmark-baseline-phase-442).
-A nine-process manual comparison now reports Qt input-to-command-swap timing:
-no clear GPU advantage at 64px, and lower CPU summary medians at 256px in the
-tested scene. It is not physical pen-to-screen latency or a multilayer-compositing benchmark.
+Input-to-display timings are Qt input-to-command-swap measurements, not
+physical pen-to-screen latency.
 Results vary with workload and hardware and do not establish performance for
 a packaged release.
 

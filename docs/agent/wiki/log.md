@@ -695,3 +695,14 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   its results (RGBA16F by one half ULP, the Soft circle no longer
   bit-exact); new features get their own shader variants.
 - User manual check OK on 2026-10-11.
+
+## 2026-10-11 ingest: README benchmark refresh, masked update period
+
+- README benchmarks measured again with the 2026-10-07 method plus two
+  textured stroke rows ([benchmarks](benchmarks/transform-and-filter-costs.md#readme-refresh-2026-10-11));
+  the stale "no GPU advantage at 64px" sentence and the "dabs, textures and
+  masking on the CPU" status were corrected.
+- Decision: masked strokes keep the adaptive update period; after phase
+  4.102 the GPU minimum period made no measurable difference
+  ([gpu-engine.md](../gpu-engine.md), "Masking brush").
+- User check OK on 2026-10-11.

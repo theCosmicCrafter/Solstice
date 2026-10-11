@@ -116,6 +116,58 @@ Notes:
 - Compared with October 4, the projection, canvas and mirror medians are
   within a few percent; no change is claimed from that difference.
 
+## README refresh (2026-10-11)
+
+The README rows were measured again after phases 4.99-4.102 (GPU brush by
+default, masking brush and textured dabs on the GPU), with the commands of
+the 2026-10-07 refresh plus two textured stroke rows: three fresh processes
+per workload, validation off, Solstice closed.
+
+- Build: `337b16f1db`, RelWithDebInfo; same machine and driver 596.86.
+- Settings as on 2026-10-07; strokes add
+  `testTexturedMaskedStroke:texture-only-buildup` and
+  `testTexturedMaskedStroke:masked-300-texture1` (300px, a 64x64 grain
+  pattern in Multiply; the masked row also has a Multiply masking brush,
+  Wash).
+- All 15 processes passed.
+
+Medians of the three process results, with the range of process results:
+
+| Workload | CPU (ms) | GPU (ms) |
+| --- | ---: | ---: |
+| 4096-square, 16-layer resident projection | 270.4 (268.9-276.6) | 60.6 (59.1-61.7) |
+| Full CPU readback after it | - | 54.1 (53.3-56.9) |
+| 4096-square canvas preparation | 1214.7 (1207.6-1214.7) | 1.810 (1.768-1.816) |
+| 256-square canvas preparation | 6.788 (6.158-7.288) | 0.278 (0.187-0.419) |
+| Nearby mirrors, 14 dabs at 73px | 0.949 (0.937-0.969) | 0.437 (0.407-0.482) |
+| Nearby mirrors, 32 dabs at 256px | 51.11 (49.99-55.30) | 2.081 (2.075-2.168) |
+| Distant mirrors, 14 dabs at 73px | 0.894 (0.882-1.042) | 0.398 (0.342-0.626) |
+| Distant mirrors, 32 dabs at 256px | 49.27 (49.00-49.38) | 2.066 (1.969-2.093) |
+| Affine scale 0.9 + rotate 10 degrees, bicubic | 501.8 (499.8-507.3) | 61.5 (61.2-62.2) |
+| Liquify, 20 moves, sigma 200 | 253.0 (242.7-259.7) | 63.5 (63.0-71.1) |
+| Gaussian blur r30 (CPU 32 bands, GPU one call) | 211.9 (211.2-212.9) | 68.0 (65.4-70.3) |
+| Puppet Warp mesh, 3 groups | 749.6 (737.5-768.2) | 211.6 (211.3-213.0) |
+
+Completed strokes (1024-square, four layers, 24 segments; medians of process
+medians):
+
+| Stroke | CPU | GPU projection | GPU projection + brush |
+| --- | ---: | ---: | ---: |
+| F32 64px Normal Wash | 6.186 (6.048-6.303) | 10.681 (10.105-10.929) | 10.883 (10.092-11.020) |
+| F32 256px Normal Buildup | 8.152 (7.996-8.293) | 13.010 (12.426-13.726) | 10.696 (9.634-11.123) |
+| F16 128px Soft Light SVG Wash, selection + mirrors | 73.600 (71.072-73.952) | 57.295 (57.229-59.073) | 11.460 (11.358-11.525) |
+| F32 300px textured Buildup | 53.348 (53.288-54.579) | 62.349 (61.107-62.846) | 18.422 (13.234-19.520) |
+| F32 300px textured + masking brush, Wash | 80.507 (79.835-81.876) | 95.002 (93.501-98.296) | 37.445 (36.937-37.713) |
+
+Notes:
+
+- Compared with October 7, the GPU values are within a few percent; the CPU
+  values are 5-10 percent higher with overlapping-to-near ranges, so no change
+  of the CPU paths is claimed.
+- The completed short strokes (64px, 256px) are still slower with the GPU
+  paths; input to display, which the GPU brush improves (about 5 ms against
+  18-22 ms, 2026-10-10), is a different measurement.
+
 ## GPU Gaussian blur (phase 4.98, 2026-10-07)
 
 Build: phase 4.98 working tree on `ac896b0427`, RelWithDebInfo; same machine
