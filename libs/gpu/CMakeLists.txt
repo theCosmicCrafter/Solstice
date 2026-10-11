@@ -42,6 +42,14 @@ kis_gpu_add_shader(kritagpu_SHADERS paint_dabs_textured shaders/paint_dabs.comp 
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl)
 kis_gpu_add_shader(kritagpu_SHADERS paint_dabs_textured_extended shaders/paint_dabs.comp DEFINES DAB_TEXTURE
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl)
+# RGBA16F image tips (phase 4.105), separate builds like the RGBA32F ones
+kis_gpu_add_shader(kritagpu_SHADERS paint_dabs_textured_rgba16f shaders/paint_dabs.comp
+    DEFINES TILE_F16 BASIC_BLEND_ONLY DAB_TEXTURE
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl
+             ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_half_brush.glsl)
+kis_gpu_add_shader(kritagpu_SHADERS paint_dabs_textured_extended_rgba16f shaders/paint_dabs.comp DEFINES TILE_F16 DAB_TEXTURE
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl
+             ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_half_brush.glsl)
 kis_gpu_add_shader(kritagpu_SHADERS paint_dabs_rgba16f shaders/paint_dabs.comp DEFINES TILE_F16 BASIC_BLEND_ONLY
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl
              ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_half_brush.glsl)

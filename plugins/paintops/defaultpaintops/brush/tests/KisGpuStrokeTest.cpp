@@ -44,6 +44,12 @@
 #include <strokes/freehand_stroke.h>
 #include <vector>
 
+// RGBA16F textures (phase 4.105)
+#include <KisProceduralCircleDab.h>
+#include <KisRenderedDab.h>
+#include <kis_painter.h>
+#include <strokes/KisMaskingBrushCompositeOp.h>
+
 namespace
 {
 const QRect imageRect(0, 0, 1024, 1024);
@@ -184,6 +190,7 @@ private Q_SLOTS:
         QTest::addColumn<bool>("alphaOnly");
         QTest::addColumn<int>("textureMode");
         QTest::addColumn<bool>("soft");
+        QTest::addColumn<bool>("halfTexture");
         const QList<QPair<int, QString>> modes{
             {KisTextureOptionData::MULTIPLY, QStringLiteral("multiply")},
             {KisTextureOptionData::SUBTRACT, QStringLiteral("subtract")},
@@ -207,10 +214,18 @@ private Q_SLOTS:
                 const bool mirrors = row % 5 == 2;
                 QTest::newRow(qPrintable(
                     QStringLiteral("%1-%2%3").arg(mode.second, soft ? "soft" : "hard", mirrors ? "-mirrors" : "")))
-                    << 80 << (row % 2 == 1) << mirrors << false << false << false << mode.first << soft;
+                    << 80 << (row % 2 == 1) << mirrors << false << false << false << mode.first << soft << false;
                 ++row;
             }
         }
+        // RGBA16F (phase 4.105)
+        for (int mode : {int(KisTextureOptionData::MULTIPLY),
+                         int(KisTextureOptionData::OVERLAY),
+                         int(KisTextureOptionData::HEIGHT),
+                         int(KisTextureOptionData::LINEAR_HEIGHT_PHOTOSHOP)})
+            for (bool soft : {false, true})
+                QTest::newRow(qPrintable(QStringLiteral("rgba16f-%1-%2").arg(mode).arg(soft ? "soft" : "hard")))
+                    << 80 << soft << false << false << false << false << mode << soft << true;
     }
     void testTextureModes()
     {
@@ -218,6 +233,7 @@ private Q_SLOTS:
         // mode, hard and soft, at strength 0.6 with a texture offset.
         QFETCH(int, textureMode);
         QFETCH(bool, soft);
+        QFETCH(bool, halfTexture);
         m_textureMode = textureMode;
         m_softTexturing = soft;
         m_textureStrength = 0.6;
@@ -226,7 +242,7 @@ private Q_SLOTS:
             m_softTexturing = false;
             m_textureStrength = 1.0;
         });
-        runStroke(false, false, -1, QString(), false, true);
+        runStroke(false, false, -1, QString(), false, true, halfTexture);
     }
     void testImageTipStroke_data()
     {
@@ -239,18 +255,20 @@ private Q_SLOTS:
         QTest::addColumn<double>("tipAngle");
         QTest::addColumn<bool>("textured");
         QTest::addColumn<int>("application");
+        QTest::addColumn<bool>("halfTip");
         for (int diameter : {48, 160})
             for (double angle : {0.0, 0.37})
                 for (bool wash : {false, true})
                     QTest::newRow(
                         qPrintable(QString("%1-angle%2-%3").arg(diameter).arg(angle).arg(wash ? "wash" : "buildup")))
                         << diameter << wash << (angle != 0.0 && wash) << false << false << false << angle << false
-                        << int(ALPHAMASK);
+                        << int(ALPHAMASK) << false;
         for (double angle : {0.0, 0.37})
             QTest::newRow(qPrintable(QString("textured-angle%1").arg(angle)))
-                << 120 << false << true << false << false << false << angle << true << int(ALPHAMASK);
+                << 120 << false << true << false << false << false << angle << true << int(ALPHAMASK) << false;
         // the level's interior, untransformed (scale 1, no rotation)
-        QTest::newRow("identity") << 40 << false << false << false << false << false << 0.0 << false << int(ALPHAMASK);
+        QTest::newRow("identity") << 40 << false << false << false << false << false << 0.0 << false << int(ALPHAMASK)
+                                  << false;
         // a color tip as an image stamp and as a Lightness map (the Gradient
         // map needs the canvas gradient: KisImageTipDescriptionTest and
         // KisGpuBrushTest cover it). No mirrors: dabs of different colors
@@ -259,7 +277,14 @@ private Q_SLOTS:
             for (bool wash : {false, true})
                 QTest::newRow(qPrintable(
                     QString("%1-%2").arg(application == IMAGESTAMP ? "stamp" : "lightness", wash ? "wash" : "buildup")))
-                    << 120 << wash << false << false << false << false << 0.37 << !wash << application;
+                    << 120 << wash << false << false << false << false << 0.37 << !wash << application << false;
+        // RGBA16F (phase 4.105), untextured
+        for (int application : {int(ALPHAMASK), int(IMAGESTAMP), int(LIGHTNESSMAP)})
+            for (bool wash : {false, true})
+                QTest::newRow(
+                    qPrintable(QString("rgba16f-application%1-%2").arg(application).arg(wash ? "wash" : "buildup")))
+                    << 120 << wash << (application == ALPHAMASK && wash) << false << false << false << 0.37 << false
+                    << application << true;
     }
     void testImageTipStroke()
     {
@@ -268,6 +293,7 @@ private Q_SLOTS:
         QFETCH(double, tipAngle);
         QFETCH(bool, textured);
         QFETCH(int, application);
+        QFETCH(bool, halfTip);
         m_imageTip = true;
         m_imageTipAngle = tipAngle;
         m_imageTipApplication = application;
@@ -276,7 +302,7 @@ private Q_SLOTS:
             m_imageTipAngle = 0.0;
             m_imageTipApplication = ALPHAMASK;
         });
-        runStroke(false, false, -1, QString(), false, textured);
+        runStroke(false, false, -1, QString(), false, textured, halfTip);
     }
     void testGaussStroke()
     {
@@ -456,6 +482,143 @@ private Q_SLOTS:
         QFETCH(bool, masked);
         QFETCH(bool, textured);
         runStroke(false, false, -1, QString(), masked, textured);
+    }
+    void testHalfTextureModesExact_data()
+    {
+        // KisTextureOption::alphaCompositeOpId() and the modes of
+        // KisTextureOption::gpuDescription()
+        QTest::addColumn<QString>("opId");
+        QTest::addColumn<int>("maskingMode");
+        QTest::addColumn<bool>("soft");
+        const QList<QPair<QString, int>> modes{
+            {COMPOSITE_MULT, KIS_MASKING_BRUSH_COMPOSITE_MULT},
+            {COMPOSITE_SUBTRACT, KIS_MASKING_BRUSH_COMPOSITE_SUBTRACT},
+            {COMPOSITE_DARKEN, KIS_MASKING_BRUSH_COMPOSITE_DARKEN},
+            {COMPOSITE_OVERLAY, KIS_MASKING_BRUSH_COMPOSITE_OVERLAY},
+            {COMPOSITE_DODGE, KIS_MASKING_BRUSH_COMPOSITE_DODGE},
+            {COMPOSITE_BURN, KIS_MASKING_BRUSH_COMPOSITE_BURN},
+            {COMPOSITE_LINEAR_DODGE, KIS_MASKING_BRUSH_COMPOSITE_LINEAR_DODGE},
+            {COMPOSITE_LINEAR_BURN, KIS_MASKING_BRUSH_COMPOSITE_LINEAR_BURN},
+            {COMPOSITE_HARD_MIX_PHOTOSHOP, KIS_MASKING_BRUSH_COMPOSITE_HARD_MIX_PHOTOSHOP},
+            {COMPOSITE_HARD_MIX_SOFTER_PHOTOSHOP, KIS_MASKING_BRUSH_COMPOSITE_HARD_MIX_SOFTER_PHOTOSHOP},
+            {QStringLiteral("height"), KIS_MASKING_BRUSH_COMPOSITE_HEIGHT},
+            {QStringLiteral("linear_height"), KIS_MASKING_BRUSH_COMPOSITE_LINEAR_HEIGHT},
+            {QStringLiteral("height_photoshop"), KIS_MASKING_BRUSH_COMPOSITE_HEIGHT_PHOTOSHOP},
+            {QStringLiteral("linear_height_photoshop"), KIS_MASKING_BRUSH_COMPOSITE_LINEAR_HEIGHT_PHOTOSHOP}};
+        for (const auto &mode : modes)
+            for (bool soft : {false, true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(mode.first, soft ? "soft" : "hard")))
+                    << mode.first << mode.second << soft;
+    }
+    /// RGBA16F textured dabs ("Textured dabs", phase 4.105): the GPU texture
+    /// composite of every mode is bit-identical to
+    /// KisMaskingBrushCompositeOp<half> on the CPU, for dab alphas and
+    /// texels over their whole ranges and several strengths.
+    void testHalfTextureModesExact()
+    {
+        QFETCH(QString, opId);
+        QFETCH(int, maskingMode);
+        QFETCH(bool, soft);
+        const auto previousBrush = qgetenv("KRITA_GPU_BRUSH");
+        const bool previousProjection = KisGpuMergeBatch::isEnabled();
+        qputenv("KRITA_GPU_BRUSH", "1");
+        KisGpuMergeBatch::setEnabled(true);
+        const auto restore = qScopeGuard([&]() {
+            KisGpuMergeBatch::setEnabled(previousProjection);
+            if (previousBrush.isNull())
+                qunsetenv("KRITA_GPU_BRUSH");
+            else
+                qputenv("KRITA_GPU_BRUSH", previousBrush);
+        });
+        const KoColorSpace *cs = KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(),
+                                                                              Float16BitsColorDepthID.id(),
+                                                                              QString());
+        // a dab of every 8-bit alpha (image tip, alpha mask): the tip level
+        // is the identity, its alpha the row index times 4 plus the column
+        QImage level(66, 66, QImage::Format_ARGB32);
+        level.fill(0);
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x)
+                level.setPixel(x + 1, y + 1, qRgba(0, 0, 0, (y * 4 + x) % 256));
+        QSharedPointer<KisImageTipGeometry> tip(new KisImageTipGeometry());
+        tip->source = level;
+        tip->premultiplied = KisImageTipSampler::premultiply(level);
+        tip->size = QSize(64, 64);
+        tip->identity = true;
+        // texels over the whole byte range, with 0 and 255 runs
+        QSharedPointer<QVector<quint8>> pattern(new QVector<quint8>(37 * 23));
+        for (int i = 0; i < pattern->size(); ++i)
+            (*pattern)[i] = quint8(i % 41 == 0 ? 0 : i % 43 == 0 ? 255 : (i * 97 + i / 37 * 13) % 256);
+        using namespace KisMaskingBrushCompositeDetail;
+        for (qreal strength : {1.0, 0.6, 0.137}) {
+            const bool height = maskingMode == KIS_MASKING_BRUSH_COMPOSITE_HEIGHT
+                || maskingMode == KIS_MASKING_BRUSH_COMPOSITE_LINEAR_HEIGHT;
+            QSharedPointer<KisProceduralDabTexture> texture(new KisProceduralDabTexture());
+            texture->pattern = pattern;
+            texture->width = 37;
+            texture->height = 23;
+            texture->originX = 5;
+            texture->originY = -7;
+            texture->mode = quint32(maskingMode);
+            texture->soft = soft;
+            const half halfStrength = StrengthCompositeFunctionBase<half>(height ? 0.99 * strength : strength).strength;
+            texture->strength = float(halfStrength);
+            texture->invertedStrength = float(Arithmetic::inv(halfStrength));
+            texture->weight = float((soft ? double(9) : double(10)) * halfStrength);
+            QSharedPointer<KisProceduralCircleDab> description(new KisProceduralCircleDab());
+            description->kind = KisProceduralCircleDab::ImageTip;
+            description->halfPixels = true;
+            description->imageTip = tip;
+            for (int c = 0; c < 4; ++c)
+                description->color[c] = float(half(0.3f + 0.2f * c));
+            description->texture = texture;
+
+            // the CPU: the dab, then the composite with each pixel's texel
+            QVector<quint8> expected(64 * 64 * 8);
+            description->render(expected.data(), 64, 64, 0);
+            QVector<quint8> texels(64 * 64);
+            for (int y = 0; y < 64; ++y)
+                for (int x = 0; x < 64; ++x) {
+                    const int tx = ((texture->originX + x) % 37 + 37) % 37;
+                    const int ty = ((texture->originY + y) % 23 + 23) % 23;
+                    texels[y * 64 + x] = (*pattern)[ty * 37 + tx];
+                }
+            QScopedPointer<KisMaskingBrushCompositeOpBase> op(
+                KisMaskingBrushCompositeOpFactory::createForAlphaSrc(opId,
+                                                                     KoChannelInfo::FLOAT16,
+                                                                     8,
+                                                                     6,
+                                                                     strength,
+                                                                     soft));
+            op->composite(texels.constData(), 64, expected.data(), 64 * 8, 64, 64);
+
+            // the GPU: Over at full opacity on a transparent device copies
+            // the alpha
+            KisFixedPaintDeviceSP device = new KisFixedPaintDevice(cs);
+            device->setRect(QRect(0, 0, 64, 64));
+            device->lazyGrowBufferWithoutInitialization();
+            std::fill_n(device->data(), 64 * 64 * 8, quint8(0));
+            KisRenderedDab dab(device);
+            dab.offset = QPoint(13, -21);
+            dab.procedural = description;
+            KisPaintDeviceSP target = new KisPaintDevice(cs);
+            KisPainter painter(target);
+            painter.setCompositeOpId(COMPOSITE_OVER);
+            QVERIFY(KisGpuBrushPainter::paint(&painter, {dab}));
+            QVector<quint8> painted(64 * 64 * 8);
+            target->readBytes(painted.data(), dab.realBounds());
+            int mismatches = 0;
+            for (int p = 0; p < 64 * 64; ++p) {
+                const half cpu = reinterpret_cast<const half *>(expected.constData())[4 * p + 3];
+                const half gpu = reinterpret_cast<const half *>(painted.constData())[4 * p + 3];
+                if (cpu.bits() != gpu.bits() && !(float(cpu) == 0.0f && float(gpu) == 0.0f) && mismatches++ < 3) {
+                    qWarning() << "strength" << strength << "pixel" << p % 64 << p / 64 << "texel" << texels[p]
+                               << "dab alpha" << (p % 64 + p / 64 * 4) % 256 << "CPU" << float(cpu) << "GPU"
+                               << float(gpu);
+                }
+            }
+            QVERIFY2(mismatches == 0, qPrintable(QString("strength %1: %2 mismatches").arg(strength).arg(mismatches)));
+        }
     }
     void testMaskingCompositeMatchesCpu_data()
     {
@@ -828,9 +991,9 @@ private:
                     QCOMPARE(batches, quint64(0));
                 // Phase 4.83: the circle dabs of RGBA32F strokes are evaluated
                 // on the GPU. "Textured dabs": RGBA32F dabs with an alpha-only
-                // texture too; Lightness/Gradient and RGBA16F textures keep
-                // their pixels.
-                const bool gpuTexture = textured && !half && m_textureMode != KisTextureOptionData::LIGHTNESS
+                // texture too, and RGBA16F ones (phase 4.105); Lightness and
+                // Gradient textures keep their pixels.
+                const bool gpuTexture = textured && m_textureMode != KisTextureOptionData::LIGHTNESS
                     && m_textureMode != KisTextureOptionData::GRADIENT;
                 const bool describable = !textured || gpuTexture;
                 const auto generated = KisGpuBrushPainter::generatedDabCount() - firstGenerated;

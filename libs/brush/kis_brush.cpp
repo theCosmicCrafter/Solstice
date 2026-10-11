@@ -600,6 +600,12 @@ void KisBrush::generateMaskAndApplyMaskOrCreateDab(KisFixedPaintDeviceSP dst,
 
 namespace
 {
+/// Channel @p c of an RGBA F32 or (8-byte pixels) RGBA F16 pixel as a float
+float channelValue(const quint8 *pixel, int c, int pixelSize)
+{
+    return pixelSize == 8 ? float(reinterpret_cast<const half *>(pixel)[c]) : reinterpret_cast<const float *>(pixel)[c];
+}
+
 /**
  * GPU engine (Solstice): the image stamp table of @p colorSpace (see
  * KisProceduralCircleDab::ImageStamp): paintDevice() converts the 8-bit
@@ -622,14 +628,21 @@ QSharedPointer<const QVector<float>> imageStampTable(const KoColorSpace *colorSp
 
     const KoColorSpace *rgb8 =
         KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(), Integer8BitsColorDepthID.id(), QString());
+    const int pixelSize = colorSpace->pixelSize();
     auto convert = [&](const QVector<quint32> &argb) {
-        QVector<float> result(argb.size() * 4);
+        QVector<quint8> pixels(argb.size() * pixelSize);
         rgb8->convertPixelsTo(reinterpret_cast<const quint8 *>(argb.constData()),
-                              reinterpret_cast<quint8 *>(result.data()),
+                              pixels.data(),
                               colorSpace,
                               argb.size(),
                               KoColorConversionTransformation::internalRenderingIntent(),
                               KoColorConversionTransformation::internalConversionFlags());
+        QVector<float> result(argb.size() * 4);
+        for (int i = 0; i < argb.size(); ++i) {
+            for (int c = 0; c < 4; ++c) {
+                result[4 * i + c] = channelValue(pixels.constData() + i * pixelSize, c, pixelSize);
+            }
+        }
         return result;
     };
 
@@ -683,10 +696,11 @@ bool KisBrush::proceduralImageDab(KisDabShape const &shape,
                                   qreal lightnessStrength,
                                   KisProceduralCircleDab *dab) const
 {
-    // Brushes that generate their dabs differently
+    // Brushes that generate their dabs differently; RGBA F32 or F16 dabs
+    const int pixelSize = colorSpace ? colorSpace->pixelSize() : 0;
     if (!valid() || !color || !dab || !colorSpace || dynamic_cast<const KisAutoBrush *>(this)
         || dynamic_cast<const KisImagePipeBrush *>(this) || dynamic_cast<const KisTextBrush *>(this)
-        || colorSpace->pixelSize() != 16) {
+        || (pixelSize != 16 && pixelSize != 8)) {
         return false;
     }
     // The per-pixel work of the application as tables (see
@@ -703,10 +717,10 @@ bool KisBrush::proceduralImageDab(KisDabShape const &shape,
         for (int v = 0; v < 256; ++v) {
             brush[v] = qRgba(v, 0, 0, v);
         }
-        QVector<float> pixels(256 * 4);
-        QVector<quint8> paintColor(colorSpace->pixelSize());
+        QVector<quint8> pixels(256 * pixelSize);
+        QVector<quint8> paintColor(pixelSize);
         std::memcpy(paintColor.data(), color, size_t(paintColor.size()));
-        colorSpace->fillGrayBrushWithColorAndLightnessWithStrength(reinterpret_cast<quint8 *>(pixels.data()),
+        colorSpace->fillGrayBrushWithColorAndLightnessWithStrength(pixels.data(),
                                                                    brush.constData(),
                                                                    paintColor.data(),
                                                                    lightnessStrength,
@@ -714,7 +728,7 @@ bool KisBrush::proceduralImageDab(KisDabShape const &shape,
         QSharedPointer<QVector<float>> values(new QVector<float>(1024));
         for (int v = 0; v < 256; ++v) {
             for (int c = 0; c < 4; ++c) {
-                (*values)[c * 256 + v] = pixels[4 * v + c];
+                (*values)[c * 256 + v] = channelValue(pixels.constData() + v * pixelSize, c, pixelSize);
             }
         }
         table = values;
@@ -728,9 +742,9 @@ bool KisBrush::proceduralImageDab(KisDabShape const &shape,
         // opacities alpha / 255.0 (doubles after the 1024 floats)
         QSharedPointer<QVector<float>> values(new QVector<float>(1024 + 512));
         for (int v = 0; v < 256; ++v) {
-            const float *cached = reinterpret_cast<const float *>(d->cachedGradient->cachedAt(qreal(v) / 255.0));
+            const quint8 *cached = d->cachedGradient->cachedAt(qreal(v) / 255.0);
             for (int c = 0; c < 4; ++c) {
-                (*values)[c * 256 + v] = cached[c];
+                (*values)[c * 256 + v] = channelValue(cached, c, pixelSize);
             }
             const double maskOpacity = qreal(v) / 255.0;
             std::memcpy(values->data() + 1024 + 2 * v, &maskOpacity, sizeof(double));
@@ -754,7 +768,10 @@ bool KisBrush::proceduralImageDab(KisDabShape const &shape,
     }
     *dab = KisProceduralCircleDab();
     dab->kind = KisProceduralCircleDab::ImageTip;
-    std::memcpy(dab->color, color, sizeof(dab->color));
+    dab->halfPixels = pixelSize == 8;
+    for (int c = 0; c < 4; ++c) {
+        dab->color[c] = channelValue(color, c, pixelSize);
+    }
     dab->imageTip = geometry;
     dab->imageApplication = application;
     dab->imageTable = table;

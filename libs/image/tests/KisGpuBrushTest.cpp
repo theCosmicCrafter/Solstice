@@ -1166,36 +1166,50 @@ private Q_SLOTS:
         tips << geometry(QSize(30, 25), 1.3, 0.0, -70000, -50000); // starts outside
         tips << geometry(QSize(60, 60), 0.6, 0.83, 400000, -100000); // rotated
         tips << geometry(QSize(45, 50), 0.9, -2.4, 2000000, 1500000); // rotated, mostly outside
-        const float color[4] = {0.4f, 0.7f, 1.3f, 1.0f};
         // the applications' tables (KisProceduralCircleDab::ImageApplication):
         // distinct values per channel, alphas in (0, 1], and the gradient
-        // map's mask opacities
-        QSharedPointer<QVector<float>> table(new QVector<float>(1024 + 512));
-        for (int i = 0; i < 1024; ++i) {
-            (*table)[i] =
-                i < 768 ? float(std::sin(i * 0.37) * 1.7 + 0.2) : float((i - 767) / 256.0 + 1e-3 * std::sin(i));
-        }
-        for (int a = 0; a < 256; ++a) {
-            const double maskOpacity = double(a) / 255.0;
-            std::memcpy(table->data() + 1024 + 2 * a, &maskOpacity, sizeof(double));
-        }
-        for (int run = 0; run < tips.size() * 4; ++run) {
-            const int i = run / 4;
+        // map's mask opacities; RGBA16F tables hold exact half values
+        auto makeTable = [](bool halfValues) {
+            QSharedPointer<QVector<float>> table(new QVector<float>(1024 + 512));
+            for (int i = 0; i < 1024; ++i) {
+                const float value =
+                    i < 768 ? float(std::sin(i * 0.37) * 1.7 + 0.2) : float((i - 767) / 256.0 + 1e-3 * std::sin(i));
+                (*table)[i] = halfValues ? float(half(value)) : value;
+            }
+            for (int a = 0; a < 256; ++a) {
+                const double maskOpacity = double(a) / 255.0;
+                std::memcpy(table->data() + 1024 + 2 * a, &maskOpacity, sizeof(double));
+            }
+            return table;
+        };
+        const QSharedPointer<QVector<float>> tables[2] = {makeTable(false), makeTable(true)};
+        const int runsPerDepth = tips.size() * 4;
+        for (int run = 0; run < 2 * runsPerDepth; ++run) {
+            const bool halfDab = run >= runsPerDepth;
+            const int i = (run % runsPerDepth) / 4;
             const quint32 application = quint32(run % 4);
+            const int pixelSize = halfDab ? 8 : 16;
             const QSize size = tips[i]->size;
             QSharedPointer<KisProceduralCircleDab> description(new KisProceduralCircleDab());
             description->kind = KisProceduralCircleDab::ImageTip;
-            std::copy(color, color + 4, description->color);
+            const float color[4] = {0.4f, 0.7f, 1.3f, 1.0f};
+            for (int c = 0; c < 4; ++c) {
+                description->color[c] = halfDab ? float(half(color[c])) : color[c];
+            }
+            description->halfPixels = halfDab;
             description->imageTip = tips[i];
             description->imageApplication = application;
             if (application) {
-                description->imageTable = table;
+                description->imageTable = tables[halfDab ? 1 : 0];
             }
-            KisFixedPaintDeviceSP device = new KisFixedPaintDevice(space(false));
+            KisFixedPaintDeviceSP device = new KisFixedPaintDevice(space(halfDab));
             device->setRect(QRect(QPoint(), size));
             device->lazyGrowBufferWithoutInitialization();
             description->render(device->data(), size.width(), size.height(), 0);
-            const auto *cpu = reinterpret_cast<const float *>(device->constData());
+            auto cpuValue = [&](int index) {
+                return halfDab ? float(reinterpret_cast<const half *>(device->constData())[index])
+                               : reinterpret_cast<const float *>(device->constData())[index];
+            };
             for (int p = 0; p < size.width() * size.height(); ++p) {
                 QVERIFY(description->matchesPixel(device->constData(),
                                                   size.width(),
@@ -1206,31 +1220,40 @@ private Q_SLOTS:
             }
             KisRenderedDab dab(new KisFixedPaintDevice(*device));
             dab.offset = QPoint(-31, 17);
-            std::fill_n(dab.device->data(), size.width() * size.height() * 16, quint8(0));
+            std::fill_n(dab.device->data(), size.width() * size.height() * pixelSize, quint8(0));
             dab.procedural = description;
-            KisPaintDeviceSP target = new KisPaintDevice(space(false));
+            KisPaintDeviceSP target = new KisPaintDevice(space(halfDab));
             KisPainter painter(target);
             painter.setCompositeOpId(COMPOSITE_OVER);
             QVERIFY(KisGpuBrushPainter::paint(&painter, {dab}));
-            const auto painted = pixels(target, dab.realBounds());
+            // the raw channels: RGBA16F as halves, without a conversion
+            QByteArray raw(size.width() * size.height() * pixelSize, Qt::Uninitialized);
+            target->readBytes(reinterpret_cast<quint8 *>(raw.data()), dab.realBounds());
+            auto paintedValue = [&](int index) {
+                return halfDab ? float(reinterpret_cast<const half *>(raw.constData())[index])
+                               : reinterpret_cast<const float *>(raw.constData())[index];
+            };
             int mismatches = 0;
             int covered = 0;
             for (int p = 0; p < size.width() * size.height(); ++p) {
-                covered += cpu[4 * p + 3] > 0.0f ? 1 : 0;
+                const bool visible = cpuValue(4 * p + 3) > 0.0f;
+                covered += visible ? 1 : 0;
                 // the color of transparent pixels is not painted
-                for (int c = cpu[4 * p + 3] > 0.0f ? 0 : 3; c < 4; ++c) {
-                    if (painted[size_t(4 * p + c)] != cpu[4 * p + c] && !mismatches++) {
-                        qWarning() << "tip" << i << "application" << application << "pixel" << p % size.width()
-                                   << p / size.width() << "channel" << c << "GPU" << painted[size_t(4 * p + c)] << "CPU"
-                                   << cpu[4 * p + c];
+                for (int c = visible ? 0 : 3; c < 4; ++c) {
+                    if (paintedValue(4 * p + c) != cpuValue(4 * p + c) && !mismatches++) {
+                        qWarning() << "tip" << i << "half" << halfDab << "application" << application << "pixel"
+                                   << p % size.width() << p / size.width() << "channel" << c << "GPU"
+                                   << paintedValue(4 * p + c) << "CPU" << cpuValue(4 * p + c);
                     }
                 }
             }
             QVERIFY2(covered > 0, qPrintable(QStringLiteral("tip %1 is empty").arg(i)));
-            QVERIFY2(
-                mismatches == 0,
-                qPrintable(
-                    QStringLiteral("tip %1 application %2: %3 mismatches").arg(i).arg(application).arg(mismatches)));
+            QVERIFY2(mismatches == 0,
+                     qPrintable(QStringLiteral("tip %1 half %2 application %3: %4 mismatches")
+                                    .arg(i)
+                                    .arg(halfDab)
+                                    .arg(application)
+                                    .arg(mismatches)));
         }
     }
     void testPendingDabsFallBackToMaterializedPixels()

@@ -112,6 +112,7 @@ Read these before adding or updating any feature:
   textured dabs on the GPU (phase 4.102) done and manually checked 2026-10-11;
   image tip dabs on the GPU (phase 4.103) done and manually checked 2026-10-11;
   colour, Lightness and Gradient image tips (phase 4.104) done and manually checked 2026-10-11;
+  RGBA16F image tips and textures (phase 4.105) done and manually checked 2026-10-11;
   priority 4 in progress):
   `docs/agent/gpu-work-priorities.md`
 - Brush Stroke Preview:

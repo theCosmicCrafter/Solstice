@@ -62,10 +62,16 @@ void KisImageTipDescriptionTest::testApplications_data()
 {
     QTest::addColumn<int>("application");
     QTest::addColumn<bool>("gray");
-    for (int application : {int(ALPHAMASK), int(IMAGESTAMP), int(LIGHTNESSMAP), int(GRADIENTMAP)}) {
-        for (bool gray : {false, true}) {
-            QTest::newRow(qPrintable(QStringLiteral("application%1-%2").arg(application).arg(gray ? "gray" : "color")))
-                << application << gray;
+    QTest::addColumn<bool>("half");
+    for (bool half : {false, true}) {
+        for (int application : {int(ALPHAMASK), int(IMAGESTAMP), int(LIGHTNESSMAP), int(GRADIENTMAP)}) {
+            for (bool gray : {false, true}) {
+                QTest::newRow(qPrintable(QStringLiteral("%1-application%2-%3")
+                                             .arg(half ? "rgba16f" : "rgba32f")
+                                             .arg(application)
+                                             .arg(gray ? "gray" : "color")))
+                    << application << gray << half;
+            }
         }
     }
 }
@@ -74,8 +80,11 @@ void KisImageTipDescriptionTest::testApplications()
 {
     QFETCH(int, application);
     QFETCH(bool, gray);
+    QFETCH(bool, half);
     const KoColorSpace *cs =
-        KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(), Float32BitsColorDepthID.id(), QString());
+        KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(),
+                                                     half ? Float16BitsColorDepthID.id() : Float32BitsColorDepthID.id(),
+                                                     QString());
     QVERIFY(cs);
 
     KisGbrBrushSP brush(new KisGbrBrush(tipImage(gray), QStringLiteral("description test tip")));
@@ -119,14 +128,17 @@ void KisImageTipDescriptionTest::testApplications()
         const QRect bounds = dab->bounds();
         QCOMPARE(bounds.size(), description.imageTip->size);
 
-        QVector<float> expected(bounds.width() * bounds.height() * 4);
-        description.render(reinterpret_cast<quint8 *>(expected.data()), bounds.width(), bounds.height(), 0);
-        const float *actual = reinterpret_cast<const float *>(dab->constData());
+        QCOMPARE(description.halfPixels, half);
+        const int channelSize = half ? 2 : 4;
+        QVector<quint8> expected(bounds.width() * bounds.height() * 4 * channelSize);
+        description.render(expected.data(), bounds.width(), bounds.height(), 0);
+        const quint8 *actual = dab->constData();
         int mismatches = 0;
-        for (int p = 0; p < expected.size(); ++p) {
-            if (std::memcmp(&expected[p], &actual[p], sizeof(float)) != 0 && !mismatches++) {
+        for (int p = 0; p < bounds.width() * bounds.height() * 4; ++p) {
+            if (std::memcmp(expected.constData() + p * channelSize, actual + p * channelSize, size_t(channelSize)) != 0
+                && !mismatches++) {
                 qWarning() << "case" << i << "pixel" << (p / 4) % bounds.width() << (p / 4) / bounds.width()
-                           << "channel" << p % 4 << "description" << expected[p] << "CPU" << actual[p];
+                           << "channel" << p % 4;
             }
         }
         QVERIFY2(mismatches == 0, qPrintable(QStringLiteral("case %1: %2 mismatches").arg(i).arg(mismatches)));

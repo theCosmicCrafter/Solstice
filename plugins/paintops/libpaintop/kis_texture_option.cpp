@@ -482,9 +482,13 @@ QSharedPointer<const KisProceduralDabTexture> KisTextureOption::gpuDescription(c
                                                                                const KoColorSpace *dabColorSpace,
                                                                                quint32 brushFlips) const
 {
+    // RGBA F32, and RGBA F16 (phase 4.105)
+    const bool halfDab =
+        dabColorSpace && dabColorSpace->colorDepthId() == Float16BitsColorDepthID && dabColorSpace->pixelSize() == 8;
     if (!m_enabled || !m_maskInfo || !m_maskInfo->isValid() || !dabColorSpace
-        || dabColorSpace->colorModelId() != RGBAColorModelID || dabColorSpace->colorDepthId() != Float32BitsColorDepthID
-        || dabColorSpace->pixelSize() != 16) {
+        || dabColorSpace->colorModelId() != RGBAColorModelID
+        || !(halfDab
+             || (dabColorSpace->colorDepthId() == Float32BitsColorDepthID && dabColorSpace->pixelSize() == 16))) {
         return {};
     }
     const QString compositeOpId = alphaCompositeOpId(m_texturingMode);
@@ -555,9 +559,17 @@ QSharedPointer<const KisProceduralDabTexture> KisTextureOption::gpuDescription(c
     }
     const bool height = texture->mode == KIS_MASKING_BRUSH_COMPOSITE_HEIGHT
         || texture->mode == KIS_MASKING_BRUSH_COMPOSITE_LINEAR_HEIGHT;
-    texture->strength = StrengthCompositeFunctionBase<float>(height ? 0.99 * strength : strength).strength;
-    texture->invertedStrength = Arithmetic::inv(texture->strength);
-    texture->weight = (m_useSoftTexturing ? float(9) : float(10)) * texture->strength;
+    if (halfDab) {
+        // the half instantiation; its weight is a double, exact in float
+        const half halfStrength = StrengthCompositeFunctionBase<half>(height ? 0.99 * strength : strength).strength;
+        texture->strength = float(halfStrength);
+        texture->invertedStrength = float(Arithmetic::inv(halfStrength));
+        texture->weight = float((m_useSoftTexturing ? double(9) : double(10)) * halfStrength);
+    } else {
+        texture->strength = StrengthCompositeFunctionBase<float>(height ? 0.99 * strength : strength).strength;
+        texture->invertedStrength = Arithmetic::inv(texture->strength);
+        texture->weight = (m_useSoftTexturing ? float(9) : float(10)) * texture->strength;
+    }
     texture->cpu.reset(new KisTextureCpuApplier(m_maskInfo,
                                                 QPoint(texture->originX, texture->originY),
                                                 compositeOpId,

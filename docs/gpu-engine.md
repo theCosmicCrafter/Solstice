@@ -83,12 +83,12 @@ Large textured brushes now reuse available GPU transfer buffers when the
 memory limit prevents keeping all three buffers. The masking brush's mask
 is combined with the stroke on the GPU on RGBA 32-bit float layers (see the
 GPU brush notes below). Round auto-brush dabs with a pattern texture are
-generated and textured on the GPU on RGBA 32-bit float layers, for every
+generated and textured on the GPU on RGBA 32-bit and 16-bit float layers, for every
 texturing mode except Lightness and Gradient (which change the brush
 color); for example, a large textured stroke takes about a third of the
 CPU time. Image-based brush tips (Predefined tips and imported Photoshop
 brushes) used as an alpha mask, the default for gray tips, are also drawn
-on the GPU on RGBA 32-bit float layers, at any size and rotation and with
+on the GPU on RGBA 32-bit and 16-bit float layers, at any size and rotation and with
 textures. To make this possible, Solstice now transforms image tips with
 its own code instead of Qt's painter, on the CPU too: the result can differ
 from Krita's by at most one step of 8-bit precision, and on processors with

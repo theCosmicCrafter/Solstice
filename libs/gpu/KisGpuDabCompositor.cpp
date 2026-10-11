@@ -27,6 +27,12 @@ const quint32 TexturedExtendedShader[] = {
 const quint32 HalfShader[] = {
 #include "paint_dabs_rgba16f.spv.inc"
 };
+const quint32 HalfTexturedShader[] = {
+#include "paint_dabs_textured_rgba16f.spv.inc"
+};
+const quint32 HalfTexturedExtendedShader[] = {
+#include "paint_dabs_textured_extended_rgba16f.spv.inc"
+};
 const quint32 HalfExtendedShader[] = {
 #include "paint_dabs_extended_rgba16f.spv.inc"
 };
@@ -92,7 +98,7 @@ bool planUpload(int tileCount,
             }
             const bool textured = dab.texture != nullptr;
             if (textured
-                && (pixelSize != 16 || !dab.textureLut || dab.circle.textureWidth == 0 || dab.circle.textureHeight == 0
+                && (!dab.textureLut || dab.circle.textureWidth == 0 || dab.circle.textureHeight == 0
                     || dab.circle.textureMode > 13 || dab.circle.textureBrushFlips > 3))
                 return false;
             const bool imageTip = dab.circle.kind == 3;
@@ -103,7 +109,7 @@ bool planUpload(int tileCount,
                 if (c.imageApplication > 3
                     || (c.imageApplication != 0 && (!dab.imageTable || dab.imageTableSize < tableSize)))
                     return false;
-                if (pixelSize != 16 || !dab.textureLut || !dab.imageTexels || c.imageWidth < 2 || c.imageHeight < 2
+                if (!dab.textureLut || !dab.imageTexels || c.imageWidth < 2 || c.imageHeight < 2
                     || qint64(c.imageWidth) * c.imageHeight > qint64(KisGpuDabCompositor::MaxUploadBytes / 4)
                     || (c.imageIdentity ? dab.size != QSize(c.imageWidth - 2, c.imageHeight - 2) : !dab.imageRows))
                     return false;
@@ -213,6 +219,11 @@ bool KisGpuDabCompositor::preparePipelines(KisGpuContext &context, QString *erro
         && context.sharedComputePipeline(TexturedExtendedShader,
                                          sizeof(TexturedExtendedShader),
                                          sizeof(PushConstants),
+                                         error)
+        && context.sharedComputePipeline(HalfTexturedShader, sizeof(HalfTexturedShader), sizeof(PushConstants), error)
+        && context.sharedComputePipeline(HalfTexturedExtendedShader,
+                                         sizeof(HalfTexturedExtendedShader),
+                                         sizeof(PushConstants),
                                          error);
 }
 bool KisGpuDabCompositor::record(KisGpuCommandList &commands,
@@ -250,13 +261,29 @@ bool KisGpuDabCompositor::record(KisGpuCommandList &commands,
     const bool textured = std::any_of(dabs.cbegin(), dabs.cend(), [](const Dab &dab) {
         return dab.generated && (dab.texture || dab.circle.kind == 3);
     });
-    if (textured && !extended && !m_texturedPipeline) {
+    if (half && textured && !extended && !m_halfTexturedPipeline) {
+        m_halfTexturedPipeline = m_context.sharedComputePipeline(HalfTexturedShader,
+                                                                 sizeof(HalfTexturedShader),
+                                                                 sizeof(PushConstants),
+                                                                 error);
+        if (!m_halfTexturedPipeline)
+            return false;
+    }
+    if (half && textured && extended && !m_halfTexturedExtendedPipeline) {
+        m_halfTexturedExtendedPipeline = m_context.sharedComputePipeline(HalfTexturedExtendedShader,
+                                                                         sizeof(HalfTexturedExtendedShader),
+                                                                         sizeof(PushConstants),
+                                                                         error);
+        if (!m_halfTexturedExtendedPipeline)
+            return false;
+    }
+    if (!half && textured && !extended && !m_texturedPipeline) {
         m_texturedPipeline =
             m_context.sharedComputePipeline(TexturedShader, sizeof(TexturedShader), sizeof(PushConstants), error);
         if (!m_texturedPipeline)
             return false;
     }
-    if (textured && extended && !m_texturedExtendedPipeline) {
+    if (!half && textured && extended && !m_texturedExtendedPipeline) {
         m_texturedExtendedPipeline = m_context.sharedComputePipeline(TexturedExtendedShader,
                                                                      sizeof(TexturedExtendedShader),
                                                                      sizeof(PushConstants),
@@ -417,10 +444,11 @@ bool KisGpuDabCompositor::record(KisGpuCommandList &commands,
                          mask ? mask->bounds.width() : 0,
                          mask ? mask->bounds.height() : 0};
     commands.computeBarrier();
-    (half           ? (extended ? m_halfExtendedPipeline : m_halfPipeline)
-         : textured ? (extended ? m_texturedExtendedPipeline : m_texturedPipeline)
-         : extended ? m_extendedPipeline
-                    : m_pipeline)
+    (half && textured ? (extended ? m_halfTexturedExtendedPipeline : m_halfTexturedPipeline)
+         : half       ? (extended ? m_halfExtendedPipeline : m_halfPipeline)
+         : textured   ? (extended ? m_texturedExtendedPipeline : m_texturedPipeline)
+         : extended   ? m_extendedPipeline
+                      : m_pipeline)
         ->dispatch(commands.commandBuffer(), params, quint32(tiles.size()));
     return true;
 }

@@ -99,6 +99,9 @@ strength arguments, the application tables) and changes the gradient branch of
 `generateMaskAndApplyMaskOrCreateDab()` in `libs/brush/kis_brush.cpp` (transparent tip
 pixels take their own gradient color); `plugins/paintops/defaultpaintops/brush/tests/CMakeLists.txt`
 (`KisImageTipDescriptionTest`).
+GPU phase 4.105 accepts RGBA F16 dabs in `KisBrush::proceduralImageDab()` (`libs/brush/kis_brush.cpp`)
+and in `KisTextureOption::gpuDescription()` (`plugins/paintops/libpaintop/kis_texture_option.cpp`,
+half constants); `libs/gpu/CMakeLists.txt` (two RGBA16F textured shader builds).
 
 GPU phases 4.36-4.37 forward per-channel layer flags in
 `libs/image/gpu/KisGpuMergeBatch.*`, allow F16 channel masks in

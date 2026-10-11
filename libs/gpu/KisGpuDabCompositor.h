@@ -178,6 +178,9 @@ private:
     // Textured dabs (phase 4.102), RGBA32F
     std::shared_ptr<KisGpuComputePipeline> m_texturedPipeline;
     std::shared_ptr<KisGpuComputePipeline> m_texturedExtendedPipeline;
+    // RGBA16F image tips (and textures), phase 4.105
+    std::shared_ptr<KisGpuComputePipeline> m_halfTexturedPipeline;
+    std::shared_ptr<KisGpuComputePipeline> m_halfTexturedExtendedPipeline;
     std::unique_ptr<KisGpuBuffer> m_upload;
 };
 #endif

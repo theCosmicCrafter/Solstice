@@ -159,8 +159,8 @@ QSharedPointer<KisProceduralCircleDab> buildCircleDab(const KisDabCacheUtils::Da
     const auto *autoBrush = dynamic_cast<const KisAutoBrush *>(resources->brush.data());
     QSharedPointer<KisProceduralCircleDab> circle(new KisProceduralCircleDab());
     if (!autoBrush) {
-        // An image tip (predefined brush), RGBA F32 only
-        if (!f32
+        // An image tip (predefined brush), RGBA F32 or F16
+        if (!(f32 || f16)
             || !resources->brush->proceduralImageDab(di.shape,
                                                      di.subPixel.x(),
                                                      di.subPixel.y(),

@@ -453,6 +453,167 @@ float texturedAlpha(Circle c, float src, float dst)
     }
 }
 
+#ifdef TILE_F16
+// RGBA16F textures (phase 4.105): KisMaskingBrushCompositeOp<half, ...>.
+// KoColorSpaceMathsTraits<half>::compositetype is double; Imath's half has
+// no arithmetic operators, so half +- half is computed in float; every value
+// returned as a half rounds double -> float -> half. Arguments and results
+// are exact half values held in floats.
+float hf(float v) { return roundToHalf(v); }
+float hd(double v) { return roundToHalf(float(v)); }
+float hMul(float a, float b) { precise double r = double(a) * double(b); return hd(r); }
+float hMul3(float a, float b, float c) { precise double ab = double(a) * double(b); precise double r = ab * double(c); return hd(r); }
+float hInv(float a) { precise float r = 1.0 - a; return hf(r); }
+float hUnion(float a, float b) { precise double s = double(a) + double(b); precise double r = s - double(hMul(a, b)); return hd(r); }
+double hDiv(float a, float b) { precise double q = double(a) / double(b); return q; }
+double dMin(double a, double b) { return a < b ? a : b; }
+double dMax(double a, double b) { return a < b ? b : a; }
+double dBound(double v) { return dMax(0.0, dMin(1.0, v)); }
+bool hUnitFuzzy(float v) { precise float d = v - 1.0; return abs(d) < 0.002; }
+bool hZeroFuzzy(float v) { return abs(v) < 0.002; }
+bool hHalfFuzzy(float v) { precise float d = v - 0.5; return abs(d) < 0.001; }
+
+// CFHardLight<half>::composeChannel(src, dst)
+float hHardLight(float src, float dst)
+{
+    if (hHalfFuzzy(src)) return dst;
+    precise double src2 = double(src) + double(src);
+    if (src > 0.5) {
+        src2 = src2 - 1.0;
+        return hUnion(hd(src2), dst);
+    }
+    return hMul(hd(src2), dst);
+}
+float hOverlay(float src, float dst) { return hHardLight(dst, src); }
+// colorDodgeAlpha<half>
+float hDodge(float src, float dst)
+{
+    if (hUnitFuzzy(src)) return hZeroFuzzy(dst) ? 0.0 : 1.0;
+    const float result = hd(dBound(hDiv(dst, hInv(src))));
+    return (isnan(result) || isinf(result)) ? 1.0 : result;
+}
+// CFColorBurn<half>
+float hBurn(float src, float dst)
+{
+    if (dst == 1.0) return 1.0;
+    const double quotient = hDiv(hInv(dst), src);
+    if (isnan(quotient) || isinf(quotient)) return 0.0;
+    return hInv(hd(dBound(quotient)));
+}
+// CFHardMixPhotoshop<half>
+float hHardMix(float src, float dst) { precise double sum = double(src) + double(dst); return sum > 1.0 ? 1.0 : 0.0; }
+// hardMixSofterPhotoshopAlpha<half>
+float hHardMixSofter(float src, float dst)
+{
+    precise double a = 3.0 * double(dst);
+    precise double b = 2.0 * double(hInv(src));
+    precise double r = a - b;
+    return hd(dBound(r));
+}
+
+float texturedAlphaHalf(Circle c, float src, float dst)
+{
+    const float s = c.textureStrength;
+    const float is = c.textureInvertedStrength;
+    const double w = double(c.textureWeight);
+    const bool soft = c.textureSoft != 0;
+    switch (c.textureMode) {
+    case 0: // MULT
+        return soft ? hMul(hUnion(src, is), dst) : hMul3(src, dst, s);
+    case 1: { // DARKEN: qMin of halves
+        const float a = soft ? hUnion(src, is) : src;
+        const float b = soft ? dst : hMul(dst, s);
+        return a < b ? a : b;
+    }
+    case 2: // OVERLAY
+        return soft ? hOverlay(hUnion(src, is), dst) : hOverlay(src, hMul(dst, s));
+    case 3: // DODGE
+        return soft ? hDodge(hMul(src, s), dst) : hDodge(src, hMul(dst, s));
+    case 4: // BURN
+        return soft ? hBurn(hUnion(src, is), dst) : hBurn(src, hMul(dst, s));
+    case 5: { // LINEAR_BURN
+        if (soft) {
+            // union + dst - unit in float (half operands)
+            precise float sum = hUnion(src, is) + dst;
+            precise float r = sum - 1.0;
+            return hd(dMax(0.0, double(r)));
+        }
+        precise double sum = double(src) + double(hMul(dst, s));
+        precise double r = sum - 1.0;
+        return hd(dMax(0.0, r));
+    }
+    case 6: { // LINEAR_DODGE
+        if (hZeroFuzzy(dst)) return 0.0;
+        if (soft) {
+            precise float sum = hMul(src, s) + dst;
+            return hd(dMin(double(sum), 1.0));
+        }
+        precise double sum = double(src) + double(hMul(dst, s));
+        return hd(dMin(sum, 1.0));
+    }
+    case 7: // HARD_MIX_PHOTOSHOP
+        return soft ? hMul(hHardMix(hUnion(src, is), dst), hUnion(dst, s)) : hHardMix(src, hMul(dst, s));
+    case 8: // HARD_MIX_SOFTER_PHOTOSHOP
+        return soft ? hHardMixSofter(hMul(src, s), dst) : hHardMixSofter(src, hMul(dst, s));
+    case 9: { // SUBTRACT
+        if (soft) {
+            precise double r = double(dst) - double(hMul(src, s));
+            return hd(dMax(0.0, r));
+        }
+        precise double sum = double(src) + double(is);
+        precise double r = double(dst) - sum;
+        return hd(dMax(0.0, r));
+    }
+    case 10: { // HEIGHT
+        const double modified = hDiv(dst, is);
+        if (soft) {
+            precise double r = modified - double(hMul(src, s));
+            return hd(dBound(r));
+        }
+        precise double sum = double(src) + double(is);
+        precise double r = modified - sum;
+        return hd(dBound(r));
+    }
+    case 11: { // LINEAR_HEIGHT
+        if (soft) {
+            const double modified = hDiv(dst, is);
+            const float srcTimesStrength = hMul(src, s);
+            precise double multiply = modified * double(hInv(srcTimesStrength));
+            precise double height = modified - double(srcTimesStrength);
+            return hd(dBound(dMax(multiply, height)));
+        }
+        precise double modified = hDiv(dst, is) - double(is);
+        precise double multiply = modified * double(hInv(src));
+        precise double height = modified - double(src);
+        return hd(dBound(dMax(multiply, height)));
+    }
+    case 12: { // HEIGHT_PHOTOSHOP
+        precise double weighted = double(dst) * w;
+        if (soft) {
+            precise double sum = double(dst) + weighted;
+            precise double r = sum - double(hMul(src, s));
+            return hd(dBound(r));
+        }
+        precise double r = weighted - double(src);
+        return hd(dBound(r));
+    }
+    default: { // LINEAR_HEIGHT_PHOTOSHOP
+        precise double weighted = double(dst) * w;
+        if (soft) {
+            precise double modified = double(dst) + weighted;
+            const float srcTimesStrength = hMul(src, s);
+            precise double multiply = modified * double(hInv(srcTimesStrength));
+            precise double height = modified - double(srcTimesStrength);
+            return hd(dBound(dMax(multiply, height)));
+        }
+        precise double multiply = double(hInv(src)) * weighted;
+        precise double height = weighted - double(src);
+        return hd(dBound(dMax(multiply, height)));
+    }
+    }
+}
+#endif
+
 // The pattern texel of textured-layout pixel p (KisFillPainter's wrap).
 float textureTexel(Circle c, ivec2 p)
 {
@@ -572,7 +733,9 @@ vec4 imageTipValue(Circle c, ivec2 p)
     const uint gray = (v.x * 11u + v.y * 16u + v.z * 5u) / 32u;
     const double maskOpacity = ImageDoubles(c.imageTable + 4096ul).value[v.w];
     precise double alpha = double(table.value[768u + gray]) * maskOpacity;
-    return vec4(table.value[gray], table.value[256u + gray], table.value[512u + gray], float(alpha));
+    // RGBA16F: KoColor::setOpacity() rounds to float, then to half
+    const float opacity = c.halfPixels != 0u ? roundToHalf(float(alpha)) : float(alpha);
+    return vec4(table.value[gray], table.value[256u + gray], table.value[512u + gray], opacity);
 }
 
 // the alpha mask (application 0); the unused color channels are dead code
@@ -594,7 +757,12 @@ vec4 generatedDab(Circle c, ivec2 p, int width, int height)
         ivec2 tp = p;
         if ((c.textureBrushFlips & 1) != 0) tp.x = width - 1 - tp.x;
         if ((c.textureBrushFlips & 2) != 0) tp.y = height - 1 - tp.y;
+#ifdef TILE_F16
+        source.a = c.halfPixels != 0u ? texturedAlphaHalf(c, textureTexel(c, tp), source.a)
+                                      : texturedAlpha(c, textureTexel(c, tp), source.a);
+#else
         source.a = texturedAlpha(c, textureTexel(c, tp), source.a);
+#endif
     }
     return source;
 }

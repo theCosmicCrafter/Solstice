@@ -31,7 +31,9 @@ details are in the phase records, now in the wiki history pages (see
 - Textured dabs on the GPU (phase 4.102, 2026-10-11; section "Textured
   dabs"): RGBA32F circle dabs with a pattern texture in one of the 14
   alpha-only modes are generated and textured on the GPU; Lightness,
-  Gradient, sharpness and RGBA16F stay on the CPU.
+  Gradient, sharpness and RGBA16F stay on the CPU (RGBA16F: phase 4.105).
+- RGBA16F image tips and textures on the GPU (phase 4.105, 2026-10-11;
+  section "RGBA16F image tips and textures").
 - Image tip dabs on the GPU (phase 4.103, 2026-10-11; section "Image tip
   dabs"): RGBA32F dabs of predefined (GBR, PNG, SVG, ABR) tips in alpha-mask
   mode are generated on the GPU, also textured; the CPU now transforms
@@ -657,7 +659,7 @@ circle and its texture, and the GPU evaluates both.
   and Linear Height (Photoshop)), hard and soft texturing, any strength
   (pressure). Lightness and Gradient (they change the dab color), sharpness,
   RGBA16F dabs and predefined (image) tips stay on the CPU (image tips:
-  phase 4.103).
+  phase 4.103; RGBA16F: phase 4.105).
 - Description: `KisProceduralDabTexture` (`libs/image/KisProceduralCircleDab.h`),
   attached as `KisProceduralCircleDab::texture`: the alpha8 pattern texels
   (`KisTextureMaskInfo::alphaBytes()`, computed once in `recalculateMask()`),
@@ -859,10 +861,55 @@ vendors), so even the CPU output depended on the machine.
     strokes may differ slightly between the paths where dabs overlap
     (unchanged: colour dabs were already painted by the GPU brush as
     uploaded pixels).
-- Not covered: image pipe (.gih) and text brushes, RGBA16F, image stamps in
+- Not covered: image pipe (.gih) and text brushes (RGBA16F: phase 4.105), image stamps in
   color spaces whose conversion is not per channel, Gradient maps without a
   gradient, and dabs with other postprocessing (sharpness,
   Lightness/Gradient textures) keep their pixels.
+
+### RGBA16F image tips and textures (phase 4.105)
+
+2026-10-11, user request. Image tip dabs (every application) and textured
+dabs are described on RGBA16F layers too; before, only their RGBA32F dabs
+were (phases 4.102-4.104), and RGBA16F dabs with an image tip or a texture
+kept their pixels.
+
+- Image tips: `KisBrush::proceduralImageDab()` accepts 8-byte RGBA F16 color
+  spaces; the tables are made with the same CPU calls in the F16 color space
+  and hold exact half values as floats (`channelValue()`). The alpha mask
+  uses `KoColorSpaceMaths<quint8, half>` (`imageTipHalfAlpha()`; on the GPU
+  `uint8ToHalfTable()` as the 256-entry table). The Gradient map's opacity
+  goes through `KoColor::setOpacity()`: double -> float -> half
+  (`roundToHalf(float(alpha))` in the shader). `render()` and
+  `matchesPixel()` write and compare halves.
+- Textures: `KisTextureOption::gpuDescription()` accepts RGBA F16 dabs and
+  computes the constants with the half instantiation
+  (`StrengthCompositeFunctionBase<half>`, `Arithmetic::inv<half>`, the
+  double weight, exact in float). The texels go through
+  `KoColorSpaceMaths<quint8, half>` (the same 256-entry table). The shader's
+  `texturedAlphaHalf()` repeats `KisMaskingBrushCompositeOp<half, ...>`:
+  `KoColorSpaceMathsTraits<half>::compositetype` is double, and Imath's
+  `half` has no arithmetic operators, so `half +- half` is computed in float
+  (`inv`, the soft Linear Burn and Linear Dodge sums), `mul`, `div` and
+  `unionShapeOpacity` in double, and every value returned as a half rounds
+  double -> float -> half (`hd()`); the fuzzy checks are the half
+  specializations (0.002 and 0.001 thresholds).
+- Shaders: `paint_dabs_textured_rgba16f` and
+  `paint_dabs_textured_extended_rgba16f` (`TILE_F16` + `DAB_TEXTURE`); the
+  compositor uses them for RGBA16F batches with an image tip or a texture.
+  The existing RGBA16F variants are unchanged.
+- Tests: `KisImageTipDescriptionTest` (RGBA16F rows: the description is
+  the CPU dab, byte for byte), `KisGpuBrushTest::testGeneratedImageTipDabs`
+  (RGBA16F runs: all channels as halves), `KisGpuStrokeTest::
+  testHalfTextureModesExact` (14 modes x hard/soft x 3 strengths, the GPU
+  alpha equals `KisMaskingBrushCompositeOp<half>` on every dab alpha and
+  texel bit for bit), and RGBA16F rows of `testImageTipStroke` and
+  `testTextureModes`.
+- Measurements (median of 5, no validation, ms; CPU / GPU projection / GPU
+  brush; RGBA16F): image tip 120px Wash with mirrors 55.4 / 43.3 / 19.9,
+  colour stamp 41.8 / 41.4 / 11.6, Lightness map 20.2 / 17.2 / 11.8, 80px
+  textured round (Multiply, hard) 14.7 / 13.1 / 10.7.
+- Still on the CPU: RGBA16F masked strokes (the masking composite is
+  RGBA32F only), Lightness and Gradient textures, sharpness.
 
 ## Phase 0 technology decisions
 
@@ -1300,6 +1347,11 @@ Phase 0 has no user-visible behavior. From phase 3 on:
     and as Gradient Map (change the gradient), with rotation, a texture,
     Wash and Buildup; each looks like the CPU brush. On an 8-bit layer image
     tips look as before.
+12. RGBA16F image tips and textures (phase 4.105) on an RGBA 16-bit float
+    layer: a gray tip, a colour tip as Image Stamp and Lightness Map, a
+    textured round brush (Multiply, Overlay, a Height mode, hard and soft)
+    and a textured image tip, Wash and Buildup; each looks like the CPU
+    brush (GPU brush off); Undo/Redo.
 
 ## Phase history
 
@@ -1406,6 +1458,7 @@ Section index:
 - [GPU textured dabs (phase 4.102)](wiki/history/gpu-phases-4.93-.md#gpu-textured-dabs-phase-4102)
 - [GPU image tip dabs (phase 4.103)](wiki/history/gpu-phases-4.93-.md#gpu-image-tip-dabs-phase-4103)
 - [GPU colour, Lightness and Gradient image tips (phase 4.104)](wiki/history/gpu-phases-4.93-.md#gpu-colour-lightness-and-gradient-image-tips-phase-4104)
+- [RGBA16F image tips and textures (phase 4.105)](wiki/history/gpu-phases-4.93-.md#rgba16f-image-tips-and-textures-phase-4105)
 
 ## Risks and open questions
 

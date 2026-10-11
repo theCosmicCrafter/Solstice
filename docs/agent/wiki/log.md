@@ -758,3 +758,26 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - Decision: the gradient branch's transparent pixels take their own color
   (invisible upstream change, needed for a per-pixel description).
 - User manual check OK on 2026-10-11.
+
+## 2026-10-11 query: masking brush mask on the GPU (deferred)
+
+- Measured before building: skipping the CPU mask composite entirely would
+  take a 300px masked stroke on the GPU brush from 32 to 24 ms and change
+  nothing at 150px; GPU mask dabs would save at most about 5 ms more. The
+  work needs a GrayA8 GPU tile format and an integer Alpha Darken (exact is
+  possible: the U8 op is integer arithmetic). Deferred by the user
+  ([gpu-work-priorities.md](../gpu-work-priorities.md)).
+- Lesson: measure an upper bound (temporarily skip the work) before
+  building; summed CPU time of parallel jobs overstated the wall-clock gain.
+
+## 2026-10-11 ingest: RGBA16F image tips and textures (phase 4.105)
+
+- RGBA16F image tips and textured dabs are generated on the GPU
+  ([gpu-engine.md](../gpu-engine.md), "RGBA16F image tips and textures";
+  [history](history/gpu-phases-4.93-.md#rgba16f-image-tips-and-textures-phase-4105)).
+- Pitfall: for `half`, read the C++ types of every expression: Imath's half
+  has no arithmetic operators (float), KoColorSpaceMaths uses double, and
+  each half result rounds double -> float -> half.
+- Lesson: when the stroke tests have a tolerance (RGBA16F 0.002), add an
+  exhaustive exact test of the math.
+- User manual check OK on 2026-10-11.

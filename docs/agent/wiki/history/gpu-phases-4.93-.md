@@ -624,3 +624,18 @@ Applications.
   of the tip.
 - Colour dabs do not commute: the stroke tests compare colour strokes
   without mirrors, because the paths order the reflections differently.
+
+## RGBA16F image tips and textures (phase 4.105)
+
+2026-10-11, user request. Image tips (every application) and textures are
+described on RGBA16F layers too. Details:
+[gpu-engine.md](../../gpu-engine.md), "RGBA16F image tips and textures".
+
+- The image tip tables carry over unchanged: they are made with the CPU code
+  in the F16 color space and hold exact halves.
+- The texture composite needed a half copy of every mode: the C++ types
+  decide the rounding (double for KoColorSpaceMaths, float for Imath
+  `half +- half`, double -> float -> half for every half result).
+- An exact unit test (every dab alpha against every texel, three
+  strengths) is what checks it; the stroke tests' RGBA16F tolerance (0.002)
+  would hide a wrong rounding.

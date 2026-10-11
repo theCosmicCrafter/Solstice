@@ -187,6 +187,19 @@ bool KisGpuBrushPainter::paintMirrored(KisPainter *painter,
 }
 namespace
 {
+/// KoColorSpaceMaths<quint8, half>::scaleToA() as floats: the alpha of
+/// RGBA16F alpha-mask image tips ("Image tip dabs")
+const float *uint8ToHalfTable()
+{
+    static const std::array<float, 256> table = []() {
+        std::array<float, 256> values{};
+        for (int i = 0; i < 256; ++i)
+            values[size_t(i)] = float(KoColorSpaceMaths<quint8, half>::scaleToA(quint8(i)));
+        return values;
+    }();
+    return table.data();
+}
+
 /// KoColorSpaceMaths<quint8, float>::scaleToA() (KoLuts::Uint8ToFloat), the
 /// texture byte values KisMaskingBrushCompositeOp composites ("Textured dabs").
 const float *uint8ToFloatTable()
@@ -281,9 +294,9 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
             // Textured descriptions ("Textured dabs") are RGBA32F only.
             // Image tip descriptions ("Image tip dabs") are RGBA32F only.
             const bool generated = dab.procedural && pixelSize == (dab.procedural->halfPixels ? 8 : 16)
-                && (!dab.procedural->texture || (pixelSize == 16 && dab.procedural->texture->pattern))
+                && (!dab.procedural->texture || dab.procedural->texture->pattern)
                 && (dab.procedural->kind != KisProceduralCircleDab::ImageTip
-                    || (pixelSize == 16 && dab.procedural->imageTip
+                    || (dab.procedural->imageTip
                         && dab.procedural->imageTip->source.format() == QImage::Format_ARGB32));
             KisGpuDabCompositor::Circle circle;
             if (generated) {
@@ -352,7 +365,8 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
                 }
                 if (generated && dab.procedural->texture) {
                     input.texture = dab.procedural->texture->pattern->constData();
-                    input.textureLut = uint8ToFloatTable();
+                    // RGBA16F: KoColorSpaceMaths<quint8, half>
+                    input.textureLut = dab.procedural->halfPixels ? uint8ToHalfTable() : uint8ToFloatTable();
                 }
                 if (generated && dab.procedural->kind == KisProceduralCircleDab::ImageTip) {
                     const KisImageTipGeometry &tip = *dab.procedural->imageTip;
@@ -360,7 +374,7 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
                         return false;
                     input.imageTexels = reinterpret_cast<const quint32 *>(tip.source.constBits());
                     input.imageRows = tip.identity ? nullptr : reinterpret_cast<const qint32 *>(tip.rows.constData());
-                    input.textureLut = uint8ToFloatTable();
+                    input.textureLut = dab.procedural->halfPixels ? uint8ToHalfTable() : uint8ToFloatTable();
                     if (dab.procedural->imageTable) {
                         input.imageTable = dab.procedural->imageTable->constData();
                         input.imageTableSize = dab.procedural->imageTable->size();

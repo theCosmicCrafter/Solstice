@@ -10,6 +10,7 @@
 #include <QVector>
 #include <QtGlobal>
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -162,16 +163,31 @@ struct KisProceduralCircleDab {
             out[0] = table[gray];
             out[1] = table[256 + gray];
             out[2] = table[512 + gray];
-            out[3] = float(double(table[768 + gray]) * maskOpacity);
+            // KoColor::setOpacity(qreal): to float, or to half through float
+            const float alpha = float(double(table[768 + gray]) * maskOpacity);
+            out[3] = halfPixels ? float(half(alpha)) : alpha;
             return;
         }
         default:
             out[0] = color[0];
             out[1] = color[1];
             out[2] = color[2];
-            out[3] = imageTipAlpha(pixel);
+            out[3] = halfPixels ? float(imageTipHalfAlpha(pixel)) : imageTipAlpha(pixel);
             return;
         }
+    }
+
+    /// UINT8_MULT(255 - red, alpha) of an ARGB32 tip pixel
+    static inline quint8 imageTipMask(quint32 pixel)
+    {
+        const quint32 t = (255 - ((pixel >> 16) & 0xff)) * (pixel >> 24) + 0x80;
+        return quint8(((t >> 8) + t) >> 8);
+    }
+
+    /// imageTipMask() as a half alpha (KoColorSpaceMaths<quint8, half>)
+    static inline half imageTipHalfAlpha(quint32 pixel)
+    {
+        return KoColorSpaceMaths<quint8, half>::scaleToA(imageTipMask(pixel));
     }
 
     /// UINT8_MULT(255 - red, alpha) of an ARGB32 tip pixel, as a float alpha
@@ -204,14 +220,25 @@ struct KisProceduralCircleDab {
         if (kind == ImageTip) {
             const QImage tip = KisImageTipSampler::render(*imageTip);
             float *out = reinterpret_cast<float *>(pixels);
+            half *halfOut = reinterpret_cast<half *>(pixels);
             for (int y = 0; y < height; y++) {
                 const int gy = (flips & 2) ? height - 1 - y : y;
                 const quint32 *line =
                     gy < tip.height() ? reinterpret_cast<const quint32 *>(tip.constScanLine(gy)) : nullptr;
                 for (int x = 0; x < width; x++) {
                     const int gx = (flips & 1) ? width - 1 - x : x;
-                    imageTipValue(line && gx < tip.width() ? line[gx] : 0u, out);
-                    out += 4;
+                    float value[4];
+                    imageTipValue(line && gx < tip.width() ? line[gx] : 0u, value);
+                    if (halfPixels) {
+                        // every value is an exact half already
+                        for (int c = 0; c < 4; ++c) {
+                            halfOut[c] = half(value[c]);
+                        }
+                        halfOut += 4;
+                    } else {
+                        std::copy(value, value + 4, out);
+                        out += 4;
+                    }
                 }
             }
             return;
@@ -251,6 +278,17 @@ struct KisProceduralCircleDab {
     inline bool matchesPixel(const quint8 *pixels, int width, int x, int y, int gx, int gy) const
     {
         const qint64 index = 4 * (qint64(y) * width + x);
+        if (halfPixels && kind == ImageTip) {
+            const half *pixel = reinterpret_cast<const half *>(pixels) + index;
+            float value[4];
+            imageTipValue(KisImageTipSampler::pixel(*imageTip, gx, gy), value);
+            for (int c = 0; c < 4; ++c) {
+                if (pixel[c].bits() != half(value[c]).bits()) {
+                    return false;
+                }
+            }
+            return true;
+        }
         if (halfPixels) {
             const half *pixel = reinterpret_cast<const half *>(pixels) + index;
             return pixel[0].bits() == half(color[0]).bits() && pixel[1].bits() == half(color[1]).bits()
