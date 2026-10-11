@@ -423,6 +423,9 @@ The engine is on by default. To change it:
    shows the GPU in use once an RGBA float document is open.
 
 Without a usable Vulkan GPU the engine is not used, and Solstice works on the CPU.
+Software Vulkan drivers that run on the processor (common in virtual
+machines) are not used either, because they are slower than Solstice's CPU
+paths.
 
 ## Documents in other color spaces
 

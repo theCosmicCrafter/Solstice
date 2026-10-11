@@ -84,6 +84,15 @@ public:
     static std::unique_ptr<KisGpuContext> create(const Options &options, QString *errorMessage);
     static std::unique_ptr<KisGpuContext> create(QString *errorMessage);
 
+    /**
+     * Whether a physical device of @p type may run the engine. CPU devices
+     * (software Vulkan such as lavapipe or SwiftShader, e.g. in virtual
+     * machines) are refused: they are slower than the CPU paths, which then
+     * run instead. @p allowSoftware accepts them (tests, diagnostics); the
+     * engine passes KRITA_GPU_ALLOW_SOFTWARE_DEVICE=1.
+     */
+    static bool acceptsDeviceType(VkPhysicalDeviceType type, bool allowSoftware);
+
     const KisGpuVulkanFunctions &vk() const;
     const KisGpuDeviceInfo &deviceInfo() const;
 

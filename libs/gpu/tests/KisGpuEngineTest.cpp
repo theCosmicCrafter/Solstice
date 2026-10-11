@@ -352,6 +352,19 @@ void KisGpuEngineTest::testDeviceInfo()
     QVERIFY(info.deviceLocalBytes > 0);
 }
 
+void KisGpuEngineTest::testSoftwareDevicesRefused()
+{
+    // Needs no GPU: the filter used by device selection.
+    QVERIFY(!KisGpuContext::acceptsDeviceType(VK_PHYSICAL_DEVICE_TYPE_CPU, false));
+    QVERIFY(KisGpuContext::acceptsDeviceType(VK_PHYSICAL_DEVICE_TYPE_CPU, true));
+    for (VkPhysicalDeviceType type : {VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
+                                      VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
+                                      VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU,
+                                      VK_PHYSICAL_DEVICE_TYPE_OTHER}) {
+        QVERIFY(KisGpuContext::acceptsDeviceType(type, false));
+    }
+}
+
 void KisGpuEngineTest::testTilePoolAllocation()
 {
     REQUIRE_GPU();

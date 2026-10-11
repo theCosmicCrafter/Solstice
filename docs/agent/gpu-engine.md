@@ -941,6 +941,14 @@ cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P <krita-dev-root>\_build\libs\gpu\cmake_ins
   default 0). See "Feature gate and user interface".
 - Environment `KRITA_GPU_PROJECTION=1` or `0` overrides `Solstice/GpuEngine`
   (development switch; `KisGpuMergeBatch::setEnabled()` in tests).
+- Device selection refuses `VK_PHYSICAL_DEVICE_TYPE_CPU` devices (software
+  Vulkan such as lavapipe or SwiftShader, typical in virtual machines; they
+  are slower than the CPU paths), 2026-10-11 at the user's request:
+  `KisGpuContext::acceptsDeviceType()`, rejection reason "software (CPU)
+  device" in the "GPU engine unavailable" log line. `KRITA_GPU_ALLOW_SOFTWARE_DEVICE=1`
+  accepts them (diagnostics). Integrated and virtual GPUs are still
+  accepted when they meet the feature requirements (discrete GPUs are
+  preferred). Test: `KisGpuEngineTest::testSoftwareDevicesRefused`.
 - With the engine on, `KRITA_GPU_TRANSFORM=0`, `KRITA_GPU_LIQUIFY=0`,
   `KRITA_GPU_PUPPET=0` and `KRITA_GPU_CONVOLUTION=0` keep the affine passes,
   Liquify (and with it Puppet Warp, which shares the grid warp), Puppet Warp

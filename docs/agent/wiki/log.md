@@ -672,3 +672,13 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   `setApplicationName("krita")`; the profile paths were already explicit.
 - Pitfall: CMake installs do not remove the old `krita.exe`/`krita.com`.
 - User manual check OK on 2026-10-11.
+
+## 2026-10-11 ingest: software Vulkan devices refused
+
+- GPU device selection refuses CPU-type devices (software Vulkan, common
+  in virtual machines), which would be slower than the CPU paths
+  ([gpu-engine.md](../gpu-engine.md), "Configuration and compatibility").
+- Decision: integrated and virtual GPUs stay accepted when they meet the
+  feature requirements; `KRITA_GPU_ALLOW_SOFTWARE_DEVICE=1` re-enables
+  software devices for diagnostics.
+- User manual check OK on 2026-10-11.

@@ -25,6 +25,7 @@ private Q_SLOTS:
     void cleanupTestCase();
 
     void testDeviceInfo();
+    void testSoftwareDevicesRefused();
     void testTilePoolAllocation();
     void testUploadReadbackRoundTrip();
     void testEarlyMainFinish();

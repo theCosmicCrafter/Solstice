@@ -50,6 +50,11 @@ QString versionString(quint32 version)
 }
 } // namespace
 
+bool KisGpuContext::acceptsDeviceType(VkPhysicalDeviceType type, bool allowSoftware)
+{
+    return allowSoftware || type != VK_PHYSICAL_DEVICE_TYPE_CPU;
+}
+
 bool KisGpuDeviceInfo::isNvidia() const
 {
     return vendorId == NvidiaVendorId;
@@ -295,12 +300,17 @@ bool KisGpuContext::Private::selectPhysicalDevice(QString *errorMessage)
 
     QStringList rejected;
     int bestScore = -1;
+    const bool allowSoftware = qEnvironmentVariableIntValue("KRITA_GPU_ALLOW_SOFTWARE_DEVICE") == 1;
 
     for (VkPhysicalDevice candidate : devices) {
         VkPhysicalDeviceProperties properties{};
         vk.vkGetPhysicalDeviceProperties(candidate, &properties);
         const QString name = QString::fromUtf8(properties.deviceName);
 
+        if (!KisGpuContext::acceptsDeviceType(properties.deviceType, allowSoftware)) {
+            rejected << QStringLiteral("%1: software (CPU) device").arg(name);
+            continue;
+        }
         if (properties.apiVersion < RequiredApiVersion) {
             rejected << QStringLiteral("%1: Vulkan %2 < 1.3").arg(name, versionString(properties.apiVersion));
             continue;
