@@ -605,3 +605,22 @@ instead of QPainter. Details and measurements:
   factor table for the unpremultiply and a separable vertical blend for
   scale-only rows brought it to about 2 times.
 - The shader computes only red and alpha (the alpha mask needs no more).
+
+## GPU colour, Lightness and Gradient image tips (phase 4.104)
+
+2026-10-11, user request. The image stamp, Lightness map and Gradient map
+applications of predefined image tips are generated on the GPU too.
+Details: [gpu-engine.md](../../gpu-engine.md), "Image tip dabs",
+Applications.
+
+- Each application's output channel depends on a few 8-bit channels of the
+  sampled tip pixel, so a 256-entry table made with the CPU code replaces a
+  shader copy of the color math (Lightness's HSL arithmetic, LCMS for the
+  stamp, the gradient cache); the GPU only samples and looks up.
+- The stamp's table is valid only when the color conversion is per
+  channel; that is checked once per color space instead of assumed.
+- The gradient branch carried the previous pixel's color into transparent
+  pixels; it was made per pixel (invisible) so that the dab is a function
+  of the tip.
+- Colour dabs do not commute: the stroke tests compare colour strokes
+  without mirrors, because the paths order the reflections differently.

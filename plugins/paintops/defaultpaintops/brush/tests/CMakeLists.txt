@@ -14,6 +14,12 @@ kis_add_test(KisBrushTipOptionParityTest.cpp
     LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritaui kritatestsdk
     )
 
+# GPU engine (Solstice, "Image tip dabs"): image tip descriptions
+kis_add_test(KisImageTipDescriptionTest.cpp
+    TEST_NAME KisImageTipDescriptionTest
+    LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritaui kritatestsdk
+    )
+
 kis_add_test(KisCloneParityTest.cpp
     TEST_NAME KisCloneParityTest
     LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritaui kritatestsdk

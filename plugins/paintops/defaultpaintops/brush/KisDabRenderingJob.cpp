@@ -90,8 +90,10 @@ namespace
 /// kind only after this many of its dabs matched their description exactly
 /// in this process; any mismatch disables skipping for that kind.
 constexpr int VerifiedDabsBeforeSkipping = 16;
-std::atomic<int> s_verifiedDabs[4] = {{0}, {0}, {0}, {0}};
-std::atomic<bool> s_mismatch[4] = {{false}, {false}, {false}, {false}};
+// circle kinds 0-2, then image tips by application (3 + application)
+constexpr int KindCount = 7;
+std::atomic<int> s_verifiedDabs[KindCount] = {};
+std::atomic<bool> s_mismatch[KindCount] = {};
 std::atomic<quint64> s_skippedGenerations{0};
 std::atomic<quint64> s_texturedDescriptions{0};
 
@@ -99,7 +101,7 @@ int kindIndex(const KisProceduralCircleDab &circle)
 {
     return circle.kind == KisProceduralCircleDab::GaussCircle ? 1
         : circle.kind == KisProceduralCircleDab::SoftCircle   ? 2
-        : circle.kind == KisProceduralCircleDab::ImageTip     ? 3
+        : circle.kind == KisProceduralCircleDab::ImageTip     ? 3 + int(qMin<quint32>(circle.imageApplication, 3))
                                                               : 0;
 }
 
@@ -141,8 +143,7 @@ QSharedPointer<KisProceduralCircleDab> buildCircleDab(const KisDabCacheUtils::Da
                                                       KisDabCacheUtils::DabRenderingResources *resources,
                                                       const KisFixedPaintDeviceSP &dab)
 {
-    if (!gpuDabsWanted(resources) || !di.solidColorFill || !dab || !resources->brush
-        || resources->brush->brushApplication() == IMAGESTAMP) {
+    if (!gpuDabsWanted(resources) || !di.solidColorFill || !dab || !resources->brush) {
         return {};
     }
     if (di.needsPostprocessing && !gpuTexture(di, resources, dab->colorSpace())) {
@@ -158,12 +159,14 @@ QSharedPointer<KisProceduralCircleDab> buildCircleDab(const KisDabCacheUtils::Da
     const auto *autoBrush = dynamic_cast<const KisAutoBrush *>(resources->brush.data());
     QSharedPointer<KisProceduralCircleDab> circle(new KisProceduralCircleDab());
     if (!autoBrush) {
-        // An image tip (predefined brush) in alpha-mask mode, RGBA F32 only
+        // An image tip (predefined brush), RGBA F32 only
         if (!f32
             || !resources->brush->proceduralImageDab(di.shape,
                                                      di.subPixel.x(),
                                                      di.subPixel.y(),
                                                      di.paintColor.data(),
+                                                     cs,
+                                                     di.lightnessStrength,
                                                      circle.data())) {
             return {};
         }

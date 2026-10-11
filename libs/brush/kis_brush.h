@@ -317,17 +317,23 @@ public:
         qreal softnessFactor = DEFAULT_SOFTNESS_FACTOR) const;
 
     /**
-     * GPU engine (Solstice, "Image tip dabs"): describes the dab that
-     * generateMaskAndApplyMaskOrCreateDab() produces with the plain RGBA F32
-     * @p color for an image tip in alpha-mask mode (KisProceduralCircleDab::
-     * ImageTip), so that the GPU brush can evaluate it. False for other
-     * brushes (auto, image pipe, text), other brush applications, and
-     * transforms KisQImagePyramid::describeImage() does not describe.
+     * GPU engine (Solstice, "Image tip dabs"): describes the RGBA F32 dab
+     * (in @p colorSpace) of an image tip (KisProceduralCircleDab::ImageTip),
+     * so that the GPU brush can evaluate it: the dab of
+     * generateMaskAndApplyMaskOrCreateDab() with the plain @p color for the
+     * alpha mask, Lightness map (@p lightnessStrength) and Gradient map
+     * applications, or of paintDevice() for the image stamp. The per-pixel
+     * work of each application is captured in 256-entry tables made with the
+     * same CPU code. False for other brushes (auto, image pipe, text), color
+     * spaces whose image stamp conversion is not per channel, and transforms
+     * KisQImagePyramid::describeImage() does not describe.
      */
     bool proceduralImageDab(KisDabShape const &shape,
                             double subPixelX,
                             double subPixelY,
                             const quint8 *color,
+                            const KoColorSpace *colorSpace,
+                            qreal lightnessStrength,
                             KisProceduralCircleDab *dab) const;
 
     /**

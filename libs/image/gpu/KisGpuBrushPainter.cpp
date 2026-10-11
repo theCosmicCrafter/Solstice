@@ -326,6 +326,7 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
                     circle.imageFdx = tip->fdx;
                     circle.imageFdy = tip->fdy;
                     circle.imageIdentity = tip->identity ? 1 : 0;
+                    circle.imageApplication = source.imageApplication;
                 }
             }
             for (const QRect &clip : clipped) {
@@ -360,6 +361,10 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
                     input.imageTexels = reinterpret_cast<const quint32 *>(tip.source.constBits());
                     input.imageRows = tip.identity ? nullptr : reinterpret_cast<const qint32 *>(tip.rows.constData());
                     input.textureLut = uint8ToFloatTable();
+                    if (dab.procedural->imageTable) {
+                        input.imageTable = dab.procedural->imageTable->constData();
+                        input.imageTableSize = dab.procedural->imageTable->size();
+                    }
                 }
                 inputs << input;
             }

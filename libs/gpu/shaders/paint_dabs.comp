@@ -51,7 +51,7 @@ struct Circle {
     // kind 3: image tip
     uint64_t imageTexels; uint64_t imageRows;
     int imageWidth; int imageHeight; int imageFdx; int imageFdy;
-    uint imageIdentity; uint padding6; uint padding7; uint padding8;
+    uint imageIdentity; uint imageApplication; uint64_t imageTable;
 #endif
 };
 layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer CurveTable { float value[]; };
@@ -473,27 +473,29 @@ float textureTexel(Circle c, ivec2 p)
 // Uint8ToFloat(UINT8_MULT(255 - red, alpha)) (fillGrayBrushWithColor()).
 layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer ImageTexels { uint texel[]; };
 layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer ImageRows { ivec4 row[]; };
+layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer ImageTable { float value[]; };
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer ImageDoubles { double value[]; };
 
-// QRgba64::fromArgb32(p).premultiplied(): red and alpha
-uvec2 tipPremultiplied(uint p)
+// QRgba64::fromArgb32(p).premultiplied(): red, green, blue, alpha
+uvec4 tipPremultiplied(uint p)
 {
     const uint a = (p >> 24) * 257u;
-    const uint r = ((p >> 16) & 255u) * 257u;
+    const uvec3 rgb = uvec3((p >> 16) & 255u, (p >> 8) & 255u, p & 255u) * 257u;
     if (a == 65535u)
-        return uvec2(r, a);
+        return uvec4(rgb, a);
     if (a == 0u)
-        return uvec2(0u);
-    const uint m = r * a;
-    return uvec2(((m + (m >> 16) + 0x8000u) >> 16) & 0xffffu, a);
+        return uvec4(0u);
+    const uvec3 m = rgb * a;
+    return uvec4(((m + (m >> 16) + 0x8000u) >> 16) & 0xffffu, a);
 }
 
 // interpolate_4_pixels_rgb64(): _mm_mulhi_epu16 per 16-bit channel, dist != 0
-uvec2 tipLerp(uvec2 a, uvec2 b, uint dist)
+uvec4 tipLerp(uvec4 a, uvec4 b, uint dist)
 {
     return (((a * (0x10000u - dist)) >> 16) + ((b * dist) >> 16)) & 0xffffu;
 }
 
-uvec2 tipTexel(Circle c, int x, int y)
+uvec4 tipTexel(Circle c, int x, int y)
 {
     return tipPremultiplied(ImageTexels(c.imageTexels).texel[y * c.imageWidth + x]);
 }
@@ -515,44 +517,69 @@ uint tipTo8(uint c)
     return (c - (c >> 8)) >> 8;
 }
 
-float imageTipAlpha(Circle c, ivec2 p)
+// unpremultiplied_64bit() of one channel
+uint tipUnpremultiply(uint value, uint64_t fa)
 {
-    uint red;
-    uint alpha;
+    return uint((uint64_t(value) * fa + 0x80000000ul) >> 32) & 0xffffu;
+}
+
+// The ARGB32 tip pixel (KisImageTipSampler::pixel()) as 8-bit red, green,
+// blue, alpha
+uvec4 imageTipPixel(Circle c, ivec2 p)
+{
     if (c.imageIdentity != 0u) {
         const uint v = ImageTexels(c.imageTexels).texel[(p.y + 1) * c.imageWidth + p.x + 1];
-        red = (v >> 16) & 255u;
-        alpha = v >> 24;
-    } else {
-        const ivec4 row = ImageRows(c.imageRows).row[p.y];
-        if (p.x < row.x || p.x >= row.x + row.y)
-            return TextureLut(c.textureLut).value[0];
-        const int i = p.x - row.x;
-        const int fx = row.z + i * c.imageFdx;
-        const int fy = row.w + i * c.imageFdy;
-        const ivec2 xs = tipBounds(fx >> 16, c.imageWidth - 1);
-        const ivec2 ys = tipBounds(fy >> 16, c.imageHeight - 1);
-        const uint distx = uint(fx) & 0xffffu;
-        const uint disty = uint(fy) & 0xffffu;
-        uvec2 left = tipTexel(c, xs.x, ys.x);
-        uvec2 right = tipTexel(c, xs.y, ys.x);
-        if (disty != 0u) {
-            left = tipLerp(left, tipTexel(c, xs.x, ys.y), disty);
-            right = tipLerp(right, tipTexel(c, xs.y, ys.y), disty);
-        }
-        if (distx != 0u)
-            left = tipLerp(left, right, distx);
-        // QRgba64::unpremultiplied_64bit(), then toArgb32()
-        uint r = left.x;
-        const uint a = left.y;
-        if (a != 0xffffu && a != 0u) {
-            const uint64_t fa = (0xffff00008000ul + uint64_t(a / 2u)) / uint64_t(a);
-            r = uint((uint64_t(r) * fa + 0x80000000ul) >> 32) & 0xffffu;
-        }
-        red = tipTo8(r);
-        alpha = tipTo8(a);
+        return uvec4((v >> 16) & 255u, (v >> 8) & 255u, v & 255u, v >> 24);
     }
-    const uint t = (255u - red) * alpha + 0x80u;
+    const ivec4 row = ImageRows(c.imageRows).row[p.y];
+    if (p.x < row.x || p.x >= row.x + row.y)
+        return uvec4(0u);
+    const int i = p.x - row.x;
+    const int fx = row.z + i * c.imageFdx;
+    const int fy = row.w + i * c.imageFdy;
+    const ivec2 xs = tipBounds(fx >> 16, c.imageWidth - 1);
+    const ivec2 ys = tipBounds(fy >> 16, c.imageHeight - 1);
+    const uint distx = uint(fx) & 0xffffu;
+    const uint disty = uint(fy) & 0xffffu;
+    uvec4 left = tipTexel(c, xs.x, ys.x);
+    uvec4 right = tipTexel(c, xs.y, ys.x);
+    if (disty != 0u) {
+        left = tipLerp(left, tipTexel(c, xs.x, ys.y), disty);
+        right = tipLerp(right, tipTexel(c, xs.y, ys.y), disty);
+    }
+    if (distx != 0u)
+        left = tipLerp(left, right, distx);
+    // QRgba64::unpremultiplied_64bit(), then toArgb32()
+    uvec3 rgb = left.xyz;
+    const uint a = left.w;
+    if (a != 0xffffu && a != 0u) {
+        const uint64_t fa = (0xffff00008000ul + uint64_t(a / 2u)) / uint64_t(a);
+        rgb = uvec3(tipUnpremultiply(rgb.x, fa), tipUnpremultiply(rgb.y, fa), tipUnpremultiply(rgb.z, fa));
+    }
+    return uvec4(tipTo8(rgb.x), tipTo8(rgb.y), tipTo8(rgb.z), tipTo8(a));
+}
+
+// KisProceduralCircleDab::imageTipValue()
+vec4 imageTipValue(Circle c, ivec2 p)
+{
+    const uvec4 v = imageTipPixel(c, p);
+    ImageTable table = ImageTable(c.imageTable);
+    if (c.imageApplication == 1u)
+        return vec4(table.value[v.x], table.value[256u + v.y], table.value[512u + v.z], table.value[768u + v.w]);
+    if (c.imageApplication == 2u)
+        return vec4(table.value[v.x], table.value[256u + v.x], table.value[512u + v.x], table.value[768u + v.w]);
+    // gradient map: qGray(), and the opacity product in double
+    const uint gray = (v.x * 11u + v.y * 16u + v.z * 5u) / 32u;
+    const double maskOpacity = ImageDoubles(c.imageTable + 4096ul).value[v.w];
+    precise double alpha = double(table.value[768u + gray]) * maskOpacity;
+    return vec4(table.value[gray], table.value[256u + gray], table.value[512u + gray], float(alpha));
+}
+
+// the alpha mask (application 0); the unused color channels are dead code
+float imageTipAlpha(Circle c, ivec2 p)
+{
+    const uvec4 v = imageTipPixel(c, p);
+    const uint t = (255u - v.x) * v.w + 0x80u;
     return TextureLut(c.textureLut).value[((t >> 8) + t) >> 8];
 }
 
@@ -560,7 +587,9 @@ float imageTipAlpha(Circle c, ivec2 p)
 // texture was applied after the brush tip's mirroring (textureBrushFlips).
 vec4 generatedDab(Circle c, ivec2 p, int width, int height)
 {
-    vec4 source = c.kind == 3 ? vec4(c.color.rgb, imageTipAlpha(c, p)) : generatedCircle(c, p);
+    vec4 source = c.kind != 3            ? generatedCircle(c, p)
+        : c.imageApplication == 0u ? vec4(c.color.rgb, imageTipAlpha(c, p))
+                                   : imageTipValue(c, p);
     if (c.texture != uint64_t(0)) {
         ivec2 tp = p;
         if ((c.textureBrushFlips & 1) != 0) tp.x = width - 1 - tp.x;

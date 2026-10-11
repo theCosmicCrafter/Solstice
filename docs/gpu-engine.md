@@ -93,8 +93,12 @@ textures. To make this possible, Solstice now transforms image tips with
 its own code instead of Qt's painter, on the CPU too: the result can differ
 from Krita's by at most one step of 8-bit precision, and on processors with
 AVX2 the CPU spends about a third longer than Krita transforming each image
-tip (twice as long without AVX2). Painting the masking
-brush's mask, colour (image stamp), Lightness map and Gradient map tips,
+tip (twice as long without AVX2). Colour tips used as an Image Stamp,
+Lightness Map or Gradient Map are drawn on the GPU as well (Image Stamp
+when the document's color profile converts each color channel separately,
+as the default float profiles do). For Gradient Map tips, fully
+transparent parts of a dab now take their own gradient color, which does
+not change what is painted. Painting the masking brush's mask,
 animated (.gih) and text tips, the Lightness and Gradient texture modes
 and the brush Sharpness option remain CPU operations; large or densely
 spaced strokes using them can still take time to catch up.

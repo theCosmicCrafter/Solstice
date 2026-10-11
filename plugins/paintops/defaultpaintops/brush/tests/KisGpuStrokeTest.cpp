@@ -238,17 +238,28 @@ private Q_SLOTS:
         QTest::addColumn<bool>("alphaOnly");
         QTest::addColumn<double>("tipAngle");
         QTest::addColumn<bool>("textured");
+        QTest::addColumn<int>("application");
         for (int diameter : {48, 160})
             for (double angle : {0.0, 0.37})
                 for (bool wash : {false, true})
                     QTest::newRow(
                         qPrintable(QString("%1-angle%2-%3").arg(diameter).arg(angle).arg(wash ? "wash" : "buildup")))
-                        << diameter << wash << (angle != 0.0 && wash) << false << false << false << angle << false;
+                        << diameter << wash << (angle != 0.0 && wash) << false << false << false << angle << false
+                        << int(ALPHAMASK);
         for (double angle : {0.0, 0.37})
             QTest::newRow(qPrintable(QString("textured-angle%1").arg(angle)))
-                << 120 << false << true << false << false << false << angle << true;
+                << 120 << false << true << false << false << false << angle << true << int(ALPHAMASK);
         // the level's interior, untransformed (scale 1, no rotation)
-        QTest::newRow("identity") << 40 << false << false << false << false << false << 0.0 << false;
+        QTest::newRow("identity") << 40 << false << false << false << false << false << 0.0 << false << int(ALPHAMASK);
+        // a color tip as an image stamp and as a Lightness map (the Gradient
+        // map needs the canvas gradient: KisImageTipDescriptionTest and
+        // KisGpuBrushTest cover it). No mirrors: dabs of different colors
+        // do not commute, and the paths order the reflections differently.
+        for (int application : {int(IMAGESTAMP), int(LIGHTNESSMAP)})
+            for (bool wash : {false, true})
+                QTest::newRow(qPrintable(
+                    QString("%1-%2").arg(application == IMAGESTAMP ? "stamp" : "lightness", wash ? "wash" : "buildup")))
+                    << 120 << wash << false << false << false << false << 0.37 << !wash << application;
     }
     void testImageTipStroke()
     {
@@ -256,11 +267,14 @@ private Q_SLOTS:
         // alpha-mask mode, scaled and rotated, textured and mirrored.
         QFETCH(double, tipAngle);
         QFETCH(bool, textured);
+        QFETCH(int, application);
         m_imageTip = true;
         m_imageTipAngle = tipAngle;
+        m_imageTipApplication = application;
         auto restore = qScopeGuard([this]() {
             m_imageTip = false;
             m_imageTipAngle = 0.0;
+            m_imageTipApplication = ALPHAMASK;
         });
         runStroke(false, false, -1, QString(), false, textured);
     }
@@ -545,6 +559,7 @@ private:
     // A predefined brush tip instead of the auto brush (testImageTipStroke)
     bool m_imageTip = false;
     double m_imageTipAngle = 0.0;
+    int m_imageTipApplication = ALPHAMASK; // a color tip unless ALPHAMASK
     void runStroke(bool erase,
                    bool selectionOnly = false,
                    int channelBits = -1,
@@ -603,7 +618,11 @@ private:
                     int alpha = d < 18 ? int(255 * (1 - d / 18)) : 0;
                     if ((x * y) % 9 == 4)
                         alpha = 255;
-                    tipImage.setPixel(x, y, qRgba(value, value, value, alpha));
+                    tipImage.setPixel(x,
+                                      y,
+                                      m_imageTipApplication == ALPHAMASK
+                                          ? qRgba(value, value, value, alpha)
+                                          : qRgba(value, (value * 3 + y) % 256, (x * 7) % 256, alpha));
                 }
             }
             KisGbrBrushSP tip(new KisGbrBrush(tipImage, QStringLiteral("GPU test tip")));
@@ -613,11 +632,12 @@ private:
             tip->setSpacing(0.1);
             tip->setAngle(m_imageTipAngle);
             tip->setScale(diameter / 40.0);
-            QCOMPARE(tip->brushApplication(), ALPHAMASK);
+            tip->setBrushApplication(enumBrushApplication(m_imageTipApplication));
             localResources->addResource(tip);
             QDomDocument document;
             QDomElement element = document.createElement(QStringLiteral("Brush"));
             KisBrushSP(tip)->toXML(document, element); // public in KisBrush
+            element.setAttribute(QStringLiteral("brushApplication"), m_imageTipApplication);
             document.appendChild(element);
             settings->setProperty("brush_definition", document.toString());
         }

@@ -100,7 +100,10 @@ public:
         qint32 imageWidth = 0, imageHeight = 0;
         qint32 imageFdx = 0, imageFdy = 0;
         quint32 imageIdentity = 0;
-        quint32 padding3[3] = {0, 0, 0};
+        // KisProceduralCircleDab::ImageApplication; the table address is set
+        // by record() from Dab::imageTable (unused for the alpha mask)
+        quint32 imageApplication = 0;
+        VkDeviceAddress imageTable = 0;
     };
     struct Dab {
         const void *pixels = nullptr; // RGBA32F, or RGBA16F when pixelSize is 8; unused when generated
@@ -125,6 +128,9 @@ public:
         // pointer; textureLut is the byte-to-float table.
         const quint32 *imageTexels = nullptr;
         const qint32 *imageRows = nullptr;
+        // the application's table (1024 floats, 1536 for the gradient map)
+        const float *imageTable = nullptr;
+        int imageTableSize = 0;
     };
     struct Mask {
         const quint8 *pixels;

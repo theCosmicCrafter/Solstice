@@ -743,3 +743,18 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   must be re-read when the other changes outside the editor, not only
   rewritten when it changes inside it.
 - User manual check OK on 2026-10-11.
+
+## 2026-10-11 ingest: GPU colour, Lightness and Gradient image tips (phase 4.104)
+
+- Image stamp, Lightness map and Gradient map tips are generated on the GPU
+  from 256-entry tables made with the CPU code
+  ([gpu-engine.md](../gpu-engine.md), "Image tip dabs", Applications;
+  [history](history/gpu-phases-4.93-.md#gpu-colour-lightness-and-gradient-image-tips-phase-4104)).
+  120px textured colour stamp: CPU 26 ms, GPU brush 10 ms.
+- Lesson: when an output depends on a few 8-bit inputs, a table built by
+  calling the CPU code is exact by construction and avoids copying color
+  math (HSL, LCMS) into a shader; check, do not assume, that the inputs
+  are independent (the stamp's per-channel conversion).
+- Decision: the gradient branch's transparent pixels take their own color
+  (invisible upstream change, needed for a per-pixel description).
+- User manual check OK on 2026-10-11.

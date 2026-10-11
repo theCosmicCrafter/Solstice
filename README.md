@@ -168,9 +168,10 @@ and layer flips now batch their GPU readbacks.
 
 The GPU brush can be turned off with **Paint brush strokes on the GPU** next
 to the GPU engine option; `KRITA_GPU_BRUSH=1` or `0` overrides the setting. On RGBA32F
-layers, round auto-brush dabs, image-based brush tips used as an alpha
-mask, their pattern textures and the masking brush composite are also
-computed on the GPU. Colour image tips, the masking brush's own mask, most filter calculations and most transform
+layers, round auto-brush dabs, image-based brush tips (also as colour
+stamps, Lightness or Gradient maps), their pattern textures and the
+masking brush composite are also computed on the GPU. The masking brush's
+own mask, most filter calculations and most transform
 calculations still run on the CPU; the Transform Tool's
 affine transforms, Liquify, Puppet Warp and Gaussian Blur (also inside
 Unsharp Mask and Gaussian High Pass) are applied on the GPU for float layers. Large mirrored brushes with

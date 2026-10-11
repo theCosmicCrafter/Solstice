@@ -94,6 +94,11 @@ described transforms with `KisImageTipSampler` instead of QPainter (the old body
 `describedPixel()`, the premultiplied copy of each level); `KisBrush::proceduralImageDab()`
 in `libs/brush/kis_brush.{h,cpp}`; `libs/brush/tests/CMakeLists.txt`
 (`KisQImagePyramidDescribeTest`); `libs/image/CMakeLists.txt` (`KisImageTipSampler.cpp`).
+GPU phase 4.104 extends `KisBrush::proceduralImageDab()` (color space and Lightness
+strength arguments, the application tables) and changes the gradient branch of
+`generateMaskAndApplyMaskOrCreateDab()` in `libs/brush/kis_brush.cpp` (transparent tip
+pixels take their own gradient color); `plugins/paintops/defaultpaintops/brush/tests/CMakeLists.txt`
+(`KisImageTipDescriptionTest`).
 
 GPU phases 4.36-4.37 forward per-channel layer flags in
 `libs/image/gpu/KisGpuMergeBatch.*`, allow F16 channel masks in

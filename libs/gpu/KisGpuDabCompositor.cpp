@@ -99,6 +99,10 @@ bool planUpload(int tileCount,
             if (imageTip) {
                 // RGBA32F; identity tips read texel (x + 1, y + 1) of the level.
                 const KisGpuDabCompositor::Circle &c = dab.circle;
+                const int tableSize = c.imageApplication == 3 ? 1536 : 1024;
+                if (c.imageApplication > 3
+                    || (c.imageApplication != 0 && (!dab.imageTable || dab.imageTableSize < tableSize)))
+                    return false;
                 if (pixelSize != 16 || !dab.textureLut || !dab.imageTexels || c.imageWidth < 2 || c.imageHeight < 2
                     || qint64(c.imageWidth) * c.imageHeight > qint64(KisGpuDabCompositor::MaxUploadBytes / 4)
                     || (c.imageIdentity ? dab.size != QSize(c.imageWidth - 2, c.imageHeight - 2) : !dab.imageRows))
@@ -119,6 +123,10 @@ bool planUpload(int tileCount,
             if (imageTip && !layout.tableOffsets.contains(dab.textureLut)) {
                 layout.tableOffsets.insert(dab.textureLut, bytes);
                 bytes += aligned(256 * sizeof(float));
+            }
+            if (imageTip && dab.circle.imageApplication != 0 && !layout.tableOffsets.contains(dab.imageTable)) {
+                layout.tableOffsets.insert(dab.imageTable, bytes);
+                bytes += aligned(VkDeviceSize(dab.imageTableSize) * sizeof(float));
             }
             if (dab.circle.kind == 2 && !layout.tableOffsets.contains(dab.curveTable)) {
                 layout.tableOffsets.insert(dab.curveTable, bytes);
@@ -375,9 +383,20 @@ bool KisGpuDabCompositor::record(KisGpuCommandList &commands,
                     copiedTables.insert(dab.textureLut);
                     std::memcpy(out + lutOffset, dab.textureLut, 256 * sizeof(float));
                 }
+                if (circle.imageApplication != 0) {
+                    const VkDeviceSize tableOffset = layout.tableOffsets.value(dab.imageTable);
+                    circle.imageTable = m_upload->deviceAddress() + tableOffset;
+                    if (!copiedTables.contains(dab.imageTable)) {
+                        copiedTables.insert(dab.imageTable);
+                        std::memcpy(out + tableOffset, dab.imageTable, size_t(dab.imageTableSize) * sizeof(float));
+                    }
+                } else {
+                    circle.imageTable = 0;
+                }
             } else {
                 circle.imageTexels = 0;
                 circle.imageRows = 0;
+                circle.imageTable = 0;
             }
             std::memcpy(out + offsets[i], &circle, sizeof(circle));
         } else if (sourceOffsets.remove(dab.pixels)) {

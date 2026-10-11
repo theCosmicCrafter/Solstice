@@ -72,12 +72,28 @@ struct KisProceduralCircleDab {
         DefaultCircle = 0,
         GaussCircle = 1,
         SoftCircle = 2, // KisCurveCircleMaskGenerator (phase 4.87)
-        /// A predefined (image) brush tip in alpha-mask mode ("Image tip
-        /// dabs"): the alpha of pixel (x, y) is
-        /// Uint8ToFloat(UINT8_MULT(255 - red, alpha)) of the ARGB32 pixel
-        /// KisImageTipSampler::pixel() gives (KoColorSpaceTrait::
-        /// fillGrayBrushWithColor()); RGBA F32 only.
+        /// A predefined (image) brush tip ("Image tip dabs"): pixel (x, y)
+        /// is imageTipValue() of the ARGB32 pixel KisImageTipSampler::pixel()
+        /// gives, by imageApplication; RGBA F32 only.
         ImageTip = 3,
+    };
+    /// How an image tip's ARGB32 pixel becomes the dab pixel
+    /// (enumBrushApplication).
+    enum ImageApplication : quint32 {
+        /// color, Uint8ToFloat(UINT8_MULT(255 - red, alpha))
+        /// (KoColorSpaceTrait::fillGrayBrushWithColor())
+        AlphaMask = 0,
+        /// imageTable[red], [256 + green], [512 + blue], [768 + alpha]: the
+        /// conversion of KisBrush::paintDevice(), per channel
+        ImageStamp = 1,
+        /// imageTable[red], [256 + red], [512 + red], [768 + alpha]
+        /// (fillGrayBrushWithColorAndLightnessWithStrength())
+        LightnessMap = 2,
+        /// g = qGray(): imageTable[g], [256 + g], [512 + g]; alpha
+        /// float(double(imageTable[768 + g]) * maskOpacity[alpha]) with the
+        /// 256 doubles alpha / 255.0 stored after the 1024 floats (the
+        /// gradient branch of generateMaskAndApplyMaskOrCreateDab())
+        GradientMap = 3,
     };
     Kind kind = DefaultCircle;
 
@@ -114,6 +130,49 @@ struct KisProceduralCircleDab {
     QSharedPointer<const KisProceduralDabTexture> texture;
     /// ImageTip: the transformed tip (KisQImagePyramid::describeImage()).
     QSharedPointer<const KisImageTipGeometry> imageTip;
+    quint32 imageApplication = AlphaMask;
+    /// ImageTip, all applications but AlphaMask: see ImageApplication.
+    QSharedPointer<const QVector<float>> imageTable;
+
+    /// The dab pixel (RGBA F32) of an ARGB32 image tip pixel.
+    inline void imageTipValue(quint32 pixel, float *out) const
+    {
+        const quint32 red = (pixel >> 16) & 0xff;
+        const quint32 green = (pixel >> 8) & 0xff;
+        const quint32 blue = pixel & 0xff;
+        const quint32 alpha = pixel >> 24;
+        const float *table = imageTable ? imageTable->constData() : nullptr;
+        switch (imageApplication) {
+        case ImageStamp:
+            out[0] = table[red];
+            out[1] = table[256 + green];
+            out[2] = table[512 + blue];
+            out[3] = table[768 + alpha];
+            return;
+        case LightnessMap:
+            out[0] = table[red];
+            out[1] = table[256 + red];
+            out[2] = table[512 + red];
+            out[3] = table[768 + alpha];
+            return;
+        case GradientMap: {
+            const quint32 gray = (red * 11 + green * 16 + blue * 5) / 32; // qGray()
+            double maskOpacity;
+            std::memcpy(&maskOpacity, table + 1024 + 2 * alpha, sizeof(double));
+            out[0] = table[gray];
+            out[1] = table[256 + gray];
+            out[2] = table[512 + gray];
+            out[3] = float(double(table[768 + gray]) * maskOpacity);
+            return;
+        }
+        default:
+            out[0] = color[0];
+            out[1] = color[1];
+            out[2] = color[2];
+            out[3] = imageTipAlpha(pixel);
+            return;
+        }
+    }
 
     /// UINT8_MULT(255 - red, alpha) of an ARGB32 tip pixel, as a float alpha
     static inline float imageTipAlpha(quint32 pixel)
@@ -151,10 +210,7 @@ struct KisProceduralCircleDab {
                     gy < tip.height() ? reinterpret_cast<const quint32 *>(tip.constScanLine(gy)) : nullptr;
                 for (int x = 0; x < width; x++) {
                     const int gx = (flips & 1) ? width - 1 - x : x;
-                    out[0] = color[0];
-                    out[1] = color[1];
-                    out[2] = color[2];
-                    out[3] = line && gx < tip.width() ? imageTipAlpha(line[gx]) : 0.0f;
+                    imageTipValue(line && gx < tip.width() ? line[gx] : 0u, out);
                     out += 4;
                 }
             }
@@ -201,6 +257,11 @@ struct KisProceduralCircleDab {
                 && pixel[2].bits() == half(color[2]).bits() && pixel[3].bits() == half(alphaAt(gx, gy)).bits();
         }
         const float *pixel = reinterpret_cast<const float *>(pixels) + index;
+        if (kind == ImageTip) {
+            float value[4];
+            imageTipValue(KisImageTipSampler::pixel(*imageTip, gx, gy), value);
+            return pixel[0] == value[0] && pixel[1] == value[1] && pixel[2] == value[2] && pixel[3] == value[3];
+        }
         return pixel[0] == color[0] && pixel[1] == color[1] && pixel[2] == color[2] && pixel[3] == alphaAt(gx, gy);
     }
 

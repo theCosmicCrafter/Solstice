@@ -48,6 +48,11 @@
 #include "kis_imagepipe_brush.h"
 #include "kis_text_brush.h"
 #include <KisProceduralCircleDab.h>
+#include <KoColorConversionTransformation.h>
+#include <KoColorModelStandardIds.h>
+#include <KoColorProfile.h>
+#include <QMutex>
+#include <QRandomGenerator>
 
 KIS_DECLARE_STATIC_INITIALIZER {
     qRegisterMetaType<KisBrushSP>("KisBrushSP");
@@ -593,17 +598,148 @@ void KisBrush::generateMaskAndApplyMaskOrCreateDab(KisFixedPaintDeviceSP dst,
     generateMaskAndApplyMaskOrCreateDab(dst, coloringInformation, shape, info_, subPixelX, subPixelY, softnessFactor, DEFAULT_LIGHTNESS_STRENGTH);
 }
 
+namespace
+{
+/**
+ * GPU engine (Solstice): the image stamp table of @p colorSpace (see
+ * KisProceduralCircleDab::ImageStamp): paintDevice() converts the 8-bit
+ * tip with KisFixedPaintDevice::convertFromQImage(); the table holds that
+ * conversion per channel, or is null when the conversion is not per
+ * channel (checked on a grid of colors and alphas and random pixels).
+ * Cached per color space.
+ */
+QSharedPointer<const QVector<float>> imageStampTable(const KoColorSpace *colorSpace)
+{
+    static QMutex mutex;
+    static QHash<QString, QSharedPointer<const QVector<float>>> cache;
+    const QString key =
+        colorSpace->id() + QLatin1Char('|') + (colorSpace->profile() ? colorSpace->profile()->name() : QString());
+    QMutexLocker locker(&mutex);
+    auto it = cache.constFind(key);
+    if (it != cache.constEnd()) {
+        return it.value();
+    }
+
+    const KoColorSpace *rgb8 =
+        KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(), Integer8BitsColorDepthID.id(), QString());
+    auto convert = [&](const QVector<quint32> &argb) {
+        QVector<float> result(argb.size() * 4);
+        rgb8->convertPixelsTo(reinterpret_cast<const quint8 *>(argb.constData()),
+                              reinterpret_cast<quint8 *>(result.data()),
+                              colorSpace,
+                              argb.size(),
+                              KoColorConversionTransformation::internalRenderingIntent(),
+                              KoColorConversionTransformation::internalConversionFlags());
+        return result;
+    };
+
+    QVector<quint32> ramp(256);
+    for (int v = 0; v < 256; ++v) {
+        ramp[v] = qRgba(v, v, v, v);
+    }
+    const QVector<float> converted = convert(ramp);
+    QSharedPointer<QVector<float>> table(new QVector<float>(1024));
+    for (int v = 0; v < 256; ++v) {
+        for (int c = 0; c < 4; ++c) {
+            (*table)[c * 256 + v] = converted[4 * v + c];
+        }
+    }
+
+    QVector<quint32> samples;
+    for (int r = 0; r < 256; r += 17) {
+        for (int g = 0; g < 256; g += 17) {
+            for (int b = 0; b < 256; b += 17) {
+                for (int a : {0, 1, 128, 255}) {
+                    samples << qRgba(r, g, b, a);
+                }
+            }
+        }
+    }
+    QRandomGenerator random(1);
+    for (int i = 0; i < 65536; ++i) {
+        samples << random.generate();
+    }
+    const QVector<float> check = convert(samples);
+    bool perChannel = true;
+    for (int i = 0; perChannel && i < samples.size(); ++i) {
+        const quint32 p = samples[i];
+        const float expected[4] = {(*table)[qRed(p)],
+                                   (*table)[256 + qGreen(p)],
+                                   (*table)[512 + qBlue(p)],
+                                   (*table)[768 + qAlpha(p)]};
+        perChannel = std::memcmp(expected, check.constData() + 4 * i, sizeof(expected)) == 0;
+    }
+    QSharedPointer<const QVector<float>> result = perChannel ? table : QSharedPointer<const QVector<float>>();
+    cache.insert(key, result);
+    return result;
+}
+} // namespace
+
 bool KisBrush::proceduralImageDab(KisDabShape const &shape,
                                   double subPixelX,
                                   double subPixelY,
                                   const quint8 *color,
+                                  const KoColorSpace *colorSpace,
+                                  qreal lightnessStrength,
                                   KisProceduralCircleDab *dab) const
 {
-    // Brushes that generate their dabs differently, and the brush
-    // applications that do not use fillGrayBrushWithColor().
-    if (!valid() || !color || !dab || dynamic_cast<const KisAutoBrush *>(this)
+    // Brushes that generate their dabs differently
+    if (!valid() || !color || !dab || !colorSpace || dynamic_cast<const KisAutoBrush *>(this)
         || dynamic_cast<const KisImagePipeBrush *>(this) || dynamic_cast<const KisTextBrush *>(this)
-        || brushApplication() != ALPHAMASK || preserveLightness() || applyingGradient()) {
+        || colorSpace->pixelSize() != 16) {
+        return false;
+    }
+    // The per-pixel work of the application as tables (see
+    // KisProceduralCircleDab::ImageApplication), made with the CPU code
+    quint32 application = KisProceduralCircleDab::AlphaMask;
+    QSharedPointer<const QVector<float>> table;
+    if (brushApplication() == IMAGESTAMP) {
+        application = KisProceduralCircleDab::ImageStamp;
+        table = imageStampTable(colorSpace);
+    } else if (preserveLightness()) {
+        application = KisProceduralCircleDab::LightnessMap;
+        // the color depends on the red value only, the alpha on the alpha
+        QVector<QRgb> brush(256);
+        for (int v = 0; v < 256; ++v) {
+            brush[v] = qRgba(v, 0, 0, v);
+        }
+        QVector<float> pixels(256 * 4);
+        QVector<quint8> paintColor(colorSpace->pixelSize());
+        std::memcpy(paintColor.data(), color, size_t(paintColor.size()));
+        colorSpace->fillGrayBrushWithColorAndLightnessWithStrength(reinterpret_cast<quint8 *>(pixels.data()),
+                                                                   brush.constData(),
+                                                                   paintColor.data(),
+                                                                   lightnessStrength,
+                                                                   256);
+        QSharedPointer<QVector<float>> values(new QVector<float>(1024));
+        for (int v = 0; v < 256; ++v) {
+            for (int c = 0; c < 4; ++c) {
+                (*values)[c * 256 + v] = pixels[4 * v + c];
+            }
+        }
+        table = values;
+    } else if (applyingGradient()) {
+        if (!d->cachedGradient) {
+            return false;
+        }
+        application = KisProceduralCircleDab::GradientMap;
+        d->cachedGradient->setColorSpace(colorSpace);
+        // the cached colors of the 256 qGray() values and the mask
+        // opacities alpha / 255.0 (doubles after the 1024 floats)
+        QSharedPointer<QVector<float>> values(new QVector<float>(1024 + 512));
+        for (int v = 0; v < 256; ++v) {
+            const float *cached = reinterpret_cast<const float *>(d->cachedGradient->cachedAt(qreal(v) / 255.0));
+            for (int c = 0; c < 4; ++c) {
+                (*values)[c * 256 + v] = cached[c];
+            }
+            const double maskOpacity = qreal(v) / 255.0;
+            std::memcpy(values->data() + 1024 + 2 * v, &maskOpacity, sizeof(double));
+        }
+        table = values;
+    } else if (brushApplication() != ALPHAMASK) {
+        return false;
+    }
+    if (application != KisProceduralCircleDab::AlphaMask && !table) {
         return false;
     }
     // The same pyramid and shape as generateMaskAndApplyMaskOrCreateDab()
@@ -620,6 +756,8 @@ bool KisBrush::proceduralImageDab(KisDabShape const &shape,
     dab->kind = KisProceduralCircleDab::ImageTip;
     std::memcpy(dab->color, color, sizeof(dab->color));
     dab->imageTip = geometry;
+    dab->imageApplication = application;
+    dab->imageTable = table;
     return true;
 }
 
@@ -683,7 +821,11 @@ void KisBrush::generateMaskAndApplyMaskOrCreateDab(KisFixedPaintDeviceSP dst,
                 for (int x = 0; x < maskWidth; x++) {
                     const QRgb* maskQRgb = reinterpret_cast<const QRgb*>(maskPointer);
                     qreal maskOpacity = qreal(qAlpha(*maskQRgb)) / 255.0;
-                    if (maskOpacity > 0) {
+                    // Solstice (GPU engine, "Image tip dabs"): transparent
+                    // pixels take their own gradient color too, instead of the
+                    // previous pixel's, so that each pixel depends on its
+                    // tip pixel only (their alpha stays 0)
+                    {
                         qreal gradientvalue = qreal(qGray(*maskQRgb)) / 255.0;
                         gradientcolor.setColor(d->cachedGradient->cachedAt(gradientvalue), cs);
                     }

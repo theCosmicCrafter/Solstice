@@ -36,7 +36,8 @@ details are in the phase records, now in the wiki history pages (see
   dabs"): RGBA32F dabs of predefined (GBR, PNG, SVG, ABR) tips in alpha-mask
   mode are generated on the GPU, also textured; the CPU now transforms
   image tips with the same deterministic code instead of QPainter (at most
-  one 8-bit step from upstream Krita).
+  one 8-bit step from upstream Krita). Phase 4.104 (2026-10-11): the image
+  stamp (colour), Lightness map and Gradient map applications too.
 - Phase: **4 (brush prototype), opt-in; phases 4.1–4.5 manually checked,
   phases 4.6 and 4.8 add brush-job and full stroke-strategy coverage.** Phase
   4.7 is also manually confirmed, with combined four-pass painting recorded
@@ -811,9 +812,57 @@ vendors), so even the CPU output depended on the machine.
   160px rotated Wash with mirrors 26.2 / 32.2 / 21.8; 120px textured with
   mirrors 17.9 / 22.0 / 17.4, rotated 19.1 / 26.1 / 17.7; 48px 5.1 / 9.1 /
   9.3 (no gain at small sizes, like the round dabs).
-- Not covered: image stamp (colour) tips, Lightness map, gradient map,
-  image pipe and text brushes, RGBA16F, and dabs with other postprocessing
-  (sharpness, Lightness/Gradient textures) keep their pixels.
+- Applications (phase 4.104, 2026-10-11, user request): the image stamp,
+  Lightness map and Gradient map tips are described as well
+  (`KisProceduralCircleDab::imageApplication`). Each output channel depends
+  on a few 8-bit channels of the sampled tip pixel only, so
+  `KisBrush::proceduralImageDab()` captures the CPU's per-pixel work in a
+  table made with the CPU code itself, and the GPU looks it up:
+  - Lightness map: `fillGrayBrushWithColorAndLightnessWithStrength()` on
+    256 pixels `qRgba(v, 0, 0, v)` (the color depends on red, the alpha on
+    alpha); made per dab (paint color, strength).
+  - Gradient map: the 256 colors `cachedAt(qGray / 255.0)` and the 256
+    doubles `alpha / 255.0`; the alpha is
+    `float(double(gradient alpha) * maskOpacity)` (a double product on the
+    GPU, correctly rounded). Upstream change (`kis_brush.cpp`, gradient
+    branch of `generateMaskAndApplyMaskOrCreateDab()`): fully transparent
+    tip pixels now take their own gradient color instead of the previous
+    pixel's, so that a pixel depends on its tip pixel only (their alpha
+    stays 0; invisible).
+  - Image stamp (`paintDevice()`, `KisFixedPaintDevice::convertFromQImage()`
+    from 8-bit sRGB): the conversion per channel, from a gray ramp, used
+    only if the color space's conversion is per channel (checked once per
+    color space on a 16-level grid with four alphas and 65536 random
+    pixels; true for the default float profiles); otherwise the dabs keep
+    their pixels.
+  - Verification and skipping (phase 4.85) count each application
+    separately (kind index 3 + application).
+  - GPU: `Circle.imageApplication` and `Circle.imageTable` (in the former
+    padding, still 224 bytes); the shader samples all four channels
+    (`imageTipPixel()`) and applies the table (`imageTipValue()`); the alpha
+    mask keeps its own path (`imageTipAlpha()`; the unused channels are dead
+    code).
+  - Tests: `KisImageTipDescriptionTest` (every application, color and gray
+    tips, 60 shapes: the description renders exactly the CPU dab of
+    `mask()` or `paintDevice()`), `KisGpuBrushTest::
+    testGeneratedImageTipDabs` (every application on every geometry, all
+    channels bit for bit), `KisGpuStrokeTest::testImageTipStroke` (stamp and
+    Lightness rows; the Gradient map needs the canvas gradient, which the
+    stroke harness does not provide).
+  - Measurements (`KisGpuStrokeTest::testImageTipStroke`, median of 5, no
+    validation, ms; CPU / GPU projection / GPU brush; 120px, rotated):
+    stamp textured Buildup 26.3 / 29.5 / 10.4, stamp Wash 25.6 / 28.4 /
+    12.8 (the CPU converts every dab's colors), Lightness textured Buildup
+    11.1 / 14.9 / 11.1, Lightness Wash 13.8 / 16.2 / 12.5.
+  - Mirrors: dabs of different colors do not commute, and the CPU and GPU
+    paths order the reflections of a batch differently, so mirrored colour
+    strokes may differ slightly between the paths where dabs overlap
+    (unchanged: colour dabs were already painted by the GPU brush as
+    uploaded pixels).
+- Not covered: image pipe (.gih) and text brushes, RGBA16F, image stamps in
+  color spaces whose conversion is not per channel, Gradient maps without a
+  gradient, and dabs with other postprocessing (sharpness,
+  Lightness/Gradient textures) keep their pixels.
 
 ## Phase 0 technology decisions
 
@@ -1246,9 +1295,11 @@ Phase 0 has no user-visible behavior. From phase 3 on:
     predefined GBR or PNG tip and an imported ABR tip at small and large
     sizes, with rotation (fixed angle and Drawing Angle), mirrors, a texture,
     Wash and Buildup; the stroke matches the CPU brush (GPU brush off) and
-    the brush outline; Undo/Redo; an image stamp (colour) tip and a
-    Lightness map tip still paint (CPU). On an 8-bit layer image tips look
-    as before.
+    the brush outline; Undo/Redo. Phase 4.104: a colour tip as Image
+    Stamp, as Lightness Map (change the color and the Lightness strength)
+    and as Gradient Map (change the gradient), with rotation, a texture,
+    Wash and Buildup; each looks like the CPU brush. On an 8-bit layer image
+    tips look as before.
 
 ## Phase history
 
@@ -1354,6 +1405,7 @@ Section index:
 - [GPU masking brush composite (phase 4.101)](wiki/history/gpu-phases-4.93-.md#gpu-masking-brush-composite-phase-4101)
 - [GPU textured dabs (phase 4.102)](wiki/history/gpu-phases-4.93-.md#gpu-textured-dabs-phase-4102)
 - [GPU image tip dabs (phase 4.103)](wiki/history/gpu-phases-4.93-.md#gpu-image-tip-dabs-phase-4103)
+- [GPU colour, Lightness and Gradient image tips (phase 4.104)](wiki/history/gpu-phases-4.93-.md#gpu-colour-lightness-and-gradient-image-tips-phase-4104)
 
 ## Risks and open questions
 
