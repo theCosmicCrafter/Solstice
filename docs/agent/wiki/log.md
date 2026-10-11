@@ -720,3 +720,26 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - 160px rotated Wash with mirrors: CPU 26 ms, GPU canvas only 32, GPU
   brush 22; at 48px no gain.
 - User manual check OK on 2026-10-11.
+
+## 2026-10-11 ingest: faster CPU image tip transform
+
+- `KisImageTipSampler::render()` gained AVX2 kernels and a gray-level path
+  (same bytes as the SSE2 and three-channel paths, tested on every case);
+  the CPU image tip transform went from about 2x to about 1.3x QPainter's
+  time ([gpu-engine.md](../gpu-engine.md), "Image tip dabs", CPU speed).
+- Pitfall: an interpolated opaque tip has alpha 0xfffe, so the unpremultiply
+  runs for nearly every pixel; measure by disabling pieces before
+  optimizing (the gathers and the factor table were not the cost).
+- User manual check OK on 2026-10-11.
+
+## 2026-10-11 ingest: masking coefficient after a canvas resize
+
+- Bug fix (user report): after a canvas resize, the first Brush Editor edit
+  rewrote `MaskingBrush/MasterSizeCoeff` for the old size, so masked strokes
+  became thin and stayed thin
+  ([brush-option-shared-model-plan.md](../brush-option-shared-model-plan.md),
+  phase 5 fix).
+- Lesson: an option whose value derives from another (`addDependency()`)
+  must be re-read when the other changes outside the editor, not only
+  rewritten when it changes inside it.
+- User manual check OK on 2026-10-11.

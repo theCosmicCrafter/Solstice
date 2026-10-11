@@ -874,6 +874,19 @@ Ctrl+クリックでの複製元の指定とクローン描画が従来どおり
 On-Canvas Brush Editorでの変更がF5に反映される。プリセットの再読み込み
 (Reload)後の編集で、他の設定が消えない。
 
+**修正(2026年10月11日、ユーザー報告):** キャンバスでサイズを変えた
+(Quick Brush Adjustments、Shift+ドラッグ)後、F5で別のオプション(例:
+Rotation)を切り替えると、マスクブラシ付きプリセット(例: `z) 线稿 纹理`)の
+線が細くなり、Rotationを戻しても細いままだった。原因: 外部の変更キー通知で
+読み直すのは変わったキーを書くオプション(ブラシ先端)だけで、主ブラシの
+サイズから値を導くマスクブラシは古いサイズのまま残り、次の書き込み(最初の
+編集は全書き込み)で `MaskingBrush/MasterSizeCoeff` を「古いマスクサイズ /
+新しい主サイズ」で書き直していた。修正: `KisPaintOpOptionsModel::
+slotSettingsKeysChanged()` が、読み直すオプションに依存するオプション
+(`addDependency()`)も推移的に読み直す。テスト:
+`KisBrushTipOptionParityTest::testEditAfterResizeKeepsSize`(3倍にした後
+Rotationを切り替えてもサイズと係数が変わらない)。
+
 ## リスク
 
 | リスク | 影響 | 対策 |

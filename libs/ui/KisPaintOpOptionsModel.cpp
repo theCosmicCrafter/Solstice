@@ -333,6 +333,18 @@ void KisPaintOpOptionsModel::slotSettingsKeysChanged(const QSet<QString> &keys, 
         for (int i = 0; i < int(m_d->options.size()); i++) {
             indexes << i;
         }
+    } else {
+        // the options whose values derive from a changed one read again
+        // after it: a masking brush that follows the master size must
+        // follow a size changed on the canvas, or the next edit writes a
+        // coefficient for the old size
+        for (int i = 0; i < indexes.size(); i++) {
+            Q_FOREACH (int dependent, m_d->dependentsBySource.values(indexes[i])) {
+                if (!indexes.contains(dependent)) {
+                    indexes << dependent;
+                }
+            }
+        }
     }
 
     readOptions(indexes);

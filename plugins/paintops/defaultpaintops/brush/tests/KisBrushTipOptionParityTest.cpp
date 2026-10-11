@@ -60,6 +60,7 @@ private Q_SLOTS:
     void testMaskingPreserveMode();
     void testLightnessMode();
     void testResizeWhileEditorOpen();
+    void testEditAfterResizeKeepsSize();
     void testModelEditsKeepPresetConsistent();
     void testModelLightnessStrengthFollowsBrushTip();
 };
@@ -597,6 +598,65 @@ void KisBrushTipOptionParityTest::testResizeWhileEditorOpen()
     KisBrushTipOptionState *brushTip = static_cast<KisBrushTipOptionState *>(model->option(QStringLiteral("BrushTip")));
     QCOMPARE(brushTip->data().commonBrushSize, size);
     QCOMPARE(settings->getProperty(QStringLiteral("MaskingBrush/MasterSizeCoeff")), coefficient);
+}
+
+/// After resizing on the canvas, toggling another option in the Brush Editor
+/// (Rotation) keeps the new size and the masking brush's master size
+/// coefficient (reported 2026-10-11: the first edit rewrote the coefficient
+/// for the old size, so the masked stroke became thin and stayed thin).
+void KisBrushTipOptionParityTest::testEditAfterResizeKeepsSize()
+{
+    KisPaintOpPresetSP preset = loadPreset(QStringLiteral("h_Charcoal_Pencil_Medium.kpp"));
+    QVERIFY(preset);
+    KisPaintOpSettingsSP settings = preset->settings();
+
+    KisBrushOpSettingsWidget widget(nullptr, KisGlobalResourcesInterface::instance(), KoCanvasResourcesInterfaceSP());
+    widget.setResourcesInterface(KisGlobalResourcesInterface::instance());
+    KisPaintOpOptionsModel *model = widget.optionsModel();
+    QVERIFY(model);
+    model->attachPreset(preset);
+    widget.setConfigurationSafe(settings);
+
+    bool insideRead = false;
+    bool insideWrite = false;
+    connect(&widget, &KisPaintOpConfigWidget::sigConfigurationUpdated, this, [&]() {
+        if (insideRead)
+            return;
+        insideWrite = true;
+        {
+            KisPaintOpPreset::UpdatedPostponer postponer(preset);
+            if (!model->isAttachedTo(settings.data())) {
+                settings->resetSettings();
+            }
+            widget.writeConfigurationSafe(settings);
+        }
+        insideWrite = false;
+    });
+    connect(preset->updateProxy(), &KisPaintOpPresetUpdateProxy::sigSettingsChangedUncompressed, this, [&]() {
+        if (insideWrite)
+            return;
+        insideRead = true;
+        widget.setConfigurationSafe(settings);
+        insideRead = false;
+    });
+
+    const qreal original = settings->paintOpSize();
+    const QVariant coefficient = settings->getProperty(QStringLiteral("MaskingBrush/MasterSizeCoeff"));
+    const qreal size = original * 3;
+    settings->setPaintOpSize(size);
+    QTest::qWait(300);
+    QCOMPARE(settings->paintOpSize(), size);
+
+    auto *rotation = typedOption<KisRotationOptionData>(model, QStringLiteral("Rotation"));
+    QVERIFY(rotation);
+    for (bool checked : {true, false}) {
+        KisRotationOptionData data = rotation->data();
+        data.isChecked = checked;
+        rotation->cursor().set(data);
+        QTest::qWait(300);
+        QVERIFY(qAbs(settings->paintOpSize() - size) < 0.01);
+        QCOMPARE(settings->getProperty(QStringLiteral("MaskingBrush/MasterSizeCoeff")), coefficient);
+    }
 }
 
 SOLSTICE_BRUSH_TEST_MAIN(KisBrushTipOptionParityTest)
