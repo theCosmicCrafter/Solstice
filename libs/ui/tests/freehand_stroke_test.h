@@ -15,6 +15,7 @@ class FreehandStrokeTest : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
+    void initTestCase();
     void testAutoBrushStroke();
     void testHatchingStroke();
     void testColorSmudgeStroke();

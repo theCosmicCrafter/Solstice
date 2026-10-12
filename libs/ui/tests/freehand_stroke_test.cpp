@@ -18,6 +18,13 @@
 #include "kis_painter.h"
 #include <brushengine/kis_paint_information.h>
 
+// Solstice: the bundled Krita 3 resources for the LOD test's brush tip
+#include <KisResourceLoaderRegistry.h>
+#include <KisResourceLocator.h>
+#include <KisResourceModelProvider.h>
+#include <KisResourceStorage.h>
+#include <KoTestConfig.h>
+
 #include "testui.h"
 
 #include <memory>
@@ -87,6 +94,11 @@ protected:
 
         std::unique_ptr<FreehandStrokeStrategy> stroke(
             new FreehandStrokeStrategy(resources, strokeInfo, kundo2_noi18n("Freehand Stroke")));
+        if (m_useLod) {
+            // Solstice: a fixed seed, so that random brush tip selection (the
+            // .gih of testing_predefined_lod_spc13.kpp) is reproducible
+            stroke->setPreviewRandomSeed(1);
+        }
 
         return stroke.release();
     }
@@ -123,6 +135,19 @@ private:
     bool m_flipLineDirection;
     QScopedPointer<QColor> m_paintColor;
 };
+
+void FreehandStrokeTest::initTestCase()
+{
+    // Solstice: testing_predefined_lod_spc13.kpp uses 3_eroded.gih, which is
+    // only in the bundled Krita 3 resources; without them the stroke falls
+    // back to a 1px brush. Loading a bundle's presets creates resource
+    // models, so create them all first (as KisBrushTestMain.h does).
+    Q_FOREACH (const QString &type, KisResourceLoaderRegistry::instance()->resourceTypes()) {
+        KisResourceModelProvider::resourceModel(type);
+    }
+    const QString bundle = QStringLiteral(KRITA_SOURCE_DIR "/krita/data/bundles/Krita_3_Default_Resources.bundle");
+    QVERIFY(KisResourceLocator::instance()->addStorage(bundle, KisResourceStorageSP(new KisResourceStorage(bundle))));
+}
 
 void FreehandStrokeTest::testAutoBrushStroke()
 {

@@ -105,6 +105,11 @@ half constants); `libs/gpu/CMakeLists.txt` (two RGBA16F textured shader builds).
 GPU phase 4.106 adds the RGBA16F masking composite build to `libs/gpu/CMakeLists.txt`
 (`masking_composite_rgba16f`); no other upstream file changes.
 
+`FreehandStrokeTest` (2026-10-12): `libs/ui/tests/freehand_stroke_test.{h,cpp}` (`initTestCase()`
+loads the Krita 3 bundle, LOD strokes seeded), regenerated references in
+`libs/ui/tests/data/freehand/` (auto textured 17, Mix dull) and new
+`libs/ui/tests/data/freehand-lod/`.
+
 GPU phases 4.36-4.37 forward per-channel layer flags in
 `libs/image/gpu/KisGpuMergeBatch.*`, allow F16 channel masks in
 `KisGpuProjectionCompositor.cpp`, and align the established F16 generic blend

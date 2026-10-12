@@ -1,6 +1,6 @@
 ---
 type: pitfall
-updated: 2026-10-08
+updated: 2026-10-12
 sources:
   - docs/agent/coding-rules.md ("Formatting and diffs")
   - docs/agent/development-workflow.md (build, test, install)
@@ -198,6 +198,21 @@ wrong anyway.
 - Test executables are named after their source files
   (`kis_liquify_transform_worker_test`, `KisGpuPaintDeviceTest`). Check
   `_build/bin` when a CMake target name is not found.
+- **`FreehandStrokeTest` passes since 2026-10-12** (upstream registers it
+  with `krita_add_broken_unit_test`). Its references were stale: Mix dull
+  was made by code that still honoured the indirect-painting flag (the
+  incremental and indirect references differ, the current results do not),
+  textured 17 differed by 4 in the alpha of 3 pixels, and the
+  `freehand-lod` references never existed. The current deterministic
+  results are the references now; the LOD tests seed the stroke
+  (`setPreviewRandomSeed(1)`, the `.gih` tip picks randomly) and load the
+  Krita 3 bundle for `3_eroded.gih` (`initTestCase()`). A failing stroke
+  test writes `<name>.png` and `<name>_expected.png` to `_build/bin`.
+- **Open:** before those changes the LOD auto-brush test lost a tile-sized
+  part of the stroke in the layer itself 3 times in 92 runs (cut at x or y
+  = 256); 95 later runs did not reproduce it, with or without
+  `KRITA_GPU_PROJECTION`. Investigate with many repeated runs if it comes
+  back.
 
 ## Installation
 

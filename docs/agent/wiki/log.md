@@ -804,3 +804,16 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - Not related to the GPU engine: GPU strokes update thumbnails correctly.
   Thumbnails of GPU-composited groups take longer (52 ms in a probe) and
   switch to the coarse bounds mode, as upstream does for slow layers.
+
+## 2026-10-12 ingest: FreehandStrokeTest repaired
+
+- The four long-standing `FreehandStrokeTest` failures were stale or missing
+  references and a missing resource, not regressions
+  ([build-format-test.md](pitfalls/build-format-test.md), Tests): textured 17
+  and Mix dull references regenerated from the deterministic current
+  results, `freehand-lod` references added, the LOD tests seeded and given
+  the Krita 3 bundle. 15 full runs pass.
+- Open: an intermittent tile-sized loss in the LOD auto-brush stroke (3 of
+  92 runs earlier, 0 of 95 later); cause unknown.
+- Lesson: before blessing references, check determinism (identical output
+  over runs) and look at the image; a 0x0 reference means a missing file.
