@@ -817,3 +817,15 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   92 runs earlier, 0 of 95 later); cause unknown.
 - Lesson: before blessing references, check determinism (identical output
   over runs) and look at the image; a 0x0 reference means a missing file.
+
+## 2026-10-12 query: intermittent loss of part of a Wash stroke
+
+- Reproduced in one process (about 1 in 2,500 strokes under load), not
+  LOD-specific; localized to the final merge or the following projection
+  update; the Solstice scheduling, GPU merge and tile clone changes ruled
+  out ([build-format-test.md](pitfalls/build-format-test.md), Tests, Open).
+  The root cause is not found; the investigation stopped here.
+- Lesson: summed or per-process rates mislead; an in-process repetition
+  loop with background CPU load turned a 1-in-30 process failure into a
+  measurable rate, and toggling suspects by environment variables in one
+  build compared them quickly.

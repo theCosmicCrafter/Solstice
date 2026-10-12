@@ -25,8 +25,10 @@ details are in the phase records, now in the wiki history pages (see
   brush"): RGBA32F strokes with a masking brush in one of the ten modes
   without strength use the GPU brush; the masking composite runs on the GPU
   (`KisGpuMaskingWorker`), bit-identical to the CPU; RGBA16F strokes too
-  since phase 4.106 (2026-10-12). Other masked strokes
-  (strength modes, no shaderFloat64, `KRITA_GPU_MASKING=0`) stay on
+  since phase 4.106 (2026-10-12). The ten modes are all the masking brush
+  offers (`KisMaskingBrushCompositeOpFactory::supportedCompositeOpIds()`;
+  the strength modes are for textures only). Other masked strokes
+  (no shaderFloat64, `KRITA_GPU_MASKING=0`, LOD) stay on
   the CPU brush with a CPU Wash preview and merge
   (`KisIndirectPaintingSupport::temporaryTargetPaintedOnCpu()`).
 - Textured dabs on the GPU (phase 4.102, 2026-10-11; section "Textured
@@ -655,8 +657,10 @@ composite ran on the CPU, so masked strokes stayed on the CPU brush.
   brush; before, RGBA16F masked strokes had only the CPU brush): 150px
   23.8 / 19.0 / 13.6, 150px textured 25.7 / 24.2 / 14.3, 300px
   91.7 / 91.5 / 35.9, 300px textured 129.5 / 132.4 / 36.4.
-- Not covered: the strength modes (Height, Linear Height and their
-  soft-texturing variants), LOD previews. Painting the mask itself stays on
+- Not covered: LOD previews. (The strength modes, Height, Linear Height and
+  their Photoshop variants, are texture modes only: the masking brush never
+  offers them, `supportedCompositeOpIds()`; textures run on the GPU since
+  phases 4.102 and 4.105.) Painting the mask itself stays on
   the CPU (an alpha device; GPU painting was measured and deferred on
   2026-10-11, `gpu-work-priorities.md`).
 - Manual check reported OK by the user on 2026-10-10.

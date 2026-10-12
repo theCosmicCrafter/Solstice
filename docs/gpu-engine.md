@@ -526,8 +526,8 @@ export formats write the file directly and are not covered.)
   combined with the stroke on the GPU, with the same result as the CPU. This
   covers the masking blend modes Multiply, Darken, Overlay, Color Dodge,
   Color Burn, Linear Burn, Linear Dodge, Hard Mix (Photoshop), Hard Mix
-  Softer (Photoshop) and Subtract. Masked strokes
-  with the masking modes that have a strength value, or on a GPU without
+  Softer (Photoshop) and Subtract, which are all the modes a masking brush
+  offers. Masked strokes on a GPU without
   64-bit float shader support are painted on the CPU.
   Large groups of brush dabs are split by their pixel-data size so they can
   stay within the GPU upload budget. A single oversized dab can still use

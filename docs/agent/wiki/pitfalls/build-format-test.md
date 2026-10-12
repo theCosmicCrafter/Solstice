@@ -208,11 +208,21 @@ wrong anyway.
   (`setPreviewRandomSeed(1)`, the `.gih` tip picks randomly) and load the
   Krita 3 bundle for `3_eroded.gih` (`initTestCase()`). A failing stroke
   test writes `<name>.png` and `<name>_expected.png` to `_build/bin`.
-- **Open:** before those changes the LOD auto-brush test lost a tile-sized
-  part of the stroke in the layer itself 3 times in 92 runs (cut at x or y
-  = 256); 95 later runs did not reproduce it, with or without
-  `KRITA_GPU_PROJECTION`. Investigate with many repeated runs if it comes
-  back.
+- **Open (investigated 2026-10-12):** a Wash (indirect) stroke on an RGB8
+  image occasionally loses a tile-aligned part (about 1 in 2,500 strokes
+  under CPU load; not LOD-specific). Reproduce in one process by repeating
+  `FreehandStrokeTester("Basic_tip_default.kpp").testSimpleStroke()`
+  thousands of times with busy threads beside it (one process start costs
+  10 s, too slow). Findings: the temporary target is complete; sometimes a
+  merged rectangle's pixels are missing in the layer right after the
+  concurrent merge jobs of `KisIndirectPaintingSupport::mergeToLayerImpl()`,
+  sometimes the merge is complete and only the projection misses a tile.
+  Not the cause (same rate when disabled): Solstice's after-batch
+  `tryDoUpdate()` re-check, the immediate first update, the CPU minimum
+  update period (`KRITA_CPU_BRUSH_MIN_UPDATE_MS=10`), the GPU merge setting
+  (`KRITA_GPU_PROJECTION=0`), `KisTile::cloneShared()`; the tile GPU hooks
+  only act on 8/16-byte pixels. Not yet known whether upstream Krita has it
+  (it registers the test as broken).
 
 ## Installation
 
