@@ -466,22 +466,31 @@ private Q_SLOTS:
         QTest::addColumn<bool>("alphaOnly");
         QTest::addColumn<bool>("masked");
         QTest::addColumn<bool>("textured");
+        QTest::addColumn<bool>("halfLayer");
         for (int diameter : {150, 300}) {
             for (bool textured : {false, true}) {
                 QTest::newRow(qPrintable(QString("masked-%1-texture%2").arg(diameter).arg(textured)))
-                    << diameter << true << false << false << false << false << true << textured;
+                    << diameter << true << false << false << false << false << true << textured << false;
             }
         }
         for (bool wash : {false, true}) {
             QTest::newRow(wash ? "texture-only-wash" : "texture-only-buildup")
-                << 300 << wash << false << false << false << false << false << true;
+                << 300 << wash << false << false << false << false << false << true << false;
+        }
+        // RGBA16F masked strokes on the GPU brush (phase 4.106)
+        for (int diameter : {150, 300}) {
+            for (bool textured : {false, true}) {
+                QTest::newRow(qPrintable(QString("rgba16f-masked-%1-texture%2").arg(diameter).arg(textured)))
+                    << diameter << true << false << false << false << false << true << textured << true;
+            }
         }
     }
     void testTexturedMaskedStroke()
     {
         QFETCH(bool, masked);
         QFETCH(bool, textured);
-        runStroke(false, false, -1, QString(), masked, textured);
+        QFETCH(bool, halfLayer);
+        runStroke(false, false, -1, QString(), masked, textured, halfLayer);
     }
     void testHalfTextureModesExact_data()
     {
@@ -623,6 +632,7 @@ private Q_SLOTS:
     void testMaskingCompositeMatchesCpu_data()
     {
         QTest::addColumn<QString>("mode");
+        QTest::addColumn<bool>("half");
         for (const QString &mode : {QString(COMPOSITE_MULT),
                                     QString(COMPOSITE_DARKEN),
                                     QString(COMPOSITE_OVERLAY),
@@ -633,7 +643,9 @@ private Q_SLOTS:
                                     QString(COMPOSITE_HARD_MIX_PHOTOSHOP),
                                     QString(COMPOSITE_HARD_MIX_SOFTER_PHOTOSHOP),
                                     QString(COMPOSITE_SUBTRACT)})
-            QTest::newRow(qPrintable(mode)) << mode;
+            for (bool half : {false, true})
+                QTest::newRow(qPrintable(QStringLiteral("%1-%2").arg(mode, half ? "rgba16f" : "rgba32f")))
+                    << mode << half;
     }
     /// The GPU masking composite (KisGpuMaskingWorker) is bit-identical to the
     /// CPU one (KisMaskingBrushCompositeOp<float>) for every mode, and leaves
@@ -641,18 +653,38 @@ private Q_SLOTS:
     void testMaskingCompositeMatchesCpu()
     {
         QFETCH(QString, mode);
+        QFETCH(bool, half);
+        // RGBA32F, and RGBA16F (phase 4.106)
         const KoColorSpace *cs = KoColorSpaceRegistry::instance()->colorSpace(RGBAColorModelID.id(),
-                                                                              Float32BitsColorDepthID.id(),
+                                                                              half ? Float16BitsColorDepthID.id()
+                                                                                   : Float32BitsColorDepthID.id(),
                                                                               QString());
         const KoColorSpace *grayA = KoColorSpaceRegistry::instance()->colorSpace(GrayAColorModelID.id(),
                                                                                  Integer8BitsColorDepthID.id(),
                                                                                  QString());
         QVERIFY(KisGpuMaskingWorker::supports(cs, mode) || !KisGpuBrushPainter::isEnabled());
+        const int pixelSize = half ? 8 : 16;
+        const int channelSize = pixelSize / 4;
         const QRect area(10, 20, 150, 90); // spans tiles
         const QRect rect(25, 40, 100, 60);
-        // alphas at the modes' edges (0, 0.5, 1, the fuzzy thresholds) and
-        // in between; masks over the whole byte range
-        const float alphas[] = {0.0f, 1.0f, 0.5f, 0.00001f, 0.000011f, 0.99999f, 0.5000001f, 0.25f, 0.75f, 0.33f};
+        // alphas at the modes' edges (0, 0.5, 1, the fuzzy thresholds,
+        // including the half ones) and in between; masks over the whole byte
+        // range
+        const float alphas[] = {0.0f,
+                                1.0f,
+                                0.5f,
+                                0.00001f,
+                                0.000011f,
+                                0.99999f,
+                                0.5000001f,
+                                0.25f,
+                                0.75f,
+                                0.33f,
+                                0.0019f,
+                                0.0021f,
+                                0.9985f,
+                                0.4995f};
+        const int alphaCount = int(sizeof(alphas) / sizeof(alphas[0]));
         std::vector<float> stroke(size_t(area.width()) * area.height() * 4);
         std::vector<quint8> mask(size_t(area.width()) * area.height() * 2);
         quint32 seed = 7;
@@ -663,50 +695,63 @@ private Q_SLOTS:
         for (size_t i = 0; i < stroke.size() / 4; ++i) {
             for (int c = 0; c < 3; ++c)
                 stroke[4 * i + c] = float(next() % 1000) / 999.0f;
-            stroke[4 * i + 3] = i % 3 == 0 ? alphas[next() % 10] : float(next() % 100001) / 100000.0f;
+            stroke[4 * i + 3] = i % 3 == 0 ? alphas[next() % alphaCount] : float(next() % 100001) / 100000.0f;
             mask[2 * i] = quint8(i % 7 == 0 ? (next() % 2) * 255 : next() % 256);
             mask[2 * i + 1] = quint8(i % 5 == 0 ? 255 : next() % 256);
         }
         std::vector<float> background(stroke.size());
         for (size_t i = 0; i < background.size(); ++i)
             background[i] = 0.25f + float(i % 4) * 0.1f;
+        // the pixels in the device's format
+        auto toBytes = [&](const std::vector<float> &values) {
+            std::vector<quint8> bytes(values.size() * size_t(channelSize));
+            for (size_t i = 0; i < values.size(); ++i) {
+                if (half) {
+                    const ::half value(values[i]);
+                    std::memcpy(bytes.data() + 2 * i, &value, 2);
+                } else {
+                    std::memcpy(bytes.data() + 4 * i, &values[i], 4);
+                }
+            }
+            return bytes;
+        };
+        const std::vector<quint8> strokeBytes = toBytes(stroke);
+        const std::vector<quint8> backgroundBytes = toBytes(background);
 
         KisPaintDeviceSP strokeDevice = new KisPaintDevice(cs);
         KisPaintDeviceSP maskDevice = new KisPaintDevice(grayA);
         KisPaintDeviceSP dstDevice = new KisPaintDevice(cs);
-        strokeDevice->writeBytes(reinterpret_cast<const quint8 *>(stroke.data()), area);
+        strokeDevice->writeBytes(strokeBytes.data(), area);
         maskDevice->writeBytes(mask.data(), area);
-        dstDevice->writeBytes(reinterpret_cast<const quint8 *>(background.data()), area);
+        dstDevice->writeBytes(backgroundBytes.data(), area);
 
         // the CPU reference: the stroke copied into the rect, then the
         // composite on its alpha
-        std::vector<float> expected = background;
+        std::vector<quint8> expected = backgroundBytes;
         QScopedPointer<KisMaskingBrushCompositeOpBase> op(
-            KisMaskingBrushCompositeOpFactory::create(mode, KoChannelInfo::FLOAT32, 16, 12));
+            KisMaskingBrushCompositeOpFactory::create(mode,
+                                                      half ? KoChannelInfo::FLOAT16 : KoChannelInfo::FLOAT32,
+                                                      pixelSize,
+                                                      3 * channelSize));
         for (int y = rect.top(); y <= rect.bottom(); ++y) {
             const size_t row = size_t(y - area.top()) * area.width();
             const size_t first = row + size_t(rect.left() - area.left());
-            std::copy(stroke.begin() + 4 * first,
-                      stroke.begin() + 4 * (first + rect.width()),
-                      expected.begin() + 4 * first);
-            op->composite(mask.data() + 2 * first,
-                          0,
-                          reinterpret_cast<quint8 *>(expected.data() + 4 * first),
-                          0,
-                          rect.width(),
-                          1);
+            std::copy(strokeBytes.begin() + pixelSize * first,
+                      strokeBytes.begin() + pixelSize * (first + rect.width()),
+                      expected.begin() + pixelSize * first);
+            op->composite(mask.data() + 2 * first, 0, expected.data() + pixelSize * first, 0, rect.width(), 1);
         }
 
         QVERIFY(KisGpuMaskingWorker::apply(strokeDevice, maskDevice, dstDevice, rect, mode));
-        std::vector<float> actual(background.size());
-        dstDevice->readBytes(reinterpret_cast<quint8 *>(actual.data()), area);
+        std::vector<quint8> actual(backgroundBytes.size());
+        dstDevice->readBytes(actual.data(), area);
         int mismatches = 0;
-        for (size_t i = 0; i < actual.size(); ++i) {
-            if (std::memcmp(&actual[i], &expected[i], sizeof(float)) != 0) {
+        for (size_t i = 0; i < actual.size() / size_t(channelSize); ++i) {
+            if (std::memcmp(actual.data() + i * channelSize, expected.data() + i * channelSize, size_t(channelSize))
+                != 0) {
                 if (mismatches++ < 5)
-                    qWarning() << "pixel" << i / 4 << "channel" << i % 4 << "GPU" << actual[i] << "CPU" << expected[i]
-                               << "stroke alpha" << stroke[(i / 4) * 4 + 3] << "mask" << mask[(i / 4) * 2]
-                               << mask[(i / 4) * 2 + 1];
+                    qWarning() << "pixel" << i / 4 << "channel" << i % 4 << "stroke alpha" << stroke[(i / 4) * 4 + 3]
+                               << "mask" << mask[(i / 4) * 2] << mask[(i / 4) * 2 + 1];
             }
         }
         QCOMPARE(mismatches, 0);
@@ -964,9 +1009,10 @@ private:
                     QCOMPARE(KisGpuMergeBatch::gpuCompositeCount(), firstComposite);
                 // A stroke with a masking brush uses the GPU brush when its
                 // masking composite runs on the GPU too (RGBA32F).
-                const bool gpuBrush = path == 2 && !(masked && half);
+                // RGBA16F too since phase 4.106
+                const bool gpuBrush = path == 2;
                 const auto maskingRuns = KisGpuMaskingWorker::runCount() - firstMaskingRuns;
-                if (path == 2 && masked && !half)
+                if (path == 2 && masked)
                     QVERIFY(maskingRuns > 0);
                 else
                     QCOMPARE(maskingRuns, quint64(0));

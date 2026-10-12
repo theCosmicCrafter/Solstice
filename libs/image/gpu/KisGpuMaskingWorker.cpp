@@ -62,13 +62,20 @@ bool isRgbaF32(const KoColorSpace *colorSpace)
     return colorSpace && colorSpace->colorModelId() == RGBAColorModelID
         && colorSpace->colorDepthId() == Float32BitsColorDepthID && colorSpace->pixelSize() == 16;
 }
+
+// phase 4.106
+bool isRgbaF16(const KoColorSpace *colorSpace)
+{
+    return colorSpace && colorSpace->colorModelId() == RGBAColorModelID
+        && colorSpace->colorDepthId() == Float16BitsColorDepthID && colorSpace->pixelSize() == 8;
+}
 } // namespace
 
 bool KisGpuMaskingWorker::supports(const KoColorSpace *colorSpace, const QString &compositeOpId)
 {
 #ifdef HAVE_KRITA_GPU_ENGINE
-    if (qgetenv("KRITA_GPU_MASKING") == "0" || !KisGpuBrushPainter::isEnabled() || !isRgbaF32(colorSpace)
-        || modeFor(compositeOpId) < 0)
+    if (qgetenv("KRITA_GPU_MASKING") == "0" || !KisGpuBrushPainter::isEnabled()
+        || !(isRgbaF32(colorSpace) || isRgbaF16(colorSpace)) || modeFor(compositeOpId) < 0)
         return false;
     KisGpuTileBackend *backend = KisGpuTileBackend::instance();
     return backend && !backend->hasFailed() && backend->context().deviceInfo().supportsFloat64;
@@ -94,9 +101,10 @@ bool KisGpuMaskingWorker::apply(KisPaintDeviceSP strokeDevice,
     if (rect.isEmpty() || !strokeDevice || !maskDevice || !dstDevice)
         return false;
     const int mode = modeFor(compositeOpId);
-    if (mode < 0 || !isRgbaF32(strokeDevice->colorSpace()) || *strokeDevice->colorSpace() != *dstDevice->colorSpace()
-        || maskDevice->pixelSize() != 2 || !KisGpuTileAccess::isSupported(strokeDevice)
-        || !KisGpuTileAccess::isSupported(dstDevice))
+    const bool halfTiles = isRgbaF16(strokeDevice->colorSpace());
+    if (mode < 0 || !(halfTiles || isRgbaF32(strokeDevice->colorSpace()))
+        || *strokeDevice->colorSpace() != *dstDevice->colorSpace() || maskDevice->pixelSize() != 2
+        || !KisGpuTileAccess::isSupported(strokeDevice) || !KisGpuTileAccess::isSupported(dstDevice))
         return false;
     if (dstDevice->defaultBounds()->wrapAroundMode() || dstDevice->defaultBounds()->currentLevelOfDetail() != 0)
         return false;
@@ -113,8 +121,11 @@ bool KisGpuMaskingWorker::apply(KisPaintDeviceSP strokeDevice,
     KisGpuMaskingCompositePass::Pass pass;
     pass.rect = rect;
     pass.mode = mode;
+    pass.half = halfTiles;
+    // the mask byte as the CPU composite scales it (KisMaskingBrushCompositeOp)
     for (int i = 0; i < 256; ++i)
-        pass.uint8ToFloat[i] = KoColorSpaceMaths<quint8, float>::scaleToA(quint8(i));
+        pass.uint8ToFloat[i] = halfTiles ? float(KoColorSpaceMaths<quint8, half>::scaleToA(quint8(i)))
+                                         : KoColorSpaceMaths<quint8, float>::scaleToA(quint8(i));
     // the mask is painted on the CPU: gray * alpha, as the CPU composite
     // takes it (KisMaskingBrushCompositeOp::preprocessMask())
     {

@@ -13,12 +13,22 @@
 #version 460
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#ifdef TILE_F16
+// RGBA16F tiles (phase 4.106)
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#define PIXEL f16vec4
+#define PIXEL_ALIGN 8
+#else
+#define PIXEL vec4
+#define PIXEL_ALIGN 16
+#endif
 
 layout(local_size_x = 256) in;
 
-layout(buffer_reference, std430, buffer_reference_align = 16) buffer TilePixels
+layout(buffer_reference, std430, buffer_reference_align = PIXEL_ALIGN) buffer TilePixels
 {
-    vec4 px[];
+    PIXEL px[];
 };
 
 layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer AddressTable
@@ -187,6 +197,105 @@ float composite(int mode, float src, float dst)
     return max(0.0, difference);
 }
 
+#ifdef TILE_F16
+// RGBA16F: KisMaskingBrushCompositeOp<half, mode> (the modes without
+// strength). KoColorSpaceMathsTraits<half>::compositetype is double;
+// Imath's half has no arithmetic operators (half +- half is float); every
+// value returned as a half rounds double -> float -> half. The same rules as
+// texturedAlphaHalf() in paint_dabs.comp.
+
+// Imath's float -> half rounding (paint_dabs.comp's roundToHalf())
+float roundToHalf(float value)
+{
+    uint x = floatBitsToUint(value);
+    if (value == 0.0)
+        return value;
+    uint sign = (x >> 16) & 0x8000u;
+    int e = int((x >> 23) & 0xffu) - 127 + 15;
+    uint m = x & 0x007fffffu;
+    uint h;
+    if (e <= 0) {
+        if (e < -10)
+            return uintBitsToFloat(sign << 16);
+        m |= 0x00800000u;
+        int t = 14 - e;
+        uint a = (1u << uint(t - 1)) - 1u;
+        uint b = (m >> uint(t)) & 1u;
+        h = sign | ((m + a + b) >> uint(t));
+    } else {
+        h = (sign | (uint(e) << 10)) + ((m + 0x00000fffu + ((m >> 13) & 1u)) >> 13);
+    }
+    return unpackHalf2x16(h).x;
+}
+float hf(float v) { return roundToHalf(v); }
+float hd(double v) { return roundToHalf(float(v)); }
+float hMul(float a, float b) { precise double r = double(a) * double(b); return hd(r); }
+float hInv(float a) { precise float r = 1.0 - a; return hf(r); }
+float hUnion(float a, float b) { precise double s = double(a) + double(b); precise double r = s - double(hMul(a, b)); return hd(r); }
+double hDiv(float a, float b) { precise double q = double(a) / double(b); return q; }
+double dMin(double a, double b) { return a < b ? a : b; }
+double dMax(double a, double b) { return a < b ? b : a; }
+double dBound(double v) { return dMax(0.0, dMin(1.0, v)); }
+bool hUnitFuzzy(float v) { precise float d = v - 1.0; return abs(d) < 0.002; }
+bool hZeroFuzzy(float v) { return abs(v) < 0.002; }
+bool hHalfFuzzy(float v) { precise float d = v - 0.5; return abs(d) < 0.001; }
+
+float hHardLight(float src, float dst)
+{
+    if (hHalfFuzzy(src)) return dst;
+    precise double src2 = double(src) + double(src);
+    if (src > 0.5) {
+        src2 = src2 - 1.0;
+        return hUnion(hd(src2), dst);
+    }
+    return hMul(hd(src2), dst);
+}
+
+float compositeHalf(int mode, float src, float dst)
+{
+    if (mode == MODE_MULT)
+        return hMul(src, dst);
+    if (mode == MODE_DARKEN)
+        return src < dst ? src : dst; // qMin of halves
+    if (mode == MODE_OVERLAY)
+        return hHardLight(dst, src);
+    if (mode == MODE_DODGE) {
+        if (hUnitFuzzy(src)) return hZeroFuzzy(dst) ? 0.0 : 1.0;
+        const float result = hd(dBound(hDiv(dst, hInv(src))));
+        return (isnan(result) || isinf(result)) ? 1.0 : result;
+    }
+    if (mode == MODE_BURN) {
+        if (dst == 1.0) return 1.0;
+        const double quotient = hDiv(hInv(dst), src);
+        if (isnan(quotient) || isinf(quotient)) return 0.0;
+        return hInv(hd(dBound(quotient)));
+    }
+    if (mode == MODE_LINEAR_BURN) {
+        precise double sum = double(src) + double(dst);
+        precise double r = sum - 1.0;
+        return hd(dMax(0.0, r));
+    }
+    if (mode == MODE_LINEAR_DODGE) {
+        if (hZeroFuzzy(dst)) return 0.0;
+        precise double sum = double(src) + double(dst);
+        return hd(dMin(sum, 1.0));
+    }
+    if (mode == MODE_HARD_MIX_PHOTOSHOP) {
+        precise double sum = double(src) + double(dst);
+        return sum > 1.0 ? 1.0 : 0.0;
+    }
+    if (mode == MODE_HARD_MIX_SOFTER_PHOTOSHOP) {
+        precise double a = 3.0 * double(dst);
+        precise double b = 2.0 * double(hInv(src));
+        precise double r = a - b;
+        return hd(dBound(r));
+    }
+    // MODE_SUBTRACT
+    precise double r = double(dst) - double(src);
+    return hd(dMax(0.0, r));
+}
+#endif
+
 void main()
 {
     const uint tile = gl_WorkGroupID.x;
@@ -207,11 +316,15 @@ void main()
         if (local.x < 0 || local.y < 0 || local.x >= p.rect.z || local.y >= p.rect.w) {
             continue;
         }
-        vec4 pixel = srcAddress != 0 ? TilePixels(srcAddress).px[index] : vec4(0.0);
+        vec4 pixel = srcAddress != 0 ? vec4(TilePixels(srcAddress).px[index]) : vec4(0.0);
         const uint byteIndex = uint(local.y * p.rect.z + local.x);
         const uint maskValue = (push.mask.word[byteIndex >> 2] >> ((byteIndex & 3u) * 8u)) & 0xffu;
         const float src = push.uint8ToFloat.value[maskValue];
+#ifdef TILE_F16
+        pixel.a = compositeHalf(p.mode, src, pixel.a);
+#else
         pixel.a = composite(p.mode, src, pixel.a);
-        dst.px[index] = pixel;
+#endif
+        dst.px[index] = PIXEL(pixel);
     }
 }

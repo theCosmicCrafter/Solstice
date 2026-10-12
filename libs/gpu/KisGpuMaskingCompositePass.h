@@ -23,7 +23,8 @@ class KisGpuComputePipeline;
 class KisGpuContext;
 
 /**
- * The masking brush composite on RGBA32F tiles (shaders/masking_composite.comp):
+ * The masking brush composite on RGBA32F or RGBA16F (phase 4.106) tiles
+ * (shaders/masking_composite.comp):
  * inside the rect, each destination pixel becomes the stroke pixel with its
  * alpha composited with the mask, bit-identical to KisMaskingBrushRenderer's
  * CPU composite. See docs/agent/gpu-engine.md ("Masking brush").
@@ -44,7 +45,9 @@ public:
         QVector<VkDeviceAddress> strokeTiles; ///< row-major; 0 reads a transparent pixel
         QVector<VkDeviceAddress> dstTiles; ///< the same grid
         QByteArray mask; ///< gray * alpha of the mask, rect.width() * rect.height() bytes
-        float uint8ToFloat[256] = {}; ///< KoLuts::Uint8ToFloat
+        /// KoLuts::Uint8ToFloat; RGBA16F: KoColorSpaceMaths<quint8, half> as floats
+        float uint8ToFloat[256] = {};
+        bool half = false; ///< RGBA16F tiles
     };
 
     ~KisGpuMaskingCompositePass();
@@ -62,6 +65,7 @@ private:
 
     KisGpuContext &m_context;
     std::shared_ptr<KisGpuComputePipeline> m_pipeline; // KisGpuContext::sharedComputePipeline
+    std::shared_ptr<KisGpuComputePipeline> m_halfPipeline; // RGBA16F, created on first use
     std::unique_ptr<KisGpuBuffer> m_tables;
 };
 

@@ -781,3 +781,26 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - Lesson: when the stroke tests have a tolerance (RGBA16F 0.002), add an
   exhaustive exact test of the math.
 - User manual check OK on 2026-10-11.
+
+## 2026-10-12 ingest: RGBA16F masking brush composite (phase 4.106)
+
+- Masked RGBA16F strokes use the GPU brush; the masking composite repeats
+  `KisMaskingBrushCompositeOp<half>` bit for bit
+  ([gpu-engine.md](../gpu-engine.md), "Masking brush";
+  [history](history/gpu-phases-4.93-.md#rgba16f-masking-brush-composite-phase-4106)).
+- RGBA16F masked 300px textured stroke: CPU brush (the only path before)
+  129.5 ms, GPU brush 36.4 ms.
+- Lesson: the half arithmetic rules ([gpu-engine.md](../gpu-engine.md),
+  "RGBA16F image tips and textures") carry over to any `half` composite.
+- User manual check OK on 2026-10-12.
+
+## 2026-10-12 ingest: missing Layers docker thumbnails
+
+- `KisLayerThumbnailCache` keyed its records by `KisNodeWSP`; a destroyed
+  node's key compared as `nullptr` and hid other layers' thumbnails (1x1
+  placeholder dots). Keyed by address now, with the weak pointer in the
+  record; test `KisLayerThumbnailCacheTest`.
+- Lesson: [weak pointers as ordered map keys](pitfalls/weak-pointer-map-keys.md).
+- Not related to the GPU engine: GPU strokes update thumbnails correctly.
+  Thumbnails of GPU-composited groups take longer (52 ms in a probe) and
+  switch to the coarse bounds mode, as upstream does for slow layers.

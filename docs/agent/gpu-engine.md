@@ -24,8 +24,9 @@ details are in the phase records, now in the wiki history pages (see
 - Masking brush on the GPU (phase 4.101, 2026-10-10; section "Masking
   brush"): RGBA32F strokes with a masking brush in one of the ten modes
   without strength use the GPU brush; the masking composite runs on the GPU
-  (`KisGpuMaskingWorker`), bit-identical to the CPU. Other masked strokes
-  (RGBA16F, strength modes, no shaderFloat64, `KRITA_GPU_MASKING=0`) stay on
+  (`KisGpuMaskingWorker`), bit-identical to the CPU; RGBA16F strokes too
+  since phase 4.106 (2026-10-12). Other masked strokes
+  (strength modes, no shaderFloat64, `KRITA_GPU_MASKING=0`) stay on
   the CPU brush with a CPU Wash preview and merge
   (`KisIndirectPaintingSupport::temporaryTargetPaintedOnCpu()`).
 - Textured dabs on the GPU (phase 4.102, 2026-10-11; section "Textured
@@ -639,9 +640,25 @@ composite ran on the CPU, so masked strokes stayed on the CPU brush.
   bit-exact against `KisMaskingBrushCompositeOpFactory`, pixels outside the
   rect kept) and the masked rows of `testTexturedMaskedStroke` (RGBA32F masked
   rows on the GPU brush path must run the worker; others must not).
-- Not covered: RGBA16F, the strength modes (Height, Linear Height and their
+- RGBA16F (phase 4.106, 2026-10-12, user request): the `TILE_F16` build
+  `masking_composite_rgba16f` (half tiles) computes
+  `KisMaskingBrushCompositeOp<half, mode>` with the half rules of the
+  textured dabs ("RGBA16F image tips and textures"): `mul` and `div` in
+  double, `half +- half` in float, every half result double -> float ->
+  half, the half fuzzy thresholds (0.002, 0.001); the mask byte is scaled
+  with `KoColorSpaceMaths<quint8, half>` (the worker passes that table).
+  `KisGpuMaskingWorker::supports()` accepts RGBA F16, so masked RGBA16F
+  strokes use the GPU brush. Tests: RGBA16F rows of
+  `testMaskingCompositeMatchesCpu` (every mode bit-identical, including
+  alphas at the half thresholds) and of `testTexturedMaskedStroke`.
+  Measurements (median of 5, no validation, ms; CPU / GPU projection / GPU
+  brush; before, RGBA16F masked strokes had only the CPU brush): 150px
+  23.8 / 19.0 / 13.6, 150px textured 25.7 / 24.2 / 14.3, 300px
+  91.7 / 91.5 / 35.9, 300px textured 129.5 / 132.4 / 36.4.
+- Not covered: the strength modes (Height, Linear Height and their
   soft-texturing variants), LOD previews. Painting the mask itself stays on
-  the CPU (an alpha device).
+  the CPU (an alpha device; GPU painting was measured and deferred on
+  2026-10-11, `gpu-work-priorities.md`).
 - Manual check reported OK by the user on 2026-10-10.
 
 ### Textured dabs (phase 4.102)
@@ -908,8 +925,8 @@ kept their pixels.
   brush; RGBA16F): image tip 120px Wash with mirrors 55.4 / 43.3 / 19.9,
   colour stamp 41.8 / 41.4 / 11.6, Lightness map 20.2 / 17.2 / 11.8, 80px
   textured round (Multiply, hard) 14.7 / 13.1 / 10.7.
-- Still on the CPU: RGBA16F masked strokes (the masking composite is
-  RGBA32F only), Lightness and Gradient textures, sharpness.
+- Still on the CPU: Lightness and Gradient textures, sharpness (RGBA16F
+  masked strokes: phase 4.106, "Masking brush").
 
 ## Phase 0 technology decisions
 
@@ -1352,6 +1369,10 @@ Phase 0 has no user-visible behavior. From phase 3 on:
     textured round brush (Multiply, Overlay, a Height mode, hard and soft)
     and a textured image tip, Wash and Buildup; each looks like the CPU
     brush (GPU brush off); Undo/Redo.
+13. RGBA16F masked strokes (phase 4.106) on an RGBA 16-bit float layer: a
+    masked preset (e.g. `z) 线稿 纹理`) at small and large sizes, another
+    masking mode (Darken or Subtract), with a texture, Wash and Buildup;
+    the stroke looks like the CPU brush and does not lag; Undo/Redo.
 
 ## Phase history
 
@@ -1459,6 +1480,7 @@ Section index:
 - [GPU image tip dabs (phase 4.103)](wiki/history/gpu-phases-4.93-.md#gpu-image-tip-dabs-phase-4103)
 - [GPU colour, Lightness and Gradient image tips (phase 4.104)](wiki/history/gpu-phases-4.93-.md#gpu-colour-lightness-and-gradient-image-tips-phase-4104)
 - [RGBA16F image tips and textures (phase 4.105)](wiki/history/gpu-phases-4.93-.md#rgba16f-image-tips-and-textures-phase-4105)
+- [RGBA16F masking brush composite (phase 4.106)](wiki/history/gpu-phases-4.93-.md#rgba16f-masking-brush-composite-phase-4106)
 
 ## Risks and open questions
 

@@ -639,3 +639,13 @@ described on RGBA16F layers too. Details:
 - An exact unit test (every dab alpha against every texel, three
   strengths) is what checks it; the stroke tests' RGBA16F tolerance (0.002)
   would hide a wrong rounding.
+
+## RGBA16F masking brush composite (phase 4.106)
+
+2026-10-12, user request. The masking brush composite runs on RGBA16F tiles
+too, so masked RGBA16F strokes use the GPU brush. Details:
+[gpu-engine.md](../../gpu-engine.md), "Masking brush".
+
+- The half rules found for the textured dabs (phase 4.105) applied as is to
+  the ten modes without strength; the exact test with alphas at the half
+  fuzzy thresholds passed at the first build.

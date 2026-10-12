@@ -102,6 +102,8 @@ pixels take their own gradient color); `plugins/paintops/defaultpaintops/brush/t
 GPU phase 4.105 accepts RGBA F16 dabs in `KisBrush::proceduralImageDab()` (`libs/brush/kis_brush.cpp`)
 and in `KisTextureOption::gpuDescription()` (`plugins/paintops/libpaintop/kis_texture_option.cpp`,
 half constants); `libs/gpu/CMakeLists.txt` (two RGBA16F textured shader builds).
+GPU phase 4.106 adds the RGBA16F masking composite build to `libs/gpu/CMakeLists.txt`
+(`masking_composite_rgba16f`); no other upstream file changes.
 
 GPU phases 4.36-4.37 forward per-channel layer flags in
 `libs/image/gpu/KisGpuMergeBatch.*`, allow F16 channel masks in
@@ -455,7 +457,7 @@ agent documents first (see "Adding a new feature" below).
 | Export Region (`dninosores_export_region`, `Alt+Shift+E`): exports the selection, or the active layer bounds | `libs/ui/KisMainWindow.*` (`slotExportRegion()`), `krita/kritamenu.action`, `krita/krita5.xmlgui` |
 | Desktop-only cleanup: Android sources, donation dialog, supporter bundles, logcat dumper removed | `libs/global/CMakeLists.txt`, `krita/data/CMakeLists.txt`, `libs/ui/dialogs/`, `libs/ui/animation/`, `plugins/extensions/buginfo/`, `plugins/extensions/resourcemanager/`, `krita/krita5.xmlgui`, `packaging/android/` |
 | Android leftovers removed (2026-10-08): every `Q_OS_ANDROID` conditional resolved as undefined (71 C++ files, about 2,190 lines), `ANDROID` CMake branches, the S-Pen settings plugin, `StaticMessages.sh`, the Android Qt-patch flags, `KisDocument::autoSaveOnPause()`, the `krita.android` log category (`dbgAndroid`), `KisMediaEncoderFormat::Type::AndroidMediaEncoder`, the welcome page's Android supporter page and banner, the preferences' Android warning | many files; see the commit. Notable: `config-qt-patches-present.h.cmake`, `krita/data/kritarc` (`[SPenSettings]`), `libs/ui/forms/KisWelcomePage.ui` (+ generated `KisWelcomePage_ui.py`), `libs/ui/forms/wdggeneralsettings.ui` (+ `wdggeneralsettings_ui.py`), `build-tools/ci-scripts/`, `metainfo.yaml` |
-| Small behavior fixes | `libs/ui/kis_clipboard.cc` + `libs/ui/tests/kis_clipboard_test.*` (empty clipboard handling), `libs/ui/KisImportExportManager.cpp` (dialog parent), `libs/ui/KisWidgetWithIdleTask.h`, `libs/widgets/KisVisualRectangleSelectorShape.*`, `plugins/dockers/layerdocker/NodeDelegate.cpp` (tooltip hit area) |
+| Small behavior fixes | `libs/ui/kis_clipboard.cc` + `libs/ui/tests/kis_clipboard_test.*` (empty clipboard handling), `libs/ui/KisImportExportManager.cpp` (dialog parent), `libs/ui/KisWidgetWithIdleTask.h`, `libs/widgets/KisVisualRectangleSelectorShape.*`, `plugins/dockers/layerdocker/NodeDelegate.cpp` (tooltip hit area), `libs/ui/KisLayerThumbnailCache.cpp` + `libs/ui/tests/KisLayerThumbnailCacheTest.cpp` (Layers docker thumbnails keyed by node address, see `docs/agent/wiki/pitfalls/weak-pointer-map-keys.md`) |
 | Development launcher | `run-krita.bat` |
 | Generated `*_ui.py` inspection artifacts (not built; see `docs/agent/coding-rules.md`) | `libs/ui/forms/`, `libs/ui/animation/`, `plugins/impex/png/`, `plugins/dockers/storyboarddocker/`, `plugins/dockers/widegamutcolorselector/`, `plugins/tools/tool_transform2/` |
 

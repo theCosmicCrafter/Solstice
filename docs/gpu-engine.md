@@ -81,7 +81,7 @@ GPU work completes, preserving selections, layer updates and Undo/Redo.
 
 Large textured brushes now reuse available GPU transfer buffers when the
 memory limit prevents keeping all three buffers. The masking brush's mask
-is combined with the stroke on the GPU on RGBA 32-bit float layers (see the
+is combined with the stroke on the GPU on RGBA 32-bit and 16-bit float layers (see the
 GPU brush notes below). Round auto-brush dabs with a pattern texture are
 generated and textured on the GPU on RGBA 32-bit and 16-bit float layers, for every
 texturing mode except Lightness and Gradient (which change the brush
@@ -521,12 +521,12 @@ export formats write the file directly and are not covered.)
   session. Layer compositing can continue on the GPU; no setting is changed.
 - The GPU brush needs the GPU engine and its own option (on by default);
   `KRITA_GPU_BRUSH=1` or `0` overrides the option. Strokes of brushes with a
-  masking brush (two-tip brushes) also use the GPU brush on RGBA 32-bit float
-  layers: the masking brush's mask is still painted on the CPU, but it is
+  masking brush (two-tip brushes) also use the GPU brush on RGBA 32-bit and
+  16-bit float layers: the masking brush's mask is still painted on the CPU, but it is
   combined with the stroke on the GPU, with the same result as the CPU. This
   covers the masking blend modes Multiply, Darken, Overlay, Color Dodge,
   Color Burn, Linear Burn, Linear Dodge, Hard Mix (Photoshop), Hard Mix
-  Softer (Photoshop) and Subtract. Masked strokes on RGBA 16-bit float layers,
+  Softer (Photoshop) and Subtract. Masked strokes
   with the masking modes that have a strength value, or on a GPU without
   64-bit float shader support are painted on the CPU.
   Large groups of brush dabs are split by their pixel-data size so they can

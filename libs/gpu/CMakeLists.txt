@@ -85,6 +85,7 @@ kis_gpu_add_shader(kritagpu_SHADERS separable_convolution_v_rgba32f shaders/sepa
 kis_gpu_add_shader(kritagpu_SHADERS separable_convolution_v_rgba16f shaders/separable_convolution.comp DEFINES VERTICAL TILE_F16)
 # Solstice: the masking brush composite (docs/agent/gpu-engine.md)
 kis_gpu_add_shader(kritagpu_SHADERS masking_composite_rgba32f shaders/masking_composite.comp)
+kis_gpu_add_shader(kritagpu_SHADERS masking_composite_rgba16f shaders/masking_composite.comp DEFINES TILE_F16)
 
 set(kritagpu_LIB_SRCS
     KisGpuVulkanFunctions.cpp

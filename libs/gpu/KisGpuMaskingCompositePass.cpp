@@ -17,6 +17,9 @@ namespace
 const quint32 MaskingRgba32f[] = {
 #include "masking_composite_rgba32f.spv.inc"
 };
+const quint32 MaskingRgba16f[] = {
+#include "masking_composite_rgba16f.spv.inc"
+};
 
 struct Params {
     qint32 rect[4];
@@ -78,6 +81,14 @@ bool KisGpuMaskingCompositePass::record(KisGpuCommandList &commands, const Pass 
     const QRect grid(pass.gridOrigin, QSize(pass.gridWidth * 64, pass.gridHeight * 64));
     if (!grid.contains(pass.rect))
         return fail(QStringLiteral("masking composite tiles do not cover the rect"));
+    if (pass.half && !m_halfPipeline) {
+        m_halfPipeline = m_context.sharedComputePipeline(MaskingRgba16f,
+                                                         sizeof(MaskingRgba16f),
+                                                         sizeof(PushConstants),
+                                                         errorMessage);
+        if (!m_halfPipeline)
+            return false;
+    }
 
     const VkDeviceSize paramsBytes = alignUp(sizeof(Params), 64);
     const VkDeviceSize tilesBytes = alignUp(VkDeviceSize(tileCount) * sizeof(VkDeviceAddress), 64);
@@ -113,7 +124,7 @@ bool KisGpuMaskingCompositePass::record(KisGpuCommandList &commands, const Pass 
     const VkDeviceAddress base = m_tables->deviceAddress();
     const PushConstants constants{base, base + strokeOffset, base + dstOffset, base + maskOffset, base + lutOffset};
     commands.computeBarrier();
-    m_pipeline->dispatch(commands.commandBuffer(), constants, quint32(tileCount));
+    (pass.half ? m_halfPipeline : m_pipeline)->dispatch(commands.commandBuffer(), constants, quint32(tileCount));
     commands.computeBarrier();
     return true;
 }
