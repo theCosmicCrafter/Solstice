@@ -53,9 +53,18 @@
 namespace
 {
 const QRect imageRect(0, 0, 1024, 1024);
-std::vector<float> pixels(KisPaintDeviceSP device)
+// Pixel values compared bit for bit, so that NaN equals NaN in Undo/Redo
+// checks (some phase 4.108 modes produce NaN from HDR channels, as on the CPU)
+struct PixelValues : std::vector<float> {
+    using std::vector<float>::vector;
+};
+bool operator==(const PixelValues &a, const PixelValues &b)
 {
-    std::vector<float> result(size_t(imageRect.width()) * imageRect.height() * 4);
+    return a.size() == b.size() && std::memcmp(a.data(), b.data(), a.size() * sizeof(float)) == 0;
+}
+PixelValues pixels(KisPaintDeviceSP device)
+{
+    PixelValues result(size_t(imageRect.width()) * imageRect.height() * 4);
     if (device->pixelSize() == 8) {
         QByteArray raw(imageRect.width() * imageRect.height() * 8, Qt::Uninitialized);
         device->readBytes(reinterpret_cast<quint8 *>(raw.data()), imageRect);
@@ -73,15 +82,24 @@ std::vector<float> pixels(KisPaintDeviceSP device)
     }
     return result;
 }
+// The same NaN or infinity on both sides: some modes (e.g. pow() of a
+// negative HDR channel) produce them on the CPU too (phase 4.108).
+bool sameNonFinite(float a, float b)
+{
+    return (std::isnan(a) && std::isnan(b)) || (std::isinf(a) && a == b);
+}
 float difference(const std::vector<float> &a, const std::vector<float> &b)
 {
     if (a.size() != b.size())
         return INFINITY;
     float result = 0;
     for (size_t i = 0; i < a.size(); ++i) {
+        if (sameNonFinite(a[i], b[i]))
+            continue;
         if (!std::isfinite(a[i]) || !std::isfinite(b[i]))
             return INFINITY;
-        result = qMax(result, std::abs(a[i] - b[i]));
+        // relative above 1: HDR modes reach FLT_MAX (phase 4.108)
+        result = qMax(result, std::abs(a[i] - b[i]) / qMax(1.0f, qMax(std::abs(a[i]), std::abs(b[i]))));
     }
     return result;
 }
@@ -468,7 +486,62 @@ private Q_SLOTS:
                                  COMPOSITE_DEC_SATURATION_HSV,
                                  COMPOSITE_VALUE,
                                  COMPOSITE_INC_VALUE,
-                                 COMPOSITE_DEC_VALUE})
+                                 COMPOSITE_DEC_VALUE,
+                                 // phase 4.108: the remaining modes
+                                 COMPOSITE_HARD_MIX_HDR,
+                                 COMPOSITE_DODGE_HDR,
+                                 COMPOSITE_VIVID_LIGHT_HDR,
+                                 COMPOSITE_HARD_OVERLAY,
+                                 COMPOSITE_HARD_OVERLAY_HDR,
+                                 COMPOSITE_GEOMETRIC_MEAN,
+                                 COMPOSITE_PARALLEL,
+                                 COMPOSITE_INTERPOLATION,
+                                 COMPOSITE_INTERPOLATIONB,
+                                 COMPOSITE_PENUMBRAA,
+                                 COMPOSITE_PENUMBRAB,
+                                 COMPOSITE_PENUMBRAC,
+                                 COMPOSITE_PENUMBRAD,
+                                 COMPOSITE_SOFT_LIGHT_IFS_ILLUSIONS,
+                                 COMPOSITE_SOFT_LIGHT_PEGTOP_DELPHI,
+                                 COMPOSITE_GAMMA_LIGHT,
+                                 COMPOSITE_GAMMA_ILLUMINATION,
+                                 COMPOSITE_FLAT_LIGHT,
+                                 COMPOSITE_PNORM_A,
+                                 COMPOSITE_PNORM_B,
+                                 COMPOSITE_SUPER_LIGHT,
+                                 COMPOSITE_TINT_IFS_ILLUSIONS,
+                                 COMPOSITE_FOG_LIGHTEN_IFS_ILLUSIONS,
+                                 COMPOSITE_EASY_DODGE,
+                                 COMPOSITE_GAMMA_DARK,
+                                 COMPOSITE_SHADE_IFS_ILLUSIONS,
+                                 COMPOSITE_FOG_DARKEN_IFS_ILLUSIONS,
+                                 COMPOSITE_EASY_BURN,
+                                 COMPOSITE_INVERSE_SUBTRACT,
+                                 COMPOSITE_MOD,
+                                 COMPOSITE_MODULO_SHIFT,
+                                 COMPOSITE_MODULO_SHIFT_CON,
+                                 COMPOSITE_ARC_TANGENT,
+                                 COMPOSITE_EQUIVALENCE,
+                                 COMPOSITE_ADDITIVE_SUBTRACTIVE,
+                                 COMPOSITE_REFLECT,
+                                 COMPOSITE_GLOW,
+                                 COMPOSITE_FREEZE,
+                                 COMPOSITE_HEAT,
+                                 COMPOSITE_GLEAT,
+                                 COMPOSITE_HELOW,
+                                 COMPOSITE_REEZE,
+                                 COMPOSITE_FRECT,
+                                 COMPOSITE_FHYRD,
+                                 COMPOSITE_LAMBERT_LIGHTING,
+                                 COMPOSITE_LAMBERT_LIGHTING_GAMMA_2_2,
+                                 COMPOSITE_TANGENT_NORMALMAP,
+                                 COMPOSITE_COMBINE_NORMAL,
+                                 COMPOSITE_LUMINOSITY_SAI,
+                                 COMPOSITE_BEHIND,
+                                 COMPOSITE_GREATER,
+                                 COMPOSITE_COPY_RED,
+                                 COMPOSITE_COPY_GREEN,
+                                 COMPOSITE_COPY_BLUE})
             for (bool wash : {false, true})
                 for (int channels : {15, 7, 5})
                     QTest::newRow(qPrintable(QString("%1-wash%2-channels%3").arg(mode).arg(wash).arg(channels)))
@@ -558,7 +631,62 @@ private Q_SLOTS:
                                  COMPOSITE_DEC_SATURATION_HSV,
                                  COMPOSITE_VALUE,
                                  COMPOSITE_INC_VALUE,
-                                 COMPOSITE_DEC_VALUE})
+                                 COMPOSITE_DEC_VALUE,
+                                 // phase 4.108: the remaining modes
+                                 COMPOSITE_HARD_MIX_HDR,
+                                 COMPOSITE_DODGE_HDR,
+                                 COMPOSITE_VIVID_LIGHT_HDR,
+                                 COMPOSITE_HARD_OVERLAY,
+                                 COMPOSITE_HARD_OVERLAY_HDR,
+                                 COMPOSITE_GEOMETRIC_MEAN,
+                                 COMPOSITE_PARALLEL,
+                                 COMPOSITE_INTERPOLATION,
+                                 COMPOSITE_INTERPOLATIONB,
+                                 COMPOSITE_PENUMBRAA,
+                                 COMPOSITE_PENUMBRAB,
+                                 COMPOSITE_PENUMBRAC,
+                                 COMPOSITE_PENUMBRAD,
+                                 COMPOSITE_SOFT_LIGHT_IFS_ILLUSIONS,
+                                 COMPOSITE_SOFT_LIGHT_PEGTOP_DELPHI,
+                                 COMPOSITE_GAMMA_LIGHT,
+                                 COMPOSITE_GAMMA_ILLUMINATION,
+                                 COMPOSITE_FLAT_LIGHT,
+                                 COMPOSITE_PNORM_A,
+                                 COMPOSITE_PNORM_B,
+                                 COMPOSITE_SUPER_LIGHT,
+                                 COMPOSITE_TINT_IFS_ILLUSIONS,
+                                 COMPOSITE_FOG_LIGHTEN_IFS_ILLUSIONS,
+                                 COMPOSITE_EASY_DODGE,
+                                 COMPOSITE_GAMMA_DARK,
+                                 COMPOSITE_SHADE_IFS_ILLUSIONS,
+                                 COMPOSITE_FOG_DARKEN_IFS_ILLUSIONS,
+                                 COMPOSITE_EASY_BURN,
+                                 COMPOSITE_INVERSE_SUBTRACT,
+                                 COMPOSITE_MOD,
+                                 COMPOSITE_MODULO_SHIFT,
+                                 COMPOSITE_MODULO_SHIFT_CON,
+                                 COMPOSITE_ARC_TANGENT,
+                                 COMPOSITE_EQUIVALENCE,
+                                 COMPOSITE_ADDITIVE_SUBTRACTIVE,
+                                 COMPOSITE_REFLECT,
+                                 COMPOSITE_GLOW,
+                                 COMPOSITE_FREEZE,
+                                 COMPOSITE_HEAT,
+                                 COMPOSITE_GLEAT,
+                                 COMPOSITE_HELOW,
+                                 COMPOSITE_REEZE,
+                                 COMPOSITE_FRECT,
+                                 COMPOSITE_FHYRD,
+                                 COMPOSITE_LAMBERT_LIGHTING,
+                                 COMPOSITE_LAMBERT_LIGHTING_GAMMA_2_2,
+                                 COMPOSITE_TANGENT_NORMALMAP,
+                                 COMPOSITE_COMBINE_NORMAL,
+                                 COMPOSITE_LUMINOSITY_SAI,
+                                 COMPOSITE_BEHIND,
+                                 COMPOSITE_GREATER,
+                                 COMPOSITE_COPY_RED,
+                                 COMPOSITE_COPY_GREEN,
+                                 COMPOSITE_COPY_BLUE})
             for (bool wash : {false, true})
                 for (int channels : {15, 7, 5})
                     QTest::newRow(qPrintable(QString("%1-wash%2-channels%3").arg(mode).arg(wash).arg(channels)))
@@ -1183,8 +1311,10 @@ private:
                 const auto projection = pixels(image->projection());
                 // Darker Color keeps the darker background where alpha is
                 // locked (the brush colour is lighter); every path agrees.
+                // Copy Green with green excluded changes nothing.
                 const bool unchangedExpected =
-                    modeOverride == COMPOSITE_DARKER_COLOR && channelBits >= 0 && !(channelBits & 8);
+                    (modeOverride == COMPOSITE_DARKER_COLOR && channelBits >= 0 && !(channelBits & 8))
+                    || (modeOverride == COMPOSITE_COPY_GREEN && channelBits >= 0 && !(channelBits & 2));
                 QVERIFY(unchangedExpected || difference(before, after) > 0.01f);
                 if (iteration == 0 && path == 0) {
                     referenceLayer = after;

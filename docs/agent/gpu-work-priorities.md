@@ -576,6 +576,14 @@ HSL/HSV系、F16のSoft Light(Photoshop)など、GPU未対応のブレンドモ�
   詳細は `gpu-engine.md` の「Remaining blend modes (phase 4.107)」。
 - 手動確認はユーザー報告で問題なし（2026年10月13日）。
 
+フェーズ4.108（2026年10月13日、ユーザー指示「4 のブレンドモード変更はすべてまとめて実施」）:
+- 残りのブレンドモードを、Dissolve（乱数）、Marker（Alpha Darkenの流量パラメータが必要）、Destination In/Atop
+  （タイルのない範囲にも作用する）、Divisive Modulo系3種（倍精度の剰余の丸めに依存し、1ulpの差がO(1)に拡大する）
+  を除いてすべてGPU化した。
+- 累乗・指数・三角関数を倍精度で計算するモードは許容差つき（F32 1e-3、F16 4ulp）。
+  詳細は `gpu-engine.md` の「All other blend modes (phase 4.108)」。
+- 手動確認はユーザー報告で問題なし（2026年10月13日）。
+
 ## 関連する付随作業
 
 - READMEの操作ベンチマーク表(投影・キャンバス・ミラー)はフェーズ4.42の

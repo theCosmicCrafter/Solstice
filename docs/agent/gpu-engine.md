@@ -37,6 +37,9 @@ details are in the phase records, now in the wiki history pages (see
   Gradient, sharpness and RGBA16F stay on the CPU (RGBA16F: phase 4.105).
 - RGBA16F image tips and textures on the GPU (phase 4.105, 2026-10-11;
   section "RGBA16F image tips and textures").
+- Every other blend mode except Dissolve, Marker, Destination In/Atop and
+  Divisive Modulo (and its Continuous variants) on the GPU (phase 4.108, 2026-10-13; section "All
+  other blend modes").
 - Remaining blend modes on the GPU (phase 4.107, 2026-10-12; section
   "Remaining blend modes"): RGBA16F brushes in every GPU blend mode, and the
   HSI/HSL/HSV families plus HSY Tint and Increase/Decrease
@@ -507,7 +510,9 @@ Color and Lighter Color use `KoCompositeOpGenericHSLFunctor` semantics, and
 so do (phase 4.107) HSY Tint and Increase/Decrease Saturation/Luminosity and
 the HSI, HSL and HSV families (Color, Hue, Saturation, Increase/Decrease
 Saturation, Intensity/Lightness/Value, Increase/Decrease of it).
-Separately named HDR variants and the other modes run on the CPU.
+Phase 4.108 adds every other mode of Krita's RGBA float spaces except
+Dissolve, Marker, Destination In/Atop, Divisive Modulo, Divisive Modulo
+Continuous and Modulo Continuous ("All other blend modes").
 
 ### Canvas
 
@@ -977,12 +982,63 @@ kept their pixels.
   of `KisGpuProjectionTest` include every mode; the existing tolerances
   (2e-5 for F32, 1/1024 for F16 dabs) hold. Darker Color with alpha locked
   leaves the stroke test's darker background unchanged on every path.
-- Still on the CPU: the HDR variants, Luminosity SAI, Lambert lighting, the
-  copy/normal-map/dissolve ops, and the other separable families (Gamma,
-  Geometric Mean, Arc Tangent, Parallel, Equivalence, Additive-Subtractive,
-  Reflect/Glow/Freeze/Heat, Interpolation, Penumbra, Easy Dodge/Burn, the
-  other Soft Lights, Super/Flat Light, the IFS Illusions modes, Modulo,
-  P-Norm, the logical ops, Inverse Subtract, Behind/Greater/Marker).
+- Still on the CPU after this phase: see "All other blend modes (phase
+  4.108)".
+
+### All other blend modes (phase 4.108)
+
+2026-10-13, user request ("4 のブレンドモード変更はすべてまとめて").
+
+- New `KisGpuBlendOp` 63-116 (dab modes +2), mapped in
+  `KisGpuProjectionCompositor::blendOpForCompositeOp()`:
+  - separable (`blendChannelExtra()`, clamp policies in
+    `extraClampsSource/Destination/Bottom()`): the HDR variants of Hard Mix,
+    Color Dodge and Vivid Light, Hard Overlay (and HDR), Geometric Mean,
+    Parallel, Interpolation (and 2x), Penumbra A-D, Soft Light (IFS
+    Illusions, Pegtop-Delphi), Gamma Light/Dark/Illumination, Flat Light,
+    P-Norm A/B, Super Light, Tint/Shade/Fog Lighten/Fog Darken (IFS
+    Illusions), Easy Dodge/Burn, Inverse Subtract, Modulo, Modulo Shift (and
+    Continuous), Arc Tangent, Equivalence, Additive-Subtractive, Reflect,
+    Glow, Freeze, Heat, Glow-Heat, Heat-Glow, Reflect-Freeze,
+    Freeze-Reflect, Heat-Glow-Freeze-Reflect;
+  - HSL functors (`blendHslExtra()`, through `compositeHSY()`): Lambert
+    Lighting (and Gamma 2.2), Tangent Normal Map, Combine Normal;
+  - own composite functions (`compositeSpecial()`): Luminosity SAI
+    (`KoCompositeOpGenericSCAlpha`, no normalization), Behind, Greater,
+    Copy Red/Green/Blue.
+- Kept on the CPU: Dissolve (random), Marker (needs Alpha Darken's flow
+  parameters), Divisive Modulo, Divisive Modulo Continuous and Modulo
+  Continuous (their quotient's fractional part, and the source-0 branch of
+  `KoColorSpaceMaths<double>::modulus()` at 2^52 scale, turn any one-ulp
+  difference into an O(1) error), and Destination In/Atop: they change pixels
+  where the source has no tiles (`KisLayerProjectionPlane` applies them
+  beyond the layer's extent, and a Wash merge beyond the stroke), which the
+  tile-based GPU compositor skips. Logical modes exist only for integer
+  spaces.
+- CPU semantics reproduced:
+  - `clamp<T>()` is the identity for float and half (`KoColorSpaceMaths`
+    specializations); `kisBoundFast()` gives the lower bound for NaN
+    (`kbound()`); `T::max` is FLT_MAX or HALF_MAX (`FltMax`), epsilon
+    FLT_EPSILON or HALF_EPSILON;
+  - std::pow() edge cases (`cpow()`: negative bases, zero) and accurate
+    pow (`accurateLog()` with an atanh series and split ln2,
+    `accurateExp()` with range reduction): GLSL `log2()` has an absolute
+    error that ruined large exponents near 1;
+  - double modulus near integers (`modOne()` on an exact hi + lo sum);
+  - RGBA16F: Arithmetic results round to half at every step where the CPU
+    returns a T (`tv()`), so half overflows to infinity as on the CPU;
+  - infinities survive `roundedProduct()`, `mul3()` and `exactQuotient()`.
+- Accuracy: modes whose CPU functions compute pow/exp/cos/atan2/sqrt in
+  double are tolerance-based (`modeTolerance()` in `KisGpuBrushTest`: 1e-3
+  F32, 4 half ulps; Greater and Easy Burn 5e-3, they amplify). Glow, Heat
+  and their combinations divide by 1 - dst: on exact inputs
+  (`testExtendedBlendBoundaries`) they hold 2e-5, after other layers
+  (`testBlendModesMatchCpu`) 1e-2. F32 comparisons are relative above 1.
+- Tests: the mode lists of `KisGpuBrushTest`, `KisGpuStrokeTest` and
+  `KisGpuProjectionTest` include the new modes; NaN and equal infinities
+  compare equal (`sameNonFinite()`, bitwise `PixelValues`), since several
+  modes give NaN for negative HDR channels on the CPU too; boundary failures
+  print the source, both destinations and both results.
 
 ## Phase 0 technology decisions
 
@@ -1435,6 +1491,11 @@ Phase 0 has no user-visible behavior. From phase 3 on:
     Intensity, Tint and Decrease Value, as brush modes (Buildup, Wash,
     mirrors, alpha lock) and as layer blend modes; each looks like the CPU
     (GPU brush off, or GPU Engine off); Undo/Redo.
+15. Other blend modes (phase 4.108), on RGBA 32-bit and 16-bit float layers,
+    as layer modes and brush modes (Buildup, Wash): Glow, Heat, Gamma Light,
+    Hard Overlay, Penumbra A, Easy Dodge, Modulo Shift, Lambert Lighting,
+    Behind, Greater, Luminosity SAI and Copy Red; each looks like the CPU;
+    Destination In still works (CPU); Undo/Redo.
 
 ## Phase history
 
@@ -1544,6 +1605,7 @@ Section index:
 - [RGBA16F image tips and textures (phase 4.105)](wiki/history/gpu-phases-4.93-.md#rgba16f-image-tips-and-textures-phase-4105)
 - [RGBA16F masking brush composite (phase 4.106)](wiki/history/gpu-phases-4.93-.md#rgba16f-masking-brush-composite-phase-4106)
 - [Remaining blend modes (phase 4.107)](wiki/history/gpu-phases-4.93-.md#remaining-blend-modes-phase-4107)
+- [All other blend modes (phase 4.108)](wiki/history/gpu-phases-4.93-.md#all-other-blend-modes-phase-4108)
 
 ## Risks and open questions
 
@@ -1577,7 +1639,7 @@ Section index:
 - The whole-stack upload measured 55 GB/s with one `vkCmdCopyBuffer` region per
   tile; evaluate a compute scatter from ReBAR memory for document load.
 - Every GPU blend mode has F16 brush and layer parity coverage since phase
-  4.107. Modes still on the CPU ("Remaining blend modes") need a CPU parity
-  test per mode, F32 and F16, before they are enabled.
+  4.107; phase 4.108 added the rest except the modes listed in "All other
+  blend modes", whose results the GPU cannot reproduce.
 - Python scripting (`libkis`) and file export need CPU pixel access; every such
   call becomes a synchronous download.

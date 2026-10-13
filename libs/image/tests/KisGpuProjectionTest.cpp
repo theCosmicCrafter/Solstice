@@ -122,13 +122,24 @@ std::vector<float> readFloats(KisPaintDeviceSP device, const QRect &rect)
 }
 
 /// Largest channel difference; the color of fully transparent pixels is ignored.
+// The same NaN or infinity on both sides: some modes (e.g. pow() of a
+// negative HDR channel) produce them on the CPU too (phase 4.108).
+bool sameNonFinite(float a, float b)
+{
+    return (std::isnan(a) && std::isnan(b)) || (std::isinf(a) && a == b);
+}
+
 float maxDifference(const std::vector<float> &a, const std::vector<float> &b, QPoint *where, int width)
 {
     float worst = 0.0f;
     for (size_t pixel = 0; pixel < a.size() / 4; pixel++) {
         const bool transparent = a[pixel * 4 + 3] == 0.0f && b[pixel * 4 + 3] == 0.0f;
         for (size_t c = transparent ? 3 : 0; c < 4; c++) {
-            const float difference = std::abs(a[pixel * 4 + c] - b[pixel * 4 + c]);
+            if (sameNonFinite(a[pixel * 4 + c], b[pixel * 4 + c]))
+                continue;
+            // relative above 1: HDR modes reach FLT_MAX (phase 4.108)
+            const float difference = std::abs(a[pixel * 4 + c] - b[pixel * 4 + c])
+                / qMax(1.0f, qMax(std::abs(a[pixel * 4 + c]), std::abs(b[pixel * 4 + c])));
             if (difference > worst || std::isnan(difference)) {
                 worst = std::isnan(difference) ? INFINITY : difference;
                 *where = QPoint(int(pixel % width), int(pixel / width));
@@ -136,6 +147,19 @@ float maxDifference(const std::vector<float> &a, const std::vector<float> &b, QP
         }
     }
     return worst;
+}
+
+// Both results at a pixel, for failure messages
+QString pixelReport(const std::vector<float> &expected, const std::vector<float> &actual, QPoint where, int width)
+{
+    const size_t i = size_t(where.y() * width + where.x()) * 4;
+    QString text = QStringLiteral("cpu");
+    for (int c = 0; c < 4; ++c)
+        text += QLatin1Char(' ') + QString::number(double(expected[i + c]), 'g', 9);
+    text += QStringLiteral(", gpu");
+    for (int c = 0; c < 4; ++c)
+        text += QLatin1Char(' ') + QString::number(double(actual[i + c]), 'g', 9);
+    return text;
 }
 
 /**
@@ -158,6 +182,8 @@ float maxHalfUlpDifference(const std::vector<float> &a, const std::vector<float>
         for (size_t c = transparent ? 3 : 0; c < 4; c++) {
             const float x = a[pixel * 4 + c];
             const float y = b[pixel * 4 + c];
+            if (sameNonFinite(x, y))
+                continue;
             const float ulps = std::abs(x - y) / halfUlp(qMax(std::abs(x), std::abs(y)));
             if (ulps > worst || std::isnan(ulps)) {
                 worst = std::isnan(ulps) ? INFINITY : ulps;
@@ -440,7 +466,11 @@ void KisGpuProjectionTest::testFullRefreshMatchesCpu()
     QPoint where;
     const float difference = maxDifference(expected, actual, &where, image->width());
     QVERIFY2(difference <= 2e-5f,
-             qPrintable(QStringLiteral("max difference %1 at (%2, %3)").arg(difference).arg(where.x()).arg(where.y())));
+             qPrintable(QStringLiteral("max difference %1 at (%2, %3): %4")
+                            .arg(difference)
+                            .arg(where.x())
+                            .arg(where.y())
+                            .arg(pixelReport(expected, actual, where, image->width()))));
 }
 
 void KisGpuProjectionTest::testMemoryBudgetFallsBackToCpu()
@@ -540,8 +570,68 @@ void KisGpuProjectionTest::testBlendModesMatchCpu_data()
                              COMPOSITE_DEC_SATURATION_HSV,
                              COMPOSITE_VALUE,
                              COMPOSITE_INC_VALUE,
-                             COMPOSITE_DEC_VALUE};
+                             COMPOSITE_DEC_VALUE,
+                             // phase 4.108
+                             COMPOSITE_HARD_MIX_HDR,
+                             COMPOSITE_DODGE_HDR,
+                             COMPOSITE_VIVID_LIGHT_HDR,
+                             COMPOSITE_HARD_OVERLAY,
+                             COMPOSITE_HARD_OVERLAY_HDR,
+                             COMPOSITE_GEOMETRIC_MEAN,
+                             COMPOSITE_PARALLEL,
+                             COMPOSITE_INTERPOLATION,
+                             COMPOSITE_INTERPOLATIONB,
+                             COMPOSITE_PENUMBRAA,
+                             COMPOSITE_PENUMBRAB,
+                             COMPOSITE_PENUMBRAC,
+                             COMPOSITE_PENUMBRAD,
+                             COMPOSITE_SOFT_LIGHT_IFS_ILLUSIONS,
+                             COMPOSITE_SOFT_LIGHT_PEGTOP_DELPHI,
+                             COMPOSITE_GAMMA_LIGHT,
+                             COMPOSITE_GAMMA_ILLUMINATION,
+                             COMPOSITE_FLAT_LIGHT,
+                             COMPOSITE_PNORM_A,
+                             COMPOSITE_PNORM_B,
+                             COMPOSITE_SUPER_LIGHT,
+                             COMPOSITE_TINT_IFS_ILLUSIONS,
+                             COMPOSITE_FOG_LIGHTEN_IFS_ILLUSIONS,
+                             COMPOSITE_EASY_DODGE,
+                             COMPOSITE_GAMMA_DARK,
+                             COMPOSITE_SHADE_IFS_ILLUSIONS,
+                             COMPOSITE_FOG_DARKEN_IFS_ILLUSIONS,
+                             COMPOSITE_EASY_BURN,
+                             COMPOSITE_INVERSE_SUBTRACT,
+                             COMPOSITE_MOD,
+                             COMPOSITE_MODULO_SHIFT,
+                             COMPOSITE_MODULO_SHIFT_CON,
+                             COMPOSITE_ARC_TANGENT,
+                             COMPOSITE_EQUIVALENCE,
+                             COMPOSITE_ADDITIVE_SUBTRACTIVE,
+                             COMPOSITE_REFLECT,
+                             COMPOSITE_GLOW,
+                             COMPOSITE_FREEZE,
+                             COMPOSITE_HEAT,
+                             COMPOSITE_GLEAT,
+                             COMPOSITE_HELOW,
+                             COMPOSITE_REEZE,
+                             COMPOSITE_FRECT,
+                             COMPOSITE_FHYRD,
+                             COMPOSITE_LAMBERT_LIGHTING,
+                             COMPOSITE_LAMBERT_LIGHTING_GAMMA_2_2,
+                             COMPOSITE_TANGENT_NORMALMAP,
+                             COMPOSITE_COMBINE_NORMAL,
+                             COMPOSITE_LUMINOSITY_SAI,
+                             COMPOSITE_BEHIND,
+                             COMPOSITE_GREATER,
+                             COMPOSITE_COPY_RED,
+                             COMPOSITE_COPY_GREEN,
+                             COMPOSITE_COPY_BLUE};
     for (const QString &op : ops) {
+        // Luminosity SAI adds to the destination colour without normalizing,
+        // so it shows the unspecified colour of transparent pixels the lower
+        // layers leave; testExtendedBlendBoundaries covers it.
+        if (op == COMPOSITE_LUMINOSITY_SAI)
+            continue;
         QTest::newRow(qPrintable(op)) << op << false;
         QTest::newRow(qPrintable(op + QStringLiteral(" alpha locked"))) << op << true;
     }
@@ -576,10 +666,29 @@ void KisGpuProjectionTest::testBlendModesMatchCpu()
     const std::vector<float> actual = render(image, true);
     QVERIFY2(KisGpuMergeBatch::gpuCompositeCount() > before, "the GPU path was not used");
 
+    // Glow, Heat and their combinations divide by 1 - dst or dst, and
+    // Greater weights alpha with exp(-40 x): they amplify the one-ulp
+    // differences the lower layers already have (2e-5 below) about 1e3
+    // times. testExtendedBlendBoundaries holds them to 2e-5 on exact inputs.
+    const QStringList amplifying{COMPOSITE_GLOW,
+                                 COMPOSITE_HEAT,
+                                 COMPOSITE_REFLECT,
+                                 COMPOSITE_FREEZE,
+                                 COMPOSITE_GLEAT,
+                                 COMPOSITE_HELOW,
+                                 COMPOSITE_REEZE,
+                                 COMPOSITE_FRECT,
+                                 COMPOSITE_FHYRD,
+                                 COMPOSITE_GREATER};
+    const float tolerance = amplifying.contains(compositeOp) ? 1e-2f : 2e-5f;
     QPoint where;
     const float difference = maxDifference(expected, actual, &where, image->width());
-    QVERIFY2(difference <= 2e-5f,
-             qPrintable(QStringLiteral("max difference %1 at (%2, %3)").arg(difference).arg(where.x()).arg(where.y())));
+    QVERIFY2(difference <= tolerance,
+             qPrintable(QStringLiteral("max difference %1 at (%2, %3): %4")
+                            .arg(difference)
+                            .arg(where.x())
+                            .arg(where.y())
+                            .arg(pixelReport(expected, actual, where, image->width()))));
 }
 
 void KisGpuProjectionTest::testExtendedBlendBoundaries_data()
@@ -638,7 +747,62 @@ void KisGpuProjectionTest::testExtendedBlendBoundaries_data()
                              COMPOSITE_DEC_SATURATION_HSV,
                              COMPOSITE_VALUE,
                              COMPOSITE_INC_VALUE,
-                             COMPOSITE_DEC_VALUE})
+                             COMPOSITE_DEC_VALUE,
+                             // phase 4.108
+                             COMPOSITE_HARD_MIX_HDR,
+                             COMPOSITE_DODGE_HDR,
+                             COMPOSITE_VIVID_LIGHT_HDR,
+                             COMPOSITE_HARD_OVERLAY,
+                             COMPOSITE_HARD_OVERLAY_HDR,
+                             COMPOSITE_GEOMETRIC_MEAN,
+                             COMPOSITE_PARALLEL,
+                             COMPOSITE_INTERPOLATION,
+                             COMPOSITE_INTERPOLATIONB,
+                             COMPOSITE_PENUMBRAA,
+                             COMPOSITE_PENUMBRAB,
+                             COMPOSITE_PENUMBRAC,
+                             COMPOSITE_PENUMBRAD,
+                             COMPOSITE_SOFT_LIGHT_IFS_ILLUSIONS,
+                             COMPOSITE_SOFT_LIGHT_PEGTOP_DELPHI,
+                             COMPOSITE_GAMMA_LIGHT,
+                             COMPOSITE_GAMMA_ILLUMINATION,
+                             COMPOSITE_FLAT_LIGHT,
+                             COMPOSITE_PNORM_A,
+                             COMPOSITE_PNORM_B,
+                             COMPOSITE_SUPER_LIGHT,
+                             COMPOSITE_TINT_IFS_ILLUSIONS,
+                             COMPOSITE_FOG_LIGHTEN_IFS_ILLUSIONS,
+                             COMPOSITE_EASY_DODGE,
+                             COMPOSITE_GAMMA_DARK,
+                             COMPOSITE_SHADE_IFS_ILLUSIONS,
+                             COMPOSITE_FOG_DARKEN_IFS_ILLUSIONS,
+                             COMPOSITE_EASY_BURN,
+                             COMPOSITE_INVERSE_SUBTRACT,
+                             COMPOSITE_MOD,
+                             COMPOSITE_MODULO_SHIFT,
+                             COMPOSITE_MODULO_SHIFT_CON,
+                             COMPOSITE_ARC_TANGENT,
+                             COMPOSITE_EQUIVALENCE,
+                             COMPOSITE_ADDITIVE_SUBTRACTIVE,
+                             COMPOSITE_REFLECT,
+                             COMPOSITE_GLOW,
+                             COMPOSITE_FREEZE,
+                             COMPOSITE_HEAT,
+                             COMPOSITE_GLEAT,
+                             COMPOSITE_HELOW,
+                             COMPOSITE_REEZE,
+                             COMPOSITE_FRECT,
+                             COMPOSITE_FHYRD,
+                             COMPOSITE_LAMBERT_LIGHTING,
+                             COMPOSITE_LAMBERT_LIGHTING_GAMMA_2_2,
+                             COMPOSITE_TANGENT_NORMALMAP,
+                             COMPOSITE_COMBINE_NORMAL,
+                             COMPOSITE_LUMINOSITY_SAI,
+                             COMPOSITE_BEHIND,
+                             COMPOSITE_GREATER,
+                             COMPOSITE_COPY_RED,
+                             COMPOSITE_COPY_GREEN,
+                             COMPOSITE_COPY_BLUE})
         for (bool f16 : {false, true})
             for (bool locked : {false, true})
                 QTest::newRow(qPrintable(QStringLiteral("%1-f16%2-locked%3").arg(mode).arg(f16).arg(locked)))
@@ -704,6 +868,8 @@ void KisGpuProjectionTest::testExtendedBlendBoundaries()
     painter.setChannelFlags(flags);
     for (quint8 opacity : {quint8(255), quint8(179), quint8(0)}) {
         painter.setOpacityU8(opacity);
+        const auto before = readFloats(cpu, bounds);
+        const auto gpuBefore = readFloats(gpu, bounds);
         painter.bitBlt(bounds.topLeft(), src, bounds);
         // Direct success is required: a GPU background followed by CPU fallback
         // for this mode cannot accidentally pass the image-level counter check.
@@ -715,12 +881,24 @@ void KisGpuProjectionTest::testExtendedBlendBoundaries()
         QPoint where;
         const float delta =
             f16 ? maxHalfUlpDifference(expected, actual, &where, 64) : maxDifference(expected, actual, &where, 64);
-        QVERIFY2(delta <= (f16 ? 4.0f : 2e-5f),
-                 qPrintable(QStringLiteral("difference %1 at (%2, %3), opacity %4")
-                                .arg(delta)
-                                .arg(where.x())
-                                .arg(where.y())
-                                .arg(opacity)));
+        // The inputs and both results at the worst pixel, for diagnosis
+        const auto sourcePixels = readFloats(src, bounds);
+        auto pixel = [&where](const std::vector<float> &values) {
+            const size_t i = size_t(where.y() * 64 + where.x()) * 4;
+            return QStringLiteral("(%1 %2 %3 %4)")
+                .arg(double(values[i]), 0, 'g', 9)
+                .arg(double(values[i + 1]), 0, 'g', 9)
+                .arg(double(values[i + 2]), 0, 'g', 9)
+                .arg(double(values[i + 3]), 0, 'g', 9);
+        };
+        QVERIFY2(
+            delta <= (f16 ? 4.0f : 2e-5f),
+            qPrintable(QStringLiteral("difference %1 at (%2, %3), opacity %4; src %5 dst %6 (gpu %7) cpu %8 gpu %9")
+                           .arg(delta)
+                           .arg(where.x())
+                           .arg(where.y())
+                           .arg(opacity)
+                           .arg(pixel(sourcePixels), pixel(before), pixel(gpuBefore), pixel(expected), pixel(actual))));
     }
 }
 
@@ -755,7 +933,11 @@ void KisGpuProjectionTest::testPartialUpdateMatchesCpu()
     QPoint where;
     const float difference = maxDifference(expected, actual, &where, image->width());
     QVERIFY2(difference <= 2e-5f,
-             qPrintable(QStringLiteral("max difference %1 at (%2, %3)").arg(difference).arg(where.x()).arg(where.y())));
+             qPrintable(QStringLiteral("max difference %1 at (%2, %3): %4")
+                            .arg(difference)
+                            .arg(where.x())
+                            .arg(where.y())
+                            .arg(pixelReport(expected, actual, where, image->width()))));
 }
 
 void KisGpuProjectionTest::testF16Image()
@@ -852,7 +1034,11 @@ void KisGpuProjectionTest::testConcurrentUpdatesSharingTilesMatchCpu()
     QPoint where;
     const float difference = maxDifference(expected, actual, &where, image->width());
     QVERIFY2(difference <= 2e-5f,
-             qPrintable(QStringLiteral("max difference %1 at (%2, %3)").arg(difference).arg(where.x()).arg(where.y())));
+             qPrintable(QStringLiteral("max difference %1 at (%2, %3): %4")
+                            .arg(difference)
+                            .arg(where.x())
+                            .arg(where.y())
+                            .arg(pixelReport(expected, actual, where, image->width()))));
 }
 
 void KisGpuProjectionTest::benchmarkRefresh()

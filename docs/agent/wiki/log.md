@@ -842,3 +842,14 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   fuses multiply-adds despite `precise`; per-dab debugging with ULP-scaled
   GPU intermediates finds a 1-ULP drift quickly. Modes already enabled
   without tests had drifted; add a test row whenever a mode is enabled.
+
+## 2026-10-13 ingest: all other blend modes (phase 4.108)
+
+- Nearly every blend mode runs on the GPU
+  ([gpu-engine.md](../gpu-engine.md), "All other blend modes (phase 4.108)";
+  [history](history/gpu-phases-4.93-.md#all-other-blend-modes-phase-4108)).
+- Lessons ([cpu-gpu-bit-parity.md](concepts/cpu-gpu-bit-parity.md),
+  techniques 12-14): check `KoColorSpaceMaths` specializations before
+  reproducing a helper (`clamp<float>` and `clamp<half>` do nothing);
+  GLSL transcendental functions need accurate replacements; compare NaN as
+  equal and print inputs and outputs of the worst pixel in failure messages.

@@ -163,7 +163,62 @@ const QStringList hsxModes{COMPOSITE_TINT,
                            COMPOSITE_DEC_SATURATION_HSV,
                            COMPOSITE_VALUE,
                            COMPOSITE_INC_VALUE,
-                           COMPOSITE_DEC_VALUE};
+                           COMPOSITE_DEC_VALUE,
+                           // phase 4.108: the remaining modes
+                           COMPOSITE_HARD_MIX_HDR,
+                           COMPOSITE_DODGE_HDR,
+                           COMPOSITE_VIVID_LIGHT_HDR,
+                           COMPOSITE_HARD_OVERLAY,
+                           COMPOSITE_HARD_OVERLAY_HDR,
+                           COMPOSITE_GEOMETRIC_MEAN,
+                           COMPOSITE_PARALLEL,
+                           COMPOSITE_INTERPOLATION,
+                           COMPOSITE_INTERPOLATIONB,
+                           COMPOSITE_PENUMBRAA,
+                           COMPOSITE_PENUMBRAB,
+                           COMPOSITE_PENUMBRAC,
+                           COMPOSITE_PENUMBRAD,
+                           COMPOSITE_SOFT_LIGHT_IFS_ILLUSIONS,
+                           COMPOSITE_SOFT_LIGHT_PEGTOP_DELPHI,
+                           COMPOSITE_GAMMA_LIGHT,
+                           COMPOSITE_GAMMA_ILLUMINATION,
+                           COMPOSITE_FLAT_LIGHT,
+                           COMPOSITE_PNORM_A,
+                           COMPOSITE_PNORM_B,
+                           COMPOSITE_SUPER_LIGHT,
+                           COMPOSITE_TINT_IFS_ILLUSIONS,
+                           COMPOSITE_FOG_LIGHTEN_IFS_ILLUSIONS,
+                           COMPOSITE_EASY_DODGE,
+                           COMPOSITE_GAMMA_DARK,
+                           COMPOSITE_SHADE_IFS_ILLUSIONS,
+                           COMPOSITE_FOG_DARKEN_IFS_ILLUSIONS,
+                           COMPOSITE_EASY_BURN,
+                           COMPOSITE_INVERSE_SUBTRACT,
+                           COMPOSITE_MOD,
+                           COMPOSITE_MODULO_SHIFT,
+                           COMPOSITE_MODULO_SHIFT_CON,
+                           COMPOSITE_ARC_TANGENT,
+                           COMPOSITE_EQUIVALENCE,
+                           COMPOSITE_ADDITIVE_SUBTRACTIVE,
+                           COMPOSITE_REFLECT,
+                           COMPOSITE_GLOW,
+                           COMPOSITE_FREEZE,
+                           COMPOSITE_HEAT,
+                           COMPOSITE_GLEAT,
+                           COMPOSITE_HELOW,
+                           COMPOSITE_REEZE,
+                           COMPOSITE_FRECT,
+                           COMPOSITE_FHYRD,
+                           COMPOSITE_LAMBERT_LIGHTING,
+                           COMPOSITE_LAMBERT_LIGHTING_GAMMA_2_2,
+                           COMPOSITE_TANGENT_NORMALMAP,
+                           COMPOSITE_COMBINE_NORMAL,
+                           COMPOSITE_LUMINOSITY_SAI,
+                           COMPOSITE_BEHIND,
+                           COMPOSITE_GREATER,
+                           COMPOSITE_COPY_RED,
+                           COMPOSITE_COPY_GREEN,
+                           COMPOSITE_COPY_BLUE};
 // Representative modes for the full selection/channel/lifecycle matrix.
 const QStringList blendModes = hsxModes
     + QStringList{COMPOSITE_MULT,
@@ -250,9 +305,50 @@ const KoColorSpace *space(bool half = false)
                                                              : Float32BitsColorDepthID.id(),
                                                         QString());
 }
-std::vector<float> pixels(KisPaintDeviceSP device, QRect rect)
+// Modes whose CPU functions use double pow(), exp(), cos(), atan2() or
+// sqrt() (computed in float on the GPU), some of them amplifying over
+// repeated dabs (Easy Burn, Gamma Dark, Greater): phase 4.108.
+float modeTolerance(const QString &mode, bool half)
 {
-    std::vector<float> result(size_t(rect.width()) * rect.height() * 4);
+    static const QStringList approximate{COMPOSITE_GAMMA_DARK,
+                                         COMPOSITE_GAMMA_LIGHT,
+                                         COMPOSITE_GAMMA_ILLUMINATION,
+                                         COMPOSITE_EASY_DODGE,
+                                         COMPOSITE_EASY_BURN,
+                                         COMPOSITE_SOFT_LIGHT_IFS_ILLUSIONS,
+                                         COMPOSITE_PNORM_A,
+                                         COMPOSITE_PNORM_B,
+                                         COMPOSITE_SUPER_LIGHT,
+                                         COMPOSITE_INTERPOLATION,
+                                         COMPOSITE_INTERPOLATIONB,
+                                         COMPOSITE_GREATER,
+                                         COMPOSITE_ARC_TANGENT,
+                                         COMPOSITE_PENUMBRAC,
+                                         COMPOSITE_PENUMBRAD,
+                                         COMPOSITE_GEOMETRIC_MEAN,
+                                         COMPOSITE_ADDITIVE_SUBTRACTIVE,
+                                         COMPOSITE_TINT_IFS_ILLUSIONS,
+                                         COMPOSITE_SHADE_IFS_ILLUSIONS,
+                                         COMPOSITE_COMBINE_NORMAL};
+    // Greater divides by 1 - dst alpha; Easy Burn raises to large powers
+    if (mode == COMPOSITE_GREATER || mode == COMPOSITE_EASY_BURN)
+        return half ? 4.0f / 1024 : 5e-3f;
+    if (approximate.contains(mode))
+        return half ? 4.0f / 1024 : 1e-3f;
+    return half ? 1.0f / 1024 : 2e-5f;
+}
+// Pixel values compared bit for bit, so that NaN equals NaN in Undo/Redo
+// checks (some phase 4.108 modes produce NaN from HDR channels, as on the CPU)
+struct PixelValues : std::vector<float> {
+    using std::vector<float>::vector;
+};
+bool operator==(const PixelValues &a, const PixelValues &b)
+{
+    return a.size() == b.size() && std::memcmp(a.data(), b.data(), a.size() * sizeof(float)) == 0;
+}
+PixelValues pixels(KisPaintDeviceSP device, QRect rect)
+{
+    PixelValues result(size_t(rect.width()) * rect.height() * 4);
     if (device->pixelSize() == 8) {
         QByteArray raw(rect.width() * rect.height() * 8, Qt::Uninitialized);
         device->readBytes(reinterpret_cast<quint8 *>(raw.data()), rect);
@@ -414,6 +510,12 @@ QRect boundsOf(const QList<KisRenderedDab> &dabs)
         bounds |= dab.realBounds();
     return bounds;
 }
+// The same NaN or infinity on both sides: some modes (e.g. pow() of a
+// negative HDR channel) produce them on the CPU too (phase 4.108).
+bool sameNonFinite(float a, float b)
+{
+    return (std::isnan(a) && std::isnan(b)) || (std::isinf(a) && a == b);
+}
 float difference(const std::vector<float> &a, const std::vector<float> &b, bool ignoreTransparentRgb = true)
 {
     float maximum = 0;
@@ -423,9 +525,12 @@ float difference(const std::vector<float> &a, const std::vector<float> &b, bool 
         const size_t alpha = i / 4 * 4 + 3;
         if (ignoreTransparentRgb && i % 4 != 3 && a[alpha] == 0 && b[alpha] == 0)
             continue;
+        if (sameNonFinite(a[i], b[i]))
+            continue;
         if (!std::isfinite(a[i]) || !std::isfinite(b[i]))
             return INFINITY;
-        maximum = qMax(maximum, std::abs(a[i] - b[i]));
+        // relative above 1: HDR modes reach FLT_MAX (phase 4.108)
+        maximum = qMax(maximum, std::abs(a[i] - b[i]) / qMax(1.0f, qMax(std::abs(a[i]), std::abs(b[i]))));
     }
     return maximum;
 }
@@ -659,7 +764,7 @@ private Q_SLOTS:
         const float error = difference(read(cpu), after, false);
         qInfo() << "F16 dab maximum error" << error;
         // One half ULP at 1.0 for repeated HDR dabs; include hidden RGB.
-        QVERIFY2(error <= 1.0f / 1024, qPrintable(QString::number(error)));
+        QVERIFY2(error <= modeTolerance(mode, true), qPrintable(QString::number(error)));
         QScopedPointer<KUndo2Command> command(transaction.endAndTake());
         command->redo();
         QCOMPARE(read(shared), before);
@@ -674,7 +779,7 @@ private Q_SLOTS:
         QCOMPARE(read(gpu), after);
         cp.bltFixed(bounds, dabs);
         gp.bltFixed(bounds, dabs);
-        QVERIFY(difference(read(cpu), read(gpu), false) <= 1.0f / 1024);
+        QVERIFY(difference(read(cpu), read(gpu), false) <= modeTolerance(mode, true));
         gp.setCompositeOpId(COMPOSITE_DISSOLVE); // no GPU blend op
         QVERIFY(!KisGpuBrushPainter::supports(&gp));
         gp.setCompositeOpId(COMPOSITE_ALPHA_DARKEN);
@@ -686,7 +791,7 @@ private Q_SLOTS:
         QFETCH(QString, mode);
         QFETCH(bool, wrapRing);
         QFETCH(bool, half);
-        const float tolerance = half ? 1.0f / 1024 : 2e-5f;
+        const float tolerance = modeTolerance(mode, half);
         QVERIFY(KisGpuBrushPainter::resetStagingForTesting());
         auto &context = KisGpuTileBackend::instance()->context();
         context.waitIdle();
@@ -863,7 +968,7 @@ private Q_SLOTS:
         command->redo();
         const auto after = pixels(gpu, bounds);
         const float error = difference(pixels(cpu, bounds), after);
-        QVERIFY2(error <= 2e-5f, qPrintable(QString::number(error)));
+        QVERIFY2(error <= modeTolerance(mode, false), qPrintable(QString::number(error)));
         QCOMPARE(pixels(snapshot, bounds), before);
         command->undo();
         QCOMPARE(pixels(gpu, bounds), before);
@@ -872,7 +977,7 @@ private Q_SLOTS:
         gpuPainter.bltFixed(bounds, dabs);
         cpuPainter.bltFixed(bounds, dabs);
         const float repeatedError = difference(pixels(cpu, bounds), pixels(gpu, bounds));
-        QVERIFY2(repeatedError <= 2e-5f, qPrintable(QString::number(repeatedError)));
+        QVERIFY2(repeatedError <= modeTolerance(mode, false), qPrintable(QString::number(repeatedError)));
     }
     void testRefusalAndFailure_data()
     {
@@ -887,7 +992,7 @@ private Q_SLOTS:
         KisPainter painter(device);
         painter.setCompositeOpId(mode);
         const auto before = pixels(device, bounds);
-        painter.setCompositeOpId(COMPOSITE_DODGE_HDR); // HDR variant still uses CPU.
+        painter.setCompositeOpId(COMPOSITE_DISSOLVE); // random, stays on the CPU
         QVERIFY(!KisGpuBrushPainter::paint(&painter, dabs));
         painter.setCompositeOpId(mode);
         QBitArray flags(mode == COMPOSITE_ALPHA_DARKEN ? 4 : 3, true);
@@ -1544,11 +1649,12 @@ private:
                     gpuPainter.bltFixed(rect, gpuDabs);
             }
             const float error = difference(pixels(cpu, bounds), pixels(gpu, bounds));
-            QVERIFY2(error <= 2e-5f, qPrintable(QStringLiteral("pass %1 error %2").arg(pass).arg(error)));
+            QVERIFY2(error <= modeTolerance(mode, false),
+                     qPrintable(QStringLiteral("pass %1 error %2").arg(pass).arg(error)));
         }
         QCOMPARE(KisGpuBrushPainter::batchCount(), count + completed);
         const float finalError = difference(pixels(cpu, bounds), pixels(gpu, bounds));
-        QVERIFY2(finalError <= 2e-5f, qPrintable(QString::number(finalError)));
+        QVERIFY2(finalError <= modeTolerance(mode, false), qPrintable(QString::number(finalError)));
         QCOMPARE(fallbacks, failPass ? 1 : 0);
         if (mode == COMPOSITE_OVER && mirrors == 3 && !masked && !fractional && !locked && !failPass)
             qInfo() << "14 x 73px dabs, combined" << combined << "four mirror passes, compositing only: CPU"
@@ -1901,7 +2007,7 @@ private Q_SLOTS:
         // Restricted channels use the CPU scalar kernel, whose hidden RGB
         // behavior is defined and must also match on transparent pixels.
         const float error = difference(pixels(cpu, bounds), after, mode == COMPOSITE_OVER && channels == 15);
-        QVERIFY2(error <= 2e-5f, qPrintable(QString::number(error)));
+        QVERIFY2(error <= modeTolerance(mode, false), qPrintable(QString::number(error)));
         QCOMPARE(pixels(snapshot, bounds), before);
         for (size_t i = 0; i < before.size(); ++i) {
             const size_t alpha = i / 4 * 4 + 3;
@@ -1925,7 +2031,7 @@ private Q_SLOTS:
         cpuPainter.bltFixed(bounds, dabs);
         gpuPainter.bltFixed(bounds, dabs);
         QVERIFY(difference(pixels(cpu, bounds), pixels(gpu, bounds), mode == COMPOSITE_OVER && channels == 15)
-                <= 2e-5f);
+                <= modeTolerance(mode, false));
     }
     void testSelectionCoverageRounding_data()
     {
@@ -2027,7 +2133,7 @@ private Q_SLOTS:
         command->redo();
         const auto after = pixels(gpu, bounds);
         const float error = difference(pixels(cpu, bounds), after);
-        QVERIFY2(error <= 2e-5f, qPrintable(QString::number(error)));
+        QVERIFY2(error <= modeTolerance(mode, false), qPrintable(QString::number(error)));
         if (shape == "empty" || shape == "outside") {
             QCOMPARE(after, before);
             QCOMPARE(KisGpuBrushPainter::batchCount(), count);
@@ -2055,7 +2161,7 @@ private Q_SLOTS:
             gpuPainter.bltFixed(bounds, dabs); // original selected CPU fallback
             cpuPainter.bltFixed(bounds, dabs);
             const float fallbackError = difference(pixels(cpu, bounds), pixels(gpu, bounds));
-            QVERIFY2(fallbackError <= 2e-5f, qPrintable(QString::number(fallbackError)));
+            QVERIFY2(fallbackError <= modeTolerance(mode, false), qPrintable(QString::number(fallbackError)));
         }
         // Reusing the uploader after deselection must not reuse its old mask.
         cpuPainter.setSelection(nullptr);
@@ -2063,7 +2169,7 @@ private Q_SLOTS:
         cpuPainter.bltFixed(bounds, dabs);
         QVERIFY(KisGpuBrushPainter::paint(&gpuPainter, dabs));
         const float deselectedError = difference(pixels(cpu, bounds), pixels(gpu, bounds));
-        QVERIFY2(deselectedError <= 2e-5f, qPrintable(QString::number(deselectedError)));
+        QVERIFY2(deselectedError <= modeTolerance(mode, false), qPrintable(QString::number(deselectedError)));
     }
     void testAlphaDarkenVariants_data()
     {
@@ -2655,7 +2761,7 @@ private Q_SLOTS:
             QCOMPARE(context.completedValue() - beforeSubmissions, quint64(1));
         // The pixels around the rect must stay untouched; inside it the GPU
         // matches the CPU copy plus preview.
-        const float tolerance = half ? 1.0f / 1024 : 2e-5f;
+        const float tolerance = modeTolerance(mode, half);
         const float error =
             difference(pixels(cpuProjection, around), pixels(gpuProjection, around), mode == COMPOSITE_OVER && !half);
         QVERIFY2(error <= tolerance, qPrintable(QString::number(error)));

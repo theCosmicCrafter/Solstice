@@ -1,6 +1,6 @@
 ---
 type: concept
-updated: 2026-10-12
+updated: 2026-10-13
 sources:
   - libs/image/KisImageTipSampler.* (phase 4.103, image tips without QPainter)
   - libs/gpu/shaders/transform_pass.comp (phase 4.94, commit 3828911e98)
@@ -119,6 +119,20 @@ related:
    that differs. Amplifying modes (Vivid Light, Hard Mix Softer, HSL
    saturation) turn one ULP into visible differences over repeated dabs, so
    tolerance tests catch them only with repeated or mirrored dabs.
+12. **Read the specializations.** `KoColorSpaceMaths<float>::clamp()` and
+   `<half>::clamp()` return their argument; `kisBoundFast()` maps NaN to the
+   lower bound; `KoColorSpaceMaths<half>` fuzzy tests use 0.002. Phase 4.108
+   reproduced the generic templates first and was wrong for all three.
+13. **Transcendentals.** GLSL `log2()` has an absolute error (2^-22), so
+   `pow(x, y)` near x = 1 with a large y was off by percent; `accurateLog()`
+   (atanh series, ln2 split so `e * ln2` is exact) and `accurateExp()`
+   (range reduction) bring it to float precision. Results that the CPU
+   computes in double stay tolerance-based.
+14. **Failure messages and NaN.** Print the inputs and both results of the
+   worst pixel (`testExtendedBlendBoundaries`); most phase 4.108 failures
+   were explained by one such line. Modes that make NaN from HDR channels
+   on the CPU need NaN == NaN in the comparisons (`sameNonFinite()`,
+   bitwise `PixelValues`).
 
 ## Test pattern
 

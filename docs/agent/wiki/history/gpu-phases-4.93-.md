@@ -665,3 +665,19 @@ families) for layers and brushes. Details:
   double for RGBA32F made the results worse.
 - The NVIDIA driver fused `l + t * s` into an fma despite `NoContraction`;
   `roundedProduct()` works around it.
+
+## All other blend modes (phase 4.108)
+
+2026-10-13, user request. 54 more modes on the GPU (the separable families,
+the normal-map and Lambert modes, Luminosity SAI, Behind, Greater, Copy
+Red/Green/Blue). Details:
+[gpu-engine.md](../../gpu-engine.md), "All other blend modes (phase 4.108)".
+
+- First runs: about 100 projection and 1,200 brush failures; causes, in
+  order of size: NaN compared as unequal in the tests, `clamp<T>` assumed
+  to bound (it is the identity), half overflow to infinity missing in F16,
+  GLSL `log2()` near 1, the double modulus at integers, and the special
+  ops' own invariants (Destination In empties pixels).
+- Divisive Modulo and its Continuous variants stay on the CPU: their result
+  depends on double rounding at 2^52 scale. Destination In/Atop too: they
+  change pixels where the source has no tiles (layer extent, Wash buffer).

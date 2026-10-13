@@ -29,10 +29,14 @@ Photoshop), Grain Merge/Extract, Negation, Allanon, and the HSY Hue, Saturation,
 Color, Luminosity, Darker Color and Lighter Color modes. Since 2026-10-12 they
 also include Tint, Increase/Decrease Saturation and Luminosity, and the HSI,
 HSL and HSV families (Color, Hue, Saturation, Increase/Decrease Saturation,
-Intensity, Lightness or Value and their Increase/Decrease modes). The
-separately named HDR variants of Dodge, Vivid Light and Hard Mix still use
-the CPU. Other layer blend modes, such as Gamma, Modulo, the logical modes,
-Luminosity SAI and Lambert Lighting, continue through the CPU path.
+Intensity, Lightness or Value and their Increase/Decrease modes). Since
+2026-10-13 nearly every other mode is accelerated too, including the HDR
+variants, Gamma, Glow/Heat and their combinations, the Penumbra, Easy and
+IFS Illusions modes, Modulo and Modulo Shift, Lambert Lighting, the normal
+map modes, Luminosity SAI, Behind, Greater and Copy Red/Green/Blue. Dissolve,
+Marker, Destination In/Atop and Divisive Modulo (and its Continuous variants)
+continue through the CPU path. Modes based on powers, exponentials or
+trigonometry match the CPU closely rather than exactly.
 
 Layer compositing also stays on the GPU when individual RGB channels are
 disabled in the layer properties, with or without alpha locked, in both

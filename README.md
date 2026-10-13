@@ -149,8 +149,8 @@ changes and support are maintained in this repository.
 The experimental engine uses Vulkan compute for supported RGBA floating-point
 layer compositing in RGBA32F and RGBA16F and shares data with the OpenGL canvas
 for display. Supported layer modes include Normal, Multiply, Screen, Overlay,
-Soft Light and the HSY, HSL, HSV and HSI color modes, including individual
-channel locks. It is
+Soft Light and the HSY, HSL, HSV and HSI color modes; nearly every blend mode
+runs on the GPU, including individual channel locks. It is
 enabled by default and falls back to CPU paths for unsupported operations.
 
 The RGBA32F pixel brush (on by default since 2026-10-10) also composites supported blend modes

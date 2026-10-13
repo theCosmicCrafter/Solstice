@@ -115,6 +115,7 @@ Read these before adding or updating any feature:
   RGBA16F image tips and textures (phase 4.105) done and manually checked 2026-10-11;
   RGBA16F masking brush composite (phase 4.106) done and manually checked 2026-10-12;
   remaining blend modes, priority 5 (phase 4.107) done and manually checked 2026-10-13;
+  all other blend modes (phase 4.108) done and manually checked 2026-10-13;
   priority 4 in progress):
   `docs/agent/gpu-work-priorities.md`
 - Brush Stroke Preview:
