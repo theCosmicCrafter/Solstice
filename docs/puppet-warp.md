@@ -1,6 +1,6 @@
 # Puppet Warp
 
-<img src="../images/puppet_warp_1.png" alt="Puppet Warp mesh" width="50%">
+<img src="images/puppet-warp.webp" alt="A painted figure and a copy reposed with Puppet Warp: the Transform Tool's triangle mesh over the figure, with pins on the head, the shoulder, the raised arm, the waist and the legs" width="60%">
 
 Puppet Warp is a mode of the Transform Tool for posing characters
 and reshaping raster artwork with pins that can be moved and rotated. The
