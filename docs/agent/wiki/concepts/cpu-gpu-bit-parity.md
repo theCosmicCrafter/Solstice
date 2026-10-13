@@ -107,11 +107,19 @@ related:
    Hard Mix Softer worse.
 10. **`precise` is not enough on the NVIDIA driver.** Phase 4.107 found
    `light + t * scale` evaluated as one fma although the SPIR-V carries
-   `NoContraction` on every operation (checked with `spirv-dis`); scalar
-   code did not help. The result differed only where the exact sum lay on a
-   rounding tie. `roundedProduct(a, b)` (`fma(a, b, -error)`, an fma result
-   the driver does not fuse) gives the CPU's rounded product; use it for
-   every product that feeds an addition in the blend code.
+   `NoContraction` on every operation (checked with `spirv-dis`, optimized
+   and not); scalar code did not help. The result differed only where the
+   exact sum lay on a rounding tie. The phase 4.109 audit showed that it
+   depends on the compiled context (driver 596.86, Blackwell): small shaders
+   keep every precise form, float and double, in
+   `KisGpuEngineTest::testPreciseContraction`, and even an inline copy of
+   the function in `testBlendProbe` was not fused, but calling the real
+   `hsxToneMapping()` there was. So it cannot be detected statically.
+   `roundedProduct(a, b)` (`fma(a, b, -error)`, an fma result the driver
+   does not fuse; `roundedProductD()` for doubles) gives the CPU's rounded
+   product: use it for every product that feeds an addition where the
+   result must be bit-identical, at least where a rounding (to half, to an
+   integer) follows.
 11. **Debugging a 1-ULP drift.** Paint dab by dab on the CPU and the GPU and
    stop at the first differing dab; reproduce the CPU in numpy `float32` /
    `float16` from the printed inputs; then write GPU intermediates as

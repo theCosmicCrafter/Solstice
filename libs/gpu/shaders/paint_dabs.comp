@@ -800,7 +800,7 @@ vec4 alphaDarkenHalf(vec4 dst, vec4 src, Dab dab, float coverage)
     float average = halfValue(hard ? dab.flow * dab.averageOpacity : dab.averageOpacity);
     float masked = params.mask != uint64_t(0) ? halfValue(halfValue(coverage) * src.a) : src.a;
     float a = halfValue(masked * opacity);
-    precise vec3 color = dst.a == 0.0 ? src.rgb : (src.rgb - dst.rgb) * a + dst.rgb;
+    precise vec3 color = dst.a == 0.0 ? src.rgb : roundedProduct(src.rgb - dst.rgb, a) + dst.rgb;
     float fullAlpha;
     if (average > opacity) {
         fullAlpha = average > dst.a ? halfLerp(a, average, halfValue(dst.a / average)) : dst.a;

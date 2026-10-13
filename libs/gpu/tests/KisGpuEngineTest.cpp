@@ -21,6 +21,7 @@
 
 #include <KisGpuBuffer.h>
 #include <KisGpuCommandList.h>
+#include <KisGpuComputePipeline.h>
 #include <KisGpuContext.h>
 #include <KisGpuDabCompositor.h>
 #include <KisGpuLayerCompositor.h>
@@ -336,10 +337,237 @@ void KisGpuEngineTest::cleanupTestCase()
     m_context.reset();
 }
 
+namespace
+{
+const quint32 PreciseProbeFloat[] = {
+#include "precise_probe_float.spv.inc"
+};
+const quint32 PreciseProbeDouble[] = {
+#include "precise_probe_double.spv.inc"
+};
+const quint32 PreciseProbeHalf[] = {
+#include "precise_probe_half.spv.inc"
+};
+const quint32 BlendProbeRgba32f[] = {
+#include "blend_probe_rgba32f.spv.inc"
+};
+const quint32 BlendProbeRgba16f[] = {
+#include "blend_probe_rgba16f.spv.inc"
+};
+const quint32 PreciseProbeFloatUnoptimized[] = {
+#include "precise_probe_float_unoptimized.spv.inc"
+};
+const quint32 PreciseProbeDoubleUnoptimized[] = {
+#include "precise_probe_double_unoptimized.spv.inc"
+};
+
+// a + b * c with the product rounded first (the CPU build has no FMA
+// target, so it never contracts) and fused
+template<typename Real>
+Real unfusedMultiplyAdd(Real a, Real b, Real c)
+{
+    volatile Real product = b * c;
+    return a + product;
+}
+
+/**
+ * Runs precise_probe.comp on triples whose fused and unfused results differ
+ * and counts, per form, the results equal to the unfused (CPU) value.
+ */
+// light + ((v - light) * factor) * scale, every operation rounded
+template<typename Real>
+Real unfusedStretch(Real v, Real light, Real factor, Real scale)
+{
+    volatile Real difference = v - light;
+    volatile Real scaled = difference * factor;
+    volatile Real product = scaled * scale;
+    return light + product;
+}
+
+// toneMappingAboveOne() of precise_probe.comp on the CPU, green channel
+float unfusedToneMapping(float r, float g, float b)
+{
+    volatile float c[3] = {r + 1.0f, g + 1.0f, b + 1.0f};
+    const float high = std::max(std::max(c[0], c[1]), c[2]);
+    const float low = std::min(std::min(c[0], c[1]), c[2]);
+    volatile float sum = high + low;
+    volatile float light = sum * 0.5f;
+    volatile float stretch = high - light;
+    volatile float inverse = 1.0f - light;
+    volatile float scale = 1.0f / stretch;
+    volatile float difference = c[1] - light;
+    volatile float scaled = difference * inverse;
+    volatile float product = scaled * scale;
+    return light + product;
+}
+
+template<typename Real>
+bool runPreciseProbe(KisGpuContext &context,
+                     const quint32 *spirv,
+                     size_t bytes,
+                     int counts[8],
+                     int *items,
+                     bool halfToneMapping = false)
+{
+    std::mt19937 random(11);
+    std::uniform_real_distribution<Real> unit(-2, 2);
+    std::vector<Real> input;
+    while (input.size() < 3 * 4096) {
+        const Real a = unit(random), b = unit(random), c = unit(random);
+        if (unfusedMultiplyAdd(a, b, c) != std::fma(b, c, a)) {
+            input.push_back(a);
+            input.push_back(b);
+            input.push_back(c);
+        }
+    }
+    const quint32 count = quint32(input.size() / 3);
+    *items = int(count);
+    auto inputBuffer = KisGpuBuffer::create(context, input.size() * sizeof(Real), KisGpuBuffer::Location::Upload);
+    auto outputBuffer = KisGpuBuffer::create(context, count * 8 * sizeof(Real), KisGpuBuffer::Location::Readback);
+    auto pipeline = KisGpuComputePipeline::create(context, spirv, bytes, 20);
+    if (!inputBuffer || !outputBuffer || !pipeline)
+        return false;
+    std::memcpy(inputBuffer->mapped(), input.data(), input.size() * sizeof(Real));
+    struct {
+        VkDeviceAddress input;
+        VkDeviceAddress output;
+        quint32 count;
+    } constants{inputBuffer->deviceAddress(), outputBuffer->deviceAddress(), count};
+    KisGpuCommandList commands(context);
+    commands.begin();
+    pipeline->dispatchRaw(commands.commandBuffer(), &constants, 20, (count + 63) / 64, 1, 1);
+    commands.barrier(VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                     VK_ACCESS_2_SHADER_WRITE_BIT,
+                     VK_PIPELINE_STAGE_2_HOST_BIT,
+                     VK_ACCESS_2_HOST_READ_BIT);
+    if (!commands.submit() || !commands.wait())
+        return false;
+    const Real *output = static_cast<const Real *>(outputBuffer->mapped());
+    for (int form = 0; form < 8; ++form)
+        counts[form] = 0;
+    for (quint32 i = 0; i < count; ++i) {
+        const Real a = input[3 * i], b = input[3 * i + 1], c = input[3 * i + 2];
+        const Real expected = unfusedMultiplyAdd(a, b, c);
+        for (int form = 0; form < 5; ++form)
+            counts[form] += output[8 * i + form] == expected;
+        counts[5] += output[8 * i + 5] == unfusedStretch(b, a, c, c);
+        counts[6] += output[8 * i + 6] == Real(unfusedStretch(float(b), float(a), float(c), float(c)));
+        const float toneMapped = unfusedToneMapping(float(a), float(b), float(c));
+        counts[7] += output[8 * i + 7] == Real(halfToneMapping ? float(qfloat16(toneMapped)) : toneMapped);
+    }
+    return true;
+}
+} // namespace
+
 #define REQUIRE_GPU()                                                                                                  \
     if (!m_context) {                                                                                                  \
         QSKIP(qPrintable(QStringLiteral("No usable Vulkan device: %1").arg(m_unavailableReason)));                     \
     }
+
+void KisGpuEngineTest::testPreciseContraction_data()
+{
+    QTest::addColumn<bool>("doubles");
+    QTest::addColumn<bool>("optimized");
+    QTest::addColumn<bool>("half");
+    for (bool doubles : {false, true})
+        for (bool optimized : {true, false})
+            QTest::newRow(qPrintable(
+                QStringLiteral("%1-%2").arg(doubles ? "double" : "float", optimized ? "optimized" : "unoptimized")))
+                << doubles << optimized << false;
+    QTest::newRow("float-half-extension") << false << true << true;
+}
+
+void KisGpuEngineTest::testPreciseContraction()
+{
+    // Phase 4.108 found "l + t * s" fused into one fma although the SPIR-V
+    // marks it NoContraction. This records, per driver, which forms of a
+    // precise multiply-add the driver fuses (qInfo), and checks that the
+    // fusion-proof roundedProduct() form always keeps the CPU's rounding.
+    REQUIRE_GPU();
+    QFETCH(bool, doubles);
+    QFETCH(bool, optimized);
+    QFETCH(bool, half);
+    if (doubles && !m_context->deviceInfo().supportsFloat64)
+        QSKIP("shaderFloat64 is not enabled");
+    int counts[8];
+    int items = 0;
+    const bool ran = half
+        ? runPreciseProbe<float>(*m_context, PreciseProbeHalf, sizeof(PreciseProbeHalf), counts, &items, true)
+        : doubles
+        ? (optimized
+               ? runPreciseProbe<double>(*m_context, PreciseProbeDouble, sizeof(PreciseProbeDouble), counts, &items)
+               : runPreciseProbe<double>(*m_context,
+                                         PreciseProbeDoubleUnoptimized,
+                                         sizeof(PreciseProbeDoubleUnoptimized),
+                                         counts,
+                                         &items))
+        : (optimized ? runPreciseProbe<float>(*m_context, PreciseProbeFloat, sizeof(PreciseProbeFloat), counts, &items)
+                     : runPreciseProbe<float>(*m_context,
+                                              PreciseProbeFloatUnoptimized,
+                                              sizeof(PreciseProbeFloatUnoptimized),
+                                              counts,
+                                              &items));
+    QVERIFY(ran);
+    qInfo().noquote() << QStringLiteral(
+                             "unfused results of %1 items: single precise expression %2, precise product "
+                             "variable %3, vector %4, roundedProduct %5, explicit fma %6, stretch "
+                             "function %7, vector stretch function %8, tone mapping %9")
+                             .arg(items)
+                             .arg(counts[0])
+                             .arg(counts[1])
+                             .arg(counts[2])
+                             .arg(counts[3])
+                             .arg(counts[4])
+                             .arg(counts[5])
+                             .arg(counts[6])
+                             .arg(counts[7]);
+    QCOMPARE(counts[3], items);
+    QCOMPARE(counts[4], 0);
+}
+
+void KisGpuEngineTest::testBlendProbe()
+{
+    // Phase 4.108/4.109: an RGBA16F Increase Saturation (HSL) dab whose
+    // blended green lands exactly on a half rounding tie on the CPU
+    // (0.980712890625). With the precise multiply-add of hsxToneMapping()
+    // the NVIDIA driver returned the next float (fused, despite
+    // NoContraction); roundedProduct() keeps the CPU's rounding.
+    REQUIRE_GPU();
+    const float items[] = {0.151000977f,
+                           0.225219727f,
+                           0.674316406f,
+                           0.645507813f,
+                           0.877929688f,
+                           0.864746094f,
+                           0.350585938f,
+                           0.276367188f};
+    for (bool half : {false, true}) {
+        auto input = KisGpuBuffer::create(*m_context, sizeof(items), KisGpuBuffer::Location::Upload);
+        auto output = KisGpuBuffer::create(*m_context, sizeof(items), KisGpuBuffer::Location::Readback);
+        auto pipeline = half
+            ? KisGpuComputePipeline::create(*m_context, BlendProbeRgba16f, sizeof(BlendProbeRgba16f), 24)
+            : KisGpuComputePipeline::create(*m_context, BlendProbeRgba32f, sizeof(BlendProbeRgba32f), 24);
+        QVERIFY(input && output && pipeline);
+        std::memcpy(input->mapped(), items, sizeof(items));
+        struct {
+            VkDeviceAddress source;
+            VkDeviceAddress target;
+            quint32 op;
+            quint32 count;
+        } constants{input->deviceAddress(), output->deviceAddress(), quint32(KisGpuBlendOp::IncreaseSaturationHsl), 1};
+        KisGpuCommandList commands(*m_context);
+        commands.begin();
+        pipeline->dispatchRaw(commands.commandBuffer(), &constants, 24, 1, 1, 1);
+        commands.barrier(VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                         VK_ACCESS_2_SHADER_WRITE_BIT,
+                         VK_PIPELINE_STAGE_2_HOST_BIT,
+                         VK_ACCESS_2_HOST_READ_BIT);
+        QVERIFY(commands.submit() && commands.wait());
+        const float green = static_cast<const float *>(output->mapped())[1];
+        // bit for bit, not QCOMPARE's fuzzy float comparison
+        QVERIFY2(green == 0.980712890625f, qPrintable(QString::number(double(green), 'g', 9)));
+    }
+}
 
 void KisGpuEngineTest::testDeviceInfo()
 {

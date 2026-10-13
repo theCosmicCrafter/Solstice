@@ -681,3 +681,14 @@ Red/Green/Blue). Details:
 - Divisive Modulo and its Continuous variants stay on the CPU: their result
   depends on double rounding at 2^52 scale. Destination In/Atop too: they
   change pixels where the source has no tiles (layer extent, Wash buffer).
+
+## Precise contraction audit (phase 4.109)
+
+2026-10-13, user request. Whether the NVIDIA driver fuses precise
+multiply-adds elsewhere. Details: [gpu-engine.md](../../gpu-engine.md),
+"Precise contraction audit (phase 4.109)".
+
+- Probes of growing size never fused; only the real `hsxToneMapping()`
+  called from a probe reproduced it, with identical inputs and decorations.
+  The risk is therefore treated as context-dependent: products feeding a sum
+  before a rounding step now use `roundedProduct()`.

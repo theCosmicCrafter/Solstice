@@ -1,0 +1,120 @@
+/* SPDX-FileCopyrightText: 2026 Krita contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * KisGpuEngineTest::testPreciseContraction: whether the driver keeps a
+ * precise multiply and add apart (SPIR-V NoContraction) or fuses them into
+ * one fma, which rounds once instead of twice.
+ */
+#version 460
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#ifdef PROBE_HALF
+// like the RGBA16F builds of paint_dabs.comp
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#endif
+
+layout(local_size_x = 64) in;
+
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer Floats
+{
+    float v[];
+};
+#ifdef PROBE_DOUBLE
+layout(buffer_reference, std430, buffer_reference_align = 8) buffer Doubles
+{
+    double v[];
+};
+#define REAL double
+#define VALUES Doubles
+#else
+#define REAL float
+#define VALUES Floats
+#endif
+
+layout(push_constant) uniform Params
+{
+    uint64_t source; // a, b, c per item
+    uint64_t target; // the forms below per item
+    uint count;
+}
+params;
+
+// a + b * c rounded to the type, in a form the driver cannot fuse
+REAL roundedProduct(REAL a, REAL b)
+{
+    precise REAL p = a * b;
+    precise REAL error = fma(a, b, -p);
+    return fma(a, b, -error);
+}
+
+// The phase 4.108 shape: light + ((v - light) * factor) * scale in a
+// function, scalar and vector
+REAL stretchScalar(REAL v, REAL light, REAL factor, REAL scale)
+{
+    precise REAL value = light + ((v - light) * factor) * scale;
+    return value;
+}
+vec3 stretchVector(vec3 v, float light, float factor, float scale)
+{
+    precise vec3 value = light + ((v - light) * factor) * scale;
+    return value;
+}
+
+// Phase 4.108's tone mapping before roundedProduct(): HSL lightness of the
+// vector, the stretch above 1 with an IEEE reciprocal (composite_blend.glsl
+// exactQuotient()); float only
+float probeQuotient(float a, float b)
+{
+    precise float q = a / b;
+    if (isinf(q) || isnan(q) || b == 0.0) return q;
+    precise float residual = fma(-q, b, a);
+    precise float reciprocal = 1.0 / b;
+    precise float value = fma(residual, reciprocal, q);
+    return value;
+}
+vec3 toneMappingAboveOne(vec3 c)
+{
+    precise float light = (max(max(c.r, c.g), c.b) + min(min(c.r, c.g), c.b)) * 0.5;
+    const float high = max(max(c.r, c.g), c.b);
+    precise float stretch = high - light;
+    precise float inverse = 1.0 - light;
+    const float scale = probeQuotient(1.0, stretch);
+    precise vec3 value = light + ((c - light) * inverse) * scale;
+    return value;
+}
+
+void main()
+{
+    const uint i = gl_GlobalInvocationID.x;
+    if (i >= params.count) return;
+    VALUES values = VALUES(params.source);
+    VALUES results = VALUES(params.target);
+    const REAL a = values.v[3 * i];
+    const REAL b = values.v[3 * i + 1];
+    const REAL c = values.v[3 * i + 2];
+    // 0: one precise expression
+    precise REAL single = a + b * c;
+    results.v[8 * i] = single;
+    // 1: precise product in its own variable
+    precise REAL product = b * c;
+    precise REAL split = a + product;
+    results.v[8 * i + 1] = split;
+    // 2: a vector expression
+    precise vec2 vectorForm = vec2(a) + vec2(b) * float(c);
+    results.v[8 * i + 2] = REAL(vectorForm.x);
+    // 3: the fusion-proof product
+    results.v[8 * i + 3] = a + roundedProduct(b, c);
+    // 4: an explicit fma, for reference
+    results.v[8 * i + 4] = fma(b, c, a);
+    // 5, 6: the stretch with light a, v b, factor and scale c
+    results.v[8 * i + 5] = stretchScalar(b, a, c, c);
+    results.v[8 * i + 6] = REAL(stretchVector(vec3(float(b)), float(a), float(c), float(c)).y);
+    // 7: the tone mapping of (a, b, c) + 1 (green channel)
+#ifdef PROBE_HALF
+    // converted to half and back, as the RGBA16F blend does after it
+    results.v[8 * i + 7] = REAL(float(float16_t(toneMappingAboveOne(vec3(float(a), float(b), float(c)) + 1.0).y)));
+#else
+    results.v[8 * i + 7] = REAL(toneMappingAboveOne(vec3(float(a), float(b), float(c)) + 1.0).y);
+#endif
+}

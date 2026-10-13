@@ -1040,6 +1040,34 @@ kept their pixels.
   modes give NaN for negative HDR channels on the CPU too; boundary failures
   print the source, both destinations and both results.
 
+### Precise contraction audit (phase 4.109)
+
+2026-10-13, user request (task 1 after phase 4.108).
+
+- `KisGpuEngineTest::testPreciseContraction` (`libs/gpu/tests/
+  precise_probe.comp`, built optimized and not, float, double and with the
+  float16 extensions) runs `a + b * c` and longer shapes on triples whose
+  fused and unfused results differ: on driver 596.86 every precise form
+  keeps the unfused result; it records the counts per driver (qInfo) and
+  checks `roundedProduct()` and an explicit fma.
+- `KisGpuEngineTest::testBlendProbe` (`blend_probe.comp`, the real
+  `composite_blend.glsl`) reproduces phase 4.108's case: with the plain
+  precise multiply-add in `hsxToneMapping()` the Increase Saturation (HSL)
+  green came out one float above the CPU's tie (0.980712890625), with every
+  input bit-identical and NoContraction on every operation; an inline copy
+  of the same code was exact. The test now checks the value bit for bit.
+- Changed to `roundedProduct()`: the half lerps of
+  `composite_half_brush.glsl` (`halfLerp()`, `overHalf()`), the RGBA16F
+  Alpha Darken colour of `paint_dabs.comp`, and in `grid_warp.comp`
+  (`roundedProductD()`) the quadratic of `backwardMap()`, the mapped
+  coordinates, the fallback distance and the integer weights (truncated
+  after + 0.5, where one bit can change a weight). `transform_pass.comp`
+  has no precise product feeding a sum; `separable_convolution.comp` is
+  tolerance-based; `masking_composite.comp` rounds double results to half.
+- Not changed: precise products that feed a multiplication, a division or
+  a comparison only, and explicit `fma()` calls that reproduce the CPU's
+  AVX2 kernels (`softFade()`).
+
 ## Phase 0 technology decisions
 
 | Topic | Decision | Reason |
@@ -1606,6 +1634,7 @@ Section index:
 - [RGBA16F masking brush composite (phase 4.106)](wiki/history/gpu-phases-4.93-.md#rgba16f-masking-brush-composite-phase-4106)
 - [Remaining blend modes (phase 4.107)](wiki/history/gpu-phases-4.93-.md#remaining-blend-modes-phase-4107)
 - [All other blend modes (phase 4.108)](wiki/history/gpu-phases-4.93-.md#all-other-blend-modes-phase-4108)
+- [Precise contraction audit (phase 4.109)](wiki/history/gpu-phases-4.93-.md#precise-contraction-audit-phase-4109)
 
 ## Risks and open questions
 

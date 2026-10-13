@@ -584,6 +584,12 @@ HSL/HSV系、F16のSoft Light(Photoshop)など、GPU未対応のブレンドモ�
   詳細は `gpu-engine.md` の「All other blend modes (phase 4.108)」。
 - 手動確認はユーザー報告で問題なし（2026年10月13日）。
 
+フェーズ4.109（2026年10月13日、ユーザー指示「1を進めて」）: `precise` の積和がfmaに融合される問題の点検。
+- 単純なシェーダーではドライバーは `precise` を守る（`KisGpuEngineTest::testPreciseContraction`）。実際の
+  `composite_blend.glsl` の関数を呼ぶ場合だけ融合が再現した（`testBlendProbe`）。静的には検出できない。
+- ビット一致が必要で、直後に半精度・整数への丸めがある積和を `roundedProduct()` に置き換えた（F16のlerp、
+  F16 Alpha Darkenの色、Liquifyの座標と重み）。詳細は `gpu-engine.md` の「Precise contraction audit (phase 4.109)」。
+
 ## 関連する付随作業
 
 - READMEの操作ベンチマーク表(投影・キャンバス・ミラー)はフェーズ4.42の

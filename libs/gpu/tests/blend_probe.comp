@@ -1,0 +1,48 @@
+/* SPDX-FileCopyrightText: 2026 Krita contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * KisGpuEngineTest::testBlendProbe: composite_blend.glsl's blendHSY() and
+ * compositeGeneric() on given pixels, outside paint_dabs.comp. Phase 4.109
+ * found the NVIDIA driver fusing a precise multiply-add of hsxToneMapping()
+ * here (although an inline copy of the same code was not fused).
+ */
+#version 460
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_GOOGLE_include_directive : require
+#ifdef TILE_F16
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#endif
+#include "composite_blend.glsl"
+#ifdef TILE_F16
+#include "composite_half_brush.glsl"
+#endif
+
+layout(local_size_x = 64) in;
+
+layout(buffer_reference, std430, buffer_reference_align = 16) buffer Vectors
+{
+    vec4 v[];
+};
+
+layout(push_constant) uniform Params
+{
+    uint64_t source; // per item: src, dst
+    uint64_t target; // per item: blendHSY(), compositeGeneric()
+    uint op;
+    uint count;
+}
+params;
+
+void main()
+{
+    const uint i = gl_GlobalInvocationID.x;
+    if (i >= params.count) return;
+    Vectors values = Vectors(params.source);
+    Vectors results = Vectors(params.target);
+    const vec4 src = values.v[2 * i];
+    const vec4 dst = values.v[2 * i + 1];
+    results.v[2 * i] = vec4(blendHSY(params.op, clamp(src.rgb, 0.0, 1.0), clamp(dst.rgb, 0.0, 1.0)), 0.0);
+    results.v[2 * i + 1] = compositeGeneric(params.op, dst, src, 1.0, false, 1.0, 15);
+}

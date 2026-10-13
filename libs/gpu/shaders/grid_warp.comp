@@ -298,16 +298,27 @@ bool inGoodRange(double value)
     return value >= 0.0LF && value <= 1.0LF;
 }
 
+// a * b rounded to double, in a form the driver cannot fuse into a following
+// addition: the NVIDIA driver can ignore NoContraction (KisGpuEngineTest::
+// testBlendProbe), and a fused multiply-add changes the last bit.
+double roundedProductD(double a, double b)
+{
+    precise double p = a * b;
+    if (isinf(p) || isnan(p)) return p;
+    precise double error = fma(a, b, -p);
+    return fma(a, b, -error);
+}
+
 // KisFourPointInterpolatorBackward: setY(py), setX(px), getValue().
 dvec2 backwardMap(Op op, double pixelX, double pixelY)
 {
     const double eps = 1e-6LF;
     precise double mPy = pixelY - op.dstBase.y;
-    precise double qBVarY = mPy * op.d.x;
-    precise double qCVarY = mPy * op.a.x;
+    const double qBVarY = roundedProductD(mPy, op.d.x);
+    const double qCVarY = roundedProductD(mPy, op.a.x);
     precise double mPx = pixelX - op.dstBase.x;
-    precise double qBVarX = -mPx * op.d.y;
-    precise double qCVarX = -mPx * op.a.y;
+    const double qBVarX = roundedProductD(-mPx, op.d.y);
+    const double qCVarX = roundedProductD(-mPx, op.a.y);
 
     precise double qB = op.qBConst + qBVarX + qBVarY;
     precise double qC = qCVarX + qCVarY;
@@ -319,9 +330,9 @@ dvec2 backwardMap(Op op, double pixelX, double pixelY)
         nu = exactDivide(-qC, qB);
         dontCheckOtherNu = true;
     } else {
-        precise double qB2 = qB * qB;
+        const double qB2 = roundedProductD(qB, qB);
         precise double fourA = 4.0LF * op.qA;
-        precise double fourAC = fourA * qC;
+        const double fourAC = roundedProductD(fourA, qC);
         precise double D = qB2 - fourAC;
         if (D > 0.0LF) {
             sqrtD = exactSqrt(D);
@@ -335,23 +346,23 @@ dvec2 backwardMap(Op op, double pixelX, double pixelY)
     }
 
     const double nu1 = nu;
-    precise double xDenomNu1 = op.a.x + nu1 * op.d.x;
-    precise double xNum1 = mPx - nu1 * op.c.x;
+    precise double xDenomNu1 = op.a.x + roundedProductD(nu1, op.d.x);
+    precise double xNum1 = mPx - roundedProductD(nu1, op.c.x);
     const double xMu1 = exactDivide(xNum1, xDenomNu1);
     const bool goodNu1 = inGoodRange(nu1);
     precise double resultX;
     precise double resultY;
     if (goodNu1 && inGoodRange(xMu1)) {
-        resultX = op.srcBase.x + xMu1 * op.xCoeff;
-        resultY = op.srcBase.y + nu1 * op.yCoeff;
+        resultX = op.srcBase.x + roundedProductD(xMu1, op.xCoeff);
+        resultY = op.srcBase.y + roundedProductD(nu1, op.yCoeff);
         return dvec2(resultX, resultY);
     }
-    precise double yDenomNu1 = op.a.y + nu1 * op.d.y;
-    precise double yNum1 = mPy - nu1 * op.c.y;
+    precise double yDenomNu1 = op.a.y + roundedProductD(nu1, op.d.y);
+    precise double yNum1 = mPy - roundedProductD(nu1, op.c.y);
     const double yMu1 = exactDivide(yNum1, yDenomNu1);
     if (goodNu1 && inGoodRange(yMu1)) {
-        resultX = op.srcBase.x + yMu1 * op.xCoeff;
-        resultY = op.srcBase.y + nu1 * op.yCoeff;
+        resultX = op.srcBase.x + roundedProductD(yMu1, op.xCoeff);
+        resultY = op.srcBase.y + roundedProductD(nu1, op.yCoeff);
         return dvec2(resultX, resultY);
     }
 
@@ -364,23 +375,23 @@ dvec2 backwardMap(Op op, double pixelX, double pixelY)
         precise double num2 = -qB + sqrtD;
         precise double value2 = num2 * op.qDDiv;
         nu2 = value2;
-        precise double xDenom2 = op.a.x + nu2 * op.d.x;
+        precise double xDenom2 = op.a.x + roundedProductD(nu2, op.d.x);
         xDenomNu2 = xDenom2;
-        precise double xNum2 = mPx - nu2 * op.c.x;
+        precise double xNum2 = mPx - roundedProductD(nu2, op.c.x);
         xMu2 = exactDivide(xNum2, xDenomNu2);
         const bool goodNu2 = inGoodRange(nu2);
         if (goodNu2 && inGoodRange(xMu2)) {
-            resultX = op.srcBase.x + xMu2 * op.xCoeff;
-            resultY = op.srcBase.y + nu2 * op.yCoeff;
+            resultX = op.srcBase.x + roundedProductD(xMu2, op.xCoeff);
+            resultY = op.srcBase.y + roundedProductD(nu2, op.yCoeff);
             return dvec2(resultX, resultY);
         }
-        precise double yDenom2 = op.a.y + nu2 * op.d.y;
+        precise double yDenom2 = op.a.y + roundedProductD(nu2, op.d.y);
         yDenomNu2 = yDenom2;
         // The CPU computes this one with xBasedMu() (kept as is).
         yMu2 = exactDivide(xNum2, yDenomNu2);
         if (goodNu2 && inGoodRange(yMu2)) {
-            resultX = op.srcBase.x + yMu2 * op.xCoeff;
-            resultY = op.srcBase.y + nu2 * op.yCoeff;
+            resultX = op.srcBase.x + roundedProductD(yMu2, op.xCoeff);
+            resultY = op.srcBase.y + roundedProductD(nu2, op.yCoeff);
             return dvec2(resultX, resultY);
         }
     }
@@ -396,11 +407,11 @@ dvec2 backwardMap(Op op, double pixelX, double pixelY)
     for (int i = 0; i < meaningfulCount; ++i) {
         if (abs(denoms[i]) < eps)
             continue;
-        precise double rx = op.srcBase.x + mus[i] * op.xCoeff;
-        precise double ry = op.srcBase.y + nus[i] * op.yCoeff;
+        precise double rx = op.srcBase.x + roundedProductD(mus[i], op.xCoeff);
+        precise double ry = op.srcBase.y + roundedProductD(nus[i], op.yCoeff);
         precise double dx = center.x - rx;
         precise double dy = center.y - ry;
-        precise double dist = dx * dx + dy * dy;
+        precise double dist = roundedProductD(dx, dx) + roundedProductD(dy, dy);
         if (bestI < 0 || dist < distanceFromCenter) {
             distanceFromCenter = dist;
             bestI = i;
@@ -431,10 +442,10 @@ vec4 sampleSource(dvec2 point)
     precise double invH = 1.0LF - hsub;
     precise double invV = 1.0LF - vsub;
     // qRound(d) == int(d + 0.5) for d >= 0 (Qt on x86-64 with SSE2).
-    precise double w0d = invH * invV * 255.0LF + 0.5LF;
-    precise double w1d = invV * hsub * 255.0LF + 0.5LF;
-    precise double w2d = vsub * invH * 255.0LF + 0.5LF;
-    precise double w3d = hsub * vsub * 255.0LF + 0.5LF;
+    precise double w0d = roundedProductD(invH * invV, 255.0LF) + 0.5LF;
+    precise double w1d = roundedProductD(invV * hsub, 255.0LF) + 0.5LF;
+    precise double w2d = roundedProductD(vsub * invH, 255.0LF) + 0.5LF;
+    precise double w3d = roundedProductD(hsub * vsub, 255.0LF) + 0.5LF;
     const int weights[4] = int[4](int(w0d), int(w1d), int(w2d), int(w3d));
     const int sumOfWeights = weights[0] + weights[1] + weights[2] + weights[3];
     const ivec2 offsets[4] = ivec2[4](ivec2(0, 0), ivec2(1, 0), ivec2(0, 1), ivec2(1, 1));

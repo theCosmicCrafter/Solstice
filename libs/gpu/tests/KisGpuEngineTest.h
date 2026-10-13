@@ -33,6 +33,9 @@ private Q_SLOTS:
     void testCompositeOverMatchesKoCompositeOp();
     void testCompositeOverF16();
     void testSharedComputePipelines();
+    void testPreciseContraction_data();
+    void testPreciseContraction();
+    void testBlendProbe();
     void benchmarkCompositeStack();
 
 private:

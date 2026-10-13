@@ -853,3 +853,15 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   reproducing a helper (`clamp<float>` and `clamp<half>` do nothing);
   GLSL transcendental functions need accurate replacements; compare NaN as
   equal and print inputs and outputs of the worst pixel in failure messages.
+
+## 2026-10-13 ingest: precise contraction audit (phase 4.109)
+
+- The driver keeps `precise` in small shaders but fused it in the real blend
+  code ([gpu-engine.md](../gpu-engine.md), "Precise contraction audit
+  (phase 4.109)"; [history](history/gpu-phases-4.93-.md#precise-contraction-audit-phase-4109));
+  `testBlendProbe` is the reproduction, `roundedProduct()` the remedy, now
+  also in the F16 lerps, F16 Alpha Darken and Liquify.
+- Lesson ([cpu-gpu-bit-parity.md](concepts/cpu-gpu-bit-parity.md),
+  technique 10): a minimal reproduction can hide a context-dependent driver
+  behavior; keep the reproduction that calls the real code. Updated the
+  phase numbering page ([gpu-phase-numbering.md](decisions/gpu-phase-numbering.md)).

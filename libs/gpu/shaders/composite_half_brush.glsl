@@ -7,7 +7,8 @@
 float halfValue(float value) { return float(float16_t(value)); }
 float halfLerp(float a, float b, float blend)
 {
-    precise float value = (b - a) * blend + a;
+    // roundedProduct(): the driver may fuse a precise multiply-add (phase 4.109)
+    precise float value = roundedProduct(b - a, blend) + a;
     return halfValue(value);
 }
 vec4 overHalf(vec4 dst, vec4 src, float opacity, float maskByte, bool masked, uint channels, bool explicitFlags)
@@ -29,7 +30,7 @@ vec4 overHalf(vec4 dst, vec4 src, float opacity, float maskByte, bool masked, ui
             blend = halfValue(a / alpha);
         }
     }
-    precise vec3 color = blend == 1.0 ? src.rgb : (src.rgb - dst.rgb) * blend + dst.rgb;
+    precise vec3 color = blend == 1.0 ? src.rgb : roundedProduct(src.rgb - dst.rgb, blend) + dst.rgb;
     if ((channels & 1) == 0) color.r = dst.r;
     if ((channels & 2) == 0) color.g = dst.g;
     if ((channels & 4) == 0) color.b = dst.b;
