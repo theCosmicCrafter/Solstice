@@ -26,7 +26,8 @@ public:
 };
 
 /**
- * @brief The KisNewsWidget class shows the latest news from Krita.org
+ * @brief The KisNewsWidget class shows the latest news from Krita.org and,
+ * below them, the releases of the Solstice repository (Solstice)
  */
 class KisNewsWidget : public QWidget, public Ui::KisNewsPage
 {
@@ -47,11 +48,13 @@ private Q_SLOTS:
     void toggleNews(bool toggle);
     void itemSelected(const QModelIndex &idx);
     void rssDataChanged();
+    void updateReleasesPlaceholder();
     void slotScrollerStateChanged(QScroller::State state){ KisKineticScroller::updateCursor(this, state); }
 
 private:
     bool m_getNews {false};
     MultiFeedRssModel *m_rssModel {0};
+    MultiFeedRssModel *m_releasesModel{nullptr};
     QString m_analyticsTrackingParameters;
     QSet<QString> m_enabledFeeds;
 };

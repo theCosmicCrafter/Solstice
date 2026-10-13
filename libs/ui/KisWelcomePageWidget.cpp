@@ -180,12 +180,15 @@ KisWelcomePageWidget::KisWelcomePageWidget(QWidget *parent)
     ShowNewsAction *showNewsAction =
         new ShowNewsAction(i18n("Enable news and check for new releases"), newsOptionsMenu);
 #else
-    // Solstice: no release checks (ENABLE_UPDATERS is off); the news are upstream Krita's.
-    ShowNewsAction *showNewsAction = new ShowNewsAction(i18n("Enable upstream Krita news"), newsOptionsMenu);
+    // Solstice: no release checks (ENABLE_UPDATERS is off); the news are
+    // upstream Krita's, with Solstice's releases below them
+    ShowNewsAction *showNewsAction =
+        new ShowNewsAction(i18n("Enable Krita news and Solstice releases"), newsOptionsMenu);
 #endif
     newsOptionsMenu->addAction(showNewsAction);
     showNewsAction->setToolTip(
-        i18n("Show upstream Krita news: this needs internet to retrieve information from the krita.org website"));
+        i18n("Show upstream Krita news and Solstice releases: this needs internet to retrieve information from "
+             "the krita.org website and Solstice's GitHub repository"));
     showNewsAction->setCheckable(true);
 
     newsOptionsMenu->addSection(i18n("Language"));
@@ -405,7 +408,7 @@ void KisWelcomePageWidget::slotUpdateThemeColors()
 
     QString translationNoFeed = i18n(
         "You can <a href=\"ignored\" style=\"color: COLOR_PLACEHOLDER; text-decoration: underline;\">enable news</a> "
-        "from krita.org in various languages with the menu above");
+        "from krita.org in various languages, and Solstice's releases, with the menu above");
     labelNoFeed->setText(translationNoFeed.replace("COLOR_PLACEHOLDER", blendedColor.name()));
 
     const QColor faintTextColor = KisPaintingTweaks::blendColors(textColor, backgroundColor, 0.4);

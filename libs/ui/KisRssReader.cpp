@@ -81,6 +81,43 @@ RssItem KisRssReader::parseItem() {
     return RssItem();
 }
 
+// Solstice: an Atom <entry>, as GitHub's release feed writes it
+// (docs/agent/welcome-news.md)
+RssItem KisRssReader::parseAtomEntry(QXmlStreamReader &streamReader)
+{
+    RssItem item;
+    item.source = requestUrl;
+    item.blogIcon = blogIcon;
+    item.blogName = blogName;
+    while (!streamReader.atEnd()) {
+        switch (streamReader.readNext()) {
+        case QXmlStreamReader::StartElement:
+            if (streamReader.name() == QLatin1String("title")) {
+                item.title = streamReader.readElementText();
+            } else if (streamReader.name() == QLatin1String("link")) {
+                const QXmlStreamAttributes attributes = streamReader.attributes();
+                const QStringView rel = attributes.value(QLatin1String("rel"));
+                if (rel.isEmpty() || rel == QLatin1String("alternate")) {
+                    item.link = attributes.value(QLatin1String("href")).toString();
+                }
+            } else if (streamReader.name() == QLatin1String("updated")) {
+                item.pubDate = QDateTime::fromString(streamReader.readElementText(), Qt::ISODate);
+            } else if (streamReader.name() == QLatin1String("content")
+                       || (streamReader.name() == QLatin1String("summary") && item.description.isEmpty())) {
+                item.description = streamReader.readElementText();
+            }
+            break;
+        case QXmlStreamReader::EndElement:
+            if (streamReader.name() == QLatin1String("entry"))
+                return item;
+            break;
+        default:
+            break;
+        }
+    }
+    return RssItem();
+}
+
 RssItemList KisRssReader::parseStream(QXmlStreamReader &streamReader) {
     RssItemList list;
     while (!streamReader.atEnd()) {
@@ -88,6 +125,8 @@ RssItemList KisRssReader::parseStream(QXmlStreamReader &streamReader) {
         case QXmlStreamReader::StartElement:
             if (streamReader.name() == QLatin1String("item"))
                 list.append(parseItem());
+            else if (streamReader.name() == QLatin1String("entry"))
+                list.append(parseAtomEntry(streamReader));
             else if (streamReader.name() == QLatin1String("title"))
                 blogName = streamReader.readElementText();
             else if (streamReader.name() == QLatin1String("link")) {

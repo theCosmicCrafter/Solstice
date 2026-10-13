@@ -28,25 +28,122 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QListView" name="listNews">
-     <property name="cursor" stdset="0">
-      <cursorShape>PointingHandCursor</cursorShape>
+    <widget class="QSplitter" name="newsSplitter">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
      </property>
-     <property name="frameShape">
-      <enum>QFrame::NoFrame</enum>
+     <property name="childrenCollapsible">
+      <bool>false</bool>
      </property>
-     <property name="frameShadow">
-      <enum>QFrame::Plain</enum>
-     </property>
-     <property name="lineWidth">
-      <number>0</number>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::NoEditTriggers</set>
-     </property>
-     <property name="spacing">
-      <number>4</number>
-     </property>
+     <widget class="QWidget" name="kritaNewsSection">
+      <layout class="QVBoxLayout" name="kritaNewsLayout">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="labelKritaNews">
+         <property name="text">
+          <string>Krita news</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListView" name="listNews">
+         <property name="cursor" stdset="0">
+          <cursorShape>PointingHandCursor</cursorShape>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Plain</enum>
+         </property>
+         <property name="lineWidth">
+          <number>0</number>
+         </property>
+         <property name="editTriggers">
+          <set>QAbstractItemView::NoEditTriggers</set>
+         </property>
+         <property name="spacing">
+          <number>4</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="solsticeReleasesSection">
+      <layout class="QVBoxLayout" name="solsticeReleasesLayout">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>6</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="labelSolsticeReleases">
+         <property name="text">
+          <string>Solstice releases</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="labelNoReleases">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>No Solstice release has been published yet.</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListView" name="listReleases">
+         <property name="cursor" stdset="0">
+          <cursorShape>PointingHandCursor</cursorShape>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Plain</enum>
+         </property>
+         <property name="lineWidth">
+          <number>0</number>
+         </property>
+         <property name="editTriggers">
+          <set>QAbstractItemView::NoEditTriggers</set>
+         </property>
+         <property name="spacing">
+          <number>4</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>

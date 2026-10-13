@@ -9,10 +9,11 @@
 #include <simpletest.h>
 #include <QSignalSpy>
 
-#include <MockNetworkAccessManager.h>
 #include <KisMultiFeedRSSModel.h>
+#include <KisRssReader.h>
+#include <MockNetworkAccessManager.h>
+#include <QTimeZone>
 #include <testutil.h>
-
 
 KisMultiFeedRssModelTest::KisMultiFeedRssModelTest(QObject *parent) : QObject(parent)
 {
@@ -177,6 +178,22 @@ void KisMultiFeedRssModelTest::testRemoveFeed_data()
             << listTest2
             << urlFeed1
             << 10;
+}
+
+// Solstice: GitHub's release feed is Atom (docs/agent/welcome-news.md)
+void KisMultiFeedRssModelTest::testAtomFeed()
+{
+    QFile file(TestUtil::fetchDataFileLazy("rss_feeds/releases.atom"));
+    KisRssReader reader;
+    const RssItemList items = reader.parse(file);
+    QCOMPARE(items.size(), 2);
+    QCOMPARE(items[0].title, QStringLiteral("Solstice 0.2.0"));
+    QCOMPARE(items[0].link, QStringLiteral("https://github.com/udtren/Solstice/releases/tag/v0.2.0"));
+    QCOMPARE(items[0].pubDate.toUTC(), QDateTime(QDate(2026, 10, 20), QTime(0, 0), QTimeZone::UTC));
+    QVERIFY(items[0].description.startsWith(QStringLiteral("<p>The first release.</p>")));
+    QCOMPARE(items[0].blogName, QStringLiteral("Release notes from Solstice"));
+    QCOMPARE(items[1].title, QStringLiteral("Solstice 0.2.0-beta"));
+    QCOMPARE(items[1].pubDate.toUTC(), QDateTime(QDate(2026, 10, 13), QTime(9, 0), QTimeZone::UTC));
 }
 
 SIMPLE_TEST_MAIN(KisMultiFeedRssModelTest);

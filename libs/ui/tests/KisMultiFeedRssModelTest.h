@@ -22,6 +22,8 @@ private Q_SLOTS:
 
     void testRemoveFeed();
     void testRemoveFeed_data();
+
+    void testAtomFeed();
 };
 
 #endif // KISMULTIFEEDRSSMODELTEST_H

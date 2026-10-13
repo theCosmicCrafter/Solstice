@@ -71,6 +71,8 @@ public:
     RssItemList parse(QFile& file);
 
 private:
+    RssItem parseAtomEntry(QXmlStreamReader &streamReader);
+
     QXmlStreamReader m_streamReader;
     QString requestUrl;
     QString blogIcon;

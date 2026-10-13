@@ -958,3 +958,10 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   week, exposes a stale lock at once. Refresh the lock before a release,
   and read the dependency recipe diff between the old and new source
   revisions to know what is really changing.
+
+## 2026-10-13 ingest: welcome page Solstice releases
+
+- The welcome page News is split: Krita news above, the Solstice
+  repository's GitHub releases (Atom feed) below, both behind the existing
+  opt-in news switch ([welcome news](../welcome-news.md)). KisRssReader
+  reads Atom entries now.

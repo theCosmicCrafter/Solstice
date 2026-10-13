@@ -29,5 +29,9 @@ compatibility depends on it:
 ## Updates
 
 Solstice does not check for new versions yet. Krita's update check is
-turned off, because it would announce Krita releases. The welcome page news
-option shows upstream Krita news only.
+turned off, because it would announce Krita releases.
+
+The welcome page's News area has two parts: upstream Krita news at the top
+and Solstice releases (from the Solstice GitHub repository) below. Turn them
+on with **Enable Krita news and Solstice releases** in the News menu; until
+then Solstice does not connect to krita.org or GitHub for them.

@@ -74,29 +74,60 @@ QSize KisNewsDelegate::sizeHint(const QStyleOptionViewItem &option, const QModel
     return QSize(doc.idealWidth(), doc.size().height());
 }
 
+namespace
+{
+// Solstice: the releases of the Solstice repository, below Krita's news
+// (docs/agent/welcome-news.md)
+const QString solsticeReleasesFeed = QStringLiteral("https://github.com/udtren/Solstice/releases.atom");
+} // namespace
+
 KisNewsWidget::KisNewsWidget(QWidget *parent)
     : QWidget(parent)
     , m_getNews(false)
     , m_rssModel(0)
 {
     setupUi(this);
-    listNews->viewport()->setAutoFillBackground(false);
-    listNews->installEventFilter(this);
-    listNews->setVerticalScrollMode(QListView::ScrollPerPixel);
-    listNews->verticalScrollBar()->setSingleStep(50);
-    {
-        QScroller* scroller = KisKineticScroller::createPreconfiguredScroller(listNews);
+    for (QListView *list : {listNews, listReleases}) {
+        list->viewport()->setAutoFillBackground(false);
+        list->installEventFilter(this);
+        list->setVerticalScrollMode(QListView::ScrollPerPixel);
+        list->verticalScrollBar()->setSingleStep(50);
+        QScroller *scroller = KisKineticScroller::createPreconfiguredScroller(list);
         if (scroller) {
             connect(scroller, SIGNAL(stateChanged(QScroller::State)), this, SLOT(slotScrollerStateChanged(QScroller::State)));
         }
+        list->setItemDelegate(new KisNewsDelegate(list));
     }
 
     m_rssModel = new MultiFeedRssModel(this);
     connect(m_rssModel, SIGNAL(feedDataChanged()), this, SLOT(rssDataChanged()), Qt::UniqueConnection);
 
     listNews->setModel(m_rssModel);
-    listNews->setItemDelegate(new KisNewsDelegate(listNews));
     connect(listNews, SIGNAL(clicked(QModelIndex)), this, SLOT(itemSelected(QModelIndex)));
+
+    m_releasesModel = new MultiFeedRssModel(this);
+    listReleases->setModel(m_releasesModel);
+    connect(m_releasesModel, &MultiFeedRssModel::feedDataChanged, this, &KisNewsWidget::updateReleasesPlaceholder);
+    connect(listReleases, &QListView::clicked, this, [](const QModelIndex &index) {
+        if (index.isValid()) {
+            QDesktopServices::openUrl(QUrl(index.data(KisRssReader::RssRoles::LinkRole).toString()));
+        }
+    });
+
+    QFont headingFont = labelKritaNews->font();
+    headingFont.setBold(true);
+    labelKritaNews->setFont(headingFont);
+    labelSolsticeReleases->setFont(headingFont);
+    newsSplitter->setStretchFactor(0, 1);
+    newsSplitter->setStretchFactor(1, 1);
+    updateReleasesPlaceholder();
+}
+
+void KisNewsWidget::updateReleasesPlaceholder()
+{
+    const bool empty = m_releasesModel->rowCount() == 0;
+    labelNoReleases->setVisible(empty);
+    listReleases->setVisible(!empty);
 }
 
 void KisNewsWidget::setAnalyticsTracking(QString text)
@@ -106,9 +137,10 @@ void KisNewsWidget::setAnalyticsTracking(QString text)
 
 bool KisNewsWidget::eventFilter(QObject *watched, QEvent *event)
 {
-    if (watched == listNews && event->type() == QEvent::Leave) {
-        listNews->clearSelection();
-        listNews->setCurrentIndex(QModelIndex());
+    QListView *list = qobject_cast<QListView *>(watched);
+    if ((list == listNews || list == listReleases) && event->type() == QEvent::Leave) {
+        list->clearSelection();
+        list->setCurrentIndex(QModelIndex());
     }
     return QWidget::eventFilter(watched, event);
 }
@@ -153,6 +185,12 @@ void KisNewsWidget::toggleNews(bool toggle)
             m_rssModel->removeFeed(feed);
         }
     }
+    if (toggle) {
+        m_releasesModel->addFeed(solsticeReleasesFeed);
+    } else {
+        m_releasesModel->removeFeed(solsticeReleasesFeed);
+    }
+    updateReleasesPlaceholder();
 }
 
 void KisNewsWidget::itemSelected(const QModelIndex &idx)
