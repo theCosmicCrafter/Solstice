@@ -19,15 +19,32 @@ struct ThumbnailRecord {
     QImage image;
     int seqNo = -1;
     int maxSize = 0;
+    // Solstice: the node is tracked here, not in the map key. A KisNodeWSP
+    // key compares as nullptr once its node is destroyed, which breaks the
+    // map's ordering and hides the records of living nodes.
+    KisNodeWSP node;
 };
+
+// Records are keyed by the node's address. The address may be reused by a
+// new node after the old one is destroyed, so a record only belongs to a
+// node while its weak pointer is still valid and points to that node.
+using ThumbnailMap = QMap<const KisNode *, ThumbnailRecord>;
+
+ThumbnailMap::const_iterator findRecord(const ThumbnailMap &cache, KisNodeSP node)
+{
+    auto it = cache.constFind(node.data());
+    if (it != cache.constEnd() && (!it->node.isValid() || it->node != node.data())) {
+        it = cache.constEnd();
+    }
+    return it;
+}
 } // namespace
 
 struct ThumbnailsStroke : KisIdleTaskStrokeStrategy
 {
     Q_OBJECT
 public:
-
-    ThumbnailsStroke(KisImageSP image, int maxSize, const QMap<KisNodeWSP, ThumbnailRecord> &cache)
+    ThumbnailsStroke(KisImageSP image, int maxSize, const ThumbnailMap &cache)
         : KisIdleTaskStrokeStrategy(QLatin1String("layer-thumbnails-stroke"), kundo2_i18n("Update layer thumbnails"))
         , m_root(image->root())
         , m_maxSize(maxSize)
@@ -53,9 +70,9 @@ public:
 
             bool shouldRegenerateThumbnail = false;
 
-            auto it = m_cache.find(node);
+            auto it = findRecord(m_cache, node);
 
-            if (it != m_cache.end()) {
+            if (it != m_cache.constEnd()) {
                 ThumbnailRecord rec = *it;
 
                 if (rec.seqNo != node->thumbnailSeqNo() ||
@@ -97,8 +114,7 @@ private:
 
     KisNodeSP m_root;
     int m_maxSize;
-    QMap<KisNodeWSP, ThumbnailRecord> m_cache;
-
+    ThumbnailMap m_cache;
 };
 
 struct KisLayerThumbnailCache::Private
@@ -107,7 +123,7 @@ struct KisLayerThumbnailCache::Private
 
     KisIdleTasksManager::TaskGuard taskGuard;
     int maxSize = 32;
-    QMap<KisNodeWSP, ThumbnailRecord> cache;
+    ThumbnailMap cache;
 
     void cleanupDeletedNodes();
 };
@@ -175,8 +191,8 @@ QImage KisLayerThumbnailCache::thumbnail(KisNodeSP node) const
 {
     QImage image;
 
-    auto it = m_d->cache.find(node);
-    if (it != m_d->cache.end()) {
+    auto it = findRecord(m_d->cache, node);
+    if (it != m_d->cache.constEnd()) {
         image = it->image;
 
         if (it->maxSize > m_d->maxSize) {
@@ -193,7 +209,7 @@ QImage KisLayerThumbnailCache::thumbnail(KisNodeSP node) const
 void KisLayerThumbnailCache::Private::cleanupDeletedNodes()
 {
     for (auto it = cache.begin(); it != cache.end();) {
-        if (!it.key()) {
+        if (!it->node.isValid()) {
             it = cache.erase(it);
         } else {
             ++it;
@@ -229,7 +245,7 @@ void KisLayerThumbnailCache::slotThumbnailGenerated(KisNodeSP node, int seqNo, i
         return;
     }
 
-    m_d->cache[node] = {thumb, seqNo, maxSize};
+    m_d->cache[node.data()] = {thumb, seqNo, maxSize, node};
     Q_EMIT sigLayerThumbnailUpdated(node);
 }
 

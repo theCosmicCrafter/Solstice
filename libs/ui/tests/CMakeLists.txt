@@ -211,6 +211,10 @@ kis_add_test(KisBrushStrokePreviewTest.cpp ../widgets/kis_preset_live_preview_vi
     TEST_NAME KisBrushStrokePreviewTest LINK_LIBRARIES kritaui kritatestsdk)
 target_link_libraries(KisBrushStrokePreviewTest kritamypaintop_static)
 
+# Solstice: layer docker thumbnails after removed layers are destroyed
+kis_add_test(KisLayerThumbnailCacheTest.cpp
+    TEST_NAME KisLayerThumbnailCacheTest LINK_LIBRARIES kritaui kritatestsdk)
+
 if(HAVE_KRITA_GPU_ENGINE AND WIN32)
     kis_add_tests(KisCanvasUpdateBatcherTest.cpp
         LINK_LIBRARIES kritaui kritatestsdk)

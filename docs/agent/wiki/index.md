@@ -1,6 +1,6 @@
 ---
 type: index
-updated: 2026-10-08
+updated: 2026-10-12
 ---
 
 # Agent wiki
@@ -86,6 +86,9 @@ matches the task.
 - [Build, format and test pitfalls](pitfalls/build-format-test.md):
   clang-format include sorting, shells, shader and struct layout mistakes,
   test environment, installation (including plugins after a vtable change).
+- [Weak pointers as ordered map keys](pitfalls/weak-pointer-map-keys.md):
+  a `KisWeakSharedPtr` key turns into `nullptr` when its object dies and
+  corrupts the map (missing layer docker thumbnails).
 
 ### Benchmarks
 
