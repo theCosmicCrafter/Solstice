@@ -13,8 +13,8 @@ User instructions: `docs/test-builds.md`.
 
 ## Dependency and build files
 
-- `build-tools/github-actions/windows-dependencies.lock.json`: 86 public
-  KDE Windows package versions, download URLs, sizes, SHA-256 checksums,
+- `build-tools/github-actions/windows-dependencies.lock.json`: 87 public
+  KDE Windows package versions (86 until the 2026-10-13 refresh below), download URLs, sizes, SHA-256 checksums,
   source recipe revisions and dependency relationships. The package set was
   seeded from the local Qt6 dependency inventory. Some older local versions
   were already absent from the registry, so available versions on the same
@@ -75,6 +75,38 @@ upload complete. Do not report a skipped GPU test as passed.
 No broad UI tests or `kis_kra_saver_test` run here. Interactive painting,
 Undo/Redo, save/reload and Vulkan/OpenGL sharing remain manual real-hardware
 checks. No local application restart is required for workflow-only changes.
+
+## Lock refresh (2026-10-13)
+
+The first build on `main` (run
+<https://github.com/udtren/Solstice/actions/runs/38406141485>) failed in
+"Prepare dependencies": all 86 locked packages (`transition.now-qt6-179033…`,
+source revision `31c578a`) returned HTTP 404; the registry keeps only recent
+builds. `krita-sol-gpu` still built because its branch-scoped Actions cache
+held the old set (caches are per branch; one saved on the default branch is
+shared, others are not, and an unused cache expires after seven days).
+
+`build-tools/github-actions/refresh-dependency-lock.py` regenerates the lock
+from the registry API: for every locked package, the newest
+`transition.now-qt6-<timestamp>` build whose `metadata.json` names the branch
+`transition.now/qt6`, with the registry's size and SHA-256 of `archive.tar`,
+the metadata's source revision and dependencies. It reports dependencies
+outside the set; toolchain and Vulkan entries are kept. All URLs were checked
+(HEAD, sizes match); the checksums are verified by the bootstrap on download.
+
+Result: 87 packages at source revision `4aff6eb` of
+`packaging/krita-deps-management` (builds of 2026-10-09). The branch merged
+master's dependency updates, so this is a version upgrade, not only a
+rebuild: Boost 1.81 → 1.90, Eigen 3.4.0 → 5.0.1, exiv2 0.27.5 → 0.28.8,
+FFmpeg 7.1.1 → 8.0.1, expat 2.4.8 → 2.7.5, brotli 1.1.0 → 1.2.0, dlfcn-win32
+1.3.1 → 1.4.2, DrMingw 0.9.7 → 0.9.13 and others; Imath is a separate package
+(`ext_imath`, needed by `ext_openexr`). Qt stays on KDE's 6.11.0 fork
+(`QT_GIT_TAG` `3a13b2d` → `97e5e18`: Wayland and Android fixes; the move to
+6.11.3 was reverted upstream). Both revisions were built on the
+`krita-windows-clang21` image, matching LLVM-MinGW 20251118. Solstice's
+source already handles exiv2 0.28 (`EXIV2_TEST_VERSION(0,28,0)`) and prefers
+Eigen 5 (`find_package(Eigen3 5)`, 3.3 fallback). The local
+development dependencies are not affected.
 
 ## First trial run (2026-10-03)
 

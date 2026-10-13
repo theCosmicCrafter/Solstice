@@ -15,68 +15,64 @@
   "packages": [
     {
       "name": "ext_boost",
-      "version": "transition.now-qt6-1790332302",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_boost/transition.now-qt6-1790332302/archive.tar",
-      "sha256": "f48c311675a9734c97c4970c14089927677f12cb3cfb66ee81f60ff3b4f790f5",
-      "size": 177059840,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "version": "transition.now-qt6-1791547283",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_boost/transition.now-qt6-1791547283/archive.tar",
+      "sha256": "9f903764deb9d42735b6fbcc44a916584ad9daef8bae1d69625380503cb1b3b4",
+      "size": 181657600,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_brotli",
-      "version": "transition.now-qt6-1790332356",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_brotli/transition.now-qt6-1790332356/archive.tar",
-      "sha256": "fbf87be42533aa583354c161ee071fe63b2ab6008d85c1f34feaf072723a1857",
-      "size": 1832960,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "version": "transition.now-qt6-1791547316",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_brotli/transition.now-qt6-1791547316/archive.tar",
+      "sha256": "9e9bb6c3a3494ebeb6de4d5210fbead6018871c38334ad4997ea770f0509a0ab",
+      "size": 1976320,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_dlfcn_win32",
-      "version": "transition.now-qt6-1790331660",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_dlfcn_win32/transition.now-qt6-1790331660/archive.tar",
-      "sha256": "c9374918dedf8f80dcac79683ea2c95b02df30fe6bb1d8eda3c983ef90d5f909",
+      "version": "transition.now-qt6-1791549072",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_dlfcn_win32/transition.now-qt6-1791549072/archive.tar",
+      "sha256": "256c80aaaa721e6213aab752f73b7e7d28066c1308317c7a9aa66e1afb0e4531",
       "size": 133120,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_drmingw",
-      "version": "transition.now-qt6-1790331698",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_drmingw/transition.now-qt6-1790331698/archive.tar",
-      "sha256": "453cdfa86e8994c37506c6ee294995926f0edf79ffe1f63b1a2072b1a742dca7",
-      "size": 4362240,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791549154",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_drmingw/transition.now-qt6-1791549154/archive.tar",
+      "sha256": "fa5548937bee4d72681b76221561bb792f3fb6aac8d7a9cd918659e940e6a40d",
+      "size": 8069120,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_eigen3",
-      "version": "transition.now-qt6-1790331057",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_eigen3/transition.now-qt6-1790331057/archive.tar",
-      "sha256": "9194dedf0a94c392640edb1cb9cc20f59e3902828551da8dcb081a8a05b68472",
-      "size": 9768960,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791547325",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_eigen3/transition.now-qt6-1791547325/archive.tar",
+      "sha256": "6b13e2e2049cc745ea0f7268b39f7289d52208d7dee21f5e5ec780e26e709de3",
+      "size": 11182080,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_exiv2",
-      "version": "transition.now-qt6-1790332449",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_exiv2/transition.now-qt6-1790332449/archive.tar",
-      "sha256": "2bab50a23ec590bbf14148089017fde37eb1e54f7f1bedfc7d2ef65dfbcad2c3",
-      "size": 12328960,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791549392",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_exiv2/transition.now-qt6-1791549392/archive.tar",
+      "sha256": "3fea04556cbeaf3f9cb13315487d6d6f137e20bf499719d86a1042235cbbd503",
+      "size": 12851200,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_expat": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
+        "ext_brotli": "transition.now/qt6",
         "ext_iconv": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
@@ -84,35 +80,32 @@
     },
     {
       "name": "ext_expat",
-      "version": "transition.now-qt6-1790331092",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_expat/transition.now-qt6-1790331092/archive.tar",
-      "sha256": "debdb5c27e6c5da4bf6dfa9da1ed19d767f8974d5fc0a807ceddf7acf8650388",
-      "size": 849920,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791547350",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_expat/transition.now-qt6-1791547350/archive.tar",
+      "sha256": "73bcccb67e7b5d90b9baf8d708a29f2c446aa9c4de5af1b5681181cc45e6c2ba",
+      "size": 819200,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_extra_cmake_modules",
-      "version": "transition.now-qt6-1790332464",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_extra_cmake_modules/transition.now-qt6-1790332464/archive.tar",
-      "sha256": "e5bc5da4feefa0a62ccc0e9b1c825730ce11bfec1ee6feb17d97e734ce5419cc",
+      "version": "transition.now-qt6-1791547361",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_extra_cmake_modules/transition.now-qt6-1791547361/archive.tar",
+      "sha256": "f7efaf45f067d747140f7c2d5360be7ca631bacc5552b2b83b10c6bb1d5035f1",
       "size": 1003520,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_ffmpeg",
-      "version": "transition.now-qt6-1790340061",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_ffmpeg/transition.now-qt6-1790340061/archive.tar",
-      "sha256": "73db51a1a0980e068614e4c11d849728fc9e082e21fcc946809d4c36b331cf9b",
-      "size": 151429120,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791551791",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_ffmpeg/transition.now-qt6-1791551791/archive.tar",
+      "sha256": "8b91765622eb458bc0624b30ffda99503eee51d5055ec73ea3d39dcfa2414588",
+      "size": 161423360,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_iconv": "transition.now/qt6",
         "ext_flac": "transition.now/qt6",
         "ext_opus": "transition.now/qt6",
@@ -135,23 +128,21 @@
     },
     {
       "name": "ext_fftw3",
-      "version": "transition.now-qt6-1790332568",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_fftw3/transition.now-qt6-1790332568/archive.tar",
-      "sha256": "42cddb2c3e082d53331c551fb29bd3418d15c7720afeade2cce3058af5145d57",
+      "version": "transition.now-qt6-1791547431",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_fftw3/transition.now-qt6-1791547431/archive.tar",
+      "sha256": "8e2ba4e936722dfac7ba2f97f10618fd61b683d86d1e8983aa37a4d6c4b28318",
       "size": 3706880,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_flac",
-      "version": "transition.now-qt6-1790337818",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_flac/transition.now-qt6-1790337818/archive.tar",
-      "sha256": "ececb615cad9cba9ca240c843bdcf95feba587111652460f885ed0ecf7b8a969",
-      "size": 1925120,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791549642",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_flac/transition.now-qt6-1791549642/archive.tar",
+      "sha256": "113bdd688c3c7118bd789eb0bfc5a22b5cc2c5920c391db1fed348b01e26fa06",
+      "size": 1996800,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_pkgconfig": "transition.now/qt6",
         "ext_libogg": "transition.now/qt6"
@@ -160,15 +151,14 @@
     },
     {
       "name": "ext_fontconfig",
-      "version": "transition.now-qt6-1790339042",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_fontconfig/transition.now-qt6-1790339042/archive.tar",
-      "sha256": "33819e99c895bdee87b201140fdce5107ffbbadbbcdf03e82d23583b62914ae3",
-      "size": 4382720,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791552514",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_fontconfig/transition.now-qt6-1791552514/archive.tar",
+      "sha256": "948387aececa4d4297d57da437b9eac05455c9a4819d4c947c116001ed6e3a00",
+      "size": 3379200,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_freetype": "transition.now/qt6",
         "ext_expat": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
         "ext_gperf": "transition.now/qt6",
         "ext_pkgconfig": "transition.now/qt6",
         "ext_gettext": "transition.now/qt6"
@@ -177,161 +167,151 @@
     },
     {
       "name": "ext_freetype",
-      "version": "transition.now-qt6-1790334579",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_freetype/transition.now-qt6-1790334579/archive.tar",
-      "sha256": "ed4d4be640d27eddc64f9f8861cd987322b68853b271cef3515aea22c9efcecc",
-      "size": 53104640,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791550126",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_freetype/transition.now-qt6-1791550126/archive.tar",
+      "sha256": "a492b58d89d861a27a964e03981b1f6c05c9ce2e32808ee483021de6ba8dbb2b",
+      "size": 91965440,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_png": "transition.now/qt6",
         "ext_icu": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
         "ext_pkgconfig": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_fribidi",
-      "version": "transition.now-qt6-1790331118",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_fribidi/transition.now-qt6-1790331118/archive.tar",
-      "sha256": "fea30fd0f41f58794c1797b93d8fc42743ac4c4520b3bb1a286f5b4c5ccb98e7",
-      "size": 747520,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791547457",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_fribidi/transition.now-qt6-1791547457/archive.tar",
+      "sha256": "22d638bce58db989b456e3f4f1596910780c4bc38b9fe826bf4e59d34306bfa2",
+      "size": 757760,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_gettext",
-      "version": "transition.now-qt6-1790331933",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_gettext/transition.now-qt6-1790331933/archive.tar",
-      "sha256": "34e9057d339fea35f5b0c11fb088332ed3dd376b4f5145e9187d69c7d5860fd5",
-      "size": 43079680,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791549263",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_gettext/transition.now-qt6-1791549263/archive.tar",
+      "sha256": "32b307af68435e5941f6d5893be1ff9dfb519ec07527a2daf7b5933472be65ec",
+      "size": 43110400,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_iconv": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_giflib",
-      "version": "transition.now-qt6-1790332607",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_giflib/transition.now-qt6-1790332607/archive.tar",
-      "sha256": "8f033d6d7b2842cafdd393a63a29474da520a9015ccf6771f2c59278b909fbe0",
+      "version": "transition.now-qt6-1791547482",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_giflib/transition.now-qt6-1791547482/archive.tar",
+      "sha256": "565112cd92c38fbed45db9074a74f6afbb65b1880c02b6a52f115aa5ca646fc6",
       "size": 204800,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_googleangle",
-      "version": "transition.now-qt6-1790334452",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_googleangle/transition.now-qt6-1790334452/archive.tar",
-      "sha256": "aa282b1ee677118ff4236d9a6697be2b8f594474805c628873859d2f47874ad3",
+      "version": "transition.now-qt6-1791550029",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_googleangle/transition.now-qt6-1791550029/archive.tar",
+      "sha256": "e5ee8ec9a3d6475c1cf16d71e721d64809ddf4d4d5ddcd1b332a9b81dee774c8",
       "size": 81070080,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_gperf",
-      "version": "transition.now-qt6-1790331737",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_gperf/transition.now-qt6-1790331737/archive.tar",
-      "sha256": "68d85768e97ba6e50a93483ab2fb3ff665bc3f94dd64abce8fe32c1f72066e5a",
+      "version": "transition.now-qt6-1791549177",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_gperf/transition.now-qt6-1791549177/archive.tar",
+      "sha256": "8a621599eb61ff67d1d05b55c8942f2f4bc5a13d328012ce6696c6ec1f1596cc",
       "size": 440320,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_gsl",
-      "version": "transition.now-qt6-1790332727",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_gsl/transition.now-qt6-1790332727/archive.tar",
-      "sha256": "85c606791a6cc479e41b3167cdd41c4bfabce4a6399c57beb61e099a716234b8",
-      "size": 10608640,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "version": "transition.now-qt6-1791547527",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_gsl/transition.now-qt6-1791547527/archive.tar",
+      "sha256": "64a5a14c19465fd7807e4bfe8b63fa29f4e8757ffe4df2e8ec7d6f3889bc764f",
+      "size": 10997760,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_highway",
-      "version": "transition.now-qt6-1790331239",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_highway/transition.now-qt6-1790331239/archive.tar",
-      "sha256": "1cd7f16cc2d80173738ba52a834ef28534c9cc7b11677cd5e3f1581cfec89970",
-      "size": 46213120,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791547612",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_highway/transition.now-qt6-1791547612/archive.tar",
+      "sha256": "e049aeefb817cf7b2558eea05ff5987277bb4d55b56174f71abe50124542d9d0",
+      "size": 73553920,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_iconv",
-      "version": "transition.now-qt6-1790331591",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_iconv/transition.now-qt6-1790331591/archive.tar",
-      "sha256": "80d8725638e8c94f289380f5aa0489ce87c701ef467b99731ec41e892f5ad65c",
-      "size": 286720,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791548542",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_iconv/transition.now-qt6-1791548542/archive.tar",
+      "sha256": "031caead8dcf1c2b6e87e0b0c918be73695a915f100e52e3923aececa4240f18",
+      "size": 337920,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_icoutils",
-      "version": "transition.now-qt6-1790334477",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_icoutils/transition.now-qt6-1790334477/archive.tar",
-      "sha256": "d4e14fe182d452465819e9e2365b740f9e66a41fe20e465cfc1731dd5d2e941e",
+      "version": "transition.now-qt6-1791550053",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_icoutils/transition.now-qt6-1791550053/archive.tar",
+      "sha256": "4529b26a020d1f1e74819a6b3e8580e4cd20db0d5b4533abdbe01e1e745a1fab",
       "size": 399360,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_png": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6"
+        "ext_png": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_icu",
-      "version": "transition.now-qt6-1790332919",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_icu/transition.now-qt6-1790332919/archive.tar",
-      "sha256": "c9c91e39342e857dbabc2bfb92cc550a6059b0479819dc9c2932cd53ea9a3c8c",
+      "version": "transition.now-qt6-1791547707",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_icu/transition.now-qt6-1791547707/archive.tar",
+      "sha256": "3989ec0f0786115f855754de3fe4e71e832fc44cce2e5b4d4bccec89f337d857",
       "size": 82810880,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_immer",
-      "version": "transition.now-qt6-1790331259",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_immer/transition.now-qt6-1790331259/archive.tar",
-      "sha256": "4920eb858a5ad17f83fffd3a433b068688e9a22a8efb066407a12bfdacb809d7",
-      "size": 665600,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791547744",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_immer/transition.now-qt6-1791547744/archive.tar",
+      "sha256": "30e0f448074872a570dcbe25cc0412729f2bf269137170f778fdeb03d10ed319",
+      "size": 1013760,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_jpeg",
-      "version": "transition.now-qt6-1790331290",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_jpeg/transition.now-qt6-1790331290/archive.tar",
-      "sha256": "6b01a347f50fc0756c85d566a9f275f9ffc3d18bf7c5c686304dfa8948b05a92",
-      "size": 5601280,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791547801",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_jpeg/transition.now-qt6-1791547801/archive.tar",
+      "sha256": "ec2977d1aef2f4f50cb37fc37147825ddb8fde797d12fa200787e753bb599236",
+      "size": 7485440,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_jpegxl",
-      "version": "transition.now-qt6-1790334698",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_jpegxl/transition.now-qt6-1790334698/archive.tar",
-      "sha256": "01ebcc07043cc33c1358a5ceaca7a1d9f4a781c23eb7bcb96723e469cfacae93",
-      "size": 19619840,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791550185",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_jpegxl/transition.now-qt6-1791550185/archive.tar",
+      "sha256": "c548f96aff810ab5b5395d0ee1593aefce96dfabf3d5f95d20f7d5644d983653",
+      "size": 25016320,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_highway": "transition.now/qt6",
         "ext_brotli": "transition.now/qt6",
@@ -344,21 +324,21 @@
     },
     {
       "name": "ext_json_c",
-      "version": "transition.now-qt6-1790331338",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_json_c/transition.now-qt6-1790331338/archive.tar",
-      "sha256": "ad0abac62a46855ceca84b82ab1aeb611844763c0cc179e6a1b330fe97cc9949",
+      "version": "transition.now-qt6-1791547879",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_json_c/transition.now-qt6-1791547879/archive.tar",
+      "sha256": "23eb2d2d093ac108b2834aa5c5dfc9eda9c3f0d2ba2c6f0ea0f36e4d8618234e",
       "size": 849920,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_karchive",
-      "version": "transition.now-qt6-1790339131",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_karchive/transition.now-qt6-1790339131/archive.tar",
-      "sha256": "21ecfb8a5b1146779016457f97385a77b7f393d9ad2f686bf70c1168e53c0602",
+      "version": "transition.now-qt6-1791552586",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_karchive/transition.now-qt6-1791552586/archive.tar",
+      "sha256": "4cdd15ea7640345e7bf64468338e3e4a161aa8bd0210f882a55ea00ec30a45cf",
       "size": 1740800,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
@@ -367,11 +347,11 @@
     },
     {
       "name": "ext_kcodecs",
-      "version": "transition.now-qt6-1790339216",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kcodecs/transition.now-qt6-1790339216/archive.tar",
-      "sha256": "c5b5cf57e218286ae85aca3a1a8d5a100a5a0ddcba00fe1cc09b5d9abc6691c3",
+      "version": "transition.now-qt6-1791552636",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kcodecs/transition.now-qt6-1791552636/archive.tar",
+      "sha256": "9496e1f5edb67e9041623b9a061d4b6fdb72150f6bb211d2463b1d729594658d",
       "size": 1812480,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6",
@@ -381,11 +361,11 @@
     },
     {
       "name": "ext_kcolorscheme",
-      "version": "transition.now-qt6-1790340315",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kcolorscheme/transition.now-qt6-1790340315/archive.tar",
-      "sha256": "58e2c446f0c5095cd5e5c7fd8a6c648dab79424fc0e461b18591739a36924fc3",
+      "version": "transition.now-qt6-1791553610",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kcolorscheme/transition.now-qt6-1791553610/archive.tar",
+      "sha256": "5457c23e3195c41ebd7ce2b148ee17b9bf6eef6d342973eb7326c5e4de82f8f7",
       "size": 819200,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6",
@@ -397,11 +377,11 @@
     },
     {
       "name": "ext_kcompletion",
-      "version": "transition.now-qt6-1790340373",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kcompletion/transition.now-qt6-1790340373/archive.tar",
-      "sha256": "a8f9cc39dafde2bb9324c8c56e542a538b600f9f515f3f39a06424396fa17c2d",
+      "version": "transition.now-qt6-1791553699",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kcompletion/transition.now-qt6-1791553699/archive.tar",
+      "sha256": "e93e7ef05f70d11cc40a62227487d3ec40ea7e9a735d460fa9e2f80359b89dc4",
       "size": 2334720,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_extra_cmake_modules": "transition.now/qt6",
         "ext_qt": "transition.now/qt6",
@@ -413,25 +393,24 @@
     },
     {
       "name": "ext_kconfig",
-      "version": "transition.now-qt6-1790339300",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kconfig/transition.now-qt6-1790339300/archive.tar",
-      "sha256": "f14b83fbacf13933969942bc5ef269a6ba42d5d045ff6f9cc361413c6a760e0d",
+      "version": "transition.now-qt6-1791552701",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kconfig/transition.now-qt6-1791552701/archive.tar",
+      "sha256": "f5681bbb7f3f73f87c011980952ca0d94f809fe75cb4d0b3b17dc9ed94706b15",
       "size": 8704000,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
-        "ext_extra_cmake_modules": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6"
+        "ext_extra_cmake_modules": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_kcoreaddons",
-      "version": "transition.now-qt6-1790339362",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kcoreaddons/transition.now-qt6-1790339362/archive.tar",
-      "sha256": "e7040e0efbdf496eaac7020cfc46425a2aecef97382611027bf2129f694123f1",
+      "version": "transition.now-qt6-1791552758",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kcoreaddons/transition.now-qt6-1791552758/archive.tar",
+      "sha256": "88afee322d6dbde1e0088c83fd822d1305bcab39818ef4345a4466f9c6862652",
       "size": 6860800,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_extra_cmake_modules": "transition.now/qt6",
         "ext_qt": "transition.now/qt6"
@@ -440,11 +419,11 @@
     },
     {
       "name": "ext_kdcraw",
-      "version": "transition.now-qt6-1790338114",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kdcraw/transition.now-qt6-1790338114/archive.tar",
-      "sha256": "a1acf10c0c25e0f7d99872764284e0a74a3a21f0bdfb0b77300ffc0f12a7be18",
+      "version": "transition.now-qt6-1791551889",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kdcraw/transition.now-qt6-1791551889/archive.tar",
+      "sha256": "f1ccf202a9dfa490f22391ba5ef78c3f3e43855e9ee276a1cc785fa807b593a7",
       "size": 440320,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_libraw": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6",
@@ -454,40 +433,38 @@
     },
     {
       "name": "ext_kguiaddons",
-      "version": "transition.now-qt6-1790339409",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kguiaddons/transition.now-qt6-1790339409/archive.tar",
-      "sha256": "9238b2a412edfa4796e993255dbf2ec0b3dcff82924bf3618d4d65e51414018b",
+      "version": "transition.now-qt6-1791552812",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kguiaddons/transition.now-qt6-1791552812/archive.tar",
+      "sha256": "6be865c99b02d264363efcdb4025626d0db87c042abc8ba971201b251d31dc22",
       "size": 1699840,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
-        "ext_extra_cmake_modules": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6"
+        "ext_extra_cmake_modules": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_ki18n",
-      "version": "transition.now-qt6-1790339469",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_ki18n/transition.now-qt6-1790339469/archive.tar",
-      "sha256": "fff2d8ffbaf82f270a60fc637317cb6840e8c7cf7ef270d273b7d0fbc3c4dc8e",
+      "version": "transition.now-qt6-1791552871",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_ki18n/transition.now-qt6-1791552871/archive.tar",
+      "sha256": "b1c8c4a3a076e450e5318c249a0808b0d636d6749c2435c13e3be6d7e8517bdd",
       "size": 22947840,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
         "ext_gettext": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_kimageformats",
-      "version": "transition.now-qt6-1790339577",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kimageformats/transition.now-qt6-1790339577/archive.tar",
-      "sha256": "323c0f602f36021e62a3dbf4471399bb7b3115c254612e7786ce55127027b313",
+      "version": "transition.now-qt6-1791552931",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kimageformats/transition.now-qt6-1791552931/archive.tar",
+      "sha256": "177d9223f50a8ae0fecde1078ef0dbf85a5f294596f1d8ca48e77527d66c15a0",
       "size": 9031680,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6",
@@ -497,11 +474,11 @@
     },
     {
       "name": "ext_kitemmodels",
-      "version": "transition.now-qt6-1790339625",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kitemmodels/transition.now-qt6-1790339625/archive.tar",
-      "sha256": "a32b848a645bd5896010f2c1de49f135a903f45de99c9f24b8aeba3b839478eb",
+      "version": "transition.now-qt6-1791552978",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kitemmodels/transition.now-qt6-1791552978/archive.tar",
+      "sha256": "acbd50452e9205c5cde80ac54b352876942909c37e82fb54288a0aae5fab0e47",
       "size": 2775040,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
@@ -510,11 +487,11 @@
     },
     {
       "name": "ext_kitemviews",
-      "version": "transition.now-qt6-1790339676",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kitemviews/transition.now-qt6-1790339676/archive.tar",
-      "sha256": "e66329dbcf46d9515ca7b41fe146f3601175d036de6476bddbcc94a3eb568f9a",
+      "version": "transition.now-qt6-1791553063",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kitemviews/transition.now-qt6-1791553063/archive.tar",
+      "sha256": "e6d6408190e5cb1a0265fa8b7164c13729c149f45eb8f9888caa89a7c08705eb",
       "size": 2344960,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
@@ -523,11 +500,11 @@
     },
     {
       "name": "ext_kwidgetsaddons",
-      "version": "transition.now-qt6-1790339759",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kwidgetsaddons/transition.now-qt6-1790339759/archive.tar",
-      "sha256": "7f4b9eeebce0713986dac591d7ed4862faa39df043292caee61a17c65cb90adb",
+      "version": "transition.now-qt6-1791553192",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kwidgetsaddons/transition.now-qt6-1791553192/archive.tar",
+      "sha256": "b7af7c0a5bc7dc5c5a0d4f4b4235562b79ab22b8257cf08d6062e46a32a11954",
       "size": 16588800,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
@@ -536,11 +513,11 @@
     },
     {
       "name": "ext_kwindowsystem",
-      "version": "transition.now-qt6-1790339809",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kwindowsystem/transition.now-qt6-1790339809/archive.tar",
-      "sha256": "3ad74a0a0f91fe4048b294907a4bc65b58ed185af5c5f72bbded010125897073",
+      "version": "transition.now-qt6-1791553239",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_kwindowsystem/transition.now-qt6-1791553239/archive.tar",
+      "sha256": "b748a0379c1d950d665ada269a1d11806f0577ea77382a246d88207738afab1d",
       "size": 1198080,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
@@ -549,120 +526,105 @@
     },
     {
       "name": "ext_lager",
-      "version": "transition.now-qt6-1790332941",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_lager/transition.now-qt6-1790332941/archive.tar",
-      "sha256": "d1797ee4eafd34a282b0a8f1105afb0cc67fded725980741f78eafe12c4c5f09",
+      "version": "transition.now-qt6-1791549408",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_lager/transition.now-qt6-1791549408/archive.tar",
+      "sha256": "1bbc503ccba81a318b584c2b4b3ded038c245cc45861a8c1ca16c48dd79d22d5",
       "size": 419840,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_zug": "transition.now/qt6",
-        "ext_immer": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6"
+        "ext_immer": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_lame",
-      "version": "transition.now-qt6-1790333388",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_lame/transition.now-qt6-1790333388/archive.tar",
-      "sha256": "4c4b00f22fbb885a5d474acf66e95f39eb453de8ccc9ad1e31060248af1592c8",
+      "version": "transition.now-qt6-1791549681",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_lame/transition.now-qt6-1791549681/archive.tar",
+      "sha256": "2189b7bc2562a8f81fd00cea701974dacd6555365207cfcf42bd0d0cfa441517",
       "size": 1669120,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_pkgconfig": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_lcms2",
-      "version": "transition.now-qt6-1790332976",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_lcms2/transition.now-qt6-1790332976/archive.tar",
-      "sha256": "1c8a5cca88d45b625ca211c9224a2e8d826e0a155dd842196f82970d72c7c2c0",
-      "size": 1290240,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "version": "transition.now-qt6-1791547918",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_lcms2/transition.now-qt6-1791547918/archive.tar",
+      "sha256": "747e0bc6696493985fd94bcd9588da54cbbab9caaf32ffe277cda83645f08a44",
+      "size": 2631680,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_libaom",
-      "version": "transition.now-qt6-1790333721",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libaom/transition.now-qt6-1790333721/archive.tar",
-      "sha256": "36e3f11695f6924211855cb955ed1c97f8b0e25acd59fa6fb9c0b577b2e72e2f",
+      "version": "transition.now-qt6-1791548516",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libaom/transition.now-qt6-1791548516/archive.tar",
+      "sha256": "b1de9f9969ec03a75403dfa767e8f3d0d09f0d2411da62cc87af7b301a6552fe",
       "size": 15759360,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6",
-        "ext_strawberryperl": "transition.now/qt6",
-        "ext_nasm": "transition.now/qt6"
-      },
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_libde265",
-      "version": "transition.now-qt6-1790333977",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libde265/transition.now-qt6-1790333977/archive.tar",
-      "sha256": "c144b9c6c60343dfdafb961e5562f74a0fa5a5fd5f2e363527e681c5259c0b3a",
+      "version": "transition.now-qt6-1791548759",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libde265/transition.now-qt6-1791548759/archive.tar",
+      "sha256": "42dd9ffe37747eeb218cb6746f07f7d3fc9f8cd84b0d57cdda3707dc750ee3d2",
       "size": 2949120,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_libheif",
-      "version": "transition.now-qt6-1790340117",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libheif/transition.now-qt6-1790340117/archive.tar",
-      "sha256": "d293bf616d33f6d933fedd24881a1598b846d5441c5dd14f5bdda8c77e37c0ed",
+      "version": "transition.now-qt6-1791551838",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libheif/transition.now-qt6-1791551838/archive.tar",
+      "sha256": "0f43b5fb90c59d3886fd9165f30fe57a2ea7e731d462ead8fd167622513ceec6",
       "size": 25415680,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_libaom": "transition.now/qt6",
         "ext_libde265": "transition.now/qt6",
-        "ext_libx265": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6"
+        "ext_libx265": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_libogg",
-      "version": "transition.now-qt6-1790333422",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libogg/transition.now-qt6-1790333422/archive.tar",
-      "sha256": "26160489bc7bf4b4af440856463d967a59cf47da4328eb5b5122c46cee162f46",
+      "version": "transition.now-qt6-1791548168",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libogg/transition.now-qt6-1791548168/archive.tar",
+      "sha256": "37d550d7e75e10b19ee3fe0e9aa2d3be08714eae6ed61e46198c30e2be6f0f81",
       "size": 768000,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_libraw",
-      "version": "transition.now-qt6-1790334269",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libraw/transition.now-qt6-1790334269/archive.tar",
-      "sha256": "f287d96287adafbed18894524d249ed2f14e9ee29777fda069d78fca713e9978",
-      "size": 5928960,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791549916",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libraw/transition.now-qt6-1791549916/archive.tar",
+      "sha256": "08558d3e38f7f9b6db2e046a3577c901ba2b7f02f2c001130b3dd781165f8ac2",
+      "size": 6277120,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_lcms2": "transition.now/qt6",
         "ext_jpeg": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_libtheora",
-      "version": "transition.now-qt6-1790337875",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libtheora/transition.now-qt6-1790337875/archive.tar",
-      "sha256": "f37d56b60df158e4f35f585eada2335af8725e39032c995f611b8a54b25993de",
+      "version": "transition.now-qt6-1791549716",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libtheora/transition.now-qt6-1791549716/archive.tar",
+      "sha256": "1ff7fa99750978e969477c39c2fadd94a0b379b9c4eee723b2ae228853512e16",
       "size": 2611200,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_libogg": "transition.now/qt6",
         "ext_libvorbis": "transition.now/qt6",
         "ext_png": "transition.now/qt6",
@@ -672,93 +634,84 @@
     },
     {
       "name": "ext_libvorbis",
-      "version": "transition.now-qt6-1790333453",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libvorbis/transition.now-qt6-1790333453/archive.tar",
-      "sha256": "60c88ad4483168638259cdd8e12139bfbf4e67ac99f87e249ea4e8b1db4b616b",
+      "version": "transition.now-qt6-1791548199",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libvorbis/transition.now-qt6-1791548199/archive.tar",
+      "sha256": "9db8b9bd7b112f7334d20072fbc5375220f7e538bf835bafdf539acec8581dde",
       "size": 2273280,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_libogg": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_libx265",
-      "version": "transition.now-qt6-1790338020",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libx265/transition.now-qt6-1790338020/archive.tar",
-      "sha256": "ede60c704139a6b15d4d9e79225ca3b354c7458ab13a5d12f5404cd19f12cb7c",
+      "version": "transition.now-qt6-1791549872",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libx265/transition.now-qt6-1791549872/archive.tar",
+      "sha256": "817f46b643abbbc2b7b0eda9b026ff2031b82cfd835c7e9e93f4adbbf11ebf48",
       "size": 64276480,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_libx265_12bit": "transition.now/qt6",
-        "ext_nasm": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6"
+        "ext_libx265_12bit": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_libx265_10bit",
-      "version": "transition.now-qt6-1790334103",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libx265_10bit/transition.now-qt6-1790334103/archive.tar",
-      "sha256": "811999264a20fdd36420d85f11e85dc16d86211f2f5f0f06b9a94951c0222d1c",
+      "version": "transition.now-qt6-1791548866",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libx265_10bit/transition.now-qt6-1791548866/archive.tar",
+      "sha256": "e6d49a0feefc99963539c56e0962ec65442e6c4514a2b62948ded6dd82362d17",
       "size": 10106880,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_nasm": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6"
-      },
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_libx265_12bit",
-      "version": "transition.now-qt6-1790334219",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libx265_12bit/transition.now-qt6-1790334219/archive.tar",
-      "sha256": "20a5dd36e71617ac488fc00a66f18d8e87ac87a797c4bb9f3ab7bfeef53adfb6",
+      "version": "transition.now-qt6-1791548954",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_libx265_12bit/transition.now-qt6-1791548954/archive.tar",
+      "sha256": "16be0c12d4db24fe731507650402cd0601d0aff3a3d07628c0b6e6dce7750211",
       "size": 10004480,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_libx265_10bit": "transition.now/qt6",
-        "ext_nasm": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6"
+        "ext_libx265_10bit": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_lzma",
-      "version": "transition.now-qt6-1790331606",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_lzma/transition.now-qt6-1790331606/archive.tar",
-      "sha256": "0891f0150945a6574facf1ca8f637dd40240002681d522a05e3930cd7b0ef1d2",
-      "size": 614400,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791548621",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_lzma/transition.now-qt6-1791548621/archive.tar",
+      "sha256": "a7d013cadab243a84a24aad3acff1d7bf91a2619ef903f0da6682520b6246ff1",
+      "size": 3031040,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_mlt",
-      "version": "transition.now-qt6-1790340431",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_mlt/transition.now-qt6-1790340431/archive.tar",
-      "sha256": "bd66643074e5b11faec518aeb46b7156ef5de39c48d4f72bf7230764be7591dd",
-      "size": 6481920,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791553332",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_mlt/transition.now-qt6-1791553332/archive.tar",
+      "sha256": "bd8f1cfb6408115cc371942d2d29c0063e54bae22fc72155f54149e3db9839b6",
+      "size": 4679680,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_ffmpeg": "transition.now/qt6",
         "ext_sdl2": "transition.now/qt6",
         "ext_libvorbis": "transition.now/qt6",
         "ext_fftw3": "transition.now/qt6",
         "ext_fontconfig": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
         "ext_dlfcn_win32": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_mypaint",
-      "version": "transition.now-qt6-1790333002",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_mypaint/transition.now-qt6-1790333002/archive.tar",
-      "sha256": "d7435a73bf038814039c36c6ba5f252de916e003bfbb90feba17a2e0c5bb46ef",
+      "version": "transition.now-qt6-1791547950",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_mypaint/transition.now-qt6-1791547950/archive.tar",
+      "sha256": "a7c2276cbf7d5963a245ad3fb6cab95b6e69d9cfee5bc18ecbc7a35c27d041d4",
       "size": 491520,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_json_c": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
@@ -767,125 +720,131 @@
     },
     {
       "name": "ext_nasm",
-      "version": "transition.now-qt6-1790331360",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_nasm/transition.now-qt6-1790331360/archive.tar",
-      "sha256": "c03780522fd3ddcccc76522a880b866924b0e5d2f2e2b4d36df3816dc847b12a",
-      "size": 3502080,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791547085",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_nasm/transition.now-qt6-1791547085/archive.tar",
+      "sha256": "9cc63d14c2a2bd2a4dfbda4dc28dacc53c469585e32ed3993d29f52fc0f4d112",
+      "size": 2816000,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_ocio",
-      "version": "transition.now-qt6-1790333918",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_ocio/transition.now-qt6-1790333918/archive.tar",
-      "sha256": "7eaaf15193a572bd38e0035b6216163c624c66aa03b3d95fc7f4deb34a548f1f",
-      "size": 39956480,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791548727",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_ocio/transition.now-qt6-1791548727/archive.tar",
+      "sha256": "6bce025df57150dd54c4c9067fe3cc47cbf48565e4f69fb6b41eb38991e02286",
+      "size": 40458240,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_openexr": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
+      "name": "ext_imath",
+      "version": "transition.now-qt6-1791547730",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_imath/transition.now-qt6-1791547730/archive.tar",
+      "sha256": "2c6fc07fa02663113c21ff585c19e4d128695899fcbb5403317cf1bdd2d8b0d2",
+      "size": 1167360,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
+      "runtimeDependencies": {}
+    },
+    {
       "name": "ext_openexr",
-      "version": "transition.now-qt6-1790333116",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_openexr/transition.now-qt6-1790333116/archive.tar",
-      "sha256": "3fea4e22ccf2fa7cf212c03e79419268c9ef004363a87a424e814333c469553e",
-      "size": 18145280,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791548063",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_openexr/transition.now-qt6-1791548063/archive.tar",
+      "sha256": "11396573e268f9dade9a3e0cc189f4a2ed57b8dec88a3a1a8f8f4c440f1c2dcb",
+      "size": 16947200,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_zlib": "transition.now/qt6"
+        "ext_imath": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_openh264",
-      "version": "transition.now-qt6-1790333503",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_openh264/transition.now-qt6-1790333503/archive.tar",
-      "sha256": "c161e6efb5c46e3d5eb889a1f02dd4292a72f770f30a27e443510ab1a4688da1",
+      "version": "transition.now-qt6-1791549748",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_openh264/transition.now-qt6-1791549748/archive.tar",
+      "sha256": "46ee9e9f9467520c8a5be549ceabbd1ce3ab53cb7a5440e4e5474e1fa2da128e",
       "size": 4925440,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_nasm": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
         "ext_pkgconfig": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_openjpeg",
-      "version": "transition.now-qt6-1790333166",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_openjpeg/transition.now-qt6-1790333166/archive.tar",
-      "sha256": "8a218a2d776fc24b2cf2449031f00f82432639f79ee9252c9ea86cd7aeb5eec3",
+      "version": "transition.now-qt6-1791548114",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_openjpeg/transition.now-qt6-1791548114/archive.tar",
+      "sha256": "ea12b79457633327001d85c721d344ad61a92749756b7834f6ca3d478693c216",
       "size": 2734080,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_lcms2": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6"
+        "ext_lcms2": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_openssl",
-      "version": "transition.now-qt6-1790331956",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_openssl/transition.now-qt6-1790331956/archive.tar",
-      "sha256": "68d27920b51100d12e4cae2311f9d066d040f491072bc05c8e79cd6b392fa9e4",
+      "version": "transition.now-qt6-1791549284",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_openssl/transition.now-qt6-1791549284/archive.tar",
+      "sha256": "3022b39bebe0ffe31e6eefa7068dfa8e8ee386ccf8673428acd50b68afbbb8a4",
       "size": 8140800,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_opus",
-      "version": "transition.now-qt6-1790331412",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_opus/transition.now-qt6-1790331412/archive.tar",
-      "sha256": "221a5099c22473d50e4da7ba6f01bc24fa4716736cdc6dd794ab2a1757600429",
-      "size": 1228800,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791548254",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_opus/transition.now-qt6-1791548254/archive.tar",
+      "sha256": "99ed91810fddca192ae40dba15d33277dcd8e3b619e5165ca3c3335ac31cec82",
+      "size": 1280000,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_patch",
-      "version": "transition.now-qt6-1790331757",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_patch/transition.now-qt6-1790331757/archive.tar",
-      "sha256": "c9d1bd23c3ac56b9dd0ce04dbe74d27aadfa081d3b07d0a7729ddfca1d6eebaa",
+      "version": "transition.now-qt6-1791547027",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_patch/transition.now-qt6-1791547027/archive.tar",
+      "sha256": "29515d2071648b4c5d7b2c7a3577fcc9df7f41c8f8ed22a221b1825f6dcc86b2",
       "size": 133120,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_pkgconfig",
-      "version": "transition.now-qt6-1790331990",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_pkgconfig/transition.now-qt6-1790331990/archive.tar",
-      "sha256": "700d9cde0a5dab5ea8072836c50e26c736794d4fbb16e8b92c951c80225ab9d7",
+      "version": "transition.now-qt6-1791549320",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_pkgconfig/transition.now-qt6-1791549320/archive.tar",
+      "sha256": "dc26271ab1645d8fcf94932a11771c0262b19e5af397608fe205820cfd837e3b",
       "size": 686080,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_png",
-      "version": "transition.now-qt6-1790333196",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_png/transition.now-qt6-1790333196/archive.tar",
-      "sha256": "59a8104e5661dfaea3b970823d762eb3f4e3bad5112bbea8570f73318b60dc05",
-      "size": 2826240,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791549438",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_png/transition.now-qt6-1791549438/archive.tar",
+      "sha256": "d7c3d33b38fde85786e9f802b3035afbd2620c9f136da9ce845ee79b709cc132",
+      "size": 2836480,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_poppler",
-      "version": "transition.now-qt6-1790340250",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_poppler/transition.now-qt6-1790340250/archive.tar",
-      "sha256": "e496277805f1053c4d863fcef027fea73c978fd2cb9530e02e466fd2f40fb23f",
-      "size": 61040640,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791553541",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_poppler/transition.now-qt6-1791553541/archive.tar",
+      "sha256": "a49ba75e7a2bb8491388527ba3cb4d8ae43d3dd36a7909072329481d0e0f67f2",
+      "size": 74854400,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_freetype": "transition.now/qt6",
         "ext_fontconfig": "transition.now/qt6",
@@ -895,20 +854,18 @@
         "ext_tiff": "transition.now/qt6",
         "ext_boost": "transition.now/qt6",
         "ext_lcms2": "transition.now/qt6",
-        "ext_iconv": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6"
+        "ext_iconv": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_pyqt-builder",
-      "version": "transition.now-qt6-1790338202",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_pyqt-builder/transition.now-qt6-1790338202/archive.tar",
-      "sha256": "2c0000c46242c7aaddae4b39754ffed98d6469898e80c4b7752dfafa3477bea4",
+      "version": "transition.now-qt6-1791551942",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_pyqt-builder/transition.now-qt6-1791551942/archive.tar",
+      "sha256": "b4ecf73795fd0a73ed74e90204b3a4b1fe6f10dba9df1373f95d352c99b09d6c",
       "size": 15134720,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_python": "transition.now/qt6",
         "ext_qt": "transition.now/qt6"
       },
@@ -916,13 +873,12 @@
     },
     {
       "name": "ext_pyqt6",
-      "version": "transition.now-qt6-1790338903",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_pyqt6/transition.now-qt6-1790338903/archive.tar",
-      "sha256": "a76bf1f761bc5676d451132ae446d19f998e56af571d576ef3d27fe1e474793d",
+      "version": "transition.now-qt6-1791552399",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_pyqt6/transition.now-qt6-1791552399/archive.tar",
+      "sha256": "dcf2de78d0e9faacdd0636850ac447fe9cc4ced5c5073f435163d6d3374604cf",
       "size": 20039680,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_python": "transition.now/qt6",
         "ext_qt": "transition.now/qt6",
         "ext_pyqt-builder": "transition.now/qt6",
@@ -932,13 +888,12 @@
     },
     {
       "name": "ext_pyqt6-sip",
-      "version": "transition.now-qt6-1790338980",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_pyqt6-sip/transition.now-qt6-1790338980/archive.tar",
-      "sha256": "dbc1b9c4a0830cac6dc5d6f8c52e90a5ba5c305c5ed683dbbc0d7bfb0ff6c94f",
+      "version": "transition.now-qt6-1791552468",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_pyqt6-sip/transition.now-qt6-1791552468/archive.tar",
+      "sha256": "5413b459d99b91bd1e66fc49eee292e45a061711b7cf6748f6aaab7d6531e6b9",
       "size": 153600,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_python": "transition.now/qt6",
         "ext_sip": "transition.now/qt6",
         "ext_qt": "transition.now/qt6",
@@ -948,27 +903,26 @@
     },
     {
       "name": "ext_python",
-      "version": "transition.now-qt6-1790331638",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_python/transition.now-qt6-1790331638/archive.tar",
-      "sha256": "23ef610f6284f93127435a818f4e210051a4774b679f32bd4c1dc6888fe196ac",
+      "version": "transition.now-qt6-1791549012",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_python/transition.now-qt6-1791549012/archive.tar",
+      "sha256": "202d288baf8c39621b8074d427b7c5b7777aa70afe0e5eaa4cc4459ecf28cb6b",
       "size": 27586560,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_qt",
-      "version": "transition.now-qt6-1790337646",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_qt/transition.now-qt6-1790337646/archive.tar",
-      "sha256": "9c4261b51c995469b6e15dbdce42a55ce5792e8de9dd4f7d6e84211a5ec90405",
+      "version": "transition.now-qt6-1791551435",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_qt/transition.now-qt6-1791551435/archive.tar",
+      "sha256": "0028721382f2803450e5340571eddca2907ede8740fd4b9cc845229f721faf7d",
       "size": 852070400,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_icu": "transition.now/qt6",
         "ext_freetype": "transition.now/qt6",
         "ext_png": "transition.now/qt6",
         "ext_jpeg": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
         "ext_googleangle": "transition.now/qt6",
         "ext_openssl": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
@@ -977,35 +931,34 @@
     },
     {
       "name": "ext_quazip",
-      "version": "transition.now-qt6-1790337766",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_quazip/transition.now-qt6-1790337766/archive.tar",
-      "sha256": "4304863b1349aac3aab79614a79794cece89d210c6804c9d85fba185b6724de8",
+      "version": "transition.now-qt6-1791551556",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_quazip/transition.now-qt6-1791551556/archive.tar",
+      "sha256": "35c17700edfdacf984507eca5c562e31e578b98d0bf60b5bb6d3d7911351b774",
       "size": 1320960,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_sdl2",
-      "version": "transition.now-qt6-1790331571",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_sdl2/transition.now-qt6-1790331571/archive.tar",
-      "sha256": "c3c4a4e230d3e058c0d64e2a086fc8e2e7ba1458e057e8ca35a5331ab10f1d90",
-      "size": 7034880,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791548410",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_sdl2/transition.now-qt6-1791548410/archive.tar",
+      "sha256": "0c9d71f697208b5307caaed82553d4d6c0548819c410f7789854c4cc6c76ed6e",
+      "size": 7096320,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_seexpr",
-      "version": "transition.now-qt6-1790339856",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_seexpr/transition.now-qt6-1790339856/archive.tar",
-      "sha256": "29159cc5bbe4af6fe067614f6e3328687207a1cf420d2c7730aecba40ac661bf",
+      "version": "transition.now-qt6-1791553419",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_seexpr/transition.now-qt6-1791553419/archive.tar",
+      "sha256": "c82711fabfeb35ae0c2b7cc02ddea4fef22020471aad4d8e1e82c83b2ef89dbb",
       "size": 7137280,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6",
@@ -1015,34 +968,33 @@
     },
     {
       "name": "ext_sip",
-      "version": "transition.now-qt6-1790334296",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_sip/transition.now-qt6-1790334296/archive.tar",
-      "sha256": "3a15c0d1590c91bced68e41b7412564312a913bd704aae52b4f5fad85c4d3ec6",
+      "version": "transition.now-qt6-1791549046",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_sip/transition.now-qt6-1791549046/archive.tar",
+      "sha256": "c5670330efe510970993b22a66e275c4ea0d923dd1123f4f79749aa944a64911",
       "size": 15636480,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_patch": "transition.now/qt6",
         "ext_python": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_strawberryperl",
-      "version": "transition.now-qt6-1790331841",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_strawberryperl/transition.now-qt6-1790331841/archive.tar",
-      "sha256": "03c940d4e5424a322510d62137f1c7e6872948dd8281e86dbf608037141ebd0c",
-      "size": 163225600,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791547065",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_strawberryperl/transition.now-qt6-1791547065/archive.tar",
+      "sha256": "3095a6e1023e5db66503aee76a331a7e1987aced9074bc02617783d54b9d5ddd",
+      "size": 198389760,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_tiff",
-      "version": "transition.now-qt6-1790333269",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_tiff/transition.now-qt6-1790333269/archive.tar",
-      "sha256": "fb2bd4206cb5b9f6122789fe4a6fd5d01d2b2459cd71fd8fafedc06ca42cc681",
-      "size": 6031360,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791549530",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_tiff/transition.now-qt6-1791549530/archive.tar",
+      "sha256": "645c03a850358797d3d757b03f04fac1f06a44f39cdbb4fec4fd90db06b50fdb",
+      "size": 9492480,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_zlib": "transition.now/qt6",
         "ext_jpeg": "transition.now/qt6"
@@ -1051,88 +1003,79 @@
     },
     {
       "name": "ext_unibreak",
-      "version": "transition.now-qt6-1790333281",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_unibreak/transition.now-qt6-1790333281/archive.tar",
-      "sha256": "49792aec03fcdb61cca2159cfcb8ed21abe6719f2db0084e2a0812c084c20b8e",
-      "size": 215040,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "version": "transition.now-qt6-1791548124",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_unibreak/transition.now-qt6-1791548124/archive.tar",
+      "sha256": "39693c09c18a79bb630d1280ef38b54694216d0ec93329d80e6b20e6a735e925",
+      "size": 266240,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_vpl",
-      "version": "transition.now-qt6-1790331628",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_vpl/transition.now-qt6-1790331628/archive.tar",
-      "sha256": "7175c75662a31a7a660f09be9bdb895149eea8b019491e19373a3ccf7f0bfc2a",
-      "size": 22056960,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791548995",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_vpl/transition.now-qt6-1791548995/archive.tar",
+      "sha256": "e6dde2d6af832a86f8e5e044e2bddcf654e1ed8d3d6e1d289beb4ce073efa3f1",
+      "size": 22046720,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_vpx",
-      "version": "transition.now-qt6-1790333569",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_vpx/transition.now-qt6-1790333569/archive.tar",
-      "sha256": "5b15754e1010484608c0f7964b9afb46dad2516cdf7ab1ac5b27322cb8487bdf",
-      "size": 14131200,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791549790",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_vpx/transition.now-qt6-1791549790/archive.tar",
+      "sha256": "60e6bdc4b9277f87e36afe3b061b8075b4da37f8cb65d2480e22be4c5d8178f7",
+      "size": 14950400,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
-        "ext_nasm": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
         "ext_pkgconfig": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_webp",
-      "version": "transition.now-qt6-1790333337",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_webp/transition.now-qt6-1790333337/archive.tar",
-      "sha256": "b5ae0f4b0f18e5db07c65607a5e1b18fb6ce141d069c606412be9f62bf0b338a",
-      "size": 4126720,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "version": "transition.now-qt6-1791549592",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_webp/transition.now-qt6-1791549592/archive.tar",
+      "sha256": "7f086bb4910b146214bed9bac2deb3301051b3e0896cd63ceb4a1ec2a3ec5709",
+      "size": 3901440,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {
         "ext_png": "transition.now/qt6",
         "ext_jpeg": "transition.now/qt6",
         "ext_tiff": "transition.now/qt6",
         "ext_giflib": "transition.now/qt6",
-        "ext_patch": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
       "runtimeDependencies": {}
     },
     {
       "name": "ext_xsimd",
-      "version": "transition.now-qt6-1790333349",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_xsimd/transition.now-qt6-1790333349/archive.tar",
-      "sha256": "4fed4b39171b4bd2d68dcca33ef60f2c2e948f2dc4d7e3353b0c358a430b07d8",
-      "size": 1638400,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "version": "transition.now-qt6-1791548132",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_xsimd/transition.now-qt6-1791548132/archive.tar",
+      "sha256": "cb341f8c09684ef4342aa4990b5a3651d88b2703d3d627eec37a26235b3d686c",
+      "size": 1966080,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_zlib",
-      "version": "transition.now-qt6-1790331871",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_zlib/transition.now-qt6-1790331871/archive.tar",
-      "sha256": "8ade8ee4111523c2dfd9509eda3d993b20cb1c337354f50ebbae36be312d9a80",
-      "size": 634880,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
-      "dependencies": {
-        "ext_patch": "transition.now/qt6"
-      },
+      "version": "transition.now-qt6-1791549204",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_zlib/transition.now-qt6-1791549204/archive.tar",
+      "sha256": "0db25a1d0ec5ff1a034e12d4fa79a30b8e7b44d66a11a6a59d6916f91d496391",
+      "size": 1546240,
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
+      "dependencies": {},
       "runtimeDependencies": {}
     },
     {
       "name": "ext_zug",
-      "version": "transition.now-qt6-1790331376",
-      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_zug/transition.now-qt6-1790331376/archive.tar",
-      "sha256": "e10ecfbb8c58022a4725bd69bf27c75873281e61f4a3adcddcb582f5c931def1",
+      "version": "transition.now-qt6-1791548145",
+      "url": "https://invent.kde.org/api/v4/projects/16406/packages/generic/ext_zug/transition.now-qt6-1791548145/archive.tar",
+      "sha256": "8a39b25449cd90060494c712bc5c74a562fb6a4801caea6bf8abb4e3cc956efe",
       "size": 368640,
-      "sourceRevision": "31c578a1cf03060619d5f79860406e5c2ae72914",
+      "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
       "runtimeDependencies": {}
     }
