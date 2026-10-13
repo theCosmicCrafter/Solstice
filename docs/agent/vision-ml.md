@@ -15,7 +15,10 @@ Vision ML is a normal native Krita tool/filter plugin. Do not restore the Python
 ## Models and runtime
 
 - Installed defaults live under `share/krita/visionml/models/`.
-- User models live under `%APPDATA%\krita\visionml\models\`.
+- User models live under `<resource folder>/visionml/models/`
+  (`KoResourcePaths::getAppDataLocation()`; `%APPDATA%\Solstice\resources\visionml\models\`
+  by default since the settings moved, `docs/agent/settings-location.md`).
+  The user guide is `docs/vision-ml.md` (expanded 2026-10-13).
 - `%APPDATA%\krita\pykrita\vision_tools\models\` remains a read-only legacy
   fallback.
 - Bundled native models are MobileSAM F16, BiRefNet-lite F16, and MI-GAN 512

@@ -9,11 +9,14 @@ from `todo.md`).
 
 Explorer thumbnails of `.kra`/`.krz` come from the Krita Shell Extension
 (`kritashellex64.dll`, an `IThumbnailProvider` that reads `preview.png`
-from the archive). Krita's NSIS installer registers it
-(`packaging/windows/installer/installer_krita.nsi`, section `SEC_shellex`,
-macros in the downloaded `krita_shell_integration.nsh`). Solstice ships only
-a ZIP, so after Krita is uninstalled nothing registers the extension and new
-files have no thumbnail. The saved previews were verified correct on
+from the archive). Krita's NSIS installer registers it machine-wide (its
+`installer_krita.nsi`, removed from Solstice on 2026-10-13, with macros from
+the downloaded `krita_shell_integration.nsh`). Solstice ships a ZIP, so after
+Krita is uninstalled nothing registers the extension and new files have no
+thumbnail. Solstice's own installer (`packaging/windows/installer/
+installer_solstice.nsi`, 2026-10-13) offers the same per-user registration
+as an optional component: it runs `shellex\register-thumbnails.ps1` for the
+installing user and `-Unregister` on uninstall. The saved previews were verified correct on
 2026-10-08.
 
 ## Source and license

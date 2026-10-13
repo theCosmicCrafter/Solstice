@@ -430,7 +430,7 @@ private:
         if (!image || !group || index == 0) {
             auto *label =
                 new QLabel(!image ? i18n("No active document")
-                                  : (!group ? i18n("No Selection_Mask_Group found") : i18n("No selection masks found")),
+                                  : (!group ? i18n("No saved selections found") : i18n("No selection masks found")),
                            container);
             label->setAlignment(Qt::AlignCenter);
             grid->addWidget(label, 0, 0, 1, 6);
@@ -467,11 +467,11 @@ public:
         m_scope->addItem(i18n("Active document"), false);
         m_scope->addItem(i18n("All open documents"), true);
         m_destination = new QComboBox(this);
-        m_destination->addItem(i18n("Same folder as the Krita document"), 0);
+        m_destination->addItem(i18n("Same folder as the document"), 0);
         m_destination->addItem(i18n("Configured export folder"), 1);
         m_destination->addItem(i18n("Choose a folder now"), 2);
         m_folder = new QLineEdit(cfg.readEntry<QString>("Solstice/FastExportFolder", QString()), this);
-        auto *browse = new QPushButton(i18n("Browse..."), this);
+        auto *browse = new QPushButton(i18n("Browse…"), this);
         auto *folderRow = new QHBoxLayout;
         folderRow->addWidget(m_folder);
         folderRow->addWidget(browse);

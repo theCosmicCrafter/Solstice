@@ -866,6 +866,34 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   behavior; keep the reproduction that calls the real code. Updated the
   phase numbering page ([gpu-phase-numbering.md](decisions/gpu-phase-numbering.md)).
 
+## 2026-10-13 ingest: pre-release review
+
+- Three parallel read-only audits (public docs, interface text, visual
+  assets) found stale GPU statements, development-diary text and internal
+  links in the user guides, leftover "Krita" text, Krita's bug tracker in
+  Help > Report Bug, Krita shortcuts in the ZIP, a gray-icon trap for stable
+  builds and old Krita document icons inside the application; fixed and
+  recorded in [the branding checklist](../solstice-visual-branding-todo.md),
+  "Pre-release review (2026-10-13)", with the open decisions.
+- Lesson: user guides written phase by phase accumulate history; rewrite
+  them for the reader before a release and archive the history
+  ([archive](history/gpu-user-guide-archive.md)). Lesson: a bash heredoc
+  with Python string literals turns a backslash followed by r in Windows paths into a carriage
+  return; write such scripts to a file.
+
+## 2026-10-13 ingest: pre-release decisions
+
+- The user decided the open review items: the installer and MSIX are
+  rebranded (a new Solstice NSIS script that never touches Krita), the
+  welcome page loses the upstream support and manual links, saved files keep
+  naming Krita, the About data gets a description and one copyright text,
+  names stay, and the Vision ML guide is expanded
+  ([branding checklist](../solstice-visual-branding-todo.md), "Pre-release
+  review (2026-10-13)").
+- Lesson: an inherited installer is not just strings; Krita's also removed
+  Krita installations and took machine-wide integration, so a rebrand meant
+  a smaller script of Solstice's own.
+
 ## 2026-10-13 ingest: brush stroke layer selection moves and record check
 
 - A user's layer enlarged blurry: Move Tool selection moves had cut and

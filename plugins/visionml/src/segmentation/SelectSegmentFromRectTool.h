@@ -61,7 +61,7 @@ public:
         : KisSelectionToolFactoryBase("SelectSegmentFromRectTool")
         , m_shared(std::move(shared))
     {
-        setToolTip(i18n("Segment Selection Tool (Box)"));
+        setToolTip(i18n("Segment Selection from Box"));
         setSection(ToolBoxSection::Select);
         setIconName(koIconNameCStr("tool_segmentation_rect"));
         setPriority(10);

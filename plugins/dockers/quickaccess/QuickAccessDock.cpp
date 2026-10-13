@@ -27,6 +27,7 @@
 #include <kis_action_manager.h>
 #include <kis_canvas2.h>
 #include <kis_canvas_resource_provider.h>
+#include <kis_icon_utils.h>
 #include <klocalizedstring.h>
 #include <ksharedconfig.h>
 
@@ -1335,8 +1336,8 @@ void QuickAccessDock::attachItemMenu(QWidget *widget, const QuickAccess::Item &i
         QAction *removeAction =
             menu.addAction(removeIcon.isEmpty() ? QIcon::fromTheme(QStringLiteral("edit-delete")) : QIcon(removeIcon),
                            i18nc("@action", "Remove"));
-        QAction *propertyAction =
-            menu.addAction(QIcon::fromTheme(QStringLiteral("document-properties")), i18nc("@action", "Property"));
+        QAction *propertyAction = menu.addAction(KisIconUtils::loadIcon(QStringLiteral("document-properties")),
+                                                 i18nc("@action", "Properties"));
         QAction *selected = menu.exec(widget->mapToGlobal(position));
         if (selected == removeAction) {
             removeItem(item.id);
@@ -1871,7 +1872,7 @@ void QuickAccessDock::editItemProperties(const QString &itemId)
 
     QuickAccess::Item &item = *itemIt;
     QDialog dialog(this);
-    dialog.setWindowTitle(i18nc("@title:window", "Quick Access Item Property"));
+    dialog.setWindowTitle(i18nc("@title:window", "Quick Access Item Properties"));
     dialog.setMinimumWidth(320);
     auto *root = new QVBoxLayout(&dialog);
     auto *form = new QFormLayout();
@@ -2081,7 +2082,7 @@ void QuickAccessDock::editBrushProperties(const QString &itemId)
         return;
 
     QDialog dialog(this);
-    dialog.setWindowTitle(i18nc("@title:window", "Quick Access Item Property"));
+    dialog.setWindowTitle(i18nc("@title:window", "Quick Access Item Properties"));
     dialog.setMinimumWidth(320);
     auto *root = new QVBoxLayout(&dialog);
     auto *form = new QFormLayout();

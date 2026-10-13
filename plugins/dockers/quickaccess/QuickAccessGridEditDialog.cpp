@@ -646,7 +646,7 @@ QuickAccessGridEditDialog::QuickAccessGridEditDialog(const QuickAccess::Document
             }
         }
     });
-    setWindowTitle(i18nc("@title:window", "Grid Edit"));
+    setWindowTitle(i18nc("@title:window", "Edit Grid"));
     resize(850, 620);
     auto *layout = new QVBoxLayout(this);
 

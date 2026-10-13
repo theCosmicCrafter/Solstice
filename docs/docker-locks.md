@@ -25,7 +25,3 @@ separators.
   group, or out of the dock areas to float.
 - The separators inside a floating group of tabbed dockers are not locked.
 - A docker locked with its own title bar lock button keeps that lock.
-- An earlier test version also had **Prevent Docked Dockers from Floating**.
-  It was removed on 2026-10-07; dockers can float again after a restart.
-
-Agent-facing notes are in [`agent/docker-locks.md`](agent/docker-locks.md).

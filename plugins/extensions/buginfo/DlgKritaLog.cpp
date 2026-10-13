@@ -27,7 +27,7 @@ QString DlgKritaLog::captionText()
 
 QString DlgKritaLog::replacementWarningText()
 {
-    return "WARNING: The Krita usage log file doesn't exist.";
+    return "WARNING: The Solstice usage log file doesn't exist.";
 }
 
 DlgKritaLog::~DlgKritaLog()

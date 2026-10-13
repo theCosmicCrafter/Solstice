@@ -61,7 +61,7 @@ QuickAccessSettingsDialog::QuickAccessSettingsDialog(const Settings &settings, Q
     m_gestureEnabled->setChecked(settings.gestureEnabled);
     m_hueSvcEnabled = new QCheckBox(i18nc("@option:check", "Enable HueSVC docker"), gridGroup);
     m_hueSvcEnabled->setChecked(settings.hueSvcEnabled);
-    m_quickAdjustEnabled = new QCheckBox(i18nc("@option:check", "Enable Quick Adjust docker"), gridGroup);
+    m_quickAdjustEnabled = new QCheckBox(i18nc("@option:check", "Enable Quick Brush Adjustments docker"), gridGroup);
     m_quickAdjustEnabled->setChecked(settings.quickAdjustEnabled);
     gridForm->addRow(m_gestureEnabled);
     gridForm->addRow(m_hueSvcEnabled);
@@ -271,7 +271,7 @@ QuickAccessSettingsDialog::QuickAccessSettingsDialog(const Settings &settings, Q
     };
     addScrollableTab(page, i18nc("@title:tab", "General"));
     addScrollableTab(popupPage, i18nc("@title:tab", "Popup and HueSVC"));
-    addScrollableTab(adjustPage, i18nc("@title:tab", "Quick Adjust"));
+    addScrollableTab(adjustPage, i18nc("@title:tab", "Quick Brush Adjustments"));
     addScrollableTab(brushSetsPage, i18nc("@title:tab", "Temporary Brushes"));
     root->addWidget(tabs);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);

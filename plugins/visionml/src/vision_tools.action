@@ -6,8 +6,8 @@
       <icon>tool_segmentation_point</icon>
       <text>Segment Selection from Point</text>
       <whatsThis></whatsThis>
-      <toolTip>Point Segmentation Selection Tool</toolTip>
-      <iconText>Point Segmentation Selection Tool</iconText>
+      <toolTip>Segment Selection from Point</toolTip>
+      <iconText>Segment Selection from Point</iconText>
       <shortcut></shortcut>
       <isCheckable>false</isCheckable>
       <statusTip></statusTip>
@@ -16,8 +16,8 @@
       <icon>tool_segmentation_rect</icon>
       <text>Segment Selection from Box</text>
       <whatsThis></whatsThis>
-      <toolTip>Box Segmentation Selection Tool</toolTip>
-      <iconText>Box Segmentation Selection Tool</iconText>
+      <toolTip>Segment Selection from Box</toolTip>
+      <iconText>Segment Selection from Box</iconText>
       <shortcut></shortcut>
       <isCheckable>false</isCheckable>
       <statusTip></statusTip>
@@ -26,7 +26,7 @@
       <icon>tool_inpaint</icon>
       <text>Smart Fill Tool</text>
       <whatsThis></whatsThis>
-      <toolTip>Smart Fill Tool (VisionML)</toolTip>
+      <toolTip>Smart Fill Tool (Vision ML)</toolTip>
       <iconText>Smart Fill Tool</iconText>
       <shortcut></shortcut>
       <isCheckable>false</isCheckable>

@@ -12,12 +12,12 @@ Two compact color controls appear before the blending-mode control:
   Selecting a group does not change any of its child layers.
 - The second toggles visibility for every layer with the chosen color label.
 
-Krita's existing layer-list filter button remains available for filtering the
+The existing layer-list filter button remains available for filtering the
 docker by name or color without changing layer visibility.
 
 ## Shortcut actions
 
-The following actions can be assigned under **Settings > Configure Krita >
+The following actions can be assigned under **Settings > Configure Solstice >
 Keyboard Shortcuts**:
 
 - **Create Selection Mask Alternative** saves the current selection in a
@@ -39,21 +39,22 @@ between uses.
 
 ## Custom settings
 
-Open **Settings > Configure Krita > General > Custom** to configure the nine
+Open **Settings > Configure Solstice > General > Custom** to configure the nine
 foreground-color slots and these default-enabled options:
 
 - **Color Pick from Anywhere** registers the fixed Windows system-wide shortcut
   `Win+Shift+C`. It samples the pixel under the cursor, including from another
-  application, and makes it Krita's foreground color.
-- **Disable top menu shortcuts** removes mnemonic activation from Krita's top
+  application, and makes it the foreground color.
+- **Disable top menu shortcuts** removes mnemonic activation from the top
   menu labels from startup, including menus added or rebuilt later. This frees
-  combinations such as `Alt+E` for assigned actions such as TempBrush without
+  combinations such as `Alt+E` for your own shortcuts without
   first opening Settings. Menus remain accessible by mouse; shortcuts inside
   an open menu are unchanged. Disable the option to restore menu mnemonics.
 
 Color Pick from Anywhere is available only on Windows.
 
 Rename presets remain compatible with the Python plugin and are stored in
-`lazy_tools/config/name_color_list.txt` inside Krita's user data directory.
+`lazy_tools/config/name_color_list.txt` inside the Solstice resource folder
+(`%APPDATA%\Solstice\resources` by default).
 Each line uses `layer name` or `layer name, Color`; supported color names are
 Blue, Green, Yellow, Orange, Brown, Red, Purple, and Grey.

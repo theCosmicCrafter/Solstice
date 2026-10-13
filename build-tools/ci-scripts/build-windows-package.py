@@ -102,7 +102,7 @@ if arguments.build_installers:
         print("## Failed to build the installer")
         sys.exit(1)
 
-    shutil.move(os.path.join(installerFolder, 'krita-nsis', installerFileName), os.getcwd())
+    shutil.move(os.path.join(installerFolder, 'solstice-nsis', installerFileName), os.getcwd())
 
     if signPackages:
         commandToRun = ' '.join([sys.executable, '-u',
@@ -137,7 +137,11 @@ if arguments.build_installers:
     msixEnvironment = copy.deepcopy(dict(os.environ))
 
     msixEnvironment['KRITA_DIR'] = packageFolder
-    msixEnvironment['KRITA_SHELLEX'] = os.path.join(srcPath, '_installer', 'krita-nsis')
+    # Solstice: the installer no longer unpacks krita-nsis; its working folder
+    # has the generated icons. The shell extension DLLs come from
+    # build-tools/windows-shellex (this KDE CI script is not used by Solstice's
+    # GitHub Actions build).
+    msixEnvironment['KRITA_SHELLEX'] = os.path.join(srcPath, '_installer', 'solstice-nsis')
     msixEnvironment['OUTPUT_DIR'] = msixFolder
 
     # build_msix.py populates this directory itself

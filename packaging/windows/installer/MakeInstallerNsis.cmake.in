@@ -5,7 +5,7 @@ if(NOT IS_DIRECTORY "${KRITA_PACKAGE_ROOT}")
 endif()
 
 if(NOT DEFINED OUTPUT_FILEPATH)
-    set(OUTPUT_FILEPATH "${CMAKE_CURRENT_BINARY_DIR}/krita-setup-x64.exe")
+    set(OUTPUT_FILEPATH "${CMAKE_CURRENT_BINARY_DIR}/solstice-setup-x64.exe")
 endif()
 
 if(NOT DEFINED DOWNLOAD_DIR)
@@ -97,60 +97,42 @@ if(globForDebugFiles)
 endif()
 
 
-# Download installer script package
-message(STATUS "Downloading NSIS script package...")
-if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/krita-nsis")
-    file(REMOVE_RECURSE "${CMAKE_CURRENT_BINARY_DIR}/krita-nsis")
+# Solstice: Krita's installer script package (krita-nsis, with its machine-wide
+# shell integration and Krita detection) is not used. The package root's
+# shellex folder (build-tools/windows-shellex) provides the thumbnail
+# provider and its per-user registration script.
+if(NOT EXISTS "${KRITA_PACKAGE_ROOT}/shellex/register-thumbnails.ps1")
+    message(WARNING "The package has no shellex folder; the installer will not offer Explorer thumbnails")
 endif()
-# From https://github.com/alvinhochun/KritaShellExtension/releases/tag/v1.2.4d
-file(DOWNLOAD "https://files.kde.org/krita/build/dependencies/krita-nsis-v1.2.4d.zip"
-    "${DOWNLOAD_DIR}/krita-nsis.zip"
-    EXPECTED_HASH SHA256=163a7fa0a6b36fdaf2447042780965346f746ca5fed8237e51b2f08e53c4cd4f
-)
-execute_process(COMMAND ${CMAKE_COMMAND} -E tar xfz "${DOWNLOAD_DIR}/krita-nsis.zip"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    RESULT_VARIABLE result_extract
-)
-if(NOT result_extract EQUAL 0)
-    message(FATAL_ERROR "Failed to extract krita-nsis package")
+if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/solstice-nsis")
+    file(REMOVE_RECURSE "${CMAKE_CURRENT_BINARY_DIR}/solstice-nsis")
 endif()
-if(NOT IS_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/krita-nsis")
-    message(FATAL_ERROR "Failed to find krita-nsis after extracting")
-endif()
-
-
-# We supply our own freshly-generated icons, so no need for the bundled ones.
-file(REMOVE
-    "${CMAKE_CURRENT_BINARY_DIR}/krita-nsis/krita.ico"
-    "${CMAKE_CURRENT_BINARY_DIR}/krita-nsis/kritafile.ico"
-)
-
-# Place Krita installer files in the right place
+# The installer script, the license, the include files and the generated
+# Solstice icon (krita.ico)
 file(COPY "${CMAKE_CURRENT_LIST_DIR}/installer/"
-    DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/krita-nsis/"
+    DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/solstice-nsis/"
     FILES_MATCHING PATTERN "*"
 )
 
 
 # Build installer
 message(STATUS "Building installer...")
-set(KRITA_VERSION_NUMBER "@KRITA_STABLE_VERSION_MAJOR@.@KRITA_STABLE_VERSION_MINOR@.@KRITA_VERSION_RELEASE@.@KRITA_VERSION_REVISION@")
-set(KRITA_VERSION_STRING "@KRITA_VERSION_STRING@")
+# The Solstice version (docs/agent/versioning.md), not Krita's
+set(SOLSTICE_VERSION_NUMBER "@SOLSTICE_VERSION_MAJOR@.@SOLSTICE_VERSION_MINOR@.@SOLSTICE_VERSION_PATCH@.@SOLSTICE_VERSION_BUILD@")
+set(SOLSTICE_VERSION_STRING "@SOLSTICE_VERSION_STRING@")
 set(KRITA_GIT_SHA1_STRING "@KRITA_GIT_SHA1_STRING@")
 if(KRITA_GIT_SHA1_STRING)
-    set(KRITA_VERSION_STRING "${KRITA_VERSION_STRING} (git ${KRITA_GIT_SHA1_STRING})")
+    set(SOLSTICE_VERSION_STRING "${SOLSTICE_VERSION_STRING} (git ${KRITA_GIT_SHA1_STRING})")
 endif()
 execute_process(COMMAND "${TOOL_MAKENSIS}"
-    "/DKRITA_INSTALLER_64"
-    "/DKRITA_VERSION=${KRITA_VERSION_NUMBER}"
-    "/DKRITA_VERSION_DISPLAY=${KRITA_VERSION_STRING}"
-    "/DKRITA_INSTALLER_OUTPUT_DIR="
-    "/DKRITA_INSTALLER_OUTPUT_NAME=${OUTPUT_FILEPATH}"
-    "/DKRITA_PACKAGE_ROOT=${KRITA_PACKAGE_ROOT}"
+    "/DSOLSTICE_VERSION=${SOLSTICE_VERSION_NUMBER}"
+    "/DSOLSTICE_VERSION_DISPLAY=${SOLSTICE_VERSION_STRING}"
+    "/DSOLSTICE_INSTALLER_OUTPUT=${OUTPUT_FILEPATH}"
+    "/DSOLSTICE_PACKAGE_ROOT=${KRITA_PACKAGE_ROOT}"
     "/XSetCompressor /SOLID lzma"
     "/V3"
     "/INPUTCHARSET" "UTF8"
-    "${CMAKE_CURRENT_BINARY_DIR}/krita-nsis/installer_krita.nsi"
+    "${CMAKE_CURRENT_BINARY_DIR}/solstice-nsis/installer_solstice.nsi"
     RESULT_VARIABLE result_makensis
 )
 if(NOT result_makensis EQUAL 0)

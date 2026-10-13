@@ -23,7 +23,7 @@ Krita 6 codebase.**
 </td>
 <td width="33%" valign="top">
 <h3>🛠️ Krita, refined</h3>
-<p><a href="docs/brush-stroke-preview.md">Brush Presets</a> with stroke previews, filters and grouping, a reworked <a href="docs/brush-editor.md">Brush Editor</a>, <a href="docs/photoshop-brushes.md">Photoshop brush import</a> with presets, textures and folders, docker locks, a live Overview and a modernized <a href="docs/ui-modernization.md">interface</a>, together with native tools such as <a href="docs/quick-access.md">Quick Access</a> and the <a href="docs/asset-library.md">Asset Library</a>.</p>
+<p><a href="docs/brush-stroke-preview.md">Brush Presets</a> with stroke previews, filters and grouping, a reworked <a href="docs/brush-editor.md">Brush Editor</a>, <a href="docs/photoshop-brushes.md">Photoshop brush import</a> with presets, textures and folders, <a href="docs/docker-locks.md">docker locks</a>, a live <a href="docs/overview-live-update.md">Overview</a> and a modernized <a href="docs/ui-modernization.md">interface</a>, together with native tools such as <a href="docs/quick-access.md">Quick Access</a> and the <a href="docs/asset-library.md">Asset Library</a>.</p>
 </td>
 </tr>
 </table>
@@ -38,10 +38,10 @@ testing; see [Versions](docs/versioning.md) for the version numbering.
 
 - **[Experimental Vulkan engine](docs/gpu-engine.md)**: GPU-resident image
   tiles, accelerated layer compositing and canvas data preparation.
-- **[GPU brush](docs/gpu-engine.md)**: on by default; GPU compositing for
-  RGBA32F pixel brushes and major RGBA16F modes in Buildup and Wash, including
-  supported selection, alpha-lock and mirror-painting paths. In a hand-drawn
-  comparison (2026-10-10), input to display took about 5 ms, against 18–22 ms
+- **[GPU brush](docs/gpu-engine.md)**: on by default; pixel brushes on RGBA
+  32-bit and 16-bit float layers composite nearly every blend mode on the GPU
+  in Buildup and Wash, with selections, alpha lock and mirror painting. In a
+  hand-drawn comparison, input to display took about 5 ms, against 18–22 ms
   with the CPU brush.
 - **Native productivity tools**: [Quick Access Manager](docs/quick-access.md),
   [Asset Library](docs/asset-library.md), [Rest Note](docs/rest-note.md) and
@@ -64,18 +64,18 @@ testing; see [Versions](docs/versioning.md) for the version numbering.
   a grid that adapts to the docker's width, with multi-select engine and bundle
   filters alongside tags and search, and optional grouping by engine or
   bundle.
-- **[Brush Editor](docs/brush-editor.md)**: the options of most brush
-  engines live in a shared model, so one change updates only that option in
+- **[Brush Editor](docs/brush-editor.md)**: the options of every brush
+  engine live in a shared model, so one change updates only that option in
   the preset.
 - **[Brush options in Tool Options](docs/brush-editor.md#brush-options-in-tool-options)**:
   as with Clip Studio Paint's eye marks, an eye next to a Brush Editor
   setting shows it in the Tool Options docker, under the current brush's
   stroke preview.
 - **[Brush Stroke Layer](docs/brush-stroke-layer.md)**: a paint layer that
-  remembers its brush strokes; scaling the image or the layer, or with the
-  Transform tool, draws them again at the new size, so small line art
-  enlarges without blurring. The
-  strokes are saved in `.kra`, and Krita opens the layer as a paint layer.
+  remembers its brush strokes; scaling the image or layer, or transforming it
+  with the Transform Tool, redraws them at the new size, so small line art
+  enlarges without blurring. The strokes are saved in `.kra`, and Krita opens
+  the layer as a paint layer.
 - **[Photoshop brushes](docs/photoshop-brushes.md)**: an `.abr` file is
   imported like a bundle, with its brush tips, patterns and brush presets
   (converted to Pixel Brush presets, with their dynamics, texture, dual
@@ -103,8 +103,8 @@ being resampled. See the [Brush Stroke Layer guide](docs/brush-stroke-layer.md).
 
 ## Development and downloads
 
-> **Experimental software.** The Vulkan engine is optional and still under
-> development. It does not yet replace every CPU processing path, and its
+> **Experimental software.** The Vulkan engine is on by default and can be
+> turned off. It does not yet replace every CPU processing path, and its
 > supported hardware and platforms are limited.
 
 Solstice is available as source code and as unsigned Windows x64 trial ZIPs
@@ -113,8 +113,8 @@ These temporary artifacts expire after seven days and are development builds,
 not stable releases. See [Experimental Windows builds](docs/test-builds.md)
 for download instructions and packaging limitations. To show `.kra`
 thumbnails in Explorer, see [Explorer thumbnails](docs/windows-shell-thumbnails.md).
-
-[Temporary visual branding](docs/visual-branding.md)
+The application and document icons are described in
+[Visual branding](docs/visual-branding.md).
 
 The primary development and default branch is `krita-sol-gpu`. For source
 builds, see the [development environment](AGENTS.md#shared-development-environment) and [build workflow](docs/agent/development-workflow.md#build).
@@ -149,13 +149,14 @@ changes and support are maintained in this repository.
 The experimental engine uses Vulkan compute for supported RGBA floating-point
 layer compositing in RGBA32F and RGBA16F and shares data with the OpenGL canvas
 for display. Supported layer modes include Normal, Multiply, Screen, Overlay,
-Soft Light and the HSY, HSL, HSV and HSI color modes; nearly every blend mode
-runs on the GPU, including individual channel locks. It is
+Soft Light and the HSY, HSL, HSV and HSI color modes; every blend mode runs
+on the GPU except Dissolve, Marker, Destination In/Atop and Divisive Modulo
+(and its Continuous variants), including individual channel locks. It is
 enabled by default and falls back to CPU paths for unsupported operations.
 
-The RGBA32F pixel brush (on by default since 2026-10-10) also composites supported blend modes
-(including Normal, Multiply, Screen, Overlay and Erase) on the GPU, with
-selections, alpha lock and mirror painting. Supported Buildup strokes and Wash
+The GPU pixel brush (on by default) also composites the same blend modes,
+Erase and Alpha Darken on the GPU, with selections, alpha lock and mirror
+painting. Supported Buildup strokes and Wash
 previews and final merges use GPU paths with CPU-compatible channel handling.
 RGBA16F brushes support the same modes in Buildup and Wash, including Wash's
 Alpha Darken painting buffer. Blend modes without a GPU version retain CPU
@@ -168,7 +169,7 @@ and layer flips now batch their GPU readbacks.
 
 The GPU brush can be turned off with **Paint brush strokes on the GPU** next
 to the GPU engine option; `KRITA_GPU_BRUSH=1` or `0` overrides the setting. On RGBA32F
-and RGBA16F layers, round auto-brush dabs, image-based brush tips (also as
+and RGBA16F layers, circle, Gaussian and soft auto-brush dabs, image-based brush tips (also as
 colour stamps, Lightness or Gradient maps) and their pattern textures are
 also computed on the GPU, and so is the masking brush composite. The masking brush's
 own mask, most filter calculations and most transform
@@ -179,8 +180,6 @@ Alpha Lock can still catch up after pen release; further tuning of that case
 is deferred. This is an ongoing rewrite, not a fully GPU-based painting pipeline.
 
 See the [GPU Engine guide](docs/gpu-engine.md) for setup and limitations.
-Prototype benchmark results below include development work that may not yet
-be included in a published build.
 
 ## Benchmarks
 
@@ -243,8 +242,7 @@ not establish a substantial stroke speedup. Measured from pen input to the
 displayed frame instead, the GPU brush is about four times faster (2026-10-10,
 see [the input-to-display comparison](docs/gpu-engine.md#input-to-display)).
 
-See the [current benchmark results and limitations](docs/gpu-engine.md#current-benchmarks)
-and [reproduction notes](docs/agent/wiki/history/gpu-phases-4.17-4.57.md#current-build-benchmark-baseline-phase-442).
+See the [current benchmark results and limitations](docs/gpu-engine.md#current-benchmarks).
 Input-to-display timings are Qt input-to-command-swap measurements, not
 physical pen-to-screen latency.
 Results vary with workload and hardware and do not establish performance for

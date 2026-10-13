@@ -213,7 +213,7 @@ public:
         title->setStyleSheet(QStringLiteral("color:rgba(230,220,205,220); font-size:%1px; letter-spacing:3px;")
                                  .arg(config.toastTitleFontSize));
         layout->addWidget(title);
-        auto *message = new QLabel(i18n("Look ~6m away for 20 seconds."), this);
+        auto *message = new QLabel(i18n("Look about 6 m (20 ft) away for 20 seconds."), this);
         message->setStyleSheet(
             QStringLiteral("color:rgba(245,235,220,200); font-size:%1px;").arg(config.toastMessageFontSize));
         layout->addWidget(message);
@@ -465,7 +465,7 @@ void RestNoteDock::buildUi()
     m_pauseButton = makeButton(QStringLiteral(":/restnote/icons/pause.png"), i18n("Pause / Resume"));
     m_resetButton = makeButton(QStringLiteral(":/restnote/icons/refresh.png"), i18n("Reset"));
     m_restButton = makeButton(QStringLiteral(":/restnote/icons/rest.png"), i18n("Take a break now"));
-    m_settingsButton = makeButton(QStringLiteral(":/restnote/icons/setting.png"), i18n("Config…"));
+    m_settingsButton = makeButton(QStringLiteral(":/restnote/icons/setting.png"), i18n("Settings…"));
     buttons->addStretch();
     layout->addLayout(buttons);
     setWidget(m_root);
@@ -613,7 +613,7 @@ void RestNoteDock::refreshDisplay()
     } else if (m_state == State::Break) {
         m_subLabel->setText(QStringLiteral("—"));
     } else if (m_state == State::MicroBreak) {
-        m_subLabel->setText(i18n("Look ~6m away"));
+        m_subLabel->setText(i18n("Look about 6 m (20 ft) away"));
     } else {
         const int micro = std::max(0, m_microRemaining);
         m_subLabel->setText(i18n("Next eye break in %1:%2",
@@ -708,7 +708,7 @@ void RestNoteDock::cancelTransientWindows()
 void RestNoteDock::showSettings()
 {
     QDialog dialog(widget());
-    dialog.setWindowTitle(i18n("Rest Note — Configuration"));
+    dialog.setWindowTitle(i18n("Rest Note Settings"));
     dialog.setMinimumWidth(360);
     auto *outer = new QVBoxLayout(&dialog);
     auto *cycleGroup = new QGroupBox(i18n("Work / Break cycle"), &dialog);
@@ -730,7 +730,7 @@ void RestNoteDock::showSettings()
     auto *skip = spinBox(0, 600, m_config.microSkipThresholdSeconds, i18n(" sec"), microGroup);
     microForm->addRow(i18n("Interval:"), interval);
     microForm->addRow(i18n("Duration:"), duration);
-    microForm->addRow(i18n("Skip if big break within:"), skip);
+    microForm->addRow(i18n("Skip if a long break is due within:"), skip);
     microLayout->addLayout(microForm);
     outer->addWidget(microGroup);
     for (auto *control : {interval, duration, skip}) {

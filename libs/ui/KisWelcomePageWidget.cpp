@@ -394,7 +394,7 @@ void KisWelcomePageWidget::slotUpdateThemeColors()
                                   .append("</a>"));
 
     sourceCodeLink->setText(
-        QString("<a style=\"color: " + blendedColor.name() + " \" href=\"https://invent.kde.org/graphics/krita\">")
+        QString("<a style=\"color: " + blendedColor.name() + " \" href=\"https://github.com/udtren/Solstice\">")
             .append(i18n("Source Code"))
             .append("</a>"));
 
@@ -432,6 +432,16 @@ void KisWelcomePageWidget::slotUpdateThemeColors()
         kritaWebsiteIcon->hide();
     }
 #endif
+
+    // Solstice: no upstream donation link or support text, and no krita.org
+    // manual links presented as Solstice's own (user decision 2026-10-13)
+    supportKritaLink->hide();
+    supportKritaIcon->hide();
+    labelSupportText->hide();
+    manualLink->hide();
+    userManualIcon->hide();
+    gettingStartedLink->hide();
+    gettingStartedIcon->hide();
 }
 
 void KisWelcomePageWidget::dragEnterEvent(QDragEnterEvent *event)

@@ -47,7 +47,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 #define KRITA_DESCRIPTION_STR "Solstice digital painting application"
 #define SOLSTICE_PROJECT_STR "Solstice Project"
-#define SOLSTICE_COPYRIGHT_STR "Krita and Solstice contributors"
+// The same text as the KAboutData copyright in main.cc
+#define SOLSTICE_COPYRIGHT_STR "© 1999–2026 The Krita Developers; Solstice modifications © 2026 The Solstice Contributors"
 
 
 VS_VERSION_INFO VERSIONINFO

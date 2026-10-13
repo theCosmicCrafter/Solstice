@@ -1,12 +1,13 @@
 # The MSIX packaging is only designed for x64
 
-if(DEFINED KRITA_STABLE)
-    set(MSIX_DISPLAY_NAME_SUFFIX "")
-else()
-    set(MSIX_DISPLAY_NAME_SUFFIX " ${KRITA_VERSION_STRING}")
+# Solstice: the version shows in the name while it has a label (alpha, beta)
+if(SOLSTICE_VERSION_LABEL)
+    set(MSIX_DISPLAY_NAME_SUFFIX " ${SOLSTICE_VERSION_STRING}")
     if(KRITA_GIT_SHA1_STRING)
         set(MSIX_DISPLAY_NAME_SUFFIX "${MSIX_DISPLAY_NAME_SUFFIX} (git ${KRITA_GIT_SHA1_STRING})")
     endif(KRITA_GIT_SHA1_STRING)
+else()
+    set(MSIX_DISPLAY_NAME_SUFFIX "")
 endif()
 
 configure_file(

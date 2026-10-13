@@ -15,7 +15,7 @@ RectangleForSegmentationTool::RectangleForSegmentationTool(KoCanvasBase *canvas)
 }
 
 SelectSegmentFromRectTool::SelectSegmentFromRectTool(KoCanvasBase *canvas, QSharedPointer<VisionModels> shared)
-    : KisToolSelectBase<RectangleForSegmentationTool>(canvas, i18n("Segment Selection (Box)"))
+    : KisToolSelectBase<RectangleForSegmentationTool>(canvas, i18n("Segment Selection from Box"))
     , m_segmentation(std::move(shared))
 {
 }

@@ -190,7 +190,11 @@ bool KisAnimationRender::render(KisDocument *doc, KisViewManager *viewManager, K
             }
         }
     } else if (result == KisAsyncAnimationFramesSaveDialog::RenderTimedOut) {
-        QMessageBox::critical(qApp->activeWindow(), i18nc("@title:window", "Rendering error"), "Animation frame rendering has timed out. Output files are incomplete.\nTry to increase \"Frame Rendering Timeout\" or reduce \"Frame Rendering Clones Limit\" in Krita settings");
+        QMessageBox::critical(
+            qApp->activeWindow(),
+            i18nc("@title:window", "Rendering error"),
+            "Animation frame rendering has timed out. Output files are incomplete.\nTry to increase \"Frame Rendering "
+            "Timeout\" or reduce \"Frame Rendering Clones Limit\" in Solstice settings");
     } else if (result == KisAsyncAnimationFramesSaveDialog::RenderFailed) {
         QMessageBox::critical(qApp->activeWindow(), i18nc("@title:window", "Rendering error"), i18n("Failed to render animation frames! Output files are incomplete."));
     } 

@@ -288,3 +288,64 @@ can replace it once releases exist.
       reference.
 - [ ] Capture final reference screenshots of splash, About, Welcome, taskbar, Start menu,
       installer, and `.kra` file association states.
+
+## Pre-release review (2026-10-13)
+
+Three read-only audits (public docs, interface text, visual assets) before the
+first public release; the user asked for the review after phase 4.109.
+
+Done:
+
+- Branding: `Beta` and `Plus` (gray) now resolve to `Next` in the top-level
+  `CMakeLists.txt`; Krita's switch of Qt6 "default" builds to `Beta` is gone,
+  so a stable configuration no longer turns every icon gray.
+- The embedded document icons `pics/{16,22,32,64}_{dark,light}_application-x-
+  {krita,krz}.svg` (shown in File > Document Information; they still had
+  Krita's pink gradient) are regenerated from the `krita/pics/mimetypes`
+  PNGs as SVGs embedding the PNG of their size, like the mimetype SVGs.
+- `pics/krita.png` (the Krita logo, in `icons.qrc`, apparently unused) is a
+  copy of `branding/Next/128-apps-krita.png`.
+- `splash.qrc` no longer embeds the gray `banner.svg` or the empty seasonal
+  `splash_holidays_dummy.png` (the files stay; the seasonal code is `#if 0`).
+- The Windows ZIP no longer contains Krita's `krita*.lnk` shortcuts, which
+  started the absent `bin\krita.exe` (`package-complete.py`,
+  `package-complete-msvc.py`).
+- Help > Report Bug opens https://github.com/udtren/Solstice/issues instead
+  of Krita's guide or bugs.kde.org; the welcome page's Source Code link goes
+  to the Solstice repository.
+- Interface text: remaining "Krita" meaning the running application, and
+  feature wording (Asset Library, Rest Note, Quick Access, Vision ML tool
+  names, Lazy Tools); Quick Access's Properties menu item gets its icon from
+  `KisIconUtils` (`QIcon::fromTheme()` is empty on Windows).
+- Public docs: `docs/gpu-engine.md` rewritten as a user guide (old sections
+  archived in `wiki/history/gpu-user-guide-archive.md`), stale and
+  development-diary statements removed from README and the feature guides.
+
+User decisions (2026-10-13) and what was done:
+
+- **Installer and MSIX: rebranded.** `installer_krita.nsi` and its
+  translations are replaced by `installer_solstice.nsi` (English): Program
+  Files\Solstice, `HKLM\Software\Solstice`, the "Solstice" uninstall entry,
+  publisher "Solstice Project", the Solstice version, `bin\solstice.exe`,
+  Start menu and optional desktop shortcuts, the Solstice icon, and optional
+  per-user Explorer thumbnails. It never detects or removes Krita and takes
+  no file associations. `MakeInstallerNsis.cmake.in` no longer downloads
+  krita-nsis. The MSIX manifest uses the identity "Solstice" (publisher
+  `CN=Solstice` is a placeholder until a signing certificate exists), the
+  Solstice version, `solstice\bin\solstice.exe`, and new tile assets
+  generated from the icon (`packaging/windows/msix/pkg/Assets`, 51 PNGs).
+  Neither was built here (NSIS and the MSIX tools are not installed).
+- **Welcome page: removed** the support link, its icon and text, and the
+  krita.org User Manual and Getting Started links
+  (`KisWelcomePageWidget::slotUpdateThemeColors()`). The labelled "Upstream
+  Krita Website" and the community link stay.
+- **Files written by Solstice keep naming Krita** (`.kra` editor, bundle
+  generator, SVG comment, ICC description, User-Agent), for compatibility.
+- **About data**: short description "Digital painting application";
+  `LegalCopyright` of the executables and the installer use the
+  `KAboutData` copyright text.
+- **Names stay** ("HueSVC", "Puppet", Rest Note capitals, Photobash).
+- **Vision ML guide expanded** (`docs/vision-ml.md`).
+- No public BUILDING.md.
+
+Still open: gray `Beta`/`Plus` (unused), Apple artwork.

@@ -182,7 +182,8 @@ public:
         buttonsLayout->addWidget(down);
         pathsLayout->addLayout(buttonsLayout);
         m_table = new QTableWidget(0, 4, pathsPage);
-        m_table->setHorizontalHeaderLabels({i18n("Alias"), i18n("Path"), i18n("IncludeSubFolder"), i18n("Extensions")});
+        m_table->setHorizontalHeaderLabels(
+            {i18n("Alias"), i18n("Path"), i18n("Include Subfolders"), i18n("Extensions")});
         m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
         m_table->setSelectionMode(QAbstractItemView::SingleSelection);
         m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
@@ -233,7 +234,7 @@ public:
         form->addRow(i18n("Thumbnail columns"), m_autoColumns);
         form->addRow(i18n("Fixed thumbnail columns"), m_columns);
         form->addRow(i18n("Thumbnail size"), m_thumbnailSize);
-        form->addRow(i18n("Folder/Button font size"), m_uiFontSize);
+        form->addRow(i18n("Folder button font size"), m_uiFontSize);
         form->addRow(i18n("Header font size"), m_headerFontSize);
         form->addRow(i18n("Asset filename font size"), m_assetNameFontSize);
         displayLayout->addLayout(form);
@@ -772,13 +773,13 @@ struct KisWelcomeAssetLibraryWidget::Private {
             refreshAssets();
         } else if (selected == remove
                    && QMessageBox::question(q,
-                                            i18n("Remove Asset"),
+                                            i18n("Delete Asset"),
                                             i18n("Delete this file?\n%1", path),
                                             QMessageBox::Yes | QMessageBox::No,
                                             QMessageBox::No)
                        == QMessageBox::Yes) {
             if (!QFile::remove(path))
-                QMessageBox::warning(q, i18n("Remove Asset"), i18n("Could not delete the file."));
+                QMessageBox::warning(q, i18n("Delete Asset"), i18n("Could not delete the file."));
             refreshAssets();
         }
     }

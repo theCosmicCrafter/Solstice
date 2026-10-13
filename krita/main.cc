@@ -844,7 +844,7 @@ extern "C" MAIN_EXPORT int MAIN_FN(int argc, char **argv)
         "krita",
         "Solstice",
         KritaVersionWrapper::solsticeVersionString(true),
-        "", // TODO: "short description" needs new string exception
+        i18nc("@info:short description", "Digital painting application"),
         KAboutLicense::GPL,
         i18nc("@info:credit",
               "© 1999–2026 The Krita Developers; Solstice modifications © 2026 The Solstice Contributors"));

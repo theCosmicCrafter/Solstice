@@ -682,7 +682,7 @@ void AssetLibraryDock::renameAsset(const QString &path)
 void AssetLibraryDock::deleteAsset(const QString &path)
 {
     if (QMessageBox::question(this,
-                              i18n("Remove Asset"),
+                              i18n("Delete Asset"),
                               i18n("Delete this file?\n%1", path),
                               QMessageBox::Yes | QMessageBox::No,
                               QMessageBox::No)
@@ -690,7 +690,7 @@ void AssetLibraryDock::deleteAsset(const QString &path)
         return;
     }
     if (!QFile::remove(path))
-        QMessageBox::warning(this, i18n("Remove Asset"), i18n("Could not delete the file."));
+        QMessageBox::warning(this, i18n("Delete Asset"), i18n("Could not delete the file."));
     refreshAssets();
 }
 
@@ -714,7 +714,7 @@ void AssetLibraryDock::showSettings()
     pathButtons->addWidget(down);
     pathsLayout->addLayout(pathButtons);
     auto *table = new QTableWidget(0, 4, pathsTab);
-    table->setHorizontalHeaderLabels({i18n("Alias"), i18n("Path"), i18n("IncludeSubFolder"), i18n("Extensions")});
+    table->setHorizontalHeaderLabels({i18n("Alias"), i18n("Path"), i18n("Include Subfolders"), i18n("Extensions")});
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setSelectionMode(QAbstractItemView::SingleSelection);
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
@@ -794,7 +794,7 @@ void AssetLibraryDock::showSettings()
     form->addRow(i18n("Thumbnail columns"), autoColumns);
     form->addRow(i18n("Fixed thumbnail columns"), columns);
     form->addRow(i18n("Thumbnail size"), thumbnail);
-    form->addRow(i18n("Folder/Button font size"), uiFont);
+    form->addRow(i18n("Folder button font size"), uiFont);
     form->addRow(i18n("Header font size"), headerFont);
     form->addRow(i18n("Asset filename font size"), nameFont);
     displayLayout->addLayout(form);

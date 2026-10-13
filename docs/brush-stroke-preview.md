@@ -42,8 +42,8 @@ generated preview appears everywhere at once:
   engine filter; its display menu also has only **Preview Size**;
 - the [Quick Access](quick-access.md) palette and its Resources dialog.
 
-The lists share the preview size and the grouping choice; a list picks up a
-change made in another one when it is opened again after restarting. The F5
+The lists share the preview size and the grouping choice; a change made in
+one list applies to the others after Solstice is restarted. The F5
 live preview keeps its existing appearance and live brush-setting behavior.
 
 ## Grouping

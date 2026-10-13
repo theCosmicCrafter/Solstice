@@ -395,9 +395,11 @@ if ("${BRANDING}" STREQUAL "")
     endif ()
 endif()
 
-# Qt6 isn't stable, don't make it look like it is.
-if(BRANDING STREQUAL "default" AND BUILD_WITH_QT6)
-    set(BRANDING "Beta")
+# Solstice: only the default and Next variants carry Solstice artwork (the
+# Beta and Plus icons are gray placeholders), so they use Next. Krita's switch
+# of Qt6 builds from default to Beta is dropped for the same reason.
+if(BRANDING STREQUAL "Beta" OR BRANDING STREQUAL "Plus")
+    set(BRANDING "Next")
 endif()
 
 message(STATUS "Branding selected: ${BRANDING}")

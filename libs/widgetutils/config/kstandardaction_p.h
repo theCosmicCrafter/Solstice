@@ -110,7 +110,7 @@ static constexpr KStandardActionInfo g_rgActionInfo[] = {
 
     // the idea here is that Contents is used in menus, and Help in dialogs, so both share the same
     // shortcut
-    { HelpContents,  KStandardShortcut::Help, "help_contents", QT_TRANSLATE_NOOP("KStandardActions", "Krita &Handbook"), {}, "help-contents" },
+    { HelpContents,  KStandardShortcut::Help, "help_contents", QT_TRANSLATE_NOOP("KStandardActions", "Upstream Krita &Handbook"), {}, "help-contents" },
     { WhatsThis,     KStandardShortcut::WhatsThis, "help_whats_this", QT_TRANSLATE_NOOP("KStandardActions", "What's &This?"), {}, "help-contextual" },
     { ReportBug,     KStandardShortcut::ReportBug, "help_report_bug", QT_TRANSLATE_NOOP("KStandardActions", "&Report Bug..."), {}, "tools-report-bug" },
     { SwitchApplicationLanguage, KStandardShortcut::SwitchApplicationLanguage, "switch_application_language", QT_TRANSLATE_NOOP("KStandardActions", "Switch Application &Language..."), {}, "preferences-desktop-locale" },

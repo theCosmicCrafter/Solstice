@@ -375,7 +375,7 @@ void QuickAdjustDock::ensureToolOptionsPad()
     m_toolOptionsDocker = docker;
     m_toolOptionsDockerWasVisible = docker->isVisible();
     m_borrowedToolOptions = docker->widget();
-    m_toolOptionsPlaceholder = new QLabel(i18nc("@info", "Tool Options are open beside Quick Adjust."));
+    m_toolOptionsPlaceholder = new QLabel(i18nc("@info", "Tool Options are open beside Quick Brush Adjustments."));
     m_toolOptionsPlaceholder->hide();
 
     m_toolOptionsPad = new QWidget(mainWindow, Qt::Tool | Qt::FramelessWindowHint);

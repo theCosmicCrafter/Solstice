@@ -231,15 +231,9 @@ void KisKHelpMenu::aboutKDE()
 
 void KisKHelpMenu::reportBug()
 {
-#ifdef KRITA_STABLE
-    QDesktopServices::openUrl(QUrl("https://docs.krita.org/en/untranslatable_pages/reporting_bugs.html"));
-#else
-    if (!d->mBugReport) {
-        d->mBugReport = new KisKBugReport(d->mAboutData, d->mParent);
-        connect(d->mBugReport, SIGNAL(finished(int)), this, SLOT(dialogFinished()));
-    }
-    d->mBugReport->show();
-#endif
+    // Solstice: issues go to its own repository, not to the Krita or KDE
+    // trackers (the KDE bug report dialog is no longer shown).
+    QDesktopServices::openUrl(QUrl(QStringLiteral("https://github.com/udtren/Solstice/issues")));
 }
 
 void KisKHelpMenu::switchApplicationLanguage()

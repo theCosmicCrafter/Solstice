@@ -31,7 +31,7 @@ def find_on_path(variable, executable):
 
 # Begin
 
-print("*** Krita MSIX build script ***")
+print("*** Solstice MSIX build script ***")
 
 if (not environ.get('WindowsSdkDir')) and environ.get('ProgramFiles(x86)'):
     environ['WindowsSdkDir'] = fr"{environ['ProgramFiles(x86)']}\Windows Kits\10"
@@ -146,8 +146,8 @@ if environ.get('KRITA_SHELLEX'):
     print("=== Step 0 done. ===")
 
 # Sanity checks:
-if not os.path.isfile(fr"{environ['KRITA_DIR']}\bin\krita.exe"):
-    warnings.warn(fr'ERROR: KRITA_DIR is set to "{environ["KRITA_DIR"]}" but {environ["KRITA_DIR"]}\bin\krita.exe" does not exist!')
+if not os.path.isfile(fr"{environ['KRITA_DIR']}\bin\solstice.exe"):
+    warnings.warn(fr'ERROR: KRITA_DIR is set to "{environ["KRITA_DIR"]}" but {environ["KRITA_DIR"]}\bin\solstice.exe" does not exist!')
     sys.exit(1)
 if not os.path.isfile(fr"{environ['KRITA_DIR']}\shellex\kritashellex64.dll"):
     warnings.warn(fr'ERROR: "{environ["KRITA_DIR"]}\shellex\kritashellex64.dll" does not exist!')
@@ -195,11 +195,11 @@ with tempfile.NamedTemporaryFile(mode='w', delete=False) as OUT_TEMP:
     print(fr'"{scriptDir}\manifest.xml" "AppxManifest.xml"', file=OUT_TEMP)
     print(fr'"{environ["OUTPUT_DIR"]}\resources.pri" "Resources.pri"', file=OUT_TEMP)
 
-    # Krita application files:
+    # Solstice application files:
     for root, dirs, files in os.walk(environ['KRITA_DIR']):
         for file in files:
             f = os.path.join(root, file)
-            print(fr'"{f}" "krita\{os.path.relpath(f, environ["KRITA_DIR"])}"', file=OUT_TEMP)
+            print(fr'"{f}" "solstice\{os.path.relpath(f, environ["KRITA_DIR"])}"', file=OUT_TEMP)
 
     # Assets:
     for root, dirs, files in os.walk(environ['ASSETS_DIR']):
@@ -233,7 +233,7 @@ The arguments stands for:
     /p <output package name>: Specifies the app package or bundle.
 """
 
-commandToRun = fr'"{environ["MAKEAPPX"]}" pack {"/v" if useVerbosePackagingLog else ""} /f "{environ["OUTPUT_DIR"]}\mapping.txt" /p "{environ["OUTPUT_DIR"]}\krita.msix" /o'
+commandToRun = fr'"{environ["MAKEAPPX"]}" pack {"/v" if useVerbosePackagingLog else ""} /f "{environ["OUTPUT_DIR"]}\mapping.txt" /p "{environ["OUTPUT_DIR"]}\solstice.msix" /o'
 try:
     print(f"Running: {commandToRun}")
     logPath = os.path.join(os.getcwd(), 'makeappx.log')
@@ -243,11 +243,11 @@ except subprocess.CalledProcessError:
     warnings.warn(f"ERROR running makeappx, see {logPath}")
     sys.exit(1)
     
-print(f"\nMSIX generated as {environ['OUTPUT_DIR']}\\krita.msix")
+print(f"\nMSIX generated as {environ['OUTPUT_DIR']}\\solstice.msix")
 
 if environ.get('SIGNTOOL_SIGN_FLAGS'):
     print("Signing MSIX...")
-    commandToRun = fr'"{environ["SIGNTOOL"]}" sign {environ["SIGNTOOL_SIGN_FLAGS"]} /fd sha256 "{environ["OUTPUT_DIR"]}\krita.msix"'
+    commandToRun = fr'"{environ["SIGNTOOL"]}" sign {environ["SIGNTOOL_SIGN_FLAGS"]} /fd sha256 "{environ["OUTPUT_DIR"]}\solstice.msix"'
     try:
         print(f"Running: {commandToRun}")
         subprocess.check_call(commandToRun)

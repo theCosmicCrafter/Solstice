@@ -36,7 +36,7 @@ If the copy is cancelled or fails (for example for lack of disk space),
 Solstice removes what it had copied, quits, and asks again on the next start.
 
 If the Krita settings use a custom resource folder (the **Resource Folder**
-setting in Solstice's preferences), Solstice copies the settings only and
+setting in Krita's preferences), Solstice copies the settings only and
 keeps using that folder.
 
 Without Krita settings, Solstice starts with its defaults and does not ask.
@@ -79,5 +79,3 @@ file only.
   Delete them yourself if you no longer use Krita.
 - Earlier Solstice versions also used `%LOCALAPPDATA%\krita\cache`. Solstice
   no longer uses it; you can delete it.
-
-Technical notes: [`agent/settings-location.md`](agent/settings-location.md).

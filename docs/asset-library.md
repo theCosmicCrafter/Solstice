@@ -1,12 +1,12 @@
 # Asset Library
 
 Asset Library is a native docker for browsing configured folders, opening
-assets, and inserting them as paint, vector, or file layers. It preserves the
-original folder and layout configuration while using cached asynchronous
+assets, and inserting them as paint, vector, or file layers. It keeps the
+folder and layout settings of the Asset Library plugin it replaces while using cached asynchronous
 thumbnail loading for large libraries.
 
 The same configuration and asset operations are available through the
-independent **Asset Library** tab on Krita's welcome page.
+independent **Asset Library** tab on the welcome page.
 
 Native implementations:
 

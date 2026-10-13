@@ -531,12 +531,8 @@ MergeFolders.merge_folders(f"{DEPS_INSTALL_DIR}\\share\\mime", f"{pkg_root}\\sha
 MergeFolders.merge_folders(f"{KRITA_INSTALL_DIR}\\share\\locale", f"{pkg_root}\\bin\\locale")
 MergeFolders.merge_folders(f"{DEPS_INSTALL_DIR}\\share\\locale", f"{pkg_root}\\bin\\locale")
 
-# Copy shortcut link from source (can't create it dynamically)
-shutil.copy(f"{KRITA_SRC_DIR}\\packaging\\windows\\krita.lnk", pkg_root)
-shutil.copy(
-    f"{KRITA_SRC_DIR}\\packaging\\windows\\krita-minimal.lnk", pkg_root)
-shutil.copy(
-    f"{KRITA_SRC_DIR}\\packaging\\windows\\krita-animation.lnk", pkg_root)
+# Solstice: Krita's prebuilt shortcuts start bin\krita.exe, which Solstice does
+# not ship (the launcher is bin\solstice.exe), so they are not copied.
 
 # QML deployment:
 #

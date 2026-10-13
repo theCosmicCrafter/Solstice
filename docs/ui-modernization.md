@@ -2,8 +2,8 @@
 
 Solstice is gradually refining Krita's interface: calmer colors, clearer
 docker headers, document tabs and toolbars, without moving any controls or
-changing how they work. Every change is optional, and the original look stays
-the default.
+changing how they work. New profiles start with these changes on; each one can
+be turned off to return to Krita's look.
 
 ## UI font
 
@@ -46,7 +46,7 @@ Switch back with **Settings → Themes → Krita darker** (or any other theme).
 ## Solstice interface option
 
 **Settings → Configure Solstice → General → Window → Solstice interface
-(docker titles, document tabs, toolbars)** changes three parts of the window:
+(docker titles, document tabs, toolbars)** changes four parts of the window:
 
 - **Docker titles** get a header band with a separator line and a little more
   padding, so each docker's title reads as its header. The lock, float and
@@ -89,13 +89,11 @@ Fusion** to return to the original look.
 ## Limitations
 
 - The Solstice interface option changes only the main window's docker
-  titles, document tabs and toolbars; the Solstice style changes the common
-  controls.
+  titles, document tabs and toolbars, and the Settings dialog's page list; the
+  Solstice style changes the common controls.
 - After switching styles, a few lists and menus that were already open (for
   example the layer list) keep the previous style until Solstice is
   restarted.
-- Text tool panels and other QML-based panels are not affected by the
-  Solstice style.
 - Without the Solstice interface option, the Settings dialog keeps its large
   page icons.
 - Panels built with QML, such as Text Properties, follow the theme's colors
@@ -105,6 +103,3 @@ Fusion** to return to the original look.
   Display → Canvas Border Color**, not from the theme.
 - The theme, the Solstice interface option and the Solstice style have been
   checked on Windows at 125% display scaling only.
-
-Agent-facing notes are in
-[`agent/ui-modernization-plan.md`](agent/ui-modernization-plan.md).

@@ -267,7 +267,7 @@ void InpaintTool::endPrimaryAction(KoPointerEvent *event)
                                        currentNode(),
                                        KisProcessingApplicator::NONE,
                                        KisImageSignalVector(),
-                                       kundo2_i18n("Smart Patch"));
+                                       kundo2_i18n("Smart Fill"));
 
     // actual inpaint operation. filling in areas masked by user
     applicator.applyCommand(new VisionMLInpaintCommand(KisPainter::convertToAlphaAsPureAlpha(m_d->maskDev),

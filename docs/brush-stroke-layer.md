@@ -5,8 +5,6 @@ on it. The goal, as with Clip Studio Paint's vector layers, is to draw line
 art small and enlarge it later without blurring: enlarging the image draws
 the remembered strokes again at the new size with the same brush.
 
-The feature is being built in stages. This page describes what works now.
-
 ## Creating one
 
 In the Layers docker, open the add-layer menu (**+**) and choose **Brush
@@ -84,7 +82,7 @@ Other formats (PSD, ORA, PNG and so on) store the pixels only.
 - Strokes on the layer render their dabs one after another, not on several
   threads, so that each stroke can be drawn again exactly. Very large or
   complex brushes may feel slower on this layer than on a paint layer.
-- Strokes drawn with earlier Solstice builds (before 2026-10-10) may not be
+- Strokes drawn with early Solstice test builds may not be
   drawn again exactly, for example strokes of brushes that choose their
   images at random or whose spacing depends on pressure; such a layer
   enlarges like a paint layer. Strokes drawn now are drawn again. Files with

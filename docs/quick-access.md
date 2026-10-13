@@ -1,6 +1,6 @@
 # Quick Access Manager
 
-Quick Access Manager is implemented as native Krita dockers and popup tools. It
+Quick Access Manager is a set of dockers and popup tools. It
 provides configurable action, docker, and brush grids; editable profiles;
 gesture menus; Quick Brush Adjustments; a compact HueSVC selector; and
 hold-based temporary brush shortcuts.
@@ -17,7 +17,7 @@ shape: a vertical hue bar left of the saturation/value square (the default),
 or the square inside a hue ring. The choice applies to the HueSVC docker and
 its popup and does not follow the Advanced Color Selector's shape.
 Its popup uses a fixed-width vertical adjustment panel so each brush and layer
-slider spans the panel, matching the original plugin layout. Docker-only status
+slider spans the panel, as in the Quick Access plugin. Docker-only status
 buttons and their separators are omitted from the popup. Opening either brush
 or layer blending-mode list keeps the HueSVC popup open while the list is in
 use.
@@ -60,7 +60,7 @@ Brushes show stroke previews, like the Brush Presets docker:
 Brushes added before stroke previews existed keep their icon until their
 display is changed.
 
-Existing profile aliases, custom labels, colors, icons, and legacy JSON fields
-remain supported where practical.
+Profiles, aliases, custom labels, colors and icons saved by the Quick Access
+plugin still load.
 
 Native implementation: [`../plugins/dockers/quickaccess`](../plugins/dockers/quickaccess/)

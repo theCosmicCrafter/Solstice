@@ -167,8 +167,8 @@ VisionModels::VisionModels()
     }
     if (!err.isEmpty()) {
         QMessageBox::warning(nullptr,
-                             i18nc("@title:window", "Solstice - VisionML Plugin"),
-                             i18n("Failed to initialize AI tools plugin.\n") + err);
+                             i18nc("@title:window", "Solstice - Vision ML"),
+                             i18n("Failed to initialize Vision ML.\n") + err);
         return;
     }
 
@@ -323,7 +323,7 @@ bool VisionModels::setBackend(visp::backend_type backendType)
     QString err = initialize(backendType);
     if (!err.isEmpty()) {
         QMessageBox::warning(nullptr,
-                             i18nc("@title:window", "Solstice - Vision ML Tools Plugin"),
+                             i18nc("@title:window", "Solstice - Vision ML"),
                              i18n("Error while trying to switch inference backend.\n") + err);
         return false;
     }
@@ -593,7 +593,7 @@ void VisionMLModelSelect::openModelsFolder()
     QString folder = findModelPath(m_task);
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(folder))) {
         QMessageBox::warning(nullptr,
-                             i18nc("@title:window", "Solstice - Vision ML Tools Plugin"),
+                             i18nc("@title:window", "Solstice - Vision ML"),
                              i18n("Failed to open folder: ") + folder);
     }
 }
@@ -610,6 +610,6 @@ VisionMLErrorReporter::VisionMLErrorReporter(QObject *parent)
 void VisionMLErrorReporter::showError(QString const &message) const
 {
     QMessageBox::warning(nullptr,
-                         i18nc("@title:window", "Solstice - Vision ML Tools Plugin"),
+                         i18nc("@title:window", "Solstice - Vision ML"),
                          i18n("Error during image processing: ") + message);
 }

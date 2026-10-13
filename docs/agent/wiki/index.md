@@ -1,6 +1,6 @@
 ---
 type: index
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 # Agent wiki
@@ -107,6 +107,9 @@ there, under "Phase history"):
 - [Paint trace and latency analysis (phases 4.58-4.81)](history/gpu-phases-4.58-4.81.md)
 - [Generated dabs and brush latency (phases 4.82-4.92)](history/gpu-phases-4.82-4.92.md)
 - [Filters and transforms (phases 4.93-)](history/gpu-phases-4.93-.md) (newest)
+- [GPU Engine user guide, development notes](history/gpu-user-guide-archive.md):
+  the status and measurement sections removed from `docs/gpu-engine.md`
+  before the first public release (2026-10-13)
 
 ### Queries
 

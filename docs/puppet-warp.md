@@ -2,7 +2,7 @@
 
 <img src="../images/puppet_warp_1.png" alt="Puppet Warp mesh" width="50%">
 
-Puppet Warp is a native mode of Krita's Transform Tool for posing characters
+Puppet Warp is a mode of the Transform Tool for posing characters
 and reshaping raster artwork with pins that can be moved and rotated. The
 artwork is covered by a triangle mesh that follows the visible artwork and
 fills the interiors of closed line art.
@@ -110,14 +110,7 @@ Locked, hidden, non-editable, or unsupported node types may be skipped.
 - There are no per-pin strength, influence-radius, or rotation-lock options.
 - Puppet transforms saved with older versions keep their original, less rigid
   deformation when reopened.
-- Before 2026-10-07, the "Accurate" preview settings did not build the mesh:
-  Puppet Warp then used the older, less rigid deformation, showed no mesh,
-  and the layer could disappear until the first pin was placed. Both preview
-  settings now use the mesh.
 - The final result is rendered on the GPU for 32-bit and 16-bit float layers
   when the GPU engine is on (about 190ms instead of 710ms on a 2480x3508
   layer with three pins). The preview while editing is still drawn on the
   CPU.
-
-Agent-facing implementation, verification, and improvement notes are maintained
-separately in [`agent/puppet-warp.md`](agent/puppet-warp.md).
