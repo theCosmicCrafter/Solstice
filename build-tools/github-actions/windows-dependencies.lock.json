@@ -2,6 +2,10 @@
   "schema": 1,
   "platform": "windows-x64-llvm-mingw",
   "registryProject": 16406,
+  "mirror": {
+    "repository": "udtren/solstice-deps",
+    "tag": "deps-20261009-4aff6eb"
+  },
   "toolchain": {
     "version": "20251118",
     "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20251118/llvm-mingw-20251118-ucrt-x86_64.zip",
@@ -21,7 +25,8 @@
       "size": 181657600,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_boost-transition.now-qt6-1791547283.tar"
     },
     {
       "name": "ext_brotli",
@@ -31,7 +36,8 @@
       "size": 1976320,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_brotli-transition.now-qt6-1791547316.tar"
     },
     {
       "name": "ext_dlfcn_win32",
@@ -41,7 +47,8 @@
       "size": 133120,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_dlfcn_win32-transition.now-qt6-1791549072.tar"
     },
     {
       "name": "ext_drmingw",
@@ -51,7 +58,8 @@
       "size": 8069120,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_drmingw-transition.now-qt6-1791549154.tar"
     },
     {
       "name": "ext_eigen3",
@@ -61,7 +69,8 @@
       "size": 11182080,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_eigen3-transition.now-qt6-1791547325.tar"
     },
     {
       "name": "ext_exiv2",
@@ -76,7 +85,8 @@
         "ext_iconv": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_exiv2-transition.now-qt6-1791549392.tar"
     },
     {
       "name": "ext_expat",
@@ -86,7 +96,8 @@
       "size": 819200,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_expat-transition.now-qt6-1791547350.tar"
     },
     {
       "name": "ext_extra_cmake_modules",
@@ -96,7 +107,8 @@
       "size": 1003520,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_extra_cmake_modules-transition.now-qt6-1791547361.tar"
     },
     {
       "name": "ext_ffmpeg",
@@ -124,7 +136,8 @@
         "ext_vpl": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_ffmpeg-transition.now-qt6-1791551791.tar"
     },
     {
       "name": "ext_fftw3",
@@ -134,7 +147,8 @@
       "size": 3706880,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_fftw3-transition.now-qt6-1791547431.tar"
     },
     {
       "name": "ext_flac",
@@ -147,7 +161,8 @@
         "ext_pkgconfig": "transition.now/qt6",
         "ext_libogg": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_flac-transition.now-qt6-1791549642.tar"
     },
     {
       "name": "ext_fontconfig",
@@ -163,7 +178,8 @@
         "ext_pkgconfig": "transition.now/qt6",
         "ext_gettext": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_fontconfig-transition.now-qt6-1791552514.tar"
     },
     {
       "name": "ext_freetype",
@@ -177,7 +193,8 @@
         "ext_icu": "transition.now/qt6",
         "ext_pkgconfig": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_freetype-transition.now-qt6-1791550126.tar"
     },
     {
       "name": "ext_fribidi",
@@ -187,7 +204,8 @@
       "size": 757760,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_fribidi-transition.now-qt6-1791547457.tar"
     },
     {
       "name": "ext_gettext",
@@ -199,7 +217,8 @@
       "dependencies": {
         "ext_iconv": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_gettext-transition.now-qt6-1791549263.tar"
     },
     {
       "name": "ext_giflib",
@@ -209,7 +228,8 @@
       "size": 204800,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_giflib-transition.now-qt6-1791547482.tar"
     },
     {
       "name": "ext_googleangle",
@@ -221,7 +241,8 @@
       "dependencies": {
         "ext_zlib": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_googleangle-transition.now-qt6-1791550029.tar"
     },
     {
       "name": "ext_gperf",
@@ -231,7 +252,8 @@
       "size": 440320,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_gperf-transition.now-qt6-1791549177.tar"
     },
     {
       "name": "ext_gsl",
@@ -241,7 +263,8 @@
       "size": 10997760,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_gsl-transition.now-qt6-1791547527.tar"
     },
     {
       "name": "ext_highway",
@@ -251,7 +274,8 @@
       "size": 73553920,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_highway-transition.now-qt6-1791547612.tar"
     },
     {
       "name": "ext_iconv",
@@ -261,7 +285,8 @@
       "size": 337920,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_iconv-transition.now-qt6-1791548542.tar"
     },
     {
       "name": "ext_icoutils",
@@ -273,7 +298,8 @@
       "dependencies": {
         "ext_png": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_icoutils-transition.now-qt6-1791550053.tar"
     },
     {
       "name": "ext_icu",
@@ -283,7 +309,8 @@
       "size": 82810880,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_icu-transition.now-qt6-1791547707.tar"
     },
     {
       "name": "ext_immer",
@@ -293,7 +320,8 @@
       "size": 1013760,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_immer-transition.now-qt6-1791547744.tar"
     },
     {
       "name": "ext_jpeg",
@@ -303,7 +331,8 @@
       "size": 7485440,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_jpeg-transition.now-qt6-1791547801.tar"
     },
     {
       "name": "ext_jpegxl",
@@ -320,7 +349,8 @@
         "ext_png": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_jpegxl-transition.now-qt6-1791550185.tar"
     },
     {
       "name": "ext_json_c",
@@ -330,7 +360,8 @@
       "size": 849920,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_json_c-transition.now-qt6-1791547879.tar"
     },
     {
       "name": "ext_karchive",
@@ -343,7 +374,8 @@
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_karchive-transition.now-qt6-1791552586.tar"
     },
     {
       "name": "ext_kcodecs",
@@ -357,7 +389,8 @@
         "ext_extra_cmake_modules": "transition.now/qt6",
         "ext_gperf": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kcodecs-transition.now-qt6-1791552636.tar"
     },
     {
       "name": "ext_kcolorscheme",
@@ -373,7 +406,8 @@
         "ext_kguiaddons": "transition.now/qt6",
         "ext_ki18n": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kcolorscheme-transition.now-qt6-1791553610.tar"
     },
     {
       "name": "ext_kcompletion",
@@ -389,7 +423,8 @@
         "ext_kcodecs": "transition.now/qt6",
         "ext_kwidgetsaddons": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kcompletion-transition.now-qt6-1791553699.tar"
     },
     {
       "name": "ext_kconfig",
@@ -402,7 +437,8 @@
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kconfig-transition.now-qt6-1791552701.tar"
     },
     {
       "name": "ext_kcoreaddons",
@@ -415,7 +451,8 @@
         "ext_extra_cmake_modules": "transition.now/qt6",
         "ext_qt": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kcoreaddons-transition.now-qt6-1791552758.tar"
     },
     {
       "name": "ext_kdcraw",
@@ -429,7 +466,8 @@
         "ext_extra_cmake_modules": "transition.now/qt6",
         "ext_qt": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kdcraw-transition.now-qt6-1791551889.tar"
     },
     {
       "name": "ext_kguiaddons",
@@ -442,7 +480,8 @@
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kguiaddons-transition.now-qt6-1791552812.tar"
     },
     {
       "name": "ext_ki18n",
@@ -456,7 +495,8 @@
         "ext_extra_cmake_modules": "transition.now/qt6",
         "ext_gettext": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_ki18n-transition.now-qt6-1791552871.tar"
     },
     {
       "name": "ext_kimageformats",
@@ -470,7 +510,8 @@
         "ext_extra_cmake_modules": "transition.now/qt6",
         "ext_karchive": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kimageformats-transition.now-qt6-1791552931.tar"
     },
     {
       "name": "ext_kitemmodels",
@@ -483,7 +524,8 @@
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kitemmodels-transition.now-qt6-1791552978.tar"
     },
     {
       "name": "ext_kitemviews",
@@ -496,7 +538,8 @@
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kitemviews-transition.now-qt6-1791553063.tar"
     },
     {
       "name": "ext_kwidgetsaddons",
@@ -509,7 +552,8 @@
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kwidgetsaddons-transition.now-qt6-1791553192.tar"
     },
     {
       "name": "ext_kwindowsystem",
@@ -522,7 +566,8 @@
         "ext_qt": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_kwindowsystem-transition.now-qt6-1791553239.tar"
     },
     {
       "name": "ext_lager",
@@ -535,7 +580,8 @@
         "ext_zug": "transition.now/qt6",
         "ext_immer": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_lager-transition.now-qt6-1791549408.tar"
     },
     {
       "name": "ext_lame",
@@ -547,7 +593,8 @@
       "dependencies": {
         "ext_pkgconfig": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_lame-transition.now-qt6-1791549681.tar"
     },
     {
       "name": "ext_lcms2",
@@ -557,7 +604,8 @@
       "size": 2631680,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_lcms2-transition.now-qt6-1791547918.tar"
     },
     {
       "name": "ext_libaom",
@@ -567,7 +615,8 @@
       "size": 15759360,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_libaom-transition.now-qt6-1791548516.tar"
     },
     {
       "name": "ext_libde265",
@@ -577,7 +626,8 @@
       "size": 2949120,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_libde265-transition.now-qt6-1791548759.tar"
     },
     {
       "name": "ext_libheif",
@@ -591,7 +641,8 @@
         "ext_libde265": "transition.now/qt6",
         "ext_libx265": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_libheif-transition.now-qt6-1791551838.tar"
     },
     {
       "name": "ext_libogg",
@@ -601,7 +652,8 @@
       "size": 768000,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_libogg-transition.now-qt6-1791548168.tar"
     },
     {
       "name": "ext_libraw",
@@ -615,7 +667,8 @@
         "ext_jpeg": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_libraw-transition.now-qt6-1791549916.tar"
     },
     {
       "name": "ext_libtheora",
@@ -630,7 +683,8 @@
         "ext_png": "transition.now/qt6",
         "ext_pkgconfig": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_libtheora-transition.now-qt6-1791549716.tar"
     },
     {
       "name": "ext_libvorbis",
@@ -642,7 +696,8 @@
       "dependencies": {
         "ext_libogg": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_libvorbis-transition.now-qt6-1791548199.tar"
     },
     {
       "name": "ext_libx265",
@@ -654,7 +709,8 @@
       "dependencies": {
         "ext_libx265_12bit": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_libx265-transition.now-qt6-1791549872.tar"
     },
     {
       "name": "ext_libx265_10bit",
@@ -664,7 +720,8 @@
       "size": 10106880,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_libx265_10bit-transition.now-qt6-1791548866.tar"
     },
     {
       "name": "ext_libx265_12bit",
@@ -676,7 +733,8 @@
       "dependencies": {
         "ext_libx265_10bit": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_libx265_12bit-transition.now-qt6-1791548954.tar"
     },
     {
       "name": "ext_lzma",
@@ -686,7 +744,8 @@
       "size": 3031040,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_lzma-transition.now-qt6-1791548621.tar"
     },
     {
       "name": "ext_mlt",
@@ -703,7 +762,8 @@
         "ext_fontconfig": "transition.now/qt6",
         "ext_dlfcn_win32": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_mlt-transition.now-qt6-1791553332.tar"
     },
     {
       "name": "ext_mypaint",
@@ -716,7 +776,8 @@
         "ext_json_c": "transition.now/qt6",
         "ext_extra_cmake_modules": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_mypaint-transition.now-qt6-1791547950.tar"
     },
     {
       "name": "ext_nasm",
@@ -726,7 +787,8 @@
       "size": 2816000,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_nasm-transition.now-qt6-1791547085.tar"
     },
     {
       "name": "ext_ocio",
@@ -738,7 +800,8 @@
       "dependencies": {
         "ext_openexr": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_ocio-transition.now-qt6-1791548727.tar"
     },
     {
       "name": "ext_imath",
@@ -748,7 +811,8 @@
       "size": 1167360,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_imath-transition.now-qt6-1791547730.tar"
     },
     {
       "name": "ext_openexr",
@@ -760,7 +824,8 @@
       "dependencies": {
         "ext_imath": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_openexr-transition.now-qt6-1791548063.tar"
     },
     {
       "name": "ext_openh264",
@@ -772,7 +837,8 @@
       "dependencies": {
         "ext_pkgconfig": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_openh264-transition.now-qt6-1791549748.tar"
     },
     {
       "name": "ext_openjpeg",
@@ -784,7 +850,8 @@
       "dependencies": {
         "ext_lcms2": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_openjpeg-transition.now-qt6-1791548114.tar"
     },
     {
       "name": "ext_openssl",
@@ -794,7 +861,8 @@
       "size": 8140800,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_openssl-transition.now-qt6-1791549284.tar"
     },
     {
       "name": "ext_opus",
@@ -804,7 +872,8 @@
       "size": 1280000,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_opus-transition.now-qt6-1791548254.tar"
     },
     {
       "name": "ext_patch",
@@ -814,7 +883,8 @@
       "size": 133120,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_patch-transition.now-qt6-1791547027.tar"
     },
     {
       "name": "ext_pkgconfig",
@@ -824,7 +894,8 @@
       "size": 686080,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_pkgconfig-transition.now-qt6-1791549320.tar"
     },
     {
       "name": "ext_png",
@@ -836,7 +907,8 @@
       "dependencies": {
         "ext_zlib": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_png-transition.now-qt6-1791549438.tar"
     },
     {
       "name": "ext_poppler",
@@ -856,7 +928,8 @@
         "ext_lcms2": "transition.now/qt6",
         "ext_iconv": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_poppler-transition.now-qt6-1791553541.tar"
     },
     {
       "name": "ext_pyqt-builder",
@@ -869,7 +942,8 @@
         "ext_python": "transition.now/qt6",
         "ext_qt": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_pyqt-builder-transition.now-qt6-1791551942.tar"
     },
     {
       "name": "ext_pyqt6",
@@ -884,7 +958,8 @@
         "ext_pyqt-builder": "transition.now/qt6",
         "ext_sip": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_pyqt6-transition.now-qt6-1791552399.tar"
     },
     {
       "name": "ext_pyqt6-sip",
@@ -899,7 +974,8 @@
         "ext_qt": "transition.now/qt6",
         "ext_pyqt6": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_pyqt6-sip-transition.now-qt6-1791552468.tar"
     },
     {
       "name": "ext_python",
@@ -909,7 +985,8 @@
       "size": 27586560,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_python-transition.now-qt6-1791549012.tar"
     },
     {
       "name": "ext_qt",
@@ -927,7 +1004,8 @@
         "ext_openssl": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_qt-transition.now-qt6-1791551435.tar"
     },
     {
       "name": "ext_quazip",
@@ -940,7 +1018,8 @@
         "ext_qt": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_quazip-transition.now-qt6-1791551556.tar"
     },
     {
       "name": "ext_sdl2",
@@ -950,7 +1029,8 @@
       "size": 7096320,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_sdl2-transition.now-qt6-1791548410.tar"
     },
     {
       "name": "ext_seexpr",
@@ -964,7 +1044,8 @@
         "ext_extra_cmake_modules": "transition.now/qt6",
         "ext_ki18n": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_seexpr-transition.now-qt6-1791553419.tar"
     },
     {
       "name": "ext_sip",
@@ -976,7 +1057,8 @@
       "dependencies": {
         "ext_python": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_sip-transition.now-qt6-1791549046.tar"
     },
     {
       "name": "ext_strawberryperl",
@@ -986,7 +1068,8 @@
       "size": 198389760,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_strawberryperl-transition.now-qt6-1791547065.tar"
     },
     {
       "name": "ext_tiff",
@@ -999,7 +1082,8 @@
         "ext_zlib": "transition.now/qt6",
         "ext_jpeg": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_tiff-transition.now-qt6-1791549530.tar"
     },
     {
       "name": "ext_unibreak",
@@ -1009,7 +1093,8 @@
       "size": 266240,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_unibreak-transition.now-qt6-1791548124.tar"
     },
     {
       "name": "ext_vpl",
@@ -1019,7 +1104,8 @@
       "size": 22046720,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_vpl-transition.now-qt6-1791548995.tar"
     },
     {
       "name": "ext_vpx",
@@ -1031,7 +1117,8 @@
       "dependencies": {
         "ext_pkgconfig": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_vpx-transition.now-qt6-1791549790.tar"
     },
     {
       "name": "ext_webp",
@@ -1047,7 +1134,8 @@
         "ext_giflib": "transition.now/qt6",
         "ext_zlib": "transition.now/qt6"
       },
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_webp-transition.now-qt6-1791549592.tar"
     },
     {
       "name": "ext_xsimd",
@@ -1057,7 +1145,8 @@
       "size": 1966080,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_xsimd-transition.now-qt6-1791548132.tar"
     },
     {
       "name": "ext_zlib",
@@ -1067,7 +1156,8 @@
       "size": 1546240,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_zlib-transition.now-qt6-1791549204.tar"
     },
     {
       "name": "ext_zug",
@@ -1077,7 +1167,8 @@
       "size": 368640,
       "sourceRevision": "4aff6eb927a44c2dd155d45c75cc57fa305a970b",
       "dependencies": {},
-      "runtimeDependencies": {}
+      "runtimeDependencies": {},
+      "mirrorUrl": "https://github.com/udtren/solstice-deps/releases/download/deps-20261009-4aff6eb/ext_zug-transition.now-qt6-1791548145.tar"
     }
   ]
 }

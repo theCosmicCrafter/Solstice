@@ -20,22 +20,37 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
-def download(item, destination):
+def download_from(url, sha256, destination):
     for attempt in range(3):
         try:
-            request = urllib.request.Request(item['url'], headers={
+            request = urllib.request.Request(url, headers={
                 'User-Agent': 'Solstice-Windows-CI', 'Accept-Encoding': 'identity'})
             with urllib.request.urlopen(request, timeout=180) as response:
                 with destination.open('wb') as output:
                     shutil.copyfileobj(response, output, 1024 * 1024)
-            if digest(destination) != item['sha256']:
-                raise ValueError('SHA-256 mismatch: ' + item['url'])
+            if digest(destination) != sha256:
+                raise ValueError('SHA-256 mismatch: ' + url)
             return
         except Exception:
             destination.unlink(missing_ok=True)
             if attempt == 2:
                 raise
             time.sleep(5 * (attempt + 1))
+
+
+def download(item, destination):
+    # The Solstice mirror first (the KDE registry removes old builds), then
+    # the original; both must match the locked SHA-256
+    # (docs/agent/github-actions.md, "Dependency mirror")
+    sources = [url for url in (item.get('mirrorUrl'), item['url']) if url]
+    for index, url in enumerate(sources):
+        try:
+            download_from(url, item['sha256'], destination)
+            return
+        except Exception as error:
+            if index == len(sources) - 1:
+                raise
+            print(f'  {url} unavailable ({error}); trying {sources[index + 1]}', flush=True)
 
 
 def extract_tar(archive, destination):

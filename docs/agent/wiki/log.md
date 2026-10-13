@@ -965,3 +965,13 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   repository's GitHub releases (Atom feed) below, both behind the existing
   opt-in news switch ([welcome news](../welcome-news.md)). KisRssReader
   reads Atom entries now.
+
+## 2026-10-13 ingest: Windows dependency mirror and weekly check
+
+- Permanent fix for the dependency registry removals: a public mirror
+  repository, `udtren/solstice-deps`, holds each locked set as release
+  assets; the bootstrap prefers it, and a weekly workflow checks the mirror
+  and the registry ([GitHub Actions](../github-actions.md), "Dependency
+  mirror"). Lesson: a mirror repository's own workflow can upload to its
+  own releases with the built-in token, so no cross-repository secret is
+  needed.

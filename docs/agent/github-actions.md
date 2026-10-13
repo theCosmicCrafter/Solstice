@@ -11,6 +11,10 @@ signing keys, self-hosted runners, or inherited KDE CI credentials.
 The user authorized creation, push and a first trial run on 2026-10-03.
 User instructions: `docs/test-builds.md`.
 
+`.github/workflows/dependency-check.yml` (2026-10-13) runs weekly (Monday
+03:17 UTC) and on demand, with `contents: read` and `issues: write`; see
+"Dependency mirror" below.
+
 ## Dependency and build files
 
 - `build-tools/github-actions/windows-dependencies.lock.json`: 87 public
@@ -107,6 +111,37 @@ FFmpeg 7.1.1 → 8.0.1, expat 2.4.8 → 2.7.5, brotli 1.1.0 → 1.2.0, dlfcn-win
 source already handles exiv2 0.28 (`EXIV2_TEST_VERSION(0,28,0)`) and prefers
 Eigen 5 (`find_package(Eigen3 5)`, 3.3 fallback). The local
 development dependencies are not affected.
+
+## Dependency mirror (2026-10-13)
+
+The user chose a permanent fix after the registry removal above: a mirror
+(A) plus a weekly check (B). The Actions cache saved on the default branch
+`main` is now shared with other branches as a side effect.
+
+- **Mirror:** public repository `udtren/solstice-deps` (created 2026-10-13).
+  One GitHub Release per locked set, tag `deps-<newest build date>-<source
+  revision>` (now `deps-20261009-4aff6eb`), assets `<package>-<version>.tar`
+  byte-identical to the registry's `archive.tar` (largest: `ext_qt`, 813 MiB;
+  the asset limit is 2 GiB). Its README covers provenance and licenses. Its
+  workflow "Mirror Solstice dependencies" (`mirror.yml`, `contents: write`,
+  its own `GITHUB_TOKEN`, no secrets) takes a Solstice ref, reads that lock,
+  downloads each missing package from KDE, checks size and SHA-256 against
+  the lock and uploads it, then verifies that every asset is present.
+- **Lock:** `mirror` (`repository`, `tag`) and a `mirrorUrl` per package,
+  written by `refresh-dependency-lock.py` (a full refresh, or
+  `--mirror-only` for the current set). The cache key includes the lock, so
+  changing these fields starts a new cache.
+- **Bootstrap:** `download()` tries `mirrorUrl`, then the KDE `url`; both
+  must match the locked SHA-256. Toolchain and Vulkan SDK still come from
+  their original URLs.
+- **Weekly check:** `check-dependency-lock.py` HEAD-checks every mirror URL
+  (status and size; required) and KDE URL (informational), writes the job
+  summary, and the workflow opens or comments on the issue "Windows build
+  dependencies: mirror files missing" when the mirror is incomplete.
+
+Refresh procedure: run `refresh-dependency-lock.py`, review the recipe diff
+(as above), commit and push, then run the mirror workflow with that ref at
+once (KDE keeps builds only for a few weeks), then a build on `main`.
 
 ## First trial run (2026-10-03)
 
