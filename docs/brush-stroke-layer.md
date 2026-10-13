@@ -23,6 +23,11 @@ Stroke Layer**. It appears below Paint Layer in the menu.
 - Undo and redo remove and restore a stroke together with what it
   remembers. Moving the layer moves its strokes. Duplicating the layer keeps
   its strokes.
+- Moving part of the drawing with a selection and the **Move tool** moves
+  the strokes inside the selection with it. Strokes must lie wholly inside
+  or wholly outside the selection: a stroke the selection's edge cuts in
+  two cannot be remembered, and the layer stops matching its strokes (see
+  below).
 
 ## Enlarging
 
@@ -42,6 +47,21 @@ mirroring, skewing or perspective, scaling within a selection, and the
 Transform tool's other modes (Warp, Cage, Liquify, Mesh, Puppet Warp)
 transform the pixels as on a paint layer; the remembered strokes then no
 longer match, and later enlarging also scales the pixels.
+
+## When the strokes no longer match
+
+After an edit that is not a brush stroke, the layer checks in the
+background whether its pixels are still its remembered strokes (it draws
+them again, which can take a few seconds for a layer with many strokes). It
+also checks when a file is opened. If they no longer match:
+
+- a message on the canvas names the layer and says that scaling it will now
+  scale its pixels;
+- in the Layers docker, the small brush mark at the corner of the layer's
+  thumbnail turns into a yellow warning sign.
+
+Undoing the edit that changed the pixels makes the layer match again; a
+message says so and the warning sign goes away.
 
 ## Saving
 
@@ -69,4 +89,9 @@ Other formats (PSD, ORA, PNG and so on) store the pixels only.
   with its pixels only.
 
 - Filters and other non-brush edits change the pixels but are not
-  remembered.
+  remembered. The layer then shows the warning sign described above.
+- A stroke cut by a moved selection, and moves with the Transform tool
+  within a selection, are not remembered.
+- A brush texture with a random offset per stroke does not follow the
+  stroke when the layer or a selection is moved, so the layer stops
+  matching its strokes. Textures without a random offset follow it.

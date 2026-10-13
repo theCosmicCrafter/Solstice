@@ -151,7 +151,9 @@ Read these before adding or updating any feature:
   stage 2c saving the strokes in .kra done and manually checked 2026-10-09;
   redraw with the Transform Tool done and manually checked 2026-10-10;
   brush tips saved in .kra, sequential dabs and recorded stroke starts for
-  exact redraws done and manually checked 2026-10-10):
+  exact redraws done and manually checked 2026-10-10; Move Tool selection
+  moves carry the strokes and a background record check warns when the
+  pixels stop matching, done 2026-10-13, manual check pending):
   `docs/agent/brush-stroke-layer-plan.md`
 - Photoshop brush (ABR) import improvements (phase 1, ABR tips saved with
   brush stroke layers, done and manually checked 2026-10-10; phase 2, new

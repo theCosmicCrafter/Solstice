@@ -20,6 +20,8 @@
 #include <commands_new/kis_selection_move_command2.h>
 #include "kis_lod_transform.h"
 #include "KisAnimAutoKey.h"
+#include "KisBrushStrokeLayer.h"
+#include "kis_pixel_selection.h"
 
 
 MoveSelectionStrokeStrategy::MoveSelectionStrokeStrategy(KisPaintLayerSP paintLayer,
@@ -115,6 +117,16 @@ void MoveSelectionStrokeStrategy::finishStrokeCallback()
                       KisStrokeJobData::NORMAL);
 
     indirect->setTemporaryTarget(0);
+
+    // Solstice: the recorded strokes inside the selection move with the
+    // pixels; the selection has moved already, so look where it was
+    if (KisBrushStrokeLayer *strokeLayer = dynamic_cast<KisBrushStrokeLayer *>(m_paintLayer.data())) {
+        KisPaintDeviceSP mask = new KisPaintDevice(*m_selection->projection());
+        mask->moveTo(mask->offset() - m_finalOffset);
+        if (KUndo2Command *recordCommand = strokeLayer->createSelectionMoveCommand(mask, m_finalOffset)) {
+            runAndSaveCommand(toQShared(recordCommand), KisStrokeJobData::SEQUENTIAL, KisStrokeJobData::NORMAL);
+        }
+    }
 
     m_updatesFacade->blockUpdates();
 

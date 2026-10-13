@@ -6,6 +6,7 @@
 #ifndef KISBRUSHSTROKELAYER_H
 #define KISBRUSHSTROKELAYER_H
 
+#include <QAtomicInt>
 #include <QMutex>
 #include <QPoint>
 #include <QSharedPointer>
@@ -94,6 +95,41 @@ public:
     void removeStroke(KisRecordedBrushStrokeSP stroke);
     void setStrokes(const QVector<KisRecordedBrushStrokeSP> &strokes);
 
+    /// Whether the pixels are still just the recorded strokes, as the last
+    /// background check found (KisBrushStrokeLayerMonitor)
+    enum class RecordState {
+        Unknown,
+        Matching,
+        NotMatching,
+    };
+    RecordState recordState() const;
+
+    /// Changes the pixels; an edit other than a recorded brush stroke makes
+    /// the layer check its record in the background once the image is idle
+    using KisPaintLayer::setDirty;
+    void setDirty(const QVector<QRect> &rects) override;
+
+    /// The next check may be skipped: the change since the last one was a
+    /// recorded brush stroke or a redraw, which keep the pixels and the
+    /// record together
+    void markChangeRecorded();
+
+    /**
+     * The record after the Move Tool moved the pixels inside @p mask (the
+     * selection where it was before the move) by @p offset: the strokes that
+     * lie inside the selection move with the pixels and come last, as the
+     * moved pixels are pasted over the others. nullptr if nothing moves or
+     * a stroke crosses the selection's edge (the cut splits it, so the
+     * record no longer matches the pixels).
+     */
+    KUndo2Command *createSelectionMoveCommand(KisPaintDeviceSP mask, const QPoint &offset);
+
+    /// Whether drawing @p strokes again gives the pixels of @p original;
+    /// otherwise @p difference describes how they differ
+    static bool strokesMatchPixels(const QVector<KisRecordedBrushStrokeSP> &strokes,
+                                   KisPaintDeviceSP original,
+                                   QString *difference);
+
     /**
      * Draws the strokes again with @p transform applied (scaling and moving
      * only) into the paint device, replacing what it holds, if @p original
@@ -137,8 +173,19 @@ public:
     static bool loadStrokes(QIODevice *device, QVector<KisRecordedBrushStrokeSP> *strokes);
 
 private:
+    friend class KisBrushStrokeLayerMonitor;
+    /// Asks for a background check of the record (any thread)
+    void requestRecordCheck();
+    void setRecordState(RecordState state, const QString &difference);
+
     mutable QMutex m_mutex;
     QVector<KisRecordedBrushStrokeSP> m_strokes;
+    /// counts changes to the pixels and the record
+    QAtomicInt m_generation;
+    /// a check is requested and not yet started
+    QAtomicInt m_checkRequested;
+    QAtomicInt m_changeRecorded;
+    QAtomicInt m_recordState{int(RecordState::Unknown)};
 };
 
 using KisBrushStrokeLayerSP = KisSharedPtr<KisBrushStrokeLayer>;

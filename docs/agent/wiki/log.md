@@ -865,3 +865,29 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   technique 10): a minimal reproduction can hide a context-dependent driver
   behavior; keep the reproduction that calls the real code. Updated the
   phase numbering page ([gpu-phase-numbering.md](decisions/gpu-phase-numbering.md)).
+
+## 2026-10-13 ingest: brush stroke layer selection moves and record check
+
+- A user's layer enlarged blurry: Move Tool selection moves had cut and
+  pasted pixels without moving the record, so the redraw check failed and
+  the layer was scaled as pixels, noticed only after scaling. Selection
+  moves now move the strokes wholly inside the selection (last in the
+  order, as the pasted pixels lie on top), and a background check after
+  non-brush edits warns with a canvas message and a layer icon badge
+  ([plan](../brush-stroke-layer-plan.md), "選択範囲の移動と記録の照合").
+- Diagnosis method: render each recorded stroke alone and measure the share
+  of its own opaque pixels that differ; whole strokes at 100% point to an
+  edit that moved pixels, not to brush nondeterminism.
+- Pitfalls: a queued Qt event that owns a KisNodeSP deadlocks at exit (the
+  event is destroyed under Qt's posted-event lock, and the node's QObject
+  destructor takes it again); and changing a kritaui class layout requires
+  reinstalling the plugins, because tests load `_install` plugins built
+  against the old size (heap corruption in an unrelated place).
+- Follow-up the same day: a layer still enlarged blurry after the warning
+  and an undo. Its brush had a texture, and the layer had been moved; the
+  texture is anchored to the canvas (`X - OffsetX`), so drawing a moved
+  stroke again picked another part of the pattern (small alpha
+  differences on every line). Redraws now move the texture offset with
+  the stroke. Lesson: a redraw must reproduce every canvas-anchored input
+  of a dab (texture, and anything else keyed to image coordinates), not
+  only the dab positions.

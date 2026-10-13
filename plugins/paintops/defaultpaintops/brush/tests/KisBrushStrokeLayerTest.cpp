@@ -30,7 +30,11 @@
 #include <kis_layer_utils.h>
 #include <kis_paint_device.h>
 #include <kis_paint_information.h>
+#include <kis_painter.h>
+#include <kis_pixel_selection.h>
 #include <kis_resources_snapshot.h>
+#include <kis_selection.h>
+#include <kis_transaction.h>
 #include <kis_undo_stores.h>
 #include <strokes/KisFreehandStrokeInfo.h>
 #include <strokes/freehand_stroke.h>
@@ -58,6 +62,9 @@ private Q_SLOTS:
     void testRandomizedBrushesRedraw();
     void testStrokeStartRecorded();
     void testAbrTipSaved();
+    void testSelectionMoveMovesStrokes();
+    void testRecordCheckFindsOtherEdits();
+    void testTextureFollowsMovedStrokes();
 };
 
 namespace
@@ -78,7 +85,8 @@ void paintStroke(KisImageSP image,
                  KisNodeSP node,
                  KisPaintOpPresetSP preset,
                  const KoColor &color,
-                 const KisDistanceInformation *start = nullptr)
+                 const KisDistanceInformation *start = nullptr,
+                 const QPointF &shift = QPointF())
 {
     KoCanvasResourceProvider provider;
     provider.setResource(KoCanvasResource::ForegroundColor, QVariant::fromValue(color));
@@ -108,18 +116,20 @@ void paintStroke(KisImageSP image,
                                    kundo2_noi18n("test stroke"));
     KisStrokeId id = image->startStroke(stroke);
 
-    KisPaintInformation previous(QPointF(20, 50), 0.2);
+    KisPaintInformation previous(QPointF(20, 50) + shift, 0.2);
     image->addJob(id, new FreehandStrokeStrategy::Data(0, previous));
     for (int i = 1; i <= 60; i++) {
         const qreal t = i / 60.0;
-        KisPaintInformation next(QPointF(20 + t * 110, 50 + 30 * qSin(t * 2 * M_PI)), qSin(t * M_PI) + 0.05);
+        KisPaintInformation next(QPointF(20 + t * 110, 50 + 30 * qSin(t * 2 * M_PI)) + shift, qSin(t * M_PI) + 0.05);
         next.setCurrentTime(i * 4);
         image->addJob(id, new FreehandStrokeStrategy::Data(0, previous, next));
         previous = next;
     }
-    KisPaintInformation end(QPointF(180, 30), 0.5);
+    KisPaintInformation end(QPointF(180, 30) + shift, 0.5);
     end.setCurrentTime(300);
-    image->addJob(id, new FreehandStrokeStrategy::Data(0, previous, QPointF(150, 90), QPointF(170, 10), end));
+    image->addJob(
+        id,
+        new FreehandStrokeStrategy::Data(0, previous, QPointF(150, 90) + shift, QPointF(170, 10) + shift, end));
     image->addJob(id, new KisAsynchronousStrokeUpdateHelper::UpdateData(true));
     image->endStroke(id);
     image->waitForDone();
@@ -688,6 +698,168 @@ void KisBrushStrokeLayerTest::testAbrTipSaved()
     QCOMPARE(toImage(KisBrushStrokeLayer::renderStrokes(loaded, cs, imageBounds, QPoint()))
                  .convertToFormat(QImage::Format_ARGB32_Premultiplied),
              live);
+}
+
+namespace
+{
+/// What the Move Tool does with the pixels inside @p selection
+/// (MoveSelectionStrokeStrategy): cuts them and pastes them over the rest
+/// at @p offset
+void moveSelectedPixels(KisPaintDeviceSP device, KisSelectionSP selection, const QPoint &offset)
+{
+    const QRect rect = selection->selectedRect();
+    KisPaintDeviceSP moved = new KisPaintDevice(device->colorSpace());
+    KisPainter cut(moved);
+    cut.setSelection(selection);
+    cut.bitBlt(rect.topLeft(), device, rect);
+    cut.end();
+    device->clearSelection(selection);
+    moved->moveTo(moved->offset() + offset);
+    const QRect movedRect = moved->exactBounds();
+    KisPainter paste(device);
+    paste.bitBlt(movedRect.topLeft(), moved, movedRect);
+    paste.end();
+}
+} // namespace
+
+/// Moving a selection with the Move Tool moves the strokes inside it, which
+/// are then pasted over the others; a stroke the selection cuts leaves the
+/// record unchanged
+void KisBrushStrokeLayerTest::testSelectionMoveMovesStrokes()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->colorSpace("RGBA", "F32", QString());
+    const QRect bounds(0, 0, 420, 140);
+    KisImageSP image = new KisImage(new KisSurrogateUndoStore(), bounds.width(), bounds.height(), cs, "move");
+    KisBrushStrokeLayerSP layer = new KisBrushStrokeLayer(image, "strokes", OPACITY_OPAQUE_U8, cs);
+    image->addNode(layer, image->root());
+    KisPaintOpPresetSP preset = loadPreset(QStringLiteral("d)_Ink-3_Gpen.kpp"));
+    paintStroke(image, layer, preset, KoColor(Qt::black, cs));
+    paintStroke(image, layer, preset, KoColor(Qt::red, cs), nullptr, QPointF(210, 0));
+    const QVector<KisRecordedBrushStrokeSP> before = layer->strokes();
+    QCOMPARE(before.size(), 2);
+
+    // a selection that cuts the black stroke
+    {
+        KisSelectionSP cutting = new KisSelection();
+        cutting->pixelSelection()->select(QRect(0, 0, 90, 140));
+        KisPaintDeviceSP mask = new KisPaintDevice(*cutting->projection());
+        QVERIFY(!layer->createSelectionMoveCommand(mask, QPoint(5, 5)));
+    }
+
+    // the black stroke, moved over the red one: it comes last
+    KisSelectionSP selection = new KisSelection();
+    selection->pixelSelection()->select(QRect(0, 0, 205, 140));
+    KisPaintDeviceSP mask = new KisPaintDevice(*selection->projection());
+    const QPoint offset(200, 6);
+    moveSelectedPixels(layer->paintDevice(), selection, offset);
+    QScopedPointer<KUndo2Command> command(layer->createSelectionMoveCommand(mask, offset));
+    QVERIFY(command);
+    command->redo();
+    const QVector<KisRecordedBrushStrokeSP> after = layer->strokes();
+    QCOMPARE(after.size(), 2);
+    QCOMPARE(after[0], before[1]);
+    QCOMPARE(after[1]->jobs.first().pi1.pos(), before[0]->jobs.first().pi1.pos() + offset);
+    QString difference;
+    QVERIFY2(KisBrushStrokeLayer::strokesMatchPixels(after, layer->paintDevice(), &difference), qPrintable(difference));
+    // in the old order the red stroke would be on top
+    QVERIFY(!KisBrushStrokeLayer::strokesMatchPixels(
+        {KisBrushStrokeLayer::transformedStrokes({before[0]},
+                                                 QPoint(),
+                                                 QTransform::fromTranslate(offset.x(), offset.y()))
+             .first(),
+         before[1]},
+        layer->paintDevice(),
+        &difference));
+
+    command->undo();
+    QCOMPARE(layer->strokes(), before);
+}
+
+/// After an edit other than the brush, a layer of an open document checks
+/// in the background whether its pixels are still its strokes; undoing the
+/// edit makes them match again
+void KisBrushStrokeLayerTest::testRecordCheckFindsOtherEdits()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+    KisDocument *document = KisPart::instance()->createDocument();
+    document->setFileBatchMode(true);
+    KisImageSP image =
+        new KisImage(document->createUndoStore(), imageBounds.width(), imageBounds.height(), cs, "check");
+    document->setCurrentImage(image);
+    KisPart::instance()->addDocument(document, false);
+    KisBrushStrokeLayerSP layer = new KisBrushStrokeLayer(image, "strokes", OPACITY_OPAQUE_U8, cs);
+    image->addNode(layer, image->root());
+    paintStroke(image, layer, loadPreset(QStringLiteral("d)_Ink-3_Gpen.kpp")), KoColor(Qt::black, cs));
+    QVERIFY(QTest::qWaitFor(
+        [&]() {
+            return layer->recordState() == KisBrushStrokeLayer::RecordState::Matching;
+        },
+        20000));
+
+    KisTransaction transaction(layer->paintDevice());
+    layer->paintDevice()->fill(QRect(150, 60, 20, 20), KoColor(Qt::blue, cs));
+    layer->setDirty(QRect(150, 60, 20, 20));
+    QVERIFY(QTest::qWaitFor(
+        [&]() {
+            return layer->recordState() == KisBrushStrokeLayer::RecordState::NotMatching;
+        },
+        20000));
+
+    transaction.revert();
+    QVERIFY(QTest::qWaitFor(
+        [&]() {
+            return layer->recordState() == KisBrushStrokeLayer::RecordState::Matching;
+        },
+        20000));
+
+    KisPart::instance()->removeDocument(document);
+}
+
+/// A brush texture is anchored to the canvas; strokes drawn again after the
+/// layer or a selection moved keep the part of the pattern they were drawn
+/// with
+void KisBrushStrokeLayerTest::testTextureFollowsMovedStrokes()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->colorSpace("RGBA", "F32", QString());
+    KisImageSP image = new KisImage(new KisSurrogateUndoStore(), 300, 160, cs, "texture");
+    KisBrushStrokeLayerSP layer = new KisBrushStrokeLayer(image, "strokes", OPACITY_OPAQUE_U8, cs);
+    image->addNode(layer, image->root());
+    // a Pixel Brush preset with a texture and no random texture offset
+    KisPaintOpPresetSP preset;
+    KisResourceModel model(ResourceType::PaintOpPresets);
+    for (int i = 0; i < model.rowCount() && !preset; i++) {
+        KisPaintOpPresetSP candidate = model.resourceForIndex(model.index(i, 0)).dynamicCast<KisPaintOpPreset>();
+        if (candidate && candidate->paintOp().id() == "paintbrush"
+            && candidate->settings()->getBool("Texture/Pattern/Enabled")
+            && !candidate->settings()->getBool("Texture/Pattern/isRandomOffsetX")
+            && !candidate->settings()->getBool("Texture/Pattern/isRandomOffsetY")) {
+            preset = candidate;
+        }
+    }
+    QVERIFY(preset);
+    qInfo() << "textured preset:" << preset->name();
+    paintStroke(image, layer, preset, KoColor(Qt::black, cs));
+    QString difference;
+    QVERIFY2(KisBrushStrokeLayer::strokesMatchPixels(layer->strokes(), layer->paintDevice(), &difference),
+             qPrintable(difference));
+
+    // the layer moved (the Move Tool without a selection)
+    layer->setX(7);
+    layer->setY(-5);
+    QVERIFY2(KisBrushStrokeLayer::strokesMatchPixels(layer->strokes(), layer->paintDevice(), &difference),
+             qPrintable(difference));
+
+    // the pixels moved within a selection
+    KisSelectionSP selection = new KisSelection();
+    selection->pixelSelection()->select(QRect(0, 0, 300, 160));
+    KisPaintDeviceSP mask = new KisPaintDevice(*selection->projection());
+    const QPoint offset(13, 9);
+    moveSelectedPixels(layer->paintDevice(), selection, offset);
+    QScopedPointer<KUndo2Command> command(layer->createSelectionMoveCommand(mask, offset));
+    QVERIFY(command);
+    command->redo();
+    QVERIFY2(KisBrushStrokeLayer::strokesMatchPixels(layer->strokes(), layer->paintDevice(), &difference),
+             qPrintable(difference));
 }
 
 SOLSTICE_BRUSH_TEST_MAIN_WITH_BUNDLES(KisBrushStrokeLayerTest, QStringLiteral("Krita_4_Default_Resources.bundle"))
