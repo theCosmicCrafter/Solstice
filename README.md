@@ -101,6 +101,12 @@ A figure sketch on a Brush Stroke Layer and a copy of it enlarged with
 Image > Scale Image: the strokes are drawn again at the new size instead of
 being resampled. See the [Brush Stroke Layer guide](docs/brush-stroke-layer.md).
 
+<img src="docs/images/puppet-warp.webp" alt="A painted figure and a copy reposed with Puppet Warp: the Transform Tool's triangle mesh over the figure, with pins on the head, the shoulder, the raised arm, the waist and the legs" width="480">
+
+A figure reposed with Puppet Warp in the Transform Tool: pins on the mesh
+move and rotate the parts around them. See the
+[Puppet Warp guide](docs/puppet-warp.md).
+
 ## Development and downloads
 
 > **Experimental software.** The Vulkan engine is on by default and can be
