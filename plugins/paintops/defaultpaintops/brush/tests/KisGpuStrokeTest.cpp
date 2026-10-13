@@ -405,13 +405,70 @@ private Q_SLOTS:
         QTest::addColumn<bool>("alphaOnly");
         QTest::addColumn<int>("channels");
         QTest::addColumn<QString>("mode");
-        for (const auto &mode : {COMPOSITE_MULT,         COMPOSITE_SCREEN,     COMPOSITE_ADD,
-                                 COMPOSITE_LINEAR_DODGE, COMPOSITE_SUBTRACT,   COMPOSITE_DARKEN,
-                                 COMPOSITE_LIGHTEN,      COMPOSITE_DIFF,       COMPOSITE_OVERLAY,
-                                 COMPOSITE_HARD_LIGHT,   COMPOSITE_EXCLUSION,  COMPOSITE_LINEAR_BURN,
-                                 COMPOSITE_LINEAR_LIGHT, COMPOSITE_PIN_LIGHT,  COMPOSITE_SOFT_LIGHT_SVG,
-                                 COMPOSITE_DODGE,        COMPOSITE_BURN,       COMPOSITE_COLOR,
-                                 COMPOSITE_HUE,          COMPOSITE_SATURATION, COMPOSITE_LUMINIZE})
+        for (const auto &mode : {COMPOSITE_MULT,
+                                 COMPOSITE_SCREEN,
+                                 COMPOSITE_ADD,
+                                 COMPOSITE_LINEAR_DODGE,
+                                 COMPOSITE_SUBTRACT,
+                                 COMPOSITE_DARKEN,
+                                 COMPOSITE_LIGHTEN,
+                                 COMPOSITE_DIFF,
+                                 COMPOSITE_OVERLAY,
+                                 COMPOSITE_HARD_LIGHT,
+                                 COMPOSITE_EXCLUSION,
+                                 COMPOSITE_LINEAR_BURN,
+                                 COMPOSITE_LINEAR_LIGHT,
+                                 COMPOSITE_PIN_LIGHT,
+                                 COMPOSITE_SOFT_LIGHT_SVG,
+                                 COMPOSITE_DODGE,
+                                 COMPOSITE_BURN,
+                                 COMPOSITE_COLOR,
+                                 COMPOSITE_HUE,
+                                 COMPOSITE_SATURATION,
+                                 COMPOSITE_LUMINIZE,
+                                 // phase 4.107: the remaining modes
+                                 COMPOSITE_SOFT_LIGHT_PHOTOSHOP,
+                                 COMPOSITE_DIVIDE,
+                                 COMPOSITE_VIVID_LIGHT,
+                                 COMPOSITE_HARD_MIX,
+                                 COMPOSITE_HARD_MIX_PHOTOSHOP,
+                                 COMPOSITE_HARD_MIX_SOFTER_PHOTOSHOP,
+                                 COMPOSITE_GRAIN_MERGE,
+                                 COMPOSITE_GRAIN_EXTRACT,
+                                 COMPOSITE_NEGATION,
+                                 COMPOSITE_ALLANON,
+                                 COMPOSITE_DARKER_COLOR,
+                                 COMPOSITE_LIGHTER_COLOR,
+                                 // the other HSX modes
+                                 COMPOSITE_TINT,
+                                 COMPOSITE_INC_SATURATION,
+                                 COMPOSITE_DEC_SATURATION,
+                                 COMPOSITE_INC_LUMINOSITY,
+                                 COMPOSITE_DEC_LUMINOSITY,
+                                 COMPOSITE_COLOR_HSI,
+                                 COMPOSITE_HUE_HSI,
+                                 COMPOSITE_SATURATION_HSI,
+                                 COMPOSITE_INC_SATURATION_HSI,
+                                 COMPOSITE_DEC_SATURATION_HSI,
+                                 COMPOSITE_INTENSITY,
+                                 COMPOSITE_INC_INTENSITY,
+                                 COMPOSITE_DEC_INTENSITY,
+                                 COMPOSITE_COLOR_HSL,
+                                 COMPOSITE_HUE_HSL,
+                                 COMPOSITE_SATURATION_HSL,
+                                 COMPOSITE_INC_SATURATION_HSL,
+                                 COMPOSITE_DEC_SATURATION_HSL,
+                                 COMPOSITE_LIGHTNESS,
+                                 COMPOSITE_INC_LIGHTNESS,
+                                 COMPOSITE_DEC_LIGHTNESS,
+                                 COMPOSITE_COLOR_HSV,
+                                 COMPOSITE_HUE_HSV,
+                                 COMPOSITE_SATURATION_HSV,
+                                 COMPOSITE_INC_SATURATION_HSV,
+                                 COMPOSITE_DEC_SATURATION_HSV,
+                                 COMPOSITE_VALUE,
+                                 COMPOSITE_INC_VALUE,
+                                 COMPOSITE_DEC_VALUE})
             for (bool wash : {false, true})
                 for (int channels : {15, 7, 5})
                     QTest::newRow(qPrintable(QString("%1-wash%2-channels%3").arg(mode).arg(wash).arg(channels)))
@@ -438,13 +495,70 @@ private Q_SLOTS:
         QTest::addColumn<bool>("alphaOnly");
         QTest::addColumn<int>("channels");
         QTest::addColumn<QString>("mode");
-        for (const auto &mode : {COMPOSITE_MULT,         COMPOSITE_SCREEN,     COMPOSITE_ADD,
-                                 COMPOSITE_LINEAR_DODGE, COMPOSITE_SUBTRACT,   COMPOSITE_DARKEN,
-                                 COMPOSITE_LIGHTEN,      COMPOSITE_DIFF,       COMPOSITE_OVERLAY,
-                                 COMPOSITE_HARD_LIGHT,   COMPOSITE_EXCLUSION,  COMPOSITE_LINEAR_BURN,
-                                 COMPOSITE_LINEAR_LIGHT, COMPOSITE_PIN_LIGHT,  COMPOSITE_SOFT_LIGHT_SVG,
-                                 COMPOSITE_DODGE,        COMPOSITE_BURN,       COMPOSITE_COLOR,
-                                 COMPOSITE_HUE,          COMPOSITE_SATURATION, COMPOSITE_LUMINIZE})
+        for (const auto &mode : {COMPOSITE_MULT,
+                                 COMPOSITE_SCREEN,
+                                 COMPOSITE_ADD,
+                                 COMPOSITE_LINEAR_DODGE,
+                                 COMPOSITE_SUBTRACT,
+                                 COMPOSITE_DARKEN,
+                                 COMPOSITE_LIGHTEN,
+                                 COMPOSITE_DIFF,
+                                 COMPOSITE_OVERLAY,
+                                 COMPOSITE_HARD_LIGHT,
+                                 COMPOSITE_EXCLUSION,
+                                 COMPOSITE_LINEAR_BURN,
+                                 COMPOSITE_LINEAR_LIGHT,
+                                 COMPOSITE_PIN_LIGHT,
+                                 COMPOSITE_SOFT_LIGHT_SVG,
+                                 COMPOSITE_DODGE,
+                                 COMPOSITE_BURN,
+                                 COMPOSITE_COLOR,
+                                 COMPOSITE_HUE,
+                                 COMPOSITE_SATURATION,
+                                 COMPOSITE_LUMINIZE,
+                                 // phase 4.107: the remaining modes
+                                 COMPOSITE_SOFT_LIGHT_PHOTOSHOP,
+                                 COMPOSITE_DIVIDE,
+                                 COMPOSITE_VIVID_LIGHT,
+                                 COMPOSITE_HARD_MIX,
+                                 COMPOSITE_HARD_MIX_PHOTOSHOP,
+                                 COMPOSITE_HARD_MIX_SOFTER_PHOTOSHOP,
+                                 COMPOSITE_GRAIN_MERGE,
+                                 COMPOSITE_GRAIN_EXTRACT,
+                                 COMPOSITE_NEGATION,
+                                 COMPOSITE_ALLANON,
+                                 COMPOSITE_DARKER_COLOR,
+                                 COMPOSITE_LIGHTER_COLOR,
+                                 // the other HSX modes
+                                 COMPOSITE_TINT,
+                                 COMPOSITE_INC_SATURATION,
+                                 COMPOSITE_DEC_SATURATION,
+                                 COMPOSITE_INC_LUMINOSITY,
+                                 COMPOSITE_DEC_LUMINOSITY,
+                                 COMPOSITE_COLOR_HSI,
+                                 COMPOSITE_HUE_HSI,
+                                 COMPOSITE_SATURATION_HSI,
+                                 COMPOSITE_INC_SATURATION_HSI,
+                                 COMPOSITE_DEC_SATURATION_HSI,
+                                 COMPOSITE_INTENSITY,
+                                 COMPOSITE_INC_INTENSITY,
+                                 COMPOSITE_DEC_INTENSITY,
+                                 COMPOSITE_COLOR_HSL,
+                                 COMPOSITE_HUE_HSL,
+                                 COMPOSITE_SATURATION_HSL,
+                                 COMPOSITE_INC_SATURATION_HSL,
+                                 COMPOSITE_DEC_SATURATION_HSL,
+                                 COMPOSITE_LIGHTNESS,
+                                 COMPOSITE_INC_LIGHTNESS,
+                                 COMPOSITE_DEC_LIGHTNESS,
+                                 COMPOSITE_COLOR_HSV,
+                                 COMPOSITE_HUE_HSV,
+                                 COMPOSITE_SATURATION_HSV,
+                                 COMPOSITE_INC_SATURATION_HSV,
+                                 COMPOSITE_DEC_SATURATION_HSV,
+                                 COMPOSITE_VALUE,
+                                 COMPOSITE_INC_VALUE,
+                                 COMPOSITE_DEC_VALUE})
             for (bool wash : {false, true})
                 for (int channels : {15, 7, 5})
                     QTest::newRow(qPrintable(QString("%1-wash%2-channels%3").arg(mode).arg(wash).arg(channels)))
@@ -1067,7 +1181,11 @@ private:
                 KisGpuBrushPainter::refusePendingBatchesForTesting(0);
                 const auto after = pixels(layer->paintDevice());
                 const auto projection = pixels(image->projection());
-                QVERIFY(difference(before, after) > 0.01f);
+                // Darker Color keeps the darker background where alpha is
+                // locked (the brush colour is lighter); every path agrees.
+                const bool unchangedExpected =
+                    modeOverride == COMPOSITE_DARKER_COLOR && channelBits >= 0 && !(channelBits & 8);
+                QVERIFY(unchangedExpected || difference(before, after) > 0.01f);
                 if (iteration == 0 && path == 0) {
                     referenceLayer = after;
                     referenceProjection = projection;

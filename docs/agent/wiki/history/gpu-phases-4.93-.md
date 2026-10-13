@@ -649,3 +649,19 @@ too, so masked RGBA16F strokes use the GPU brush. Details:
 - The half rules found for the textured dabs (phase 4.105) applied as is to
   the ten modes without strength; the exact test with alphas at the half
   fuzzy thresholds passed at the first build.
+
+## Remaining blend modes (phase 4.107)
+
+2026-10-12, user request ("6"). RGBA16F brushes in every GPU blend mode, and
+29 new HSX modes (HSY Tint and increase/decrease modes, the HSI, HSL and HSV
+families) for layers and brushes. Details:
+[gpu-engine.md](../../gpu-engine.md), "Remaining blend modes (phase 4.107)".
+
+- The new brush test rows showed that RGBA32F brushes in Vivid Light, Hard
+  Mix Softer and Lighter Color, enabled long ago without brush tests,
+  drifted from the CPU over repeated dabs; fixed with `precise` and IEEE
+  divisions.
+- `KoColorSpaceMathsTraits<float>::compositetype` is float; emulating
+  double for RGBA32F made the results worse.
+- The NVIDIA driver fused `l + t * s` into an fma despite `NoContraction`;
+  `roundedProduct()` works around it.

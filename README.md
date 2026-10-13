@@ -149,17 +149,17 @@ changes and support are maintained in this repository.
 The experimental engine uses Vulkan compute for supported RGBA floating-point
 layer compositing in RGBA32F and RGBA16F and shares data with the OpenGL canvas
 for display. Supported layer modes include Normal, Multiply, Screen, Overlay,
-Soft Light and HSY color modes, including individual channel locks. It is
+Soft Light and the HSY, HSL, HSV and HSI color modes, including individual
+channel locks. It is
 enabled by default and falls back to CPU paths for unsupported operations.
 
 The RGBA32F pixel brush (on by default since 2026-10-10) also composites supported blend modes
 (including Normal, Multiply, Screen, Overlay and Erase) on the GPU, with
 selections, alpha lock and mirror painting. Supported Buildup strokes and Wash
 previews and final merges use GPU paths with CPU-compatible channel handling.
-RGBA16F also supports major modes including Normal, Multiply, Screen, Overlay,
-Soft Light (SVG), Color Dodge/Burn, HSY color modes and Erase in Buildup and
-Wash, including Wash's Alpha Darken painting buffer.
-Unsupported RGBA16F brush modes retain CPU fallback.
+RGBA16F brushes support the same modes in Buildup and Wash, including Wash's
+Alpha Darken painting buffer. Blend modes without a GPU version retain CPU
+fallback.
 Batched tile transfers and reusable upload buffers reduce transfer waits,
 including for textured and masked brushes. Layer and Wash compositing reuse
 completed work buffers and can queue consecutive updates. Whole-tile copies

@@ -37,6 +37,10 @@ details are in the phase records, now in the wiki history pages (see
   Gradient, sharpness and RGBA16F stay on the CPU (RGBA16F: phase 4.105).
 - RGBA16F image tips and textures on the GPU (phase 4.105, 2026-10-11;
   section "RGBA16F image tips and textures").
+- Remaining blend modes on the GPU (phase 4.107, 2026-10-12; section
+  "Remaining blend modes"): RGBA16F brushes in every GPU blend mode, and the
+  HSI/HSL/HSV families plus HSY Tint and Increase/Decrease
+  Saturation/Luminosity for layers and brushes in both formats.
 - Image tip dabs on the GPU (phase 4.103, 2026-10-11; section "Image tip
   dabs"): RGBA32F dabs of predefined (GBR, PNG, SVG, ABR) tips in alpha-mask
   mode are generated on the GPU, also textured; the CPU now transforms
@@ -499,9 +503,11 @@ Grain Merge/Extract, Negation and Allanon
 (`KoCompositeOpGenericSC` with the `cf*` functions and their clamp policies,
 including the alpha-locked branch and `KoCompositeOpBase`'s clearing of
 alpha-0 destination pixels). HSY Hue, Saturation, Color, Luminosity, Darker
-Color and Lighter Color use `KoCompositeOpGenericHSLFunctor` semantics.
-Separately named HDR variants and HSI/HSL/HSV families remain on the CPU.
-All other modes run on the CPU.
+Color and Lighter Color use `KoCompositeOpGenericHSLFunctor` semantics, and
+so do (phase 4.107) HSY Tint and Increase/Decrease Saturation/Luminosity and
+the HSI, HSL and HSV families (Color, Hue, Saturation, Increase/Decrease
+Saturation, Intensity/Lightness/Value, Increase/Decrease of it).
+Separately named HDR variants and the other modes run on the CPU.
 
 ### Canvas
 
@@ -931,6 +937,52 @@ kept their pixels.
   textured round (Multiply, hard) 14.7 / 13.1 / 10.7.
 - Still on the CPU: Lightness and Gradient textures, sharpness (RGBA16F
   masked strokes: phase 4.106, "Masking brush").
+
+### Remaining blend modes (phase 4.107)
+
+2026-10-12, user request ("6", priority 5 of `gpu-work-priorities.md`).
+
+- RGBA16F brushes: `kisGpuSupportsHalfBrushBlend()` accepts every
+  `KisGpuBlendOp`, and `KisGpuDabCompositor::record()` no longer refuses F16
+  modes, so Soft Light (Photoshop), Divide, Vivid Light, Hard Mix (all
+  three), Grain Merge/Extract, Negation, Allanon, Darker/Lighter Color and
+  the new modes below use the GPU brush on RGBA16F too.
+- New modes (`KisGpuBlendOp` 34-62, dab modes +2): HSY Tint, Increase/
+  Decrease Saturation and Luminosity; HSI, HSL and HSV Color, Hue,
+  Saturation, Increase/Decrease Saturation, Intensity/Lightness/Value and
+  Increase/Decrease of it. `composite_blend.glsl` decodes HSI/HSL/HSV as
+  `OpColorHsi + 8 * family + function` (`blendHSY()`), and one generic
+  implementation (`hsxLightness`, `hsxSaturation`, `hsxSetSaturation` with
+  the CPU's sort, `hsxToneMapping` with HSV's per-channel fallback) now
+  serves the HSY modes too.
+- Arithmetic, following `KoColorSpaceMathsTraits<T>::compositetype`
+  (float for float, double for half):
+  - `exactBlend()` modes (Color Burn, Vivid Light, Hard Mix Softer, every
+    HSX mode) use `precise` alpha, weighted colour and interpolation and an
+    IEEE division (`exactQuotient()`);
+  - RGBA16F: `inv()` results round to half before Vivid Light's and Hard
+    Mix Softer's arithmetic; Vivid Light's `1 - a / b` is rounded once
+    (`oneMinusQuotient()`); the weighted colour of `exactBlend()` modes
+    rounds each `mul(a, b, c)` once (`mul3()`);
+  - `roundedProduct()` for every product that feeds an addition in these
+    paths: the NVIDIA driver fused `l + t * s` into an fma despite
+    `NoContraction`, which changed HSL results at rounding ties
+    ([wiki](wiki/concepts/cpu-gpu-bit-parity.md), techniques 9-11).
+- Fixed on the way (already on the GPU, not covered before): RGBA32F
+  brushes in Vivid Light, Hard Mix Softer and Lighter Color differed from
+  the CPU over repeated dabs (up to 4e-5, 0.009 for Lighter Color).
+- Tests: the brush lists of `KisGpuBrushTest` (F32 matrices with
+  selections, channel flags, mirrors; `testHalfDabs`; `testHalfWashBlendModes`),
+  `KisGpuStrokeTest::testBlendModes`/`testHalfBlendModes` and the two lists
+  of `KisGpuProjectionTest` include every mode; the existing tolerances
+  (2e-5 for F32, 1/1024 for F16 dabs) hold. Darker Color with alpha locked
+  leaves the stroke test's darker background unchanged on every path.
+- Still on the CPU: the HDR variants, Luminosity SAI, Lambert lighting, the
+  copy/normal-map/dissolve ops, and the other separable families (Gamma,
+  Geometric Mean, Arc Tangent, Parallel, Equivalence, Additive-Subtractive,
+  Reflect/Glow/Freeze/Heat, Interpolation, Penumbra, Easy Dodge/Burn, the
+  other Soft Lights, Super/Flat Light, the IFS Illusions modes, Modulo,
+  P-Norm, the logical ops, Inverse Subtract, Behind/Greater/Marker).
 
 ## Phase 0 technology decisions
 
@@ -1377,6 +1429,12 @@ Phase 0 has no user-visible behavior. From phase 3 on:
     masked preset (e.g. `z) 线稿 纹理`) at small and large sizes, another
     masking mode (Darken or Subtract), with a texture, Wash and Buildup;
     the stroke looks like the CPU brush and does not lag; Undo/Redo.
+14. Blend modes (phase 4.107): on an RGBA 16-bit float layer, a brush in
+    Soft Light (Photoshop), Vivid Light, Hard Mix (Softer Photoshop) and
+    Lighter Color; on both float formats, HSV Hue, HSL Saturation, HSI
+    Intensity, Tint and Decrease Value, as brush modes (Buildup, Wash,
+    mirrors, alpha lock) and as layer blend modes; each looks like the CPU
+    (GPU brush off, or GPU Engine off); Undo/Redo.
 
 ## Phase history
 
@@ -1485,6 +1543,7 @@ Section index:
 - [GPU colour, Lightness and Gradient image tips (phase 4.104)](wiki/history/gpu-phases-4.93-.md#gpu-colour-lightness-and-gradient-image-tips-phase-4104)
 - [RGBA16F image tips and textures (phase 4.105)](wiki/history/gpu-phases-4.93-.md#rgba16f-image-tips-and-textures-phase-4105)
 - [RGBA16F masking brush composite (phase 4.106)](wiki/history/gpu-phases-4.93-.md#rgba16f-masking-brush-composite-phase-4106)
+- [Remaining blend modes (phase 4.107)](wiki/history/gpu-phases-4.93-.md#remaining-blend-modes-phase-4107)
 
 ## Risks and open questions
 
@@ -1517,11 +1576,8 @@ Section index:
   not a multiple of 64 relative to the projection, color space mismatches.
 - The whole-stack upload measured 55 GB/s with one `vkCmdCopyBuffer` region per
   tile; evaluate a compute scatter from ReBAR memory for document load.
-- Additional blend modes still need CPU parity coverage. F16 projection
-  already rounds after each layer and is tested. F16 Normal/Erase dabs now
-  have per-dab rounding; F16 Alpha Darken and basic generic Buildup/Wash now
-  have separate arithmetic and stroke coverage. Extended F16 major modes
-  (Soft Light SVG, Color Dodge/Burn and HSY color modes) now have it too;
-  the remaining extended brush modes still need it before enabling F16.
+- Every GPU blend mode has F16 brush and layer parity coverage since phase
+  4.107. Modes still on the CPU ("Remaining blend modes") need a CPU parity
+  test per mode, F32 and F16, before they are enabled.
 - Python scripting (`libkis`) and file export need CPU pixel access; every such
   call becomes a synchronous download.

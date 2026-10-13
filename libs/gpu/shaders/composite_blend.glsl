@@ -37,6 +37,56 @@ const uint OpColor = 30;
 const uint OpLuminosity = 31;
 const uint OpDarkerColor = 32;
 const uint OpLighterColor = 33;
+// Phase 4.107: the other HSX modes; HSI, HSL and HSV keep the order
+// Color, Hue, Saturation, Increase/Decrease Saturation, Lightness,
+// Increase/Decrease Lightness (blendHSY() decodes it).
+const uint OpTint = 34;
+const uint OpIncreaseSaturation = 35;
+const uint OpDecreaseSaturation = 36;
+const uint OpIncreaseLuminosity = 37;
+const uint OpDecreaseLuminosity = 38;
+const uint OpColorHsi = 39;
+
+// Modes that amplify rounding differences over repeated dabs (Color Burn
+// first; phase 4.107 Vivid Light, Hard Mix Softer and the HSX modes): the
+// alpha, weighted colour, interpolation and division follow the CPU's
+// rounding exactly.
+bool exactBlend(uint op)
+{
+    return op == OpColorBurn || op == OpVividLight || op == OpHardMixSofterPhotoshop || op >= OpHue;
+}
+
+// a * b rounded to float, in a form the driver cannot fuse into a following
+// addition: NVIDIA fused "l + t * s" into one fma despite NoContraction
+// (phase 4.107), which changes results at rounding ties.
+float roundedProduct(float a, float b)
+{
+    precise float p = a * b;
+    precise float error = fma(a, b, -p);
+    return fma(a, b, -error);
+}
+vec3 roundedProduct(vec3 a, float b)
+{
+    return vec3(roundedProduct(a.r, b), roundedProduct(a.g, b), roundedProduct(a.b, b));
+}
+vec3 roundedProduct(vec3 a, vec3 b)
+{
+    return vec3(roundedProduct(a.r, b.r), roundedProduct(a.g, b.g), roundedProduct(a.b, b.b));
+}
+
+// Arithmetic::mul(a, b, c) for half: the product in double (the composite
+// type), rounded once (a * b is exact with fma; the c term rounds at most once)
+float mul3(float a, float b, float c)
+{
+    precise float p = a * b;
+    precise float e = fma(a, b, -p);
+    precise float value = fma(p, c, e * c);
+    return value;
+}
+vec3 mul3(float a, float b, vec3 c)
+{
+    return vec3(mul3(a, b, c.r), mul3(a, b, c.g), mul3(a, b, c.b));
+}
 
 float maskCoverage(uint value, bool exact)
 {
@@ -95,6 +145,33 @@ float finiteSDRDivision(float numerator, float denominator)
 {
     float value = numerator / denominator;
     return isinf(value) || isnan(value) ? 1.0 : value;
+}
+
+// a / b rounded like an IEEE division (the GPU divides by a reciprocal)
+float exactQuotient(float a, float b)
+{
+    precise float q = a / b;
+    if (isinf(q) || isnan(q) || b == 0.0) return q;
+    precise float residual = fma(-q, b, a);
+    precise float reciprocal = 1.0 / b;
+    precise float value = fma(residual, reciprocal, q);
+    return value;
+}
+
+// 1 - a / b computed in double and rounded to float once, as
+// CFVividLight does in its composite type (0 for an infinite quotient)
+float oneMinusQuotient(float a, float b)
+{
+    const float q = exactQuotient(a, b);
+    if (isinf(q) || isnan(q)) return 0.0;
+    precise float residual = fma(-q, b, a); // exact: a - q * b
+    precise float low = residual / b;       // a / b - q
+    precise float t = 1.0 - q;
+    // TwoSum: the rounding error of t
+    precise float tb = t - 1.0;
+    precise float error = (1.0 - (t - tb)) + (-q - tb);
+    precise float value = t + (error - low);
+    return value;
 }
 
 float colorDodge(float s, float d)
@@ -188,18 +265,52 @@ float blendChannel(uint op, float s, float d)
         if (d == 0.0) return 0.0;
         return s == 0.0 ? 1.0 : min(d / s, 1.0);
     case OpVividLight:
+#ifdef TILE_F16
+        // CFVividLight<half>: inv() returns a half; the quotient is exact
+        // (double on the CPU) before the half rounding of blendColor().
         if (s < 0.5) {
             if (s == 0.0) return d >= 1.0 ? 1.0 : 0.0;
-            return clamp(1.0 - finiteSDRDivision(1.0 - d, s + s), 0.0, 1.0);
+            return clamp(oneMinusQuotient(float(float16_t(1.0 - d)), s + s), 0.0, 1.0);
         }
         if (s == 1.0) return d <= 0.0 ? 0.0 : 1.0;
-        return clamp(finiteSDRDivision(d, 2.0 * (1.0 - s)), 0.0, 1.0);
+        {
+            float inverse = float(float16_t(1.0 - s));
+            float q = exactQuotient(d, inverse + inverse);
+            return isinf(q) || isnan(q) ? 1.0 : clamp(q, 0.0, 1.0);
+        }
+#else
+        // CFVividLight<float>: float arithmetic with IEEE divisions (phase 4.107)
+        if (s < 0.5) {
+            if (s == 0.0) return d >= 1.0 ? 1.0 : 0.0;
+            precise float inverse = 1.0 - d;
+            const float q = exactQuotient(inverse, s + s);
+            if (isinf(q) || isnan(q)) return 0.0;
+            precise float value = 1.0 - q;
+            return clamp(value, 0.0, 1.0);
+        }
+        if (s == 1.0) return d <= 0.0 ? 0.0 : 1.0;
+        {
+            precise float inverse = 1.0 - s;
+            const float q = exactQuotient(d, inverse + inverse);
+            return isinf(q) || isnan(q) ? 1.0 : clamp(q, 0.0, 1.0);
+        }
+#endif
     case OpHardMix:
         return d > 0.5 ? colorDodge(s, d) : colorBurn(s, d);
     case OpHardMixPhotoshop:
         return s + d > 1.0 ? 1.0 : 0.0;
-    case OpHardMixSofterPhotoshop:
-        return clamp(3.0 * d - 2.0 * (1.0 - s), 0.0, 1.0);
+    case OpHardMixSofterPhotoshop: {
+#ifdef TILE_F16
+        // Arithmetic::inv<half> returns a half; the rest is exact in float.
+        precise float value = 3.0 * d - 2.0 * float(float16_t(1.0 - s));
+        return clamp(value, 0.0, 1.0);
+#else
+        // float on the CPU, without a fused multiply-add
+        precise float inverse = 1.0 - s;
+        precise float value = roundedProduct(3.0, d) - 2.0 * inverse;
+        return clamp(value, 0.0, 1.0);
+#endif
+    }
     case OpGrainMerge:
         return clamp(d + s - 0.5, 0.0, 1.0);
     case OpGrainExtract:
@@ -244,8 +355,8 @@ float blendAlpha(uint op, float s, float d)
     return float(float16_t(s + d - float(float16_t(s * d))));
 #endif
 #ifndef BASIC_BLEND_ONLY
-    if (op == OpColorBurn) {
-        precise float alpha = s + d - s * d;
+    if (exactBlend(op)) {
+        precise float alpha = s + d - roundedProduct(s, d);
         return alpha;
     }
 #endif
@@ -255,6 +366,15 @@ float blendAlpha(uint op, float s, float d)
 vec3 blendWeightedColor(uint op, vec4 dst, vec4 src, float srcAlpha, vec3 blended)
 {
 #ifdef TILE_F16
+#ifndef BASIC_BLEND_ONLY
+    if (exactBlend(op)) {
+        vec3 a = vec3(f16vec3(mul3(float(float16_t(1.0 - srcAlpha)), dst.a, dst.rgb)));
+        vec3 b = vec3(f16vec3(mul3(float(float16_t(1.0 - dst.a)), srcAlpha, src.rgb)));
+        vec3 c = vec3(f16vec3(mul3(dst.a, srcAlpha, blended)));
+        precise vec3 sum = a + b + c;
+        return vec3(f16vec3(sum));
+    }
+#endif
     {
         // Arithmetic::blend<half> rounds each multiply result and the sum.
         vec3 a = vec3(f16vec3((float(float16_t(1.0 - srcAlpha)) * dst.a) * dst.rgb));
@@ -264,9 +384,11 @@ vec3 blendWeightedColor(uint op, vec4 dst, vec4 src, float srcAlpha, vec3 blende
     }
 #endif
 #ifndef BASIC_BLEND_ONLY
-    if (op == OpColorBurn) {
-        precise vec3 result = (1.0 - srcAlpha) * dst.a * dst.rgb +
-                              (1.0 - dst.a) * srcAlpha * src.rgb + dst.a * srcAlpha * blended;
+    if (exactBlend(op)) {
+        precise float da = (1.0 - srcAlpha) * dst.a;
+        precise float sa = (1.0 - dst.a) * srcAlpha;
+        precise float both = dst.a * srcAlpha;
+        precise vec3 result = roundedProduct(dst.rgb, da) + roundedProduct(src.rgb, sa) + roundedProduct(blended, both);
         return result;
     }
 #endif
@@ -303,73 +425,179 @@ vec3 interpolateBlend(uint op, vec3 a, vec3 b, float alpha)
 {
     if (op == OpLinearLight
 #ifndef BASIC_BLEND_ONLY
-        || op == OpColorBurn
+        || exactBlend(op)
 #endif
     ) {
         // Repeated unbounded/nonlinear blending amplifies rounding differences.
-        precise vec3 result = (b - a) * alpha + a;
+        precise vec3 result = roundedProduct(b - a, alpha) + a;
         return result;
     }
     return (b - a) * alpha + a;
 }
 
 #ifndef BASIC_BLEND_ONLY
-float hsyLightness(vec3 color)
+// HSX families of KoColorSpaceMaths.h (HSYType, HSIType, HSLType, HSVType)
+// and the HSL functors of KoCompositeOpFunctions.h, in float like the CPU.
+const uint HsxY = 0;
+const uint HsxI = 1;
+const uint HsxL = 2;
+const uint HsxV = 3;
+const float FloatEpsilon = 1.192092896e-7;
+
+float max3(vec3 c) { return max(max(c.r, c.g), c.b); }
+float min3(vec3 c) { return min(min(c.r, c.g), c.b); }
+
+float hsxLightness(uint type, vec3 c)
 {
-    return 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+    precise float light;
+    if (type == HsxI) {
+        light = (c.r + c.g + c.b) * 0.33333333333333333333;
+    } else if (type == HsxL) {
+        light = (max3(c) + min3(c)) * 0.5;
+    } else if (type == HsxV) {
+        light = max3(c);
+    } else {
+        light = roundedProduct(0.299, c.r) + roundedProduct(0.587, c.g) + roundedProduct(0.114, c.b);
+    }
+    return light;
 }
 
-float hsySaturation(vec3 color)
+float hsxSaturation(uint type, vec3 c)
 {
-    return max(max(color.r, color.g), color.b) - min(min(color.r, color.g), color.b);
+    const float high = max3(c);
+    const float low = min3(c);
+    precise float chroma = high - low;
+    if (type == HsxI) {
+        if (chroma <= FloatEpsilon) return 0.0;
+        precise float value = 1.0 - exactQuotient(low, hsxLightness(HsxI, c));
+        return value;
+    }
+    if (type == HsxL) {
+        precise float light = (high + low) * 0.5;
+        precise float div = 1.0 - abs(2.0 * light - 1.0);
+        return div > FloatEpsilon ? exactQuotient(chroma, div) : 0.0;
+    }
+    if (type == HsxV) return high > FloatEpsilon ? exactQuotient(chroma, high) : 0.0;
+    return chroma;
 }
 
-vec3 hsySetSaturation(vec3 color, float saturation)
+// setSaturation(): the same sort, so that ties pick the same channels
+vec3 hsxSetSaturation(vec3 c, float saturation)
 {
-    float low = min(min(color.r, color.g), color.b);
-    float chroma = hsySaturation(color);
-    return chroma > 1.192092896e-7 ? ((color - low) * saturation) / chroma : vec3(0.0);
+    float rgb[3] = float[3](c.r, c.g, c.b);
+    int low = 0, mid = 1, high = 2, swap;
+    if (rgb[mid] < rgb[low]) { swap = low; low = mid; mid = swap; }
+    if (rgb[high] < rgb[mid]) { swap = mid; mid = high; high = swap; }
+    if (rgb[mid] < rgb[low]) { swap = low; low = mid; mid = swap; }
+    precise float range = rgb[high] - rgb[low];
+    if (range <= FloatEpsilon) return vec3(0.0);
+    precise float scaled = (rgb[mid] - rgb[low]) * saturation;
+    rgb[mid] = exactQuotient(scaled, range);
+    rgb[high] = saturation;
+    rgb[low] = 0.0;
+    return vec3(rgb[0], rgb[1], rgb[2]);
 }
 
-vec3 hsySetLightness(vec3 color, float lightness)
+// ToneMapping(): the original lightness and extrema for both corrections
+vec3 hsxToneMapping(uint type, vec3 c)
 {
-    // KoColorSpaceMaths::setLightness/HSY ToneMapping. Keep the original
-    // extrema for both corrections, including the case where both apply.
-    color += lightness - hsyLightness(color);
-    float light = hsyLightness(color);
-    float low = min(min(color.r, color.g), color.b);
-    float high = max(max(color.r, color.g), color.b);
+    const float light = hsxLightness(type, c);
+    const float low = min3(c);
+    const float high = max3(c);
     if (low < 0.0) {
-        float stretch = light - low;
-        if (light <= 0.00001 || stretch < 1.192092896e-7) color = vec3(0.0);
-        else color = light + ((color - light) * light) * (1.0 / stretch);
+        precise float stretch = light - low;
+        if (light <= 0.00001 || stretch < FloatEpsilon) {
+            c = vec3(0.0);
+        } else {
+            const float scale = exactQuotient(1.0, stretch);
+            precise vec3 value = light + roundedProduct((c - light) * light, scale);
+            c = value;
+        }
     }
     if (high > 1.0) {
-        float stretch = high - light;
-        if (light > 1.0 || stretch < 1.192092896e-7) color = vec3(1.0);
-        else color = light + ((color - light) * (1.0 - light)) * (1.0 / stretch);
+        precise float stretch = high - light;
+        if (light > 1.0 || stretch < FloatEpsilon) {
+            // lightnessIsAverage is false only for HSV
+            c = type == HsxV ? min(c, vec3(1.0)) : vec3(1.0);
+        } else {
+            precise float inverse = 1.0 - light;
+            const float scale = exactQuotient(1.0, stretch);
+            precise vec3 value = light + roundedProduct((c - light) * inverse, scale);
+            c = value;
+        }
     }
-    return color;
+    return c;
+}
+
+vec3 hsxAddLightness(uint type, vec3 c, float light)
+{
+    precise vec3 value = c + light;
+    return hsxToneMapping(type, value);
+}
+
+vec3 hsxSetLightness(uint type, vec3 c, float light)
+{
+    precise float delta = light - hsxLightness(type, c);
+    return hsxAddLightness(type, c, delta);
 }
 
 vec3 blendHSY(uint op, vec3 s, vec3 d)
 {
-    float light = hsyLightness(d);
-    switch (op) {
-    case OpHue:
-        return max(hsySetLightness(hsySetSaturation(s, hsySaturation(d)), light), 0.0);
-    case OpSaturation:
-        return max(hsySetLightness(hsySetSaturation(d, hsySaturation(s)), light), 0.0);
-    case OpColor:
-        return max(hsySetLightness(s, light), 0.0);
-    case OpLuminosity:
-        return max(hsySetLightness(d, hsyLightness(s)), 0.0);
-    case OpDarkerColor:
-        return light > hsyLightness(s) ? s : d;
-    case OpLighterColor:
-        return light < hsyLightness(s) ? s : d;
+    if (op == OpDarkerColor) return hsxLightness(HsxY, d) > hsxLightness(HsxY, s) ? s : d;
+    if (op == OpLighterColor) return hsxLightness(HsxY, d) < hsxLightness(HsxY, s) ? s : d;
+    if (op == OpTint) {
+        // CFTint: black becomes the source colour, white stays
+        const float light = hsxLightness(HsxY, d);
+        precise float inverse = 1.0 - light;
+        precise vec3 value = light + roundedProduct(s, inverse);
+        return value;
     }
-    return d;
+    // Function: 0 Color, 1 Hue, 2 Saturation, 3 Increase and 4 Decrease
+    // Saturation, 5 Lightness, 6 Increase and 7 Decrease Lightness
+    uint type = HsxY;
+    uint function = 7;
+    if (op >= OpColorHsi) {
+        type = HsxI + (op - OpColorHsi) / 8;
+        function = (op - OpColorHsi) % 8;
+    } else if (op == OpColor) {
+        function = 0;
+    } else if (op == OpHue) {
+        function = 1;
+    } else if (op == OpSaturation) {
+        function = 2;
+    } else if (op == OpIncreaseSaturation) {
+        function = 3;
+    } else if (op == OpDecreaseSaturation) {
+        function = 4;
+    } else if (op == OpLuminosity) {
+        function = 5;
+    } else if (op == OpIncreaseLuminosity) {
+        function = 6;
+    }
+    const float light = hsxLightness(type, d);
+    vec3 c;
+    if (function == 0) {
+        c = hsxSetLightness(type, s, light);
+    } else if (function == 1) {
+        c = hsxSetLightness(type, hsxSetSaturation(s, hsxSaturation(type, d)), light);
+    } else if (function <= 4) {
+        const float source = hsxSaturation(type, s);
+        const float destination = hsxSaturation(type, d);
+        // Arithmetic::lerp<float>(a, b, t): (b - a) * t + a
+        precise float increased = roundedProduct(1.0 - destination, source) + destination;
+        precise float decreased = destination * source;
+        const float saturation = function == 2 ? source : (function == 3 ? increased : decreased);
+        c = hsxSetLightness(type, hsxSetSaturation(d, saturation), light);
+    } else if (function == 5) {
+        c = hsxSetLightness(type, d, hsxLightness(type, s));
+    } else if (function == 6) {
+        c = hsxAddLightness(type, d, hsxLightness(type, s));
+    } else {
+        precise float delta = hsxLightness(type, s) - 1.0;
+        c = hsxAddLightness(type, d, delta);
+    }
+    // possiblyFixNegativeValuesNearZeroPoint()
+    return max(c, 0.0);
 }
 
 vec4 compositeHSY(uint op, vec4 dst, vec4 src, float srcAlpha, bool alphaLocked)
@@ -383,9 +611,15 @@ vec4 compositeHSY(uint op, vec4 dst, vec4 src, float srcAlpha, bool alphaLocked)
 #ifdef TILE_F16
     blended = vec3(f16vec3(blended));
 #endif
-    if (alphaLocked) return vec4((blended - dst.rgb) * srcAlpha + dst.rgb, alpha);
+    if (alphaLocked) {
+        precise vec3 value = roundedProduct(blended - dst.rgb, srcAlpha) + dst.rgb;
+        return vec4(value, alpha);
+    }
     vec3 result = blendWeightedColor(op, dst, src, srcAlpha, blended);
-    return vec4(result / alpha, alpha);
+    // div() rounds like an IEEE division (double for half)
+    precise vec3 quotient = result / alpha;
+    vec3 residual = fma(-quotient, vec3(alpha), result);
+    return vec4(fma(residual, vec3(1.0 / alpha), quotient), alpha);
 }
 
 #endif
@@ -427,7 +661,7 @@ vec4 compositeGenericColor(uint op, vec4 dst, vec4 src, float srcAlpha, bool alp
     }
     const vec3 result = blendWeightedColor(op, vec4(d, dstAlpha), vec4(s, src.a), srcAlpha, cf);
 #ifndef BASIC_BLEND_ONLY
-    if (op == OpColorBurn) {
+    if (exactBlend(op)) {
         precise vec3 quotient = result / newAlpha;
         vec3 residual = fma(-quotient, vec3(newAlpha), result);
         return vec4(fma(residual, vec3(1.0 / newAlpha), quotient), newAlpha);
@@ -444,7 +678,7 @@ vec4 compositeGeneric(uint op, vec4 dst, vec4 src, float opacity, bool alphaLock
     if ((alphaLocked || channels != 15) && dst.a == 0.0) dst = vec4(0.0);
     float srcAlpha = (src.a * coverage) * opacity;
 #ifndef BASIC_BLEND_ONLY
-    if (op == OpColorBurn) {
+    if (exactBlend(op)) {
         precise float alpha = (src.a * coverage) * opacity;
         srcAlpha = alpha;
     }

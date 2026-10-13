@@ -57,14 +57,44 @@ enum class KisGpuBlendOp : quint32 {
     Luminosity = 31,
     DarkerColor = 32,
     LighterColor = 33,
+    // Phase 4.107: the other HSX modes (composite_blend.glsl decodes the order)
+    Tint = 34,
+    IncreaseSaturation = 35,
+    DecreaseSaturation = 36,
+    IncreaseLuminosity = 37,
+    DecreaseLuminosity = 38,
+    ColorHsi = 39,
+    HueHsi = 40,
+    SaturationHsi = 41,
+    IncreaseSaturationHsi = 42,
+    DecreaseSaturationHsi = 43,
+    Intensity = 44,
+    IncreaseIntensity = 45,
+    DecreaseIntensity = 46,
+    ColorHsl = 47,
+    HueHsl = 48,
+    SaturationHsl = 49,
+    IncreaseSaturationHsl = 50,
+    DecreaseSaturationHsl = 51,
+    Lightness = 52,
+    IncreaseLightness = 53,
+    DecreaseLightness = 54,
+    ColorHsv = 55,
+    HueHsv = 56,
+    SaturationHsv = 57,
+    IncreaseSaturationHsv = 58,
+    DecreaseSaturationHsv = 59,
+    Value = 60,
+    IncreaseValue = 61,
+    DecreaseValue = 62,
     Count,
 };
 
 /// F16 brush modes covered by the dab and indirect-painting parity matrices.
 inline bool kisGpuSupportsHalfBrushBlend(KisGpuBlendOp op)
 {
-    return op <= KisGpuBlendOp::PinLight || op == KisGpuBlendOp::SoftLightSvg || op == KisGpuBlendOp::ColorDodge
-        || op == KisGpuBlendOp::ColorBurn || (op >= KisGpuBlendOp::Hue && op <= KisGpuBlendOp::Luminosity);
+    // Every mode since phase 4.107.
+    return op < KisGpuBlendOp::Count;
 }
 
 /**

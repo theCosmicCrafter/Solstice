@@ -249,6 +249,7 @@ bool KisGpuBrushPainter::paintImpl(KisPainter *painter,
         // The layer enum reserves 11 for Erase; the dab enum places it at 3.
         static_assert(quint32(Mode::LinearBurn) == quint32(KisGpuBlendOp::LinearBurn) + 2);
         static_assert(quint32(Mode::LighterColor) == quint32(KisGpuBlendOp::LighterColor) + 2);
+        static_assert(quint32(Mode::Count) == quint32(KisGpuBlendOp::Count) + 2);
         mode = Mode(quint32(blendOp) + (blendOp < KisGpuBlendOp::Erase ? 3 : 2));
     }
     if (alphaDarken) {

@@ -245,10 +245,6 @@ bool KisGpuDabCompositor::record(KisGpuCommandList &commands,
     if (!tileOrigins.isEmpty() && tileOrigins.size() != tiles.size())
         return false;
     const bool half = pixelSize == 8;
-    if (half && mode > CompositeMode::PinLight && mode != CompositeMode::SoftLightSvg
-        && mode != CompositeMode::ColorDodge && mode != CompositeMode::ColorBurn
-        && !(mode >= CompositeMode::Hue && mode <= CompositeMode::Luminosity))
-        return false;
     if (quint32(mode) >= quint32(CompositeMode::Count) || channelMask > (half ? 0x1fu : 0xfu)
         || ((mode == CompositeMode::AlphaDarkenHard || mode == CompositeMode::AlphaDarkenCreamy)
             && (channelMask & 15) != 0xf))

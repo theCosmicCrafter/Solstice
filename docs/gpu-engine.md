@@ -10,14 +10,11 @@ Layer compositing and the canvas display run on the GPU for RGBA floating
 point documents. Pixel-brush strokes are painted on the GPU by default (since
 2026-10-10); the GPU brush composites supported blend modes in RGBA32F
 documents, including the temporary painting buffer used by Wash mode.
-RGBA16F pixel brushes also support major GPU blend modes in Buildup and Wash,
-including selections, channel locks and mirrors. These are Normal, Erase,
-Multiply, Screen, Addition / Linear Dodge, Subtract, Darken, Lighten,
-Difference, Overlay, Hard Light, Exclusion, Linear Burn, Linear Light and
-Pin Light, Soft Light (SVG), Color Dodge, Color Burn and HSY Color, Hue,
-Saturation and Luminosity. Wash's Alpha Darken painting buffer, preview and
-final merge can stay on the GPU. Other RGBA16F brush blend modes continue
-through the CPU path. Dab generation remains on
+RGBA16F pixel brushes support the same GPU blend modes as RGBA32F (since
+2026-10-12) in Buildup and Wash, including selections, channel locks and
+mirrors; the list of layer blend modes below applies to brushes too, plus
+Erase. Wash's Alpha Darken painting buffer, preview and final merge can stay
+on the GPU. Other brush blend modes continue through the CPU path. Dab generation remains on
 the CPU in both formats.
 Most filters and transforms still run on the CPU; the exceptions are
 described below (Transform Tool, Liquify, Puppet Warp, Gaussian Blur). The engine is on by default in
@@ -29,10 +26,13 @@ Exclusion, Linear Burn, Linear Light and Pin Light in RGBA32F and RGBA16F.
 The same formats also accelerate Soft Light (SVG and Photoshop), Color Dodge,
 Color Burn, Divide, Vivid Light, Hard Mix (including Photoshop and Softer
 Photoshop), Grain Merge/Extract, Negation, Allanon, and the HSY Hue, Saturation,
-Color, Luminosity, Darker Color and Lighter Color modes. The separately named
-HDR variants of Dodge, Vivid Light and Hard Mix still use the CPU, as do the
-HSI/HSL/HSV families.
-Other layer blend modes continue through the CPU path.
+Color, Luminosity, Darker Color and Lighter Color modes. Since 2026-10-12 they
+also include Tint, Increase/Decrease Saturation and Luminosity, and the HSI,
+HSL and HSV families (Color, Hue, Saturation, Increase/Decrease Saturation,
+Intensity, Lightness or Value and their Increase/Decrease modes). The
+separately named HDR variants of Dodge, Vivid Light and Hard Mix still use
+the CPU. Other layer blend modes, such as Gamma, Modulo, the logical modes,
+Luminosity SAI and Lambert Lighting, continue through the CPU path.
 
 Layer compositing also stays on the GPU when individual RGB channels are
 disabled in the layer properties, with or without alpha locked, in both
@@ -561,12 +561,9 @@ export formats write the file directly and are not covered.)
   itself ignores channel flags and changes alpha while preserving RGB.
   Restricted channels with Alpha Darken, wrap-around,
   instant-preview LOD and other blend modes use the CPU path. RGBA16F supports
-  the major modes listed above in Buildup and Wash with matching dab/layer
+  every GPU blend mode in Buildup and Wash with matching dab/layer
   profiles, selections, channel locks and mirrors. Alpha Darken is supported with all channels
-  enabled, including Wash's internal buffer. F16 also supports Soft Light
-  (SVG), Color Dodge/Burn and HSY Color/Hue/Saturation/Luminosity. Other F16
-  brush modes, including Soft Light (Photoshop), Divide and HSI/HSL/HSV
-  color-component modes, still use the CPU.
+  enabled, including Wash's internal buffer.
   Half-precision storage and intermediate rounding are preserved after each
   dab; small rounding differences from CPU arithmetic remain possible.
   It is still under development; filters and transforms are not accelerated,

@@ -564,6 +564,18 @@ HSL/HSV系、F16のSoft Light(Photoshop)など、GPU未対応のブレンドモ�
 `docs/agent/gpu-engine.md` の「Risks and open questions」にあるとおり、
 モードごとにCPUパリティテストを追加してからF16を有効にする。
 
+フェーズ4.107（2026年10月12日、ユーザー指示「6」）:
+- RGBA16FのブラシをGPU対応の全ブレンドモードに広げた（Soft Light (Photoshop)、Divide、Vivid Light、Hard Mix 3種、
+  Grain Merge/Extract、Negation、Allanon、Darker/Lighter Color）。
+- HSI/HSL/HSVの各系統（Color、Hue、Saturation、彩度の増減、明度系とその増減）とHSYのTint・彩度/輝度の増減の29モードを
+  レイヤーとブラシの両形式でGPU化した。
+- 追加したテストで、既にGPUだったRGBA32FブラシのVivid Light、Hard Mix Softer、Lighter ColorがCPUとずれることが
+  分かり、合わせて直した。NVIDIAのドライバーが `precise` 指定の積和をfmaに融合することも判明し、
+  `roundedProduct()` で回避した。
+- 残り（HDR版、Gamma・Modulo・論理演算などのその他の系統、Luminosity SAI、Lambert lighting など）はCPUのまま。
+  詳細は `gpu-engine.md` の「Remaining blend modes (phase 4.107)」。
+- 手動確認はユーザー報告で問題なし（2026年10月13日）。
+
 ## 関連する付随作業
 
 - READMEの操作ベンチマーク表(投影・キャンバス・ミラー)はフェーズ4.42の

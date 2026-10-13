@@ -134,22 +134,108 @@ private:
     std::condition_variable m_changed;
     std::thread m_watchdog;
 };
+// The other HSX modes (phase 4.107), F32 and F16.
+const QStringList hsxModes{COMPOSITE_TINT,
+                           COMPOSITE_INC_SATURATION,
+                           COMPOSITE_DEC_SATURATION,
+                           COMPOSITE_INC_LUMINOSITY,
+                           COMPOSITE_DEC_LUMINOSITY,
+                           COMPOSITE_COLOR_HSI,
+                           COMPOSITE_HUE_HSI,
+                           COMPOSITE_SATURATION_HSI,
+                           COMPOSITE_INC_SATURATION_HSI,
+                           COMPOSITE_DEC_SATURATION_HSI,
+                           COMPOSITE_INTENSITY,
+                           COMPOSITE_INC_INTENSITY,
+                           COMPOSITE_DEC_INTENSITY,
+                           COMPOSITE_COLOR_HSL,
+                           COMPOSITE_HUE_HSL,
+                           COMPOSITE_SATURATION_HSL,
+                           COMPOSITE_INC_SATURATION_HSL,
+                           COMPOSITE_DEC_SATURATION_HSL,
+                           COMPOSITE_LIGHTNESS,
+                           COMPOSITE_INC_LIGHTNESS,
+                           COMPOSITE_DEC_LIGHTNESS,
+                           COMPOSITE_COLOR_HSV,
+                           COMPOSITE_HUE_HSV,
+                           COMPOSITE_SATURATION_HSV,
+                           COMPOSITE_INC_SATURATION_HSV,
+                           COMPOSITE_DEC_SATURATION_HSV,
+                           COMPOSITE_VALUE,
+                           COMPOSITE_INC_VALUE,
+                           COMPOSITE_DEC_VALUE};
 // Representative modes for the full selection/channel/lifecycle matrix.
-const QStringList blendModes{COMPOSITE_MULT,         COMPOSITE_SCREEN,     COMPOSITE_ADD,
-                             COMPOSITE_LINEAR_DODGE, COMPOSITE_SUBTRACT,   COMPOSITE_DARKEN,
-                             COMPOSITE_LIGHTEN,      COMPOSITE_DIFF,       COMPOSITE_OVERLAY,
-                             COMPOSITE_HARD_LIGHT,   COMPOSITE_EXCLUSION,  COMPOSITE_LINEAR_BURN,
-                             COMPOSITE_LINEAR_LIGHT, COMPOSITE_PIN_LIGHT,  COMPOSITE_SOFT_LIGHT_SVG,
-                             COMPOSITE_DODGE,        COMPOSITE_BURN,       COMPOSITE_COLOR,
-                             COMPOSITE_HUE,          COMPOSITE_SATURATION, COMPOSITE_LUMINIZE};
+const QStringList blendModes = hsxModes
+    + QStringList{COMPOSITE_MULT,
+                  COMPOSITE_SCREEN,
+                  COMPOSITE_ADD,
+                  COMPOSITE_LINEAR_DODGE,
+                  COMPOSITE_SUBTRACT,
+                  COMPOSITE_DARKEN,
+                  COMPOSITE_LIGHTEN,
+                  COMPOSITE_DIFF,
+                  COMPOSITE_OVERLAY,
+                  COMPOSITE_HARD_LIGHT,
+                  COMPOSITE_EXCLUSION,
+                  COMPOSITE_LINEAR_BURN,
+                  COMPOSITE_LINEAR_LIGHT,
+                  COMPOSITE_PIN_LIGHT,
+                  COMPOSITE_SOFT_LIGHT_SVG,
+                  COMPOSITE_DODGE,
+                  COMPOSITE_BURN,
+                  COMPOSITE_COLOR,
+                  COMPOSITE_HUE,
+                  COMPOSITE_SATURATION,
+                  COMPOSITE_LUMINIZE,
+                  // phase 4.107: the remaining modes, F32 and F16
+                  COMPOSITE_SOFT_LIGHT_PHOTOSHOP,
+                  COMPOSITE_DIVIDE,
+                  COMPOSITE_VIVID_LIGHT,
+                  COMPOSITE_HARD_MIX,
+                  COMPOSITE_HARD_MIX_PHOTOSHOP,
+                  COMPOSITE_HARD_MIX_SOFTER_PHOTOSHOP,
+                  COMPOSITE_GRAIN_MERGE,
+                  COMPOSITE_GRAIN_EXTRACT,
+                  COMPOSITE_NEGATION,
+                  COMPOSITE_ALLANON,
+                  COMPOSITE_DARKER_COLOR,
+                  COMPOSITE_LIGHTER_COLOR};
 const QStringList channelModes = QStringList{COMPOSITE_OVER, COMPOSITE_ERASE} + blendModes;
-const QStringList halfBlendModes{COMPOSITE_MULT,         COMPOSITE_SCREEN,     COMPOSITE_ADD,
-                                 COMPOSITE_LINEAR_DODGE, COMPOSITE_SUBTRACT,   COMPOSITE_DARKEN,
-                                 COMPOSITE_LIGHTEN,      COMPOSITE_DIFF,       COMPOSITE_OVERLAY,
-                                 COMPOSITE_HARD_LIGHT,   COMPOSITE_EXCLUSION,  COMPOSITE_LINEAR_BURN,
-                                 COMPOSITE_LINEAR_LIGHT, COMPOSITE_PIN_LIGHT,  COMPOSITE_SOFT_LIGHT_SVG,
-                                 COMPOSITE_DODGE,        COMPOSITE_BURN,       COMPOSITE_COLOR,
-                                 COMPOSITE_HUE,          COMPOSITE_SATURATION, COMPOSITE_LUMINIZE};
+const QStringList halfBlendModes = hsxModes
+    + QStringList{COMPOSITE_MULT,
+                  COMPOSITE_SCREEN,
+                  COMPOSITE_ADD,
+                  COMPOSITE_LINEAR_DODGE,
+                  COMPOSITE_SUBTRACT,
+                  COMPOSITE_DARKEN,
+                  COMPOSITE_LIGHTEN,
+                  COMPOSITE_DIFF,
+                  COMPOSITE_OVERLAY,
+                  COMPOSITE_HARD_LIGHT,
+                  COMPOSITE_EXCLUSION,
+                  COMPOSITE_LINEAR_BURN,
+                  COMPOSITE_LINEAR_LIGHT,
+                  COMPOSITE_PIN_LIGHT,
+                  COMPOSITE_SOFT_LIGHT_SVG,
+                  COMPOSITE_DODGE,
+                  COMPOSITE_BURN,
+                  COMPOSITE_COLOR,
+                  COMPOSITE_HUE,
+                  COMPOSITE_SATURATION,
+                  COMPOSITE_LUMINIZE,
+                  // phase 4.107: the remaining modes, F32 and F16
+                  COMPOSITE_SOFT_LIGHT_PHOTOSHOP,
+                  COMPOSITE_DIVIDE,
+                  COMPOSITE_VIVID_LIGHT,
+                  COMPOSITE_HARD_MIX,
+                  COMPOSITE_HARD_MIX_PHOTOSHOP,
+                  COMPOSITE_HARD_MIX_SOFTER_PHOTOSHOP,
+                  COMPOSITE_GRAIN_MERGE,
+                  COMPOSITE_GRAIN_EXTRACT,
+                  COMPOSITE_NEGATION,
+                  COMPOSITE_ALLANON,
+                  COMPOSITE_DARKER_COLOR,
+                  COMPOSITE_LIGHTER_COLOR};
 const QStringList dabModes = channelModes + QStringList{COMPOSITE_ALPHA_DARKEN};
 class PreviewPaintLayer : public KisPaintLayer
 {
@@ -589,7 +675,7 @@ private Q_SLOTS:
         cp.bltFixed(bounds, dabs);
         gp.bltFixed(bounds, dabs);
         QVERIFY(difference(read(cpu), read(gpu), false) <= 1.0f / 1024);
-        gp.setCompositeOpId(COMPOSITE_DIVIDE);
+        gp.setCompositeOpId(COMPOSITE_DISSOLVE); // no GPU blend op
         QVERIFY(!KisGpuBrushPainter::supports(&gp));
         gp.setCompositeOpId(COMPOSITE_ALPHA_DARKEN);
         gp.setChannelFlags(QBitArray(4, false));
@@ -785,7 +871,8 @@ private Q_SLOTS:
         QCOMPARE(pixels(gpu, bounds), after);
         gpuPainter.bltFixed(bounds, dabs);
         cpuPainter.bltFixed(bounds, dabs);
-        QVERIFY(difference(pixels(cpu, bounds), pixels(gpu, bounds)) <= 2e-5f);
+        const float repeatedError = difference(pixels(cpu, bounds), pixels(gpu, bounds));
+        QVERIFY2(repeatedError <= 2e-5f, qPrintable(QString::number(repeatedError)));
     }
     void testRefusalAndFailure_data()
     {

@@ -1,6 +1,6 @@
 ---
 type: concept
-updated: 2026-10-11
+updated: 2026-10-12
 sources:
   - libs/image/KisImageTipSampler.* (phase 4.103, image tips without QPainter)
   - libs/gpu/shaders/transform_pass.comp (phase 4.94, commit 3828911e98)
@@ -8,6 +8,8 @@ sources:
   - libs/image/gpu/KisGpuTransformWorker.*, libs/image/gpu/KisGpuGridWarpWorker.*
   - libs/image/tests/KisGpuPaintDeviceTest.cpp (testGpuTransformMatchesCpu, testGpuLiquifyMatchesCpu, testGpuGaussianMatchesCpu)
   - libs/gpu/shaders/separable_convolution.comp (phase 4.98, tolerance-based)
+  - libs/gpu/shaders/composite_blend.glsl (phase 4.107: roundedProduct, exactQuotient, mul3, HSX modes)
+  - libs/pigment/KoColorSpaceMaths.h (KoColorSpaceMathsTraits<T>::compositetype)
 related:
   - krita-copy-semantics.md
   - qt-numeric-and-geometry.md
@@ -95,6 +97,28 @@ related:
    code that follows Qt's portable path (`KisImageTipSampler`) and that the
    CPU and the shader both run; the difference from Qt is at most one 8-bit
    step. Ask before changing upstream CPU output like this.
+9. **Know the composite type.** `Arithmetic::mul()`, `div()`, `blend()`
+   and the `cf*` functions compute in
+   `KoColorSpaceMathsTraits<T>::compositetype`: **float for float** (not
+   double) and double for half. RGBA32F blend modes therefore follow plain
+   float arithmetic with IEEE divisions (`exactQuotient()`), while RGBA16F
+   ones round a double product or quotient once, then to half (`mul3()`,
+   `oneMinusQuotient()`). Emulating double for float made phase 4.107's
+   Hard Mix Softer worse.
+10. **`precise` is not enough on the NVIDIA driver.** Phase 4.107 found
+   `light + t * scale` evaluated as one fma although the SPIR-V carries
+   `NoContraction` on every operation (checked with `spirv-dis`); scalar
+   code did not help. The result differed only where the exact sum lay on a
+   rounding tie. `roundedProduct(a, b)` (`fma(a, b, -error)`, an fma result
+   the driver does not fuse) gives the CPU's rounded product; use it for
+   every product that feeds an addition in the blend code.
+11. **Debugging a 1-ULP drift.** Paint dab by dab on the CPU and the GPU and
+   stop at the first differing dab; reproduce the CPU in numpy `float32` /
+   `float16` from the printed inputs; then write GPU intermediates as
+   `(value - cpuValue) / ulp` into the output pixels, which shows the step
+   that differs. Amplifying modes (Vivid Light, Hard Mix Softer, HSL
+   saturation) turn one ULP into visible differences over repeated dabs, so
+   tolerance tests catch them only with repeated or mirrored dabs.
 
 ## Test pattern
 

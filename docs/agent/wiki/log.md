@@ -829,3 +829,16 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   loop with background CPU load turned a 1-in-30 process failure into a
   measurable rate, and toggling suspects by environment variables in one
   build compared them quickly.
+
+## 2026-10-12 ingest: remaining blend modes (phase 4.107)
+
+- RGBA16F brushes use the GPU in every GPU blend mode; the HSI/HSL/HSV
+  families and HSY Tint and increase/decrease modes run on the GPU for
+  layers and brushes ([gpu-engine.md](../gpu-engine.md), "Remaining blend
+  modes (phase 4.107)";
+  [history](history/gpu-phases-4.93-.md#remaining-blend-modes-phase-4107)).
+- Lessons ([cpu-gpu-bit-parity.md](concepts/cpu-gpu-bit-parity.md),
+  techniques 9-11): the composite type of float is float; the NVIDIA driver
+  fuses multiply-adds despite `precise`; per-dab debugging with ULP-scaled
+  GPU intermediates finds a 1-ULP drift quickly. Modes already enabled
+  without tests had drifted; add a test row whenever a mode is enabled.
