@@ -489,7 +489,8 @@ differ ...)」。ファイルの写しで記録を描き直して照合すると
 `testRecordCheckFindsOtherEdits`(開いた文書のレイヤーで、描いた後に一致、
 塗りつぶすと不一致、取り消すと一致に戻る)。
 
-手動確認の項目(未確認):
+手動確認の項目(2026年10月13日に問題なし。印はアイコンの置き換えに変更、
+テクスチャの位置を修正した後):
 
 1. ブラシストロークレイヤーで、線を丸ごと囲むフリーハンドの選択範囲を
    移動ツールで動かし、Image > Scale Image で拡大すると、くっきりする。
@@ -501,6 +502,55 @@ differ ...)」。ファイルの写しで記録を描き直して照合すると
 4. ユーザーの `20261011.kra` を開くと、数秒で2つの「Brush Stroke Layer 1」
    に警告の印が付く(記録と画素がすでに一致しない)。
 5. 描画中や大きなファイルで、照合による引っかかりがない。
+
+## 一致しない部分だけ画素で拡大する(2026年10月13日、案A)
+
+これまでは、記録と画素が1画素でも違えば、拡大でレイヤー全体を画素の変換に
+していた。一部だけ選択範囲で動かした線画でも全体がぼけた。拡大のときに
+一致しない部分だけを画素の変換にする(記録の形式と元に戻すは変えない)。
+
+| 場所 | 内容 |
+| --- | --- |
+| `libs/image/KisRedrawableLayerInterface.h` | `createTransformRedrawCommand()` に `PixelTransform transformPixels`(呼び出し側が画素を変換するのと同じ方法で、デバイスを変換した新しいデバイスを返す関数)を追加 |
+| `libs/image/processing/kis_transform_processing_visitor.cpp` | 写したデバイスに同じ引数とフィルタの `KisTransformWorker` |
+| `plugins/tools/tool_transform2/strokes/inplace_transform_stroke_strategy.cpp`、`transform_stroke_strategy.cpp` | `KisTransformUtils::transformAndMergeDevice()`(その時点の変形の引数、ノードの `ProgressHelper`) |
+| `libs/ui/KisBrushStrokeLayer.cpp` | `sameContent()` が違う画素の範囲(`KisPixelSelection`)と、違う画素数・どちらかが覆う画素数を返せる。`createTransformRedrawCommand()` の部分的な合成。メッセージは `postImageMessage()`(画像のポインタは比べるだけ。生の値だけをキューに積む) |
+
+手順: 今の大きさで記録を描き直して照合し、違う範囲 M を得る。違う画素が
+覆う画素の半分を超える(または描くものがない、`transformPixels` がない)
+なら従来どおり nullptr(全体を画素の変換)。それ以外は、変換した記録を
+描き直し、M を2画素広げ(`KisGrowSelectionFilter`、縁の半透明を含める)、
+元の画素と M を `transformPixels` で変換し、M を倍率(最低1)画素で
+ぼかし(`KisFeatherSelectionFilter`)、描き直しの上に画素の変換を
+`COMPOSITE_COPY` と M の選択範囲で写す(選択の値で補間)。記録は変換した
+線に差し替える(M の部分は記録と一致しないままなので、次の拡大でも同じく
+その部分が画素の変換になる)。ログと、キャンバスのメッセージ(画素で
+拡大したおおよその割合)。
+
+性質と制限: 一致しなくなった後に描いた線も、M の中を通る部分は画素の
+変換になる(重なり順を保つには記録に画素の項目を入れる案Bが要る)。
+描き直しと画素の変換は位置が一致するので、境目で線はずれない。
+
+確認: ユーザーのファイルの写しで、選択範囲で動かした頭の輪郭だけが画素の
+拡大になり、ほかの線と胴体はくっきり、境目は目立たない(テスト用の一時的な
+プログラムで2倍)。
+
+テスト `KisBrushStrokeLayerTest`(19件、通過): `testScaleRedrawsAroundOtherEdits`
+(線の端に塗りつぶしを加えて4倍: 記録は4倍になり、塗りつぶしの内側は画素の
+拡大と同じ、離れた部分は記録の描き直しと同じで画素の拡大とは違う)、
+`testScaleFallsBackAfterOtherEdits`(大部分を塗りつぶすと、従来どおり全体が
+画素の拡大で記録は変わらない)。`KisBrushStrokeLayerTransformTest`、
+`kis_processings_test`、`MoveSelectionStrokeTest` も通過。
+
+手動確認の項目(2026年10月13日に問題なし):
+
+1. 線画の一部を、線を途中で切る選択範囲で動かしてから Image > Scale Image で
+   拡大すると、動かした部分だけ少しぼけ、ほかはくっきりする。「drawn again,
+   except about N%」のメッセージが出る。
+2. フィルタを一部に掛けたレイヤーも同じ。大部分にフィルタを掛けると、全体が
+   画素の拡大になる。
+3. 変形ツール(Free)で拡大して適用しても同じ。元に戻すで大きさと線が戻る。
+4. 境目に段差や継ぎ目が目立たない。
 
 ## 段階1: 技術検証
 

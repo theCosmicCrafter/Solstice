@@ -310,9 +310,17 @@ void TransformStrokeStrategy::doStrokeCallback(KisStrokeJobData *data)
                 KUndo2Command *redraw = nullptr;
                 KisRedrawableLayerInterface *redrawable = dynamic_cast<KisRedrawableLayerInterface *>(td->node.data());
                 if (redrawable && !m_selection && td->config.mode() == ToolTransformArgs::FREE_TRANSFORM) {
+                    const ToolTransformArgs args = td->config;
+                    const KisNodeSP node = td->node;
                     redraw = redrawable->createTransformRedrawCommand(
                         KisTransformUtils::MatricesPack(td->config).finalTransform(),
-                        cachedPortion);
+                        cachedPortion,
+                        [args, node](KisPaintDeviceSP source) {
+                            KisPaintDeviceSP pixels = new KisPaintDevice(source->colorSpace());
+                            KisProcessingVisitor::ProgressHelper helper(node);
+                            KisTransformUtils::transformAndMergeDevice(args, source, pixels, &helper);
+                            return pixels;
+                        });
                 }
 
                 if (redraw) {

@@ -132,14 +132,17 @@ public:
 
     /**
      * Draws the strokes again with @p transform applied (scaling and moving
-     * only) into the paint device, replacing what it holds, if @p original
-     * (the content before the transform) is just the recorded strokes:
-     * drawing the record at the current size must give its pixels.
-     * Otherwise (another tool or a filter changed them, a selection clipped
-     * a stroke, rotation, mirroring), nullptr: the pixels are transformed as
-     * on a paint layer.
+     * only) into the paint device, replacing what it holds. Where @p
+     * original (the content before the transform) is not the recorded
+     * strokes (another tool or a filter changed it, a selection clipped a
+     * stroke), that part keeps its pixels, transformed by @p
+     * transformPixels and blended in at the edge. nullptr when most of the
+     * content is not the record, or for rotation and mirroring: the pixels
+     * are transformed as on a paint layer.
      */
-    KUndo2Command *createTransformRedrawCommand(const QTransform &transform, KisPaintDeviceSP original) override;
+    KUndo2Command *createTransformRedrawCommand(const QTransform &transform,
+                                                KisPaintDeviceSP original,
+                                                const PixelTransform &transformPixels) override;
 
     /// @p strokes with their positions mapped by @p transform from the
     /// device at @p deviceOffset, and their brush sizes scaled; their

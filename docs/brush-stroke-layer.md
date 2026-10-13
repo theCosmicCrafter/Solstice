@@ -31,7 +31,7 @@ Stroke Layer**. It appears below Paint Layer in the menu.
 
 ## Enlarging
 
-![A small drawing on a Brush Stroke Layer and an enlarged copy drawn again at the new size](images/brush-stroke-layer.png)
+![A small figure sketch on a Brush Stroke Layer and an enlarged copy drawn again at the new size](images/brush-stroke-layer.png)
 
 **Image > Scale Image**, **Layer > Scale Layer** and the **Transform tool**
 in Free mode draw the remembered strokes again at the new size with the
@@ -40,13 +40,16 @@ scale. With the Transform tool the preview while dragging shows the scaled
 pixels, and the strokes are drawn again when the transform is applied.
 Undo returns the layer to its earlier size and strokes.
 
-The layer is redrawn only when its pixels are still exactly its remembered
-strokes. If something else changed them (a filter, for example), it is
-scaled like a paint layer instead, so no change is ever lost. Rotating,
-mirroring, skewing or perspective, scaling within a selection, and the
-Transform tool's other modes (Warp, Cage, Liquify, Mesh, Puppet Warp)
-transform the pixels as on a paint layer; the remembered strokes then no
-longer match, and later enlarging also scales the pixels.
+Only the parts of the layer that are still exactly its remembered strokes
+are drawn again. Where something else changed the pixels (a filter, a
+stroke cut by a moved selection), that part is scaled like a paint layer and
+blended in at its edge, so no change is ever lost; the rest stays sharp. A
+message says roughly how much of the layer was scaled as pixels. When most
+of the layer no longer matches, the whole layer is scaled like a paint
+layer. Rotating, mirroring, skewing or perspective, scaling within a
+selection, and the Transform tool's other modes (Warp, Cage, Liquify, Mesh,
+Puppet Warp) transform the pixels as on a paint layer; the remembered
+strokes then no longer match, and later enlarging scales those pixels.
 
 ## When the strokes no longer match
 
@@ -56,7 +59,7 @@ them again, which can take a few seconds for a layer with many strokes). It
 also checks when a file is opened. If they no longer match:
 
 - a message on the canvas names the layer and says that scaling it will now
-  scale its pixels;
+  scale the pixels that no longer match;
 - in the Layers docker, the small brush mark at the corner of the layer's
   thumbnail turns into a yellow warning sign.
 

@@ -21,6 +21,7 @@
 #include <KisView.h>
 #include <KoCanvasResourceProvider.h>
 #include <KoColorSpace.h>
+#include <KoCompositeOpRegistry.h>
 #include <kis_command_utils.h>
 #include <kis_debug.h>
 #include <kis_distance_information.h>
@@ -33,7 +34,10 @@
 #include <kis_painter.h>
 #include <kis_paintop_preset.h>
 #include <kis_paintop_settings.h>
+#include <kis_pixel_selection.h>
 #include <kis_resources_snapshot.h>
+#include <kis_selection.h>
+#include <kis_selection_filters.h>
 #include <kis_transaction.h>
 #include <klocalizedstring.h>
 #include <strokes/KisFreehandStrokeInfo.h>
@@ -247,6 +251,42 @@ private:
     bool m_quitting = false;
 };
 
+namespace
+{
+/// A message on the canvas of a view showing @p image (GUI thread); the
+/// image is only compared, never used
+void showImageMessage(const void *image, const QString &message, const QIcon &icon)
+{
+    KisView *target = nullptr;
+    KisMainWindow *window = KisPart::instance()->currentMainwindow();
+    for (const QPointer<KisView> &view : KisPart::instance()->views()) {
+        if (view && view->image().data() == image) {
+            if (!target || (window && view.data() == window->activeView())) {
+                target = view.data();
+            }
+        }
+    }
+    if (target) {
+        target->showFloatingMessage(message, icon, 7000, KisFloatingMessage::High);
+    }
+}
+
+/// showImageMessage() from any thread; plain values only (see
+/// KisBrushStrokeLayerMonitor::process())
+void postImageMessage(const void *image, const QString &message)
+{
+    if (!qApp) {
+        return;
+    }
+    QMetaObject::invokeMethod(
+        qApp,
+        [image, message]() {
+            showImageMessage(image, message, KisIconUtils::loadIcon("krita_tool_freehand"));
+        },
+        Qt::QueuedConnection);
+}
+} // namespace
+
 void KisBrushStrokeLayer::requestRecordCheck()
 {
     if (!qApp || !m_checkRequested.testAndSetOrdered(0, 1)) {
@@ -289,19 +329,7 @@ void KisBrushStrokeLayer::setRecordState(RecordState state, const QString &diffe
         return;
     }
 
-    KisImageSP layerImage = image().toStrongRef();
-    KisView *target = nullptr;
-    KisMainWindow *window = KisPart::instance()->currentMainwindow();
-    for (const QPointer<KisView> &view : KisPart::instance()->views()) {
-        if (view && view->image().data() == layerImage.data()) {
-            if (!target || (window && view.data() == window->activeView())) {
-                target = view.data();
-            }
-        }
-    }
-    if (target) {
-        target->showFloatingMessage(message, messageIcon, 7000, KisFloatingMessage::High);
-    }
+    showImageMessage(image().toStrongRef().data(), message, messageIcon);
 }
 
 namespace
@@ -473,7 +501,13 @@ namespace
 /// how they differ. The colors are compared premultiplied by alpha: the
 /// color of a transparent pixel does not show, and smudging brushes leave
 /// it different from what drawing again gives.
-bool sameContent(KisPaintDeviceSP a, KisPaintDeviceSP b, const QRect &rect, QString *difference)
+bool sameContent(KisPaintDeviceSP a,
+                 KisPaintDeviceSP b,
+                 const QRect &rect,
+                 QString *difference,
+                 KisPixelSelectionSP mismatch = nullptr,
+                 int *differingCount = nullptr,
+                 int *coveredCount = nullptr)
 {
     if (rect.isEmpty()) {
         *difference = QStringLiteral("the layer is empty, the redrawn strokes are not");
@@ -482,8 +516,10 @@ bool sameContent(KisPaintDeviceSP a, KisPaintDeviceSP b, const QRect &rect, QStr
     const QImage first = a->convertToQImage(nullptr, rect).convertToFormat(QImage::Format_ARGB32);
     const QImage second = b->convertToQImage(nullptr, rect).convertToFormat(QImage::Format_ARGB32);
     int differing = 0;
+    int covered = 0;
     int largest = 0;
     QRect area;
+    QVector<quint8> selected(mismatch ? rect.width() * rect.height() : 0, MIN_SELECTED);
     for (int y = 0; y < first.height(); y++) {
         const QRgb *lineA = reinterpret_cast<const QRgb *>(first.constScanLine(y));
         const QRgb *lineB = reinterpret_cast<const QRgb *>(second.constScanLine(y));
@@ -499,12 +535,25 @@ bool sameContent(KisPaintDeviceSP a, KisPaintDeviceSP b, const QRect &rect, QStr
                 qMax(qMax(qAbs(alphaP - alphaQ), qAbs(premultiplied(qRed(p), alphaP) - premultiplied(qRed(q), alphaQ))),
                      qMax(qAbs(premultiplied(qGreen(p), alphaP) - premultiplied(qGreen(q), alphaQ)),
                           qAbs(premultiplied(qBlue(p), alphaP) - premultiplied(qBlue(q), alphaQ))));
+            covered += qMax(alphaP, alphaQ) > 3;
             if (channel > 3) {
                 differing++;
                 largest = qMax(largest, channel);
                 area |= QRect(rect.x() + x, rect.y() + y, 1, 1);
+                if (mismatch) {
+                    selected[y * rect.width() + x] = MAX_SELECTED;
+                }
             }
         }
+    }
+    if (mismatch && differing) {
+        mismatch->writeBytes(selected.constData(), rect);
+    }
+    if (differingCount) {
+        *differingCount = differing;
+    }
+    if (coveredCount) {
+        *coveredCount = covered;
     }
     *difference = QStringLiteral("%1 of %2 pixels differ, by up to %3, in %4,%5 %6x%7")
                       .arg(differing)
@@ -710,7 +759,9 @@ KisBrushStrokeLayer::transformedStrokes(const QVector<KisRecordedBrushStrokeSP> 
     return result;
 }
 
-KUndo2Command *KisBrushStrokeLayer::createTransformRedrawCommand(const QTransform &transform, KisPaintDeviceSP original)
+KUndo2Command *KisBrushStrokeLayer::createTransformRedrawCommand(const QTransform &transform,
+                                                                 KisPaintDeviceSP original,
+                                                                 const PixelTransform &transformPixels)
 {
     const QVector<KisRecordedBrushStrokeSP> recorded = strokes();
     KisPaintDeviceSP device = paintDevice();
@@ -727,9 +778,16 @@ KUndo2Command *KisBrushStrokeLayer::createTransformRedrawCommand(const QTransfor
     const QRect bounds = original->exactBounds();
     const KoColorSpace *colorSpace = device->colorSpace();
 
-    // the layer must hold just its recorded strokes
+    // where the layer holds just its recorded strokes
+    KisPaintDeviceSP current = renderStrokes(recorded, colorSpace, bounds | QRect(0, 0, 1, 1), offset);
+    KisPixelSelectionSP mismatch = new KisPixelSelection();
     QString difference;
-    if (!strokesMatchPixels(recorded, original, &difference)) {
+    int differing = 0;
+    int covered = 0;
+    const bool same = sameContent(original, current, bounds, &difference, mismatch, &differing, &covered);
+    // mostly not the record (or nothing to draw): the pixels are
+    // transformed as on a paint layer
+    if (!same && (bounds.isEmpty() || !transformPixels || differing * 2 > covered)) {
         const QString message = QStringLiteral(
                                     "Brush stroke layer \"%1\": its pixels are not its %2 recorded strokes (%3); "
                                     "transforming the pixels instead of drawing again")
@@ -744,6 +802,42 @@ KUndo2Command *KisBrushStrokeLayer::createTransformRedrawCommand(const QTransfor
     const QVector<KisRecordedBrushStrokeSP> mapped = transformedStrokes(recorded, offset, transform);
     const QRect mappedBounds = transform.mapRect(QRectF(bounds)).toAlignedRect();
     KisPaintDeviceSP redrawn = renderStrokes(mapped, colorSpace, mappedBounds | QRect(0, 0, 1, 1), offset);
+
+    if (!same) {
+        // the part that is not the record keeps its pixels, transformed as
+        // the caller transforms pixels and blended in at the edge; the
+        // region grows to take in the antialiased edges around it
+        const QRect mismatchRect = mismatch->selectedExactRect();
+        KisGrowSelectionFilter(2, 2).process(mismatch, kisGrowRect(mismatchRect, 2));
+        KisPaintDeviceSP pixels = transformPixels(original);
+        KisPaintDeviceSP region = transformPixels(mismatch);
+
+        KisSelectionSP selection = new KisSelection();
+        const QRect regionRect = region->exactBounds();
+        KisPainter::copyAreaOptimized(regionRect.topLeft(), region, selection->pixelSelection(), regionRect);
+        const int feather = qMax(1, qRound(lengthScale(transform)));
+        KisFeatherSelectionFilter(feather).process(selection->pixelSelection(), kisGrowRect(regionRect, feather));
+
+        const QRect blendRect = selection->pixelSelection()->selectedExactRect();
+        KisPainter gc(redrawn);
+        gc.setCompositeOpId(COMPOSITE_COPY);
+        gc.setSelection(selection);
+        gc.bitBlt(blendRect.topLeft(), pixels, blendRect);
+        gc.end();
+
+        const int percent = qMax(1, qRound(100.0 * differing / qMax(1, covered)));
+        KisUsageLogger::log(QStringLiteral("Brush stroke layer \"%1\": drawn again except where its pixels are not "
+                                           "its %2 recorded strokes (%3); that part is transformed as pixels")
+                                .arg(name())
+                                .arg(recorded.size())
+                                .arg(difference));
+        postImageMessage(image().toStrongRef().data(),
+                         i18nc("floating message",
+                               "\"%1\" was drawn again, except about %2% of it that no longer matches its recorded "
+                               "brush strokes: that part was scaled as pixels.",
+                               name(),
+                               percent));
+    }
 
     KisCommandUtils::CompositeCommand *command = new KisCommandUtils::CompositeCommand();
     command->setText(kundo2_i18n("Redraw Brush Strokes"));

@@ -1186,7 +1186,14 @@ void InplaceTransformStrokeStrategy::redrawRecordedStrokes(QVector<KisStrokeJobD
             }
 
             const QRect oldRect = device->extent();
-            if (KUndo2Command *cmd = redrawable->createTransformRedrawCommand(transform, original)) {
+            const ToolTransformArgs args = m_d->currentTransformArgs;
+            auto transformPixels = [args, node](KisPaintDeviceSP source) {
+                KisPaintDeviceSP pixels = new KisPaintDevice(source->colorSpace());
+                KisProcessingVisitor::ProgressHelper helper(node);
+                KisTransformUtils::transformAndMergeDevice(args, source, pixels, &helper);
+                return pixels;
+            };
+            if (KUndo2Command *cmd = redrawable->createTransformRedrawCommand(transform, original, transformPixels)) {
                 executeAndAddCommand(cmd, Transform, KisStrokeJobData::SEQUENTIAL);
                 m_d->updatesFacade->refreshGraphAsync(node, oldRect | device->extent());
             }

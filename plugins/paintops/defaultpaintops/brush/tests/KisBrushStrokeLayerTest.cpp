@@ -53,6 +53,7 @@ private Q_SLOTS:
     void testRecordAndRedraw();
     void testOnlyBrushStrokesOnPaintLayers();
     void testScaleImageRedraws();
+    void testScaleRedrawsAroundOtherEdits();
     void testScaleFallsBackAfterOtherEdits();
     void testStrokeDataRoundTrip();
     void testKraRoundTrip();
@@ -299,13 +300,14 @@ void KisBrushStrokeLayerTest::testScaleImageRedraws()
     QCOMPARE(toImage(layer->paintDevice()), small);
 }
 
-/// Pixels that are not recorded strokes are never dropped: the layer is
-/// then scaled like a paint layer, and its record is left as it was.
-void KisBrushStrokeLayerTest::testScaleFallsBackAfterOtherEdits()
+/// Pixels that are not recorded strokes are never dropped: where the layer
+/// is not its record, its pixels are scaled as on a paint layer, and the
+/// rest is drawn again
+void KisBrushStrokeLayerTest::testScaleRedrawsAroundOtherEdits()
 {
     const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
     KisImageSP image =
-        new KisImage(new KisSurrogateUndoStore(), imageBounds.width(), imageBounds.height(), cs, "fallback");
+        new KisImage(new KisSurrogateUndoStore(), imageBounds.width(), imageBounds.height(), cs, "partial");
     KisBrushStrokeLayerSP layer = new KisBrushStrokeLayer(image, "strokes", OPACITY_OPAQUE_U8, cs);
     image->addNode(layer, image->root());
 
@@ -320,9 +322,41 @@ void KisBrushStrokeLayerTest::testScaleFallsBackAfterOtherEdits()
 
     scaleImage4x(image);
     const QRect large(0, 0, imageBounds.width() * 4, imageBounds.height() * 4);
+    // the record follows the scale
+    QCOMPARE(layer->strokes().first()->jobs.first().pi1.pos(), firstPoint * 4);
+    // the fill keeps its scaled pixels
+    const QRect fill(600, 280, 120, 80);
+    QCOMPARE(toImage(layer->paintDevice(), kisGrowRect(fill, -8)),
+             toImage(reference->paintDevice(), kisGrowRect(fill, -8)));
+    // away from it, the strokes are drawn again
+    const QRect away(0, 0, 400, 400);
+    const QImage redrawn = toImage(KisBrushStrokeLayer::renderStrokes(layer->strokes(), cs, large, QPoint()), away);
+    QCOMPARE(toImage(layer->paintDevice(), away), redrawn);
+    QVERIFY(toImage(layer->paintDevice(), away) != toImage(reference->paintDevice(), away));
+}
+
+/// When most of the layer is not its record, it is scaled like a paint
+/// layer, and its record is left as it was
+void KisBrushStrokeLayerTest::testScaleFallsBackAfterOtherEdits()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+    KisImageSP image =
+        new KisImage(new KisSurrogateUndoStore(), imageBounds.width(), imageBounds.height(), cs, "fallback");
+    KisBrushStrokeLayerSP layer = new KisBrushStrokeLayer(image, "strokes", OPACITY_OPAQUE_U8, cs);
+    image->addNode(layer, image->root());
+
+    paintStroke(image, layer, loadPreset(QStringLiteral("d)_Ink-3_Gpen.kpp")), KoColor(Qt::black, cs));
+    layer->paintDevice()->fill(QRect(10, 10, 180, 80), KoColor(Qt::blue, cs));
+    const QPointF firstPoint = layer->strokes().first()->jobs.first().pi1.pos();
+
+    KisPaintLayerSP reference = new KisPaintLayer(image, "reference", OPACITY_OPAQUE_U8, cs);
+    reference->paintDevice()->makeCloneFrom(layer->paintDevice(), layer->paintDevice()->extent());
+    image->addNode(reference, image->root());
+
+    scaleImage4x(image);
+    const QRect large(0, 0, imageBounds.width() * 4, imageBounds.height() * 4);
     QCOMPARE(layer->strokes().first()->jobs.first().pi1.pos(), firstPoint);
     QCOMPARE(toImage(layer->paintDevice(), large), toImage(reference->paintDevice(), large));
-    QVERIFY(coveredPixels(toImage(layer->paintDevice(), QRect(600, 280, 120, 80))) > 5000);
 }
 
 /// Stage 2c: the stroke data written for a .kra reads back as strokes that

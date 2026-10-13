@@ -891,3 +891,15 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   the stroke. Lesson: a redraw must reproduce every canvas-anchored input
   of a dab (texture, and anything else keyed to image coordinates), not
   only the dab positions.
+
+## 2026-10-13 ingest: brush stroke layer partial redraw
+
+- Scaling a brush stroke layer now draws the strokes again where the layer
+  still matches its record and transforms only the mismatching part as
+  pixels (grown 2 px, feathered, blended with `COMPOSITE_COPY` through the
+  mask); most of the layer mismatching still falls back to pixels. The
+  callers pass their own pixel transform so the fallback part looks as it
+  did ([plan](../brush-stroke-layer-plan.md), "一致しない部分だけ画素で拡大する").
+- Lesson: when a fallback replaces a whole result, ask whether the check
+  that triggers it can say where it failed; the mismatch mask was already
+  computed and only needed to be kept.
