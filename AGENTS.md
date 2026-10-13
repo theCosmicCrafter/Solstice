@@ -21,11 +21,12 @@
 
 | Branch | Purpose |
 | --- | --- |
-| `krita-sol-gpu` | Primary Solstice development and GitHub default branch, including the Vulkan GPU engine. See `docs/agent/gpu-engine.md`. |
+| `main` | Primary Solstice development and GitHub default branch (user decision, 2026-10-13), including the Vulkan GPU engine. Created from `krita-sol-gpu` at the start of the 0.2.0-beta release preparation. |
+| `krita-sol-gpu` | Former primary branch (GPU engine development until 2026-10-13); retained for reference, no longer updated. See `docs/agent/gpu-engine.md`. |
 | `krita-sol` | Historical pre-GPU development branch; retained for reference. |
 | `krita/6.0` | Historical upstream snapshot; retained for reference, no longer synchronized. |
 
-Make custom changes on `krita-sol-gpu`. Upstream Krita synchronization has
+Make custom changes on `main`. Upstream Krita synchronization has
 been discontinued for this repository. Do not restore the `upstream` remote
 or resume upstream merges unless the user explicitly requests it. `origin`
 is `https://github.com/udtren/Solstice.git`. This policy supersedes the older

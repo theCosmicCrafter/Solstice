@@ -7,7 +7,8 @@ ordinary pushes and pull requests do not start it.
 Open [Actions](https://github.com/udtren/Solstice/actions/workflows/windows-build.yml),
 choose a successful run and download its **Solstice-windows-x64** artifact
 (downloading requires a GitHub account). Extract the artifact, then extract the
-application ZIP inside it. Launch `bin/solstice.exe` from the extracted folder
+application ZIP inside it. Launch `Solstice.exe` in the extracted folder; it
+starts `bin/solstice.exe`, which you can also start directly
 (`bin/solstice.com` starts it from a console).
 
 The ZIP includes a `shellex` folder with the Krita Shell Extension. Run

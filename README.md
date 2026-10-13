@@ -122,7 +122,7 @@ thumbnails in Explorer, see [Explorer thumbnails](docs/windows-shell-thumbnails.
 The application and document icons are described in
 [Visual branding](docs/visual-branding.md).
 
-The primary development and default branch is `krita-sol-gpu`. For source
+The primary development and default branch is `main`. For source
 builds, see the [development environment](AGENTS.md#shared-development-environment) and [build workflow](docs/agent/development-workflow.md#build).
 Check the [supported environment](#supported-environment) before building.
 

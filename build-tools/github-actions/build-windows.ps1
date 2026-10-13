@@ -22,6 +22,21 @@ $env:PKG_CONFIG_PATH = "$Deps/lib/pkgconfig;$Deps/share/pkgconfig"
 $env:QT_PLUGIN_PATH = "$Deps/plugins"
 $env:PYTHONUTF8 = '1'
 
+# The Solstice version from the top-level CMakeLists.txt (docs/agent/versioning.md)
+function Get-SolsticeVersion {
+    $Lists = Get-Content -Raw (Join-Path $Source 'CMakeLists.txt')
+    $Parts = @{}
+    foreach ($Name in 'MAJOR', 'MINOR', 'PATCH', 'LABEL') {
+        if ($Lists -notmatch "(?m)^set\(SOLSTICE_VERSION_$Name `"?([^`")]*)`"?\)") {
+            throw "SOLSTICE_VERSION_$Name not found in CMakeLists.txt"
+        }
+        $Parts[$Name] = $Matches[1]
+    }
+    $Version = "$($Parts.MAJOR).$($Parts.MINOR).$($Parts.PATCH)"
+    if ($Parts.LABEL) { $Version += "-$($Parts.LABEL)" }
+    return $Version
+}
+
 function Invoke-Logged([string]$Program, [string[]]$Arguments, [string]$LogName) {
     & $Program @Arguments 2>&1 | Tee-Object -FilePath (Join-Path $Logs $LogName)
     if ($LASTEXITCODE -ne 0) { throw "$Program failed with exit code $LASTEXITCODE" }
@@ -55,7 +70,7 @@ if ($Stage -eq 'configure') {
 } elseif ($Stage -eq 'build') {
     Invoke-Logged cmake @('--build', $Build, '--parallel', "$Jobs") 'build.log'
     Invoke-Logged cmake @('--install', $Build) 'install.log'
-    foreach ($Required in @('bin/solstice.exe', 'bin/solstice.com', 'bin/krita.dll', 'bin/libkritagpu.dll')) {
+    foreach ($Required in @('bin/solstice.exe', 'bin/solstice.com', 'bin/solstice-launcher.exe', 'bin/krita.dll', 'bin/libkritagpu.dll')) {
         if (-not (Test-Path (Join-Path $Install $Required))) { throw "Missing output: $Required" }
     }
 } else {
@@ -63,7 +78,8 @@ if ($Stage -eq 'configure') {
     New-Item -ItemType Directory -Force -Path $PackageDir | Out-Null
     $env:MINGW_BIN_DIR = $CompilerBin
     $env:SEVENZIP_EXE = (Get-Command 7z).Source
-    $PackageName = "Solstice-windows-x64-$($env:GITHUB_SHA.Substring(0, 12))"
+    $Version = Get-SolsticeVersion
+    $PackageName = "Solstice-$Version-windows-x64-$($env:GITHUB_SHA.Substring(0, 12))"
     Push-Location $PackageDir
     try {
         Invoke-Logged $Python @(
@@ -78,6 +94,8 @@ if ($Stage -eq 'configure') {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'windows-dependencies.lock.json') -Destination $PackageDir
     @"
 Solstice Windows x64 experimental, unsigned build
+Version: $Version
+Start: Solstice.exe in the package folder (it starts bin\solstice.exe)
 Commit: $env:GITHUB_SHA
 Run: https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
 GPU engine: compiled; GPU runtime and interactive tests were not run.

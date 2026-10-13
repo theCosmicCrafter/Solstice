@@ -66,7 +66,7 @@ are uploaded even if a later stage fails. Retention is seven days.
 ## Verification and operation
 
 Before pushing changes, parse the Python/PowerShell/YAML and inspect archive
-handling and checksum rejection. Dispatch the workflow on `krita-sol-gpu`,
+handling and checksum rejection. Dispatch the workflow on `main` (`krita-sol-gpu` until 2026-10-13),
 record the exact commit and run URL, and follow its result. Inspect configure
 output, GPU enablement, compiler failures, package output and artifacts. A
 run is only successful when build, installation, packaging and artifact

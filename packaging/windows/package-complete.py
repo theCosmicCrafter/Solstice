@@ -436,6 +436,9 @@ logger.info("Copying files...")
 # solstice.exe (Solstice launcher; docs/agent/executable-name.md)
 shutil.copy(f"{KRITA_INSTALL_DIR}\\bin\\solstice.exe", f"{pkg_root}\\bin\\")
 shutil.copy(f"{KRITA_INSTALL_DIR}\\bin\\solstice.com", f"{pkg_root}\\bin\\")
+# Solstice.exe in the package root starts bin\solstice.exe (a shortcut would
+# store an absolute path); installed as solstice-launcher.exe
+shutil.copy(f"{KRITA_INSTALL_DIR}\\bin\\solstice-launcher.exe", f"{pkg_root}\\Solstice.exe")
 if os.path.isfile(f"{KRITA_INSTALL_DIR}\\bin\\krita.pdb"):
     shutil.copy(f"{KRITA_INSTALL_DIR}\\bin\\krita.pdb", f"{pkg_root}\\bin\\")
 # kritarunner.exe

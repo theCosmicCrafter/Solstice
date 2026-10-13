@@ -303,6 +303,9 @@ subprocess.run(["xcopy", "/S", "/Y", "/I", "{}\\share\\locale".format(
 
 # Solstice: Krita's prebuilt shortcuts start bin\krita.exe, which Solstice does
 # not ship (the launcher is bin\solstice.exe), so they are not copied.
+# Solstice.exe in the package root starts bin\solstice.exe
+if os.path.isfile(f"{KRITA_INSTALL_DIR}\\bin\\solstice-launcher.exe"):
+    shutil.copy(f"{KRITA_INSTALL_DIR}\\bin\\solstice-launcher.exe", f"{pkg_root}\\Solstice.exe")
 
 QMLDIR_ARGS = ["--qmldir", f"{DEPS_INSTALL_DIR}\\qml"]
 if os.path.isdir(f"{KRITA_INSTALL_DIR}\\lib\\qml"):

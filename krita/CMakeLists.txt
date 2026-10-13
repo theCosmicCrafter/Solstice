@@ -336,4 +336,27 @@ if (WIN32)
         add_dependencies(krita_windows_stub_com krita_windows_stub_exe)
     endif()
     install(TARGETS krita_windows_stub_com ${INSTALL_TARGETS_DEFAULT_ARGS})
+
+    # Solstice: Solstice.exe in the root of the ZIP package starts
+    # bin\solstice.exe. Installed as bin\solstice-launcher.exe (a second
+    # solstice.exe would clash); the packager moves it to the root
+    # (docs/agent/executable-name.md).
+    add_executable(solstice_root_launcher WIN32
+        windows_root_launcher.cpp
+        ${krita_windows_stub_ICONS_SRCS}
+        ${CMAKE_CURRENT_BINARY_DIR}/versioninfo.rc
+    )
+    set_target_properties(solstice_root_launcher
+        PROPERTIES
+            OUTPUT_NAME "solstice-launcher"
+    )
+    if (MSVC)
+        target_link_options(solstice_root_launcher PRIVATE "/DEBUG:NONE")
+    elseif (MINGW)
+        # no debug information: it would be split into a folder beside the
+        # package root. The C++ runtime is linked in: the package's
+        # libc++.dll and libunwind.dll are in bin, not beside the launcher.
+        target_link_options(solstice_root_launcher PRIVATE "-s" "-static")
+    endif()
+    install(TARGETS solstice_root_launcher ${INSTALL_TARGETS_DEFAULT_ARGS})
 endif (WIN32)

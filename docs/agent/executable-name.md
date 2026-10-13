@@ -14,6 +14,7 @@ names changed from `krita` to `solstice`:
 | GUI launcher (`krita_windows_stub_exe`) | `bin/krita.exe` | `bin/solstice.exe` |
 | Console launcher (`krita_windows_stub_com`) | `bin/krita.com` | `bin/solstice.com` |
 | Version resource (`krita/versioninfo.rc.in`) | `InternalName` `krita`, `OriginalFilename` `krita.exe` | `solstice`, `solstice.exe` |
+| Package root launcher (`solstice_root_launcher`, 2026-10-13) | `krita.lnk` and two other prebuilt shortcuts | `Solstice.exe` |
 
 Kept on purpose:
 
@@ -30,6 +31,48 @@ Kept on purpose:
 - The single-instance key (`"Krita5"` + home) and Python's `Krita.instance()`.
 - Linux and macOS: the executable target `krita` is unchanged (not validated
   for Solstice).
+
+## Package root launcher (2026-10-13)
+
+The ZIP's root holds `Solstice.exe`, so users need not open `bin`. Krita
+ships prebuilt shortcuts there (`packaging/windows/krita*.lnk`: `%COMSPEC%
+/C start "" "%CD%\bin\krita.exe"` with an empty working folder) because a
+`.lnk` stores an absolute target; they start `krita.exe`, flash a console
+and carry an icon path from Krita's build machine, so Solstice does not copy
+them (user decision, option 2 of three: shortcut, launcher, `.cmd`).
+
+- `krita/windows_root_launcher.cpp`: a GUI (`WIN32`) program without Qt.
+  It starts `<own folder>\bin\solstice.exe`, or `<own folder>\solstice.exe`
+  when there is no `bin` (as installed), with the command line after its own
+  program name unchanged (quoting kept), the inherited working folder and
+  environment, then `AllowSetForegroundWindow()` and exits. On failure it
+  shows a message box with the path.
+- `krita/CMakeLists.txt`: target `solstice_root_launcher`, output
+  `solstice-launcher.exe` (a second `solstice.exe` would clash in `bin`),
+  the application icon (`krita_windows_stub_ICONS_SRCS`) and the version
+  resource. Linked with `-s` (MinGW) or `/DEBUG:NONE` (MSVC): the packager's
+  debug splitting puts `.debug` files in `<folder>.debug`, which for the
+  root would be outside the package. MinGW also links `-static`: llvm-mingw
+  otherwise imports `libc++.dll` and `libunwind.dll`, which the package has
+  only in `bin`, and the launcher fails with `0xC0000135` (found by the
+  stand-in test below). It then imports only `KERNEL32`, `USER32` and the
+  Windows `api-ms-win-crt-*` libraries (about 400 KB).
+- `packaging/windows/package-complete.py` copies
+  `bin\solstice-launcher.exe` to `<package>\Solstice.exe` (the installed copy
+  stays out of the package's `bin`); `package-complete-msvc.py` does the same
+  when the file exists.
+- `build-tools/github-actions/build-windows.ps1` requires the installed
+  `bin/solstice-launcher.exe`.
+- The NSIS installer's shortcuts start `bin\solstice.exe` directly and do
+  not install the launcher.
+
+Taskbar and Task Manager show the running `bin\solstice.exe`; pinning the
+running window pins that file.
+
+Test without starting Solstice: put the launcher as `Solstice.exe` beside a
+stand-in `bin\solstice.exe` that records its command line and working
+folder, then start it with arguments containing spaces and quotes from
+another folder.
 
 ## Touch points
 
@@ -60,4 +103,5 @@ Before installing, check that neither process runs:
 - Manual: start `solstice.exe`; the existing profile, settings, workspaces
   and resources are used (no first-start question); the taskbar and Task
   Manager show Solstice; `solstice.com --version` prints the version.
-- Trial build: the ZIP has `bin/solstice.exe` and `bin/solstice.com`.
+- Trial build: the ZIP has `Solstice.exe` in its root, and `bin/solstice.exe`
+  and `bin/solstice.com`.

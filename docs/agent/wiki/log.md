@@ -931,3 +931,16 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - Lesson: when a fallback replaces a whole result, ask whether the check
   that triggers it can say where it failed; the mismatch mask was already
   computed and only needed to be kept.
+
+## 2026-10-13 ingest: 0.2.0-beta, main branch, package root launcher
+
+- The version label is `beta` (0.2.0-beta, [versioning](../versioning.md)).
+  The GitHub Actions package name and BUILD-INFO carry the version.
+- `main` is the primary and default branch, created from `krita-sol-gpu`,
+  which is retained and no longer updated (AGENTS.md branch policy).
+- The ZIP root has `Solstice.exe`, a small launcher for `bin\solstice.exe`
+  ([executable name](../executable-name.md)). Lesson: a helper executable
+  placed outside `bin` must not import the toolchain's runtime DLLs
+  (llvm-mingw's `libc++.dll`); link it statically and check its imports with
+  `llvm-objdump -p`. A stand-in target that records its command line tests a
+  launcher without starting the application.

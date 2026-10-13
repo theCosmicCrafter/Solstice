@@ -10,7 +10,8 @@ Where this document says "below" or "details below" about a phase, the
 details are in the phase records, now in the wiki history pages (see
 "Phase history").
 
-- Branch: `krita-sol-gpu`, created from `krita-sol` at `890aadc2ba`.
+- Branch: `krita-sol-gpu`, created from `krita-sol` at `890aadc2ba`; since
+  2026-10-13 development continues on `main`, created from it.
   Upstream Krita synchronization is intentionally abandoned on this branch.
 - GPU brush on by default since 2026-10-10 (`Solstice/GpuBrush`, default
   true, read once per process; `KRITA_GPU_BRUSH` 1/0 overrides), after the
