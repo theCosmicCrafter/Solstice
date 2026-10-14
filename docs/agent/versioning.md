@@ -104,7 +104,7 @@ appears in the version strings.
 | `0.2.0-alpha` | 2026-10-10 | Milestone (user request): GPU brush by default, masking brush on the GPU, ABR import improvements, Solstice icons and splash, Explorer thumbnails. |
 | `0.2.0-beta` | 2026-10-13 | Beta for publication (user request), after the pre-release review; only the label changes. Released 2026-10-14 as GitHub Release `v0.2.0-beta` (prerelease, commit `a442a5ce25`); its CI build lacked the Python plugins. |
 | `0.2.0-beta.2` | 2026-10-14 | Second beta (user request): the CI build includes the Python plugins (Python Plugin Manager, pykrita) again; new Puppet Warp and Brush Stroke Layer images. GitHub Release `v0.2.0-beta.2`. |
-| `0.2.0-beta.3` | 2026-10-14 | Third beta (user request): first upstream Krita intake (2026-W42: thumbnail cache crash, animation curves scrolling, second-wheel horizontal scrolling, perspective transform conditions, PSD group collapse and layer locks). GitHub Release `v0.2.0-beta.3`. |
+| `0.2.0-beta.3` | 2026-10-14 | Third beta (user request): first upstream Krita intake (2026-W42: thumbnail cache crash, animation curves scrolling, second-wheel horizontal scrolling, perspective transform conditions, PSD group collapse and layer locks). Released 2026-10-14 as GitHub Release `v0.2.0-beta.3` (prerelease, commit `c89bc02475`, run 38503291774); website updated the same day. |
 
 ## Checks
 

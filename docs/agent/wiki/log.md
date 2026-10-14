@@ -1037,3 +1037,15 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - `kis_psd_test` loads the PSD import/export plugins from the install tree:
   the new round-trip tests failed until `libs/psd` and `plugins/impex/psd`
   were installed.
+
+## 2026-10-14 release: 0.2.0-beta.3
+
+- GitHub Release `v0.2.0-beta.3` (prerelease, commit `c89bc02475`, Actions
+  run 38503291774): the 2026-W42 upstream intake. Package checked: checksums,
+  5,300 ZIP entries intact, Python plugins and PSD plugins present.
+- Website `solstice/src/site.ts` updated and `develop` merged into `main`;
+  the live Download page showed `0.2.0-beta.3` a few minutes later. New rule
+  (user decision): every release is followed by the website update
+  ([versioning](../versioning.md), "Releasing").
+- `SHA256SUMS.txt` has CRLF line endings: check it with
+  `tr -d '' < SHA256SUMS.txt | sha256sum -c -`.
