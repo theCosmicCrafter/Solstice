@@ -122,6 +122,31 @@ update possible.
 - Default state: enabled
 - Last re-check: 2026-10-14 — vendored
 
+### ai_diffusion
+
+- Source: https://github.com/Acly/krita-ai-diffusion +
+  local enhanced clone `C:\Users\richk\CascadeProjects\krita-ai-diffusion`
+- Pinned: upstream `origin/main` (post-1.53, ~commit after tag v1.53.0)
+  merged with the local enhancement set originally based on `ef1b04c`
+  (2026-03-26). Merge tree kept in `_vendor_src/ai_diffusion_upstream`
+  (branch `enhancements`, merge `f628900`).
+- Vendored at: plugins/python/ai_diffusion/ (minus `debugpy` dev debugger
+  and the `.git` internals of the `websockets` submodule; vendored
+  websockets @ `624a36cc` ships as source)
+- License: GPL-3.0
+- PyQt6 status: native — upstream migrated to PyQt6; vendored tree imports
+  PyQt6 directly, no shim needed
+- Local patches:
+  - `settings.py` — default `server_url` is `127.0.0.1:8189`
+    (ComfyUI Desktop) instead of upstream `127.0.0.1:8188`
+  - enhancements re-applied onto upstream: `Quantization`/`quantization`
+    field kept on `CheckpointInfo`, parallel `discover_models`,
+    extra model search-path patterns merged union-style, async file
+    hashing in `files.py`, settings additions
+- Default state: enabled
+- Last re-check: 2026-10-14 — vendored; server connect/generation needs a
+  real build + ComfyUI on :8189
+
 ## PyQt5 -> PyQt6 compatibility shim
 
 `plugins/python/PyQt5/` is a shared re-export layer installed to

@@ -89,6 +89,7 @@ install_pykrita_plugin(pigment_o PATTERNS "*.png" "*.zip" "*.webm" "*.jpeg" "*.e
 install_pykrita_plugin(blender_layer PATTERNS "*.blend" "*.action")
 install_pykrita_plugin(bulinotes PATTERNS "*.svg" "*.png" "*.rcc" "*.qrc")
 install_pykrita_plugin(bulibrushswitch PATTERNS "*.svg" "*.png" "*.rcc" "*.qrc" "*.action")
+install_pykrita_plugin(ai_diffusion PATTERNS "*.svg" "*.json" "*.yml" "*.png" "*.ico" "*.css" "*.action" "*.js")
 
 # if(PYTHON_VERSION_MAJOR VERSION_EQUAL 3)
 #     install_pykrita_plugin(cmake_utils)
