@@ -4,6 +4,7 @@
 #include "inpaint/InpaintTool.h"
 #include "segmentation/SelectSegmentFromPointTool.h"
 #include "segmentation/SelectSegmentFromRectTool.h"
+#include "smartselect/SmartMattingTool.h"
 
 #include <KoToolRegistry.h>
 #include <QDebug>
@@ -26,6 +27,7 @@ VisionMLPlugin::VisionMLPlugin(QObject *parent, const QVariantList &)
 
         addTool(new SelectSegmentFromPointToolFactory(shared));
         addTool(new SelectSegmentFromRectToolFactory(shared));
+        addTool(new SmartMattingToolFactory(shared));
         addTool(new InpaintToolFactory(shared));
 
         KisFilterRegistry::instance()->add(new BackgroundRemovalFilter(shared));

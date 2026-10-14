@@ -1188,3 +1188,20 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - Note for later phases: upstream pykrita's `builtins.Krita` injection and
   the `importAvoidWrongPyQtHack` exemption make PyQt5-era bridges work
   unmodified under Qt6.
+
+## 2026-10-14 ingest: Smart Select ported into visionml (Phase 5)
+
+- New `SmartMattingTool` (`plugins/visionml/src/smartselect/`): freehand
+  `KisToolOutlineBase` lasso feeding `SegmentationToolHelper::applyMattingMask`
+  — padded polygon crop, `removeBackground` (BiRefNet) inference in-process,
+  matte clipped to rasterized lasso region AND source layer alpha, written as
+  a soft `KisPixelSelection`. All selection actions + grow/feather/AA reuse
+  the existing helper path.
+- The old standalone Windows port's Python worker + .npy exchange is gone;
+  `vision.cpp` already supports BiRefNet-Matting variants, so dropping an
+  HR-matting GGUF into `visionml/models` upgrades quality without code.
+- Verification so far: clang++ `-fsyntax-only` against the Solstice headers
+  (flags borrowed from the 6.0.3 `compile_commands.json` + vision.cpp/ggml
+  include dirs) — clean. Caught a missing include path and a `char*` ->
+  `quint8*` cast before CI.
+- Still needed: real build + interactive check of the lasso workflow.

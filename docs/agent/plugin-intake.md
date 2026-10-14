@@ -218,6 +218,25 @@ Known limits (patch the plugin, don't extend the shim):
   normalised.
 - `QtXml` without Qt5Compat is unavailable by design.
 
+### krita-smart-select (native port — not a pykrita vendor)
+
+- Source: `C:\Users\richk\cascade-projects\krita-smart-select-windows`
+  (user's Windows port, commit `493cb9b`; upstream BMFreed/krita-smart-select)
+- Disposition: ported natively into `plugins/visionml` as the Smart Matting
+  Selection tool (`src/smartselect/SmartMattingTool.cpp`,
+  `SegmentationToolHelper::applyMattingMask`). The external Python worker,
+  `QProcess` launcher, and `.npy` mask exchange were dropped — inference runs
+  in-process through `VisionModels::removeBackground` (BiRefNet via
+  vision.cpp, CPU or Vulkan).
+- Behaviour preserved: freehand lasso region, padded crop, soft-alpha matte
+  clipped to lasso ∩ layer alpha, grow/feather/anti-alias and all five
+  selection actions, sampled-layers modes (current / all / color-labeled).
+- Model: reuses the `background_removal` task slot; BiRefNet-HR-matting GGUFs
+  dropped into `visionml/models` raise matte quality.
+- License: GPL-3.0-or-later (upstream), port is a rewrite on the visionml
+  architecture.
+- Last re-check: 2026-03 — ported; pending real-build GUI verification.
+
 ## Shim test harness
 
 `_vendor_src/` (workspace, not committed): `qt6venv` holds PyQt6 6.11,

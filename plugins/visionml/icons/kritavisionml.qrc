@@ -22,5 +22,13 @@
 
         <file alias="light_tool_inpaint.svg">light_tool_inpaint.svg</file>
         <file alias="dark_tool_inpaint.svg">dark_tool_inpaint.svg</file>
+
+        <file alias="light_tool_smart_matting.svg">light_tool_smart_matting.svg</file>
+        <file alias="dark_tool_smart_matting.svg">dark_tool_smart_matting.svg</file>
+        <file alias="tool_smart_matting_cursor.png">../../tools/selectiontools/tool_outline_selection_cursor.png</file>
+        <file alias="tool_smart_matting_cursor_add.png">../../tools/selectiontools/tool_outline_selection_cursor_add.png</file>
+        <file alias="tool_smart_matting_cursor_sub.png">../../tools/selectiontools/tool_outline_selection_cursor_sub.png</file>
+        <file alias="tool_smart_matting_cursor_inter.png">../../tools/selectiontools/tool_outline_selection_cursor_inter.png</file>
+        <file alias="tool_smart_matting_cursor_symdiff.png">../../tools/selectiontools/tool_outline_selection_cursor_symdiff.png</file>
     </qresource>
 </RCC>

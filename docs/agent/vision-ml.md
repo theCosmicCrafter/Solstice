@@ -54,3 +54,31 @@ Install both the module/runtime and models:
 cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P <krita-dev-root>\_build\plugins\visionml\src\cmake_install.cmake
 cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P <krita-dev-root>\_build\plugins\visionml\cmake_install.cmake
 ```
+
+## Smart Matting Selection (Smart Select native port)
+
+- Tool files: `plugins/visionml/src/smartselect/SmartMattingTool.h/.cpp`,
+  registered as `SmartMattingTool` in `VisionMLPlugin.cpp`, action entry in
+  `src/vision_tools.action`, toolbox icon `tool_smart_matting` (dashed lasso
+  SVGs in `icons/`), cursor PNGs aliased to the selectiontools outline cursors
+  in `icons/kritavisionml.qrc`.
+- Interaction: `KisToolOutlineBase` freehand outline; `finishOutline` passes a
+  `QPolygonF` to `SegmentationToolHelper::applyMattingMask`.
+- Pipeline: the helper selects the sampled paint device (current layer / all
+  layers / color-labeled layers), pads the polygon bounds by 16 px, crops via
+  `VisionMLImage::prepare`, runs `VisionModels::removeBackground`
+  (BiRefNet family, `VisionMLTask::background_removal` model slot), then
+  intersects the soft matte with the rasterized lasso region and the source
+  layer alpha. The result is written into a `KisPixelSelection`, so soft
+  (feathered) alpha survives — unlike the point/box tools the byte mask is not
+  binarized. Grow/shrink, feather, anti-alias and all selection actions
+  (replace/add/subtract/intersect/symdiff) go through the same
+  `KisSelectionToolHelper` path as the other tools.
+- This replaces the standalone `krita-smart-select-windows` architecture
+  (QProcess Python worker + .npy mask exchange). Do not reintroduce the
+  external worker; BiRefNet-HR-matting GGUF variants load through the existing
+  `vision.cpp` birefnet path — drop them in the `visionml/models` folder to
+  upgrade matte quality.
+- Model dropdown in the tool options is the shared backend widget only
+  (`addOptions(selectionWidget, false)`); the model used is whatever is
+  selected for the background removal task.

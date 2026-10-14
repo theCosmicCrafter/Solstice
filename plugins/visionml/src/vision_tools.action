@@ -22,6 +22,16 @@
       <isCheckable>false</isCheckable>
       <statusTip></statusTip>
     </Action>
+    <Action name="SmartMattingTool">
+      <icon>tool_smart_matting</icon>
+      <text>Smart Matting Selection</text>
+      <whatsThis></whatsThis>
+      <toolTip>Smart Matting Selection (Vision ML)</toolTip>
+      <iconText>Smart Matting</iconText>
+      <shortcut></shortcut>
+      <isCheckable>false</isCheckable>
+      <statusTip></statusTip>
+    </Action>
     <Action name="VisionMLInpaintTool">
       <icon>tool_inpaint</icon>
       <text>Smart Fill Tool</text>

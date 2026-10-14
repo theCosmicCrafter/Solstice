@@ -1,8 +1,18 @@
 # Krita Vision ML
 
 Native Krita tools and filters for promptable selection, background removal,
-and smart fill. The implementation uses the lightweight `vision.cpp`/GGML
-runtime and does not require Python, PyTorch, or an external service.
+smart fill, and lasso matting. The implementation uses the lightweight
+`vision.cpp`/GGML runtime and does not require Python, PyTorch, or an external
+service.
+
+## Tools
+
+- Segment Selection from Point / from Box: MobileSAM promptable segmentation.
+- Smart Matting Selection: freehand lasso refined by the BiRefNet matting
+  model; produces soft-alpha selections with feathered edges inside the drawn
+  region (native successor of the Smart Select plugin; no Python worker).
+- Smart Fill Tool: MI-GAN inpainting.
+- Filter > Remove Background: BiRefNet layer matting.
 
 ## Models
 

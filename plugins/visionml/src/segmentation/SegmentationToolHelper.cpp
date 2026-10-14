@@ -17,6 +17,8 @@
 #include <QImage>
 #include <QLibrary>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPolygonF>
 #include <QRect>
 
 namespace
@@ -194,6 +196,104 @@ void SegmentationToolHelper::applySelectionMask(ImageInput const &input,
                 }
                 mask = shared->removeBackground(image.view);
                 selection->writeBytes(mask.data.get(), rect);
+            }
+            adjustSelection(selection, options);
+            selection->invalidateOutlineCache();
+        } catch (const std::exception &e) {
+            Q_EMIT report->errorOccurred(QString(e.what()));
+        }
+        return nullptr;
+    });
+    applicator.applyCommand(cmd, KisStrokeJobData::SEQUENTIAL);
+
+    helper.selectPixelSelection(applicator, selection, options.action);
+    applicator.end();
+}
+
+void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
+                                              QPolygonF const &polygon,
+                                              SelectionOptions const &options)
+{
+    static constexpr int mattingPadding = 16;
+
+    KisCanvas2 *kisCanvas = dynamic_cast<KisCanvas2 *>(input.canvas);
+    if (!kisCanvas) {
+        return;
+    }
+
+    KisCursorOverrideLock cursorLock(KisCursor::waitCursor());
+    KisProcessingApplicator applicator(input.image,
+                                       input.node,
+                                       KisProcessingApplicator::NO_IMAGE_UPDATES, // XXX
+                                       KisImageSignalVector(),
+                                       kundo2_i18n("Smart Matting Selection"));
+
+    KisPaintDeviceSP inputImage = selectPaintDevice(input, applicator);
+    if (!inputImage) {
+        applicator.end();
+        return;
+    }
+
+    QRect bounds = inputImage->exactBounds();
+    QRect region = polygon.boundingRect()
+                       .toAlignedRect()
+                       .adjusted(-mattingPadding, -mattingPadding, mattingPadding, mattingPadding)
+                       .intersected(bounds);
+
+    KisSelectionToolHelper helper(kisCanvas, kundo2_i18n("Smart Matting Selection"));
+    bool noWork = region.isEmpty();
+    noWork |= helper.tryDeselectCurrentSelection(QRectF(region), options.action);
+    noWork |= helper.canShortcutToNoop(region, options.action);
+    if (noWork) {
+        applicator.end();
+        return;
+    }
+
+    KisPixelSelectionSP selection = new KisPixelSelection(new KisSelectionDefaultBounds(inputImage));
+
+    KUndo2Command *cmd = new KisCommandUtils::LambdaCommand([shared = m_shared.get(),
+                                                           report = &m_errorReporter,
+                                                           inputImage,
+                                                           region,
+                                                           polygon,
+                                                           selection,
+                                                           options]() mutable -> KUndo2Command * {
+        try {
+            VisionMLImage image = VisionMLImage::prepare(*inputImage, region);
+            if (!image) {
+                return nullptr;
+            }
+            visp::image_data matte = shared->removeBackground(image.view);
+
+            // Rasterize the lasso outline: the matte is clipped to the drawn
+            // region and to non-transparent pixels of the source image.
+            QImage regionMask(region.size(), QImage::Format_Grayscale8);
+            regionMask.fill(0);
+            {
+                QPainter painter(&regionMask);
+                painter.setRenderHint(QPainter::Antialiasing);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(Qt::white);
+                painter.drawPolygon(polygon.translated(-QPointF(region.topLeft())));
+            }
+
+            QRect maskRect(region.topLeft(), QSize(matte.extent[0], matte.extent[1]));
+            if (matte.extent[0] != region.width() || matte.extent[1] != region.height()) {
+                // Unexpected output size: fall back to the raw matte.
+                selection->writeBytes(matte.data.get(), maskRect);
+            } else {
+                QByteArray bytes(maskRect.width() * maskRect.height(), 0);
+                const uchar *matteData = matte.data.get();
+                for (int y = 0; y < maskRect.height(); ++y) {
+                    const uchar *maskRow = regionMask.constScanLine(y);
+                    const uchar *srcRow = image.data.constScanLine(y);
+                    uchar *outRow = reinterpret_cast<uchar *>(bytes.data()) + y * maskRect.width();
+                    for (int x = 0; x < maskRect.width(); ++x) {
+                        quint8 sourceAlpha = srcRow[x * 4 + 3]; // ARGB32 stores BGRA bytes
+                        outRow[x] = maskRow[x] && sourceAlpha ? matteData[y * maskRect.width() + x] : 0;
+                    }
+                }
+                selection->writeBytes(reinterpret_cast<const quint8 *>(bytes.constData()), maskRect);
             }
             adjustSelection(selection, options);
             selection->invalidateOutlineCache();

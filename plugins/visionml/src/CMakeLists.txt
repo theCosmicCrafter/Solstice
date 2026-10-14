@@ -6,6 +6,7 @@ set(kritavisionml_SOURCES
     segmentation/SegmentationToolHelper.cpp
     segmentation/SelectSegmentFromPointTool.cpp
     segmentation/SelectSegmentFromRectTool.cpp
+    smartselect/SmartMattingTool.cpp
     ../../tools/selectiontools/kis_selection_modifier_mapper.cc
 )
 

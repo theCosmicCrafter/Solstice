@@ -12,6 +12,7 @@
 #include <QImage>
 #include <QList>
 #include <QPoint>
+#include <QPolygonF>
 #include <QRect>
 #include <QScopedPointer>
 #include <QSharedPointer>
@@ -46,6 +47,11 @@ public:
     void processImage(ImageInput const &);
 
     void applySelectionMask(ImageInput const &, QVariant pointOrRect, SelectionOptions const &);
+
+    // Lasso region + BiRefNet matting: crops to the polygon bounds, runs the
+    // background removal model, and intersects the resulting soft alpha with
+    // the lasso outline and the layer's transparency.
+    void applyMattingMask(ImageInput const &, QPolygonF const &polygon, SelectionOptions const &);
 
     void notifyImageChanged()
     {

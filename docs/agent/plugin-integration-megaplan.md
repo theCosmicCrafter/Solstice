@@ -27,23 +27,23 @@ this document is the canonical plan.
 
 ## Evaluation of the candidate plugins
 
-| Plugin | Verdict | Notes |
-| --- | --- | --- |
-| Krita AI Diffusion (Acly) | Integrate — vendor latest upstream, re-apply local enhancements | Flagship. Upstream is already PyQt6. Local enhanced copy is PyQt5-era; extract still-missing enhancements (subfolder model detection, quantization display, metadata cache) onto upstream >= 1.52. Connect to existing ComfyUI at 127.0.0.1:8189. GPL-3.0. |
-| MCP bridge | Integrate — `krita-cli` base + codex-mcp hardening | Bundle edithatogo/krita-cli `krita-plugin/` (54 tools, CLI, typed client, MIT). Graft cyyprezz/krita-codex-mcp patterns: bearer token, capability probing, main-thread dispatcher. codex-mcp stays a documented minimal alternative. |
-| Krita Smart Select (Windows port) | Integrate — native port into `plugins/visionml` | Own project; lasso -> BiRefNet soft-alpha matting is the one capability native visionml lacks. Native tool + GGUF inference removes the PyTorch worker. |
-| Shortcut Composer | Integrate — vendor + PyQt6 patch | Own pie-menu/cursor-tracker widgets; unaffected by removed popup palette. GPL-3.0. |
-| Pigment.O | Integrate — vendor + PyQt6 patch | Largest PyQt surface; stress test for the compat layer. `mask_set` kritarc key already handled by the settings-import rewrite list. GPL-3.0. |
-| Imagine Board | Integrate — vendor + PyQt6 patch | PureRef-style board + folder browser + LUT analyzer. GPL-3.0. |
-| BuliNotes + BuliBrushSwitch | Integrate — vendor + PyQt6 patch | Active on Codeberg (Grum999). GPL-3.0. |
-| Timer Watch | Integrate — vendor + PyQt6 patch (pilot) | Correct attribution: `EyeOdin/Timer_Watch`. Smallest plugin; Phase 1 pilot. GPL-3.0. |
-| Blender Layer | Integrate — vendor, disabled by default | Streams Blender viewport incl. depth/normal passes; companion Blender addon ships inside the plugin dir. GPL-3.0. |
-| Rebecca's Krita Tools | Optional — cherry-pick scripts | Crop-to-Margin and recorder-sequence reorder only; MIT. |
-| Krita Vision Tools | Skip | Already natively ported (`plugins/visionml`). |
-| Smart Segments | Defer — fold SAM2 into visionml | Linux-first, 5-6 GB PyTorch venv. Prefer a SAM2 GGUF encoder in `visionml/models/sam/` if vision.cpp supports it. |
-| Krita-AIColorization | Skip | Stale, heavy torch deps, Drive-hosted checkpoints; superseded by ComfyUI workflows. |
-| Theme Creator / Subwindow Organizer | Skip | Solstice ships its own theme system; organizer targets legacy MDI workflows. |
-| QuickExport (tom-jk) | Skip | Krita 5.3-only; Krita 6 incompatible. Optional alternative: Grum999/JPEGExport (Codeberg). |
+| Plugin                              | Verdict                                                         | Notes                                                                                                                                                                                                                                                      |
+| ----------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Krita AI Diffusion (Acly)           | Integrate — vendor latest upstream, re-apply local enhancements | Flagship. Upstream is already PyQt6. Local enhanced copy is PyQt5-era; extract still-missing enhancements (subfolder model detection, quantization display, metadata cache) onto upstream >= 1.52. Connect to existing ComfyUI at 127.0.0.1:8189. GPL-3.0. |
+| MCP bridge                          | Integrate — `krita-cli` base + codex-mcp hardening              | Bundle edithatogo/krita-cli `krita-plugin/` (54 tools, CLI, typed client, MIT). Graft cyyprezz/krita-codex-mcp patterns: bearer token, capability probing, main-thread dispatcher. codex-mcp stays a documented minimal alternative.                       |
+| Krita Smart Select (Windows port)   | Integrate — native port into `plugins/visionml`                 | Own project; lasso -> BiRefNet soft-alpha matting is the one capability native visionml lacks. Native tool + GGUF inference removes the PyTorch worker.                                                                                                    |
+| Shortcut Composer                   | Integrate — vendor + PyQt6 patch                                | Own pie-menu/cursor-tracker widgets; unaffected by removed popup palette. GPL-3.0.                                                                                                                                                                         |
+| Pigment.O                           | Integrate — vendor + PyQt6 patch                                | Largest PyQt surface; stress test for the compat layer. `mask_set` kritarc key already handled by the settings-import rewrite list. GPL-3.0.                                                                                                               |
+| Imagine Board                       | Integrate — vendor + PyQt6 patch                                | PureRef-style board + folder browser + LUT analyzer. GPL-3.0.                                                                                                                                                                                              |
+| BuliNotes + BuliBrushSwitch         | Integrate — vendor + PyQt6 patch                                | Active on Codeberg (Grum999). GPL-3.0.                                                                                                                                                                                                                     |
+| Timer Watch                         | Integrate — vendor + PyQt6 patch (pilot)                        | Correct attribution: `EyeOdin/Timer_Watch`. Smallest plugin; Phase 1 pilot. GPL-3.0.                                                                                                                                                                       |
+| Blender Layer                       | Integrate — vendor, disabled by default                         | Streams Blender viewport incl. depth/normal passes; companion Blender addon ships inside the plugin dir. GPL-3.0.                                                                                                                                          |
+| Rebecca's Krita Tools               | Optional — cherry-pick scripts                                  | Crop-to-Margin and recorder-sequence reorder only; MIT.                                                                                                                                                                                                    |
+| Krita Vision Tools                  | Skip                                                            | Already natively ported (`plugins/visionml`).                                                                                                                                                                                                              |
+| Smart Segments                      | Defer — fold SAM2 into visionml                                 | Linux-first, 5-6 GB PyTorch venv. Prefer a SAM2 GGUF encoder in `visionml/models/sam/` if vision.cpp supports it.                                                                                                                                          |
+| Krita-AIColorization                | Skip                                                            | Stale, heavy torch deps, Drive-hosted checkpoints; superseded by ComfyUI workflows.                                                                                                                                                                        |
+| Theme Creator / Subwindow Organizer | Skip                                                            | Solstice ships its own theme system; organizer targets legacy MDI workflows.                                                                                                                                                                               |
+| QuickExport (tom-jk)                | Skip                                                            | Krita 5.3-only; Krita 6 incompatible. Optional alternative: Grum999/JPEGExport (Codeberg).                                                                                                                                                                 |
 
 ## Architecture decisions
 
@@ -127,18 +127,19 @@ console errors.
 - Exit: `krita` CLI and an MCP client drive the CI build — create doc, paint,
   save, export under allowed roots; `krita_preview`-equivalent verified.
 
-### Phase 5 — Smart Select native port
+### Phase 5 — Smart Select native port — implemented (pending real-build test)
 
-- New native tool: region lasso -> crop -> BiRefNet soft-alpha matting ->
-  soft selection, reusing the visionml backend and model folders.
-- Model: evaluate `BiRefNet-F16.gguf` / `BiRefNet-dynamic-F16.gguf`
-  (`Acly/BiRefNet-GGUF`); if HR-matting fidelity is required, convert
-  `BiRefNet_HR-matting` to GGUF via vision.cpp tooling as an optional
-  download.
-- UX and worker-protocol semantics come from the Windows-port repo; no
-  PyTorch.
-- Exit: soft-alpha selection parity with the reference worker; user doc
-  `docs/smart-matting.md` + agent doc per convention; AGENTS.md index entry.
+- Shipped as `SmartMattingTool` in `plugins/visionml/src/smartselect/`:
+  `KisToolOutlineBase` freehand lasso -> `SegmentationToolHelper::
+applyMattingMask` -> padded crop -> `VisionModels::removeBackground`
+  (BiRefNet via vision.cpp, in-process; no Python worker) -> soft matte
+  clipped to lasso region and layer alpha -> `KisPixelSelection`.
+- Reuses the existing sampled-layers modes, all five selection actions, and
+  grow/feather/anti-alias post-processing through `KisSelectionToolHelper`.
+- Model: uses the `background_removal` task slot (BiRefNet Lite bundled;
+  BiRefNet Dynamic or HR-matting GGUFs drop into `visionml/models`).
+- Remaining: compile in the real build, GUI verification of lasso/matte
+  quality, optional user doc `docs/smart-matting.md`.
 
 ### Phase 6 — packaging, defaults, release
 
