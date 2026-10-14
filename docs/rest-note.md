@@ -3,6 +3,10 @@
 Rest Note is a native timer docker with working, paused, idle, eye-break, and
 full-break states. It keeps the icons and settings of the Rest Note plugin it replaces.
 
+For details, see the original plugin repository, [Rest
+Note](https://github.com/udtren/krita-rest-note). This guide covers
+Solstice's native version and where it differs.
+
 The small eye-break notification appears on the screen Solstice is on. The large
 break overlay is limited to the Solstice window rather than covering the entire
 monitor.

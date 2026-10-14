@@ -5,6 +5,10 @@ provides configurable action, docker, and brush grids; editable profiles;
 gesture menus; Quick Brush Adjustments; a compact HueSVC selector; and
 hold-based temporary brush shortcuts.
 
+For details, see the original plugin repository, [Quick Access
+Manager](https://github.com/udtren/krita-quick-access-manager). This guide
+covers Solstice's native version and where it differs.
+
 Solstice has no right-click Popup Palette or On-Canvas Brush Editor; the
 Quick Access palette, HueSVC popup and Quick Brush Adjustments take their
 place. Right-click with a brush tool does nothing; other tools keep their

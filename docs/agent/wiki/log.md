@@ -988,3 +988,10 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   in CI like the GPU engine is, or a release can ship without it unnoticed;
   check what the published package contains against a local build, not only
   that the build succeeds.
+
+## 2026-10-14 docs: original plugin repositories
+
+- The user guides of the features ported from Python plugins (Quick Access,
+  Lazy Tools, Rest Note, Asset Library, Vision ML) now point to the original
+  plugin repositories for details (user request); the guides cover the
+  native versions and where they differ.

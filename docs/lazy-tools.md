@@ -4,6 +4,10 @@ Solstice includes native versions of the core productivity features from the
 Lazy Tools Python plugin. No separate Lazy Tools docker or Python installation
 is required.
 
+For details, see the original plugin repository, [Lazy
+Tools](https://github.com/udtren/krita-lazy-tools). This guide covers
+Solstice's native version and where it differs.
+
 ## Layers docker
 
 Two compact color controls appear before the blending-mode control:

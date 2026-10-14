@@ -5,6 +5,10 @@ models run inside Solstice (the embedded `vision.cpp` runtime) on the CPU or,
 with a supported graphics card, on the GPU through Vulkan. Nothing is sent
 over the network, and no Python installation is needed.
 
+For details, see the original plugin repository, [Krita Vision
+Tools](https://github.com/Acly/krita-vision-tools). This guide covers
+Solstice's native version and where it differs.
+
 ## Segment Selection
 
 Two selection tools in the toolbox select an object in the active layer:
