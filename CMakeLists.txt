@@ -180,7 +180,7 @@ set(SOLSTICE_VERSION_MAJOR 0)
 set(SOLSTICE_VERSION_MINOR 2)
 set(SOLSTICE_VERSION_PATCH 0)
 # Pre-release label: "alpha", "beta", "rc.1"; empty for a release.
-set(SOLSTICE_VERSION_LABEL "beta.3")
+set(SOLSTICE_VERSION_LABEL "beta.4")
 # Fourth digit of the Windows file version (rebuilds of the same version).
 set(SOLSTICE_VERSION_BUILD 0)
 set(SOLSTICE_VERSION_STRING "${SOLSTICE_VERSION_MAJOR}.${SOLSTICE_VERSION_MINOR}.${SOLSTICE_VERSION_PATCH}")
