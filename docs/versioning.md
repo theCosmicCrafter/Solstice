@@ -1,16 +1,16 @@
 # Versions
 
 Solstice has its own version number. It started at 0.1.0-alpha; the
-current version is **0.2.0-beta.2**.
+current version is **0.2.0-beta.3**.
 
 - **0.x** means Solstice is still in testing: features and behavior can
   change between versions.
 - The second number increases for a set of new features, the third for
   fixes only.
 - The label shows the stage: `alpha` until 2026-10-13, then `beta`
-  (`beta.2` is the second beta), later release candidates. Version 1.0.0 will be the first release without a label.
+  (`beta.3` is the third beta), later release candidates. Version 1.0.0 will be the first release without a label.
 - Development builds add the source revision, for example
-  `0.2.0-beta.2 (git efaf8d8)`.
+  `0.2.0-beta.3 (git efaf8d8)`.
 
 The version appears on the splash screen, in **Help > About Solstice**, in
 **Help > Show system information for bug reports** and in the file

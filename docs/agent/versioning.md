@@ -10,7 +10,7 @@ starting at `0.1.0-alpha`.
 
 | Version | Value | Defined in | Used for |
 | --- | --- | --- | --- |
-| Solstice version | `0.2.0-beta.2` | top-level `CMakeLists.txt`: `SOLSTICE_VERSION_MAJOR/MINOR/PATCH/LABEL/BUILD` -> `SOLSTICE_VERSION_STRING` | everything shown to users |
+| Solstice version | `0.2.0-beta.3` | top-level `CMakeLists.txt`: `SOLSTICE_VERSION_MAJOR/MINOR/PATCH/LABEL/BUILD` -> `SOLSTICE_VERSION_STRING` | everything shown to users |
 | Krita compatibility version | `6.0.5-prealpha` | top-level `CMakeLists.txt`: `KRITA_VERSION_STRING` and related | file formats, resources, scripting, library versions |
 
 `libs/version/kritaversion.h.cmake` defines both. `KritaVersionWrapper`
@@ -62,7 +62,7 @@ Edit only the `SOLSTICE_VERSION_*` values in the top-level `CMakeLists.txt`:
 
 - `MINOR` for a milestone, `PATCH` for fixes only (pre-1.0 semantic
   versioning);
-- `LABEL`: `beta.2` now (`alpha` until 2026-10-13, `beta` for the first
+- `LABEL`: `beta.3` now (`alpha` until 2026-10-13, `beta` for the first
   beta), then `beta.N` or `rc.N`, empty for a release;
 - `BUILD`: the fourth Windows file-version digit, for rebuilds of the same
   version; otherwise 0.
@@ -79,6 +79,7 @@ appears in the version strings.
 | `0.2.0-alpha` | 2026-10-10 | Milestone (user request): GPU brush by default, masking brush on the GPU, ABR import improvements, Solstice icons and splash, Explorer thumbnails. |
 | `0.2.0-beta` | 2026-10-13 | Beta for publication (user request), after the pre-release review; only the label changes. Released 2026-10-14 as GitHub Release `v0.2.0-beta` (prerelease, commit `a442a5ce25`); its CI build lacked the Python plugins. |
 | `0.2.0-beta.2` | 2026-10-14 | Second beta (user request): the CI build includes the Python plugins (Python Plugin Manager, pykrita) again; new Puppet Warp and Brush Stroke Layer images. GitHub Release `v0.2.0-beta.2`. |
+| `0.2.0-beta.3` | 2026-10-14 | Third beta (user request): first upstream Krita intake (2026-W42: thumbnail cache crash, animation curves scrolling, second-wheel horizontal scrolling, perspective transform conditions, PSD group collapse and layer locks). GitHub Release `v0.2.0-beta.3`. |
 
 ## Checks
 
