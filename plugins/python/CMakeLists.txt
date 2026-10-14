@@ -81,6 +81,9 @@ install_pykrita_plugin(channels2layers)
 install_pykrita_plugin(photobash_images)
 install_pykrita_plugin(workflow_buttons)
 
+# Vendored third-party plugins (see docs/agent/plugin-intake.md)
+install_pykrita_plugin(timer_watch PATTERNS "*.png" "*.mp3" "*.webm")
+
 # if(PYTHON_VERSION_MAJOR VERSION_EQUAL 3)
 #     install_pykrita_plugin(cmake_utils)
 #     install_pykrita_plugin(js_utils PATTERNS "*.json")
@@ -96,6 +99,15 @@ DESTINATION  ${KDE_INSTALL_DATADIR}/krita/actions)
 
 install(
     DIRECTORY libkritapykrita
+    DESTINATION ${KDE_INSTALL_DATADIR}/krita/pykrita
+    FILES_MATCHING
+        PATTERN "*.py"
+        PATTERN "__pycache__*" EXCLUDE
+  )
+
+# PyQt5 -> PyQt6 compatibility shim for vendored plugins
+install(
+    DIRECTORY PyQt5
     DESTINATION ${KDE_INSTALL_DATADIR}/krita/pykrita
     FILES_MATCHING
         PATTERN "*.py"

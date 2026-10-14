@@ -1107,3 +1107,27 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - Open check for Phase 1: how bundled pykrita plugin enablement is seeded
   (default kritarc vs. always-enabled), and whether a shared
   PyQt5->PyQt6 alias shim in `libkritapykrita/` covers the PyQt5 plugins.
+
+## 2026-10-14 ingest: vendored-plugin harness, timer_watch pilot
+
+- Phase 1 of `docs/agent/plugin-integration-megaplan.md` pilot landed:
+  - `plugins/python/PyQt5/` is a new shared PyQt5->PyQt6 compatibility
+    package installed next to bundled plugins (re-export modules plus enum
+    hoisting, `exec_` aliases, `QRegExp`, `QMediaPlayer`/`QMediaContent`,
+    `QDesktopWidget`, pointer-event `pos()` bridges).
+  - `PythonPluginManager::scanPlugins` honours a new
+    `X-Solstice-EnabledByDefault` desktop key so vendored plugins can ship
+    enabled while a stored user setting still wins.
+  - `timer_watch` vendored at `plugins/python/timer_watch/`, pinned to
+    EyeOdin/Timer_Watch `d9f5dd6`, registered in
+    `plugins/python/CMakeLists.txt` with `.png/.mp3/.webm` asset patterns.
+- Verified in a standalone PyQt6-6.11 venv (`QT_QPA_PLATFORM=offscreen`,
+  stub `krita` module): plugin import, `uic.loadUi` on both .ui files,
+  media wrapper, unscoped enums, `exec_`, and `TimerWatch_Docker()`
+  construction all pass.
+- Pitfall worth remembering: PyQt6 exposes NO unscoped enum names
+  (`Qt.AlignLeft` etc. all missing) and `for member in Flag` skips
+  zero-valued members — iterate `__members__` when hoisting.
+- Ledger and shim coverage table recorded in `docs/agent/plugin-intake.md`.
+- Open check for a real build: docker click-through (menus, alarm playback,
+  settings dialog) still needs an interactive Solstice run.

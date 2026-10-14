@@ -298,7 +298,10 @@ void PythonPluginManager::scanPlugins()
 
             verifyDependenciesSetStatus(plugin);
 
-            plugin.m_enabled = pluginSettings.readEntry(QString("enable_") + plugin.moduleName(), false);
+            // Vendored Solstice plugins may opt into being enabled on first
+            // run; an explicit user choice in the config always wins.
+            plugin.m_enabled = pluginSettings.readEntry(QString("enable_") + plugin.moduleName(),
+                                                      dg.readEntry("X-Solstice-EnabledByDefault", false));
 
             m_plugins.append(plugin);
         }
