@@ -1205,3 +1205,13 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   include dirs) — clean. Caught a missing include path and a `char*` ->
   `quint8*` cast before CI.
 - Still needed: real build + interactive check of the lasso workflow.
+
+## 2026-10-14 ingest: mcp-bridge agent doc
+
+- `docs/agent/mcp-bridge.md` records the vendored kritamcp layout, the
+  bearer-token auth surface, external `server.py` configuration
+  (`KRITA_URL`, `KRITAMCP_TOKEN`, kritarc lookup order, 120 s timeout), and
+  the krita-cli / krita-codex-mcp alternatives evaluation.
+- Gotcha recorded: a second app instance silently fails to bind :5678; the
+  token is per-profile, so a fresh Solstice profile requires an MCP server
+  restart to pick up the new kritarc token.
