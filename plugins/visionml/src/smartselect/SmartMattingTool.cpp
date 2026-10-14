@@ -72,6 +72,8 @@ QWidget *SmartMattingTool::createOptionWidget()
     Base::createOptionWidget();
     KisSelectionOptions *selectionWidget = selectionOptionWidget();
     m_segmentation.addOptions(selectionWidget, false);
+    VisionMLModelSelect *modelSelect = new VisionMLModelSelect(m_models, VisionMLTask::background_removal, true);
+    selectionWidget->insertWidget(4, "smartMattingModelSection", modelSelect);
     return selectionWidget;
 }
 
