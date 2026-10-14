@@ -4,9 +4,10 @@
 
 from __future__ import print_function
 
-import pykrita
 import os
 import sys
+
+import pykrita
 
 # Look for PyQt
 try:
@@ -31,19 +32,30 @@ def importAvoidWrongPyQtHack(name, globals=None, locals=None, fromlist=(), level
     if name_casefolded == pyqt_wrong_casefolded or \
         name_casefolded.startswith(pyqt_wrong_casefolded+"."):
 
-        raise(ModuleNotFoundError(
-            f"This version of Solstice is not compatible with {pyqt_wrong}!",
-            name=name))
-    else:
-        return import_real(name, globals, locals, fromlist, level)
+        # Solstice ships a pure-Python "PyQt5" compatibility package under
+        # <data>/pykrita that re-exports the real bindings plus compatibility
+        # aliases for vendored Krita-5 plugins. Only an implementation living
+        # inside a pykrita plugin directory is allowed through: importing the
+        # real PyQt5 bindings would load a second Qt and crash.
+        import importlib.util
+        spec = importlib.util.find_spec(name.split(".")[0])
+        origin = (getattr(spec, "origin", None) or "").lower().replace("/", os.sep)
+        if os.sep + "pykrita" + os.sep not in origin:
+            raise(ModuleNotFoundError(
+                f"This version of Solstice is not compatible with {pyqt_wrong}!",
+                name=name))
+
+    return import_real(name, globals, locals, fromlist, level)
 builtins.__import__ = importAvoidWrongPyQtHack
+
+import signal
+
+from PyKrita import krita
 
 from .api import *
 from .decorators import *
 from .dockwidgetfactory import *
-from PyKrita import krita
 
-import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 krita_path = os.path.dirname(os.path.abspath(__file__))
@@ -52,6 +64,7 @@ print("%s added to PYTHONPATH" % krita_path, file=sys.stderr)
 
 # Shows nice looking error dialog if an unhandled exception occurs.
 import excepthook
+
 excepthook.install()
 
 builtins.i18n = Krita.krita_i18n

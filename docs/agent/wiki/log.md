@@ -1131,3 +1131,29 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - Ledger and shim coverage table recorded in `docs/agent/plugin-intake.md`.
 - Open check for a real build: docker click-through (menus, alarm playback,
   settings dialog) still needs an interactive Solstice run.
+
+## 2026-10-14 ingest: Tier-A vendoring round (6 plugins)
+
+- Phase 2 of the megaplan: vendored `shortcut_composer`, `imagine_board`,
+  `pigment_o`, `blender_layer`, `bulinotes`, `bulibrushswitch` into
+  `plugins/python/` with `kritapykrita_*.desktop` files carrying
+  `X-Solstice-EnabledByDefault=true`, registered in
+  `plugins/python/CMakeLists.txt` with per-plugin asset patterns.
+- Shim package grew: `PyQt5/Qt.py` + `PyQt5/QtSql.py`, and a parallel
+  `PyQt/` unversioned package (Shortcut Composer's import style).
+- Found and worked around a hard blocker: `krita/__init__.py`'s
+  `importAvoidWrongPyQtHack` raises on ANY `PyQt5` import under Qt6 — the
+  shim could never load. The guard now exempts a `PyQt5` package whose spec
+  resolves inside a `pykrita` directory (our pure-Python shim), and still
+  rejects real PyQt5 bindings.
+- Verified: pykrita injects `Krita`, `Application`, `i18n`, `i18nc`,
+  `Scripter` into builtins — `blender_layer`'s bare `Krita.instance()`
+  works without patches.
+- One source patch: `shortcut_composer/__init__.py` kritadisplayrc check
+  now also reads the Solstice profile path.
+- Shortcut Composer actually ships its OWN `PyQt` dual-bindings shim —
+  upstream is already Qt6-aware; our global `PyQt` shim is belt-and-braces.
+- All 7 vendored plugins pass import-level smoke tests under PyQt6 6.11
+  (offscreen). GUI verification still pending a real build.
+- Grum999 plugins ship Qt5-compiled `.rcc` icon packs via pktk UITheme —
+  verify rendering; `QResource` format is nominally compatible.

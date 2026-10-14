@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=Krita/PythonPlugin
+X-KDE-Library=bulibrushswitch
+X-Python-2-Compatible=false
+X-Krita-Manual=Manual.html
+X-Solstice-EnabledByDefault=true
+Name=BuliBrushSwitch
+Comment=A plugin to define shortcuts to brushes

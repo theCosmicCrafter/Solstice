@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=Krita/PythonPlugin
+X-KDE-Library=shortcut_composer
+X-Python-2-Compatible=false
+X-Krita-Manual=manual.html
+X-Solstice-EnabledByDefault=true
+Name=Shortcut Composer
+Comment=Plugin for creating complex krita keyboard shortcuts.

@@ -83,6 +83,12 @@ install_pykrita_plugin(workflow_buttons)
 
 # Vendored third-party plugins (see docs/agent/plugin-intake.md)
 install_pykrita_plugin(timer_watch PATTERNS "*.png" "*.mp3" "*.webm")
+install_pykrita_plugin(shortcut_composer PATTERNS "*.action")
+install_pykrita_plugin(imagine_board PATTERNS "*.png" "*.webm" "*.webp" "*.kra" "*.action")
+install_pykrita_plugin(pigment_o PATTERNS "*.png" "*.zip" "*.webm" "*.jpeg" "*.eo" "*.action")
+install_pykrita_plugin(blender_layer PATTERNS "*.blend" "*.action")
+install_pykrita_plugin(bulinotes PATTERNS "*.svg" "*.png" "*.rcc" "*.qrc")
+install_pykrita_plugin(bulibrushswitch PATTERNS "*.svg" "*.png" "*.rcc" "*.qrc" "*.action")
 
 # if(PYTHON_VERSION_MAJOR VERSION_EQUAL 3)
 #     install_pykrita_plugin(cmake_utils)
@@ -105,9 +111,9 @@ install(
         PATTERN "__pycache__*" EXCLUDE
   )
 
-# PyQt5 -> PyQt6 compatibility shim for vendored plugins
+# PyQt5/PyQt -> PyQt6 compatibility shims for vendored plugins
 install(
-    DIRECTORY PyQt5
+    DIRECTORY PyQt5 PyQt
     DESTINATION ${KDE_INSTALL_DATADIR}/krita/pykrita
     FILES_MATCHING
         PATTERN "*.py"

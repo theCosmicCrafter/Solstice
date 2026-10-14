@@ -40,27 +40,128 @@ update possible.
 - Last re-check: 2026-10-14 — vendored, shim-verified; GUI click-through
   pending a real Solstice build
 
+### shortcut_composer
+
+- Source: https://github.com/wojtryb/Shortcut-Composer
+- Pinned: `e3fe151c01387c2d14d1d9ebfae0b85c36645e49` (master, 2026-10-14)
+- Vendored at: plugins/python/shortcut_composer/
+- License: GPL-3.0
+- PyQt6 status: upstream already dual-Qt — it ships its own `PyQt`
+  unversioned package that imports PyQt6 when present. No shim needed.
+- Local patches: `__init__.py` — the Krita-6 OpenGL warning now reads
+  `%APPDATA%/Solstice/config/kritadisplayrc` in addition to Krita's
+  `%LOCALAPPDATA%/kritadisplayrc` (Solstice profile location).
+- Default state: enabled
+- Last re-check: 2026-10-14 — vendored; pie menus/trackers need GUI
+  verification on a real build
+
+### imagine_board
+
+- Source: https://github.com/EyeOdin/imagine_board
+- Pinned: `fe56088a65d7c5217ccedd92222852311fd33141` (master, 2026-10-14)
+- Vendored at: plugins/python/imagine_board/
+- License: GPL-3.0
+- PyQt6 status: shim-only — `from PyQt5 import Qt, ...` imports resolve via
+  the shared shim; import-level verified 2026-10-14
+- Local patches: none
+- Default state: enabled
+- Last re-check: 2026-10-14 — vendored; overlaps native Asset Library —
+  evaluate deduplication in a later phase
+
+### pigment_o
+
+- Source: https://github.com/EyeOdin/Pigment.O
+- Pinned: `046a13854be082cc115413b7341fd9a6050e33d8` (master, 2026-10-14)
+- Vendored at: plugins/python/pigment_o/
+- License: GPL-3.0
+- PyQt6 status: shim-only; import-level verified 2026-10-14
+- Local patches: none
+- Default state: enabled
+- Last re-check: 2026-10-14 — vendored; bundles 33 .zip resource archives
+  (gamut/mask presets) installed via `*.zip` pattern
+
+### blender_layer
+
+- Source: https://github.com/Yuntokon/BlenderLayer
+- Pinned: `6df69d2278e51800916ad1b8841aada7f9e3c566` (master, 2026-10-14)
+- Vendored at: plugins/python/blender_layer/
+- License: GPL-3.0
+- PyQt6 status: shim-only; import-level verified 2026-10-14. Depends on
+  pykrita's builtins injection (`builtins.Krita` — confirmed present in
+  `plugins/extensions/pykrita/plugin/krita/__init__.py`), so the bare
+  `Krita.instance()` in `navigateWidget.py` needs no patch.
+- Local patches: none
+- Default state: enabled
+- Last re-check: 2026-10-14 — vendored; function requires the Blender-side
+  companion add-on (bundled `*.blend` assets ship with the plugin)
+
+### bulinotes
+
+- Source: https://codeberg.org/Grum999/BuliNotes (GitHub mirror archived)
+- Pinned: `4a3655eaec339cadd4250656f2a283b886604a09` (main, 2026-10-14)
+- Vendored at: plugins/python/bulinotes/
+- License: GPL-3.0
+- PyQt6 status: shim-only (`from PyQt5.Qt import *` covered by the `Qt`
+  catch-all shim module); import-level verified 2026-10-14. Ships
+  Qt5-compiled `.rcc` icon resources loaded through pktk's UITheme —
+  Qt6 `QResource` reads them; verify icon rendering on a real build.
+- Local patches: none
+- Default state: enabled
+- Last re-check: 2026-10-14 — vendored; upstream is archived, treat as
+  effectively self-maintained
+
+### bulibrushswitch
+
+- Source: https://codeberg.org/Grum999/BuliBrushSwitch (GitHub mirror archived)
+- Pinned: `8ca1523f41b169d5ba59bb6a9e7699b5658ff7ed` (main, 2026-10-14)
+- Vendored at: plugins/python/bulibrushswitch/
+- License: GPL-3.0
+- PyQt6 status: shim-only; import-level verified 2026-10-14. Same pktk
+  `.rcc` caveat as bulinotes.
+- Local patches: none
+- Default state: enabled
+- Last re-check: 2026-10-14 — vendored
+
 ## PyQt5 -> PyQt6 compatibility shim
 
 `plugins/python/PyQt5/` is a shared re-export layer installed to
 `share/krita/pykrita/PyQt5` next to the bundled plugins. Vendored plugins keep
-their `from PyQt5 import ...` lines unchanged. Current coverage:
+their `from PyQt5 import ...` lines unchanged. A second package,
+`plugins/python/PyQt/`, serves plugins that use the unversioned `PyQt`
+import name.
 
-| Qt5 surface                                                                                                  | Shim behaviour                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `from PyQt5 import QtX` submodules                                                                           | Re-export the PyQt6 modules (`QtCore`, `QtGui`, `QtWidgets`, `QtMultimedia`, `QtNetwork`, `QtPrintSupport`, `QtSvg`, `QtSvgWidgets`, `QtXml`, `uic`, `sip`) |
-| Unscoped enums (`Qt.AlignLeft`, `Qt.NoModifier`, `QEvent.MouseButtonPress`, `QMessageBox.Ok`, ...)           | Every enum member hoisted onto its class (`_expose_enum_members`); uses `__members__` so zero-valued flags (`NoModifier`) and aliases survive               |
-| `exec_()`                                                                                                    | Alias to `exec()` on every PyQt6 class that has `exec`                                                                                                      |
-| `QAction`/`QFileSystemModel`/`QShortcut`/`QUndo*`/`QStandardItem*` in QtWidgets                              | Re-exported from PyQt6.QtGui                                                                                                                                |
-| `QRegExp`                                                                                                    | Subclass wrapper over `QRegularExpression` (`exactMatch`, `indexIn`, `cap`, case sensitivity)                                                               |
-| `QRegExpValidator`                                                                                           | Alias to `QRegularExpressionValidator`                                                                                                                      |
-| `QMediaPlayer.setMedia`/`setVolume`/`media`, `QMediaContent`                                                 | Wrapper classes; volume bridged through an owned `QAudioOutput`, `setMedia` maps to `setSource`                                                             |
-| `QDesktopWidget` / `QApplication.desktop()`                                                                  | Minimal QWidget stand-in backed by `QGuiApplication` screens (`screenGeometry`, `availableGeometry`, `screenCount`)                                         |
-| `QFontMetrics.width()`                                                                                       | Alias to `horizontalAdvance()`                                                                                                                              |
-| `QMouseEvent`/`QWheelEvent` `pos()`, `globalPos()`, `x()`, `y()`, `localPos()`, `windowPos()`, `screenPos()` | QPoint/QPointF bridges over `position()`/`globalPosition()`/`scenePosition()`                                                                               |
-| `PyQt5.uic`                                                                                                  | `PyQt6.uic` re-export (`loadUi`, `loadUiType`, `compileUi` verified)                                                                                        |
-| `PyQt5.sip`, `import sip`                                                                                    | `PyQt6.sip` re-export                                                                                                                                       |
-| `PyQt5.QtXml` (`QDom*`)                                                                                      | Re-export when Qt5Compat is present; raises a descriptive ImportError otherwise — patch the plugin at vendor time                                           |
+Both packages additionally expose:
+
+- `Qt.py` — the `PyQt5.Qt` catch-all module (`from PyQt5.Qt import *`)
+  combining QtCore/QtGui/QtWidgets/QtSvg/QtPrintSupport
+- `QtSql.py` — re-export of `PyQt6.QtSql`
+
+The upstream import guard in
+`plugins/extensions/pykrita/plugin/krita/__init__.py`
+(`importAvoidWrongPyQtHack`) normally blocks `PyQt5` entirely on a Qt6 build.
+It was extended to allow a `PyQt5` top-level package only when its spec
+resolves inside a `pykrita` directory — i.e. our pure-Python shim — while
+still rejecting the real PyQt5 bindings (which would load a second Qt and
+crash). `PyQt` (unversioned) is not affected by the guard.
+
+Current coverage:
+
+| Qt5 surface                                                                                                  | Shim behaviour                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `from PyQt5 import QtX` submodules                                                                           | Re-export the PyQt6 modules (`QtCore`, `QtGui`, `QtWidgets`, `QtMultimedia`, `QtNetwork`, `QtPrintSupport`, `QtSql`, `QtSvg`, `QtSvgWidgets`, `QtXml`, `uic`, `sip`) |
+| `from PyQt import QtX`, `from PyQt5.Qt import *`                                                             | `PyQt` unversioned alias package + `Qt` catch-all module combining QtCore/QtGui/QtWidgets/QtSvg/QtPrintSupport                                                       |
+| Unscoped enums (`Qt.AlignLeft`, `Qt.NoModifier`, `QEvent.MouseButtonPress`, `QMessageBox.Ok`, ...)           | Every enum member hoisted onto its class (`_expose_enum_members`); uses `__members__` so zero-valued flags (`NoModifier`) and aliases survive                        |
+| `exec_()`                                                                                                    | Alias to `exec()` on every PyQt6 class that has `exec`                                                                                                               |
+| `QAction`/`QFileSystemModel`/`QShortcut`/`QUndo*`/`QStandardItem*` in QtWidgets                              | Re-exported from PyQt6.QtGui                                                                                                                                         |
+| `QRegExp`                                                                                                    | Subclass wrapper over `QRegularExpression` (`exactMatch`, `indexIn`, `cap`, case sensitivity)                                                                        |
+| `QRegExpValidator`                                                                                           | Alias to `QRegularExpressionValidator`                                                                                                                               |
+| `QMediaPlayer.setMedia`/`setVolume`/`media`, `QMediaContent`                                                 | Wrapper classes; volume bridged through an owned `QAudioOutput`, `setMedia` maps to `setSource`                                                                      |
+| `QDesktopWidget` / `QApplication.desktop()`                                                                  | Minimal QWidget stand-in backed by `QGuiApplication` screens (`screenGeometry`, `availableGeometry`, `screenCount`)                                                  |
+| `QFontMetrics.width()`                                                                                       | Alias to `horizontalAdvance()`                                                                                                                                       |
+| `QMouseEvent`/`QWheelEvent` `pos()`, `globalPos()`, `x()`, `y()`, `localPos()`, `windowPos()`, `screenPos()` | QPoint/QPointF bridges over `position()`/`globalPosition()`/`scenePosition()`                                                                                        |
+| `PyQt5.uic`                                                                                                  | `PyQt6.uic` re-export (`loadUi`, `loadUiType`, `compileUi` verified)                                                                                                 |
+| `PyQt5.sip`, `import sip`                                                                                    | `PyQt6.sip` re-export                                                                                                                                                |
+| `PyQt5.QtXml` (`QDom*`)                                                                                      | Re-export when Qt5Compat is present; raises a descriptive ImportError otherwise — patch the plugin at vendor time                                                    |
 
 Known limits (patch the plugin, don't extend the shim):
 
