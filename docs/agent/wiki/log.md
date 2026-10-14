@@ -1058,3 +1058,14 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   logs a warning. The wording is now "the only tested GPU; other GPUs are
   untested" (user decision; no call for reports). Check the device selection
   code before describing hardware support.
+
+## 2026-10-14 fix: Python bindings return bool from Node.save
+
+- `Node.sip`, `Filter.sip` and `Scratchpad.sip` declared `void` for
+  `Node.save()`, `Filter.apply()` and `Scratchpad.setScale()`, which return
+  `bool` in libkis (upstream Krita bug). Python got `None`, and the external
+  `krita-spine-export` plugin reported "Could not write PNG" after every
+  successful export. A scan of all `.sip` files against `libs/libkis/*.h`
+  found no other return-type mismatch. New pitfall
+  [sip-return-types](pitfalls/sip-return-types.md): `.sip` edits do not
+  trigger regeneration, and kritarunner cannot save files.

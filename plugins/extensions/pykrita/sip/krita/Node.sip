@@ -70,7 +70,7 @@ public Q_SLOTS:
     QPoint position() const;
     bool remove();
     Node *duplicate() /Factory/;
-    void save(const QString &filename, double xRes, double yRes, const InfoObject & exportConfiguration, const QRect &exportRect = QRect());
+    bool save(const QString &filename, double xRes, double yRes, const InfoObject & exportConfiguration, const QRect &exportRect = QRect());
     Node *mergeDown() /Factory/;
     void scaleNode(QPointF origin, int width, int height, QString strategy);
     void rotateNode(double radians);

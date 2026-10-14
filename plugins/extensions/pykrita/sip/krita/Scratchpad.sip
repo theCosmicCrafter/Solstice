@@ -19,7 +19,7 @@ public Q_SLOTS:
     void setFillColor(QColor color);
     void loadScratchpadImage(QImage image);
 
-    void setScale(qreal scale);
+    bool setScale(qreal scale) const;
     void scaleToFit();
     void scaleReset();
     qreal scale();

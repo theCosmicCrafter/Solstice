@@ -91,6 +91,9 @@ matches the task.
 - [Weak pointers as ordered map keys](pitfalls/weak-pointer-map-keys.md):
   a `KisWeakSharedPtr` key turns into `nullptr` when its object dies and
   corrupts the map (missing layer docker thumbnails).
+- [Python bindings declare their own return types](pitfalls/sip-return-types.md):
+  a `.sip` file that says `void` gives Python `None` for a C++ `bool`
+  (`Node.save()`); `.sip` edits do not trigger a rebuild.
 
 ### Benchmarks
 
