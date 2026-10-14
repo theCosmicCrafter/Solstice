@@ -995,3 +995,11 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   Lazy Tools, Rest Note, Asset Library, Vision ML) now point to the original
   plugin repositories for details (user request); the guides cover the
   native versions and where they differ.
+
+## 2026-10-14 docs: Krita User Manual and the website
+
+- README, the guide index and the website point to the Krita User Manual
+  (`https://docs.krita.org/en/user_manual.html`) for the basics of using
+  the application (user request); Solstice's guides cover what it adds.
+- README's Project page links the live website instead of calling it
+  planned; AGENTS.md's README rule names the website.

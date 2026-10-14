@@ -1,7 +1,8 @@
 # Solstice user guides
 
-Guides to the features Solstice adds to Krita. For everything Solstice
-shares with Krita, the [Krita manual](https://docs.krita.org/) applies.
+Guides to the features Solstice adds to Krita. For the basics of using the
+application, and everything else Solstice shares with Krita, see the
+[Krita User Manual](https://docs.krita.org/en/user_manual.html).
 Technical notes for developers are in [`agent`](agent/).
 
 ## Getting started

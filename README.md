@@ -32,6 +32,10 @@ Solstice is independently maintained and desktop-only. It is not an official
 Krita edition, and development no longer tracks upstream Krita. It is in
 testing; see [Versions](docs/versioning.md) for the version numbering.
 
+**Learning Solstice:** for the basics of using the application, see the
+[Krita User Manual](https://docs.krita.org/en/user_manual.html). The
+features Solstice adds are described in its [user guides](docs/README.md).
+
 [Highlights](#highlights) | [Screenshots](#screenshots) | [Development & downloads](#development-and-downloads) | [GPU engine](#gpu-engine) | [Benchmarks](#benchmarks) | [Supported environment](#supported-environment)
 
 ## Highlights
@@ -128,11 +132,12 @@ Check the [supported environment](#supported-environment) before building.
 
 ## Project page
 
-**A dedicated Solstice website is planned but has not been created yet.**
-Its link will be added to this README when the website is available.
+**Website: <https://solstice.tidalboxstudio.com>**: an overview, the
+download page and pages for the main features.
 
-For now, this [GitHub repository](https://github.com/udtren/Solstice) is the
-project's home. The [highlights](#highlights) link to individual feature guides.
+This [GitHub repository](https://github.com/udtren/Solstice) holds the
+source code, the releases and the [user guides](docs/README.md); the
+[highlights](#highlights) link to individual feature guides.
 
 ## Differences from Krita
 

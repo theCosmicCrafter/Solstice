@@ -41,11 +41,12 @@ as an upstream synchronization source.
 
 ## Documentation organization
 
-- Keep `README.md` in English as the project overview: identity, the planned
-  website, differences from Krita, GPU status, representative benchmarks,
+- Keep `README.md` in English as the project overview: identity, the
+  website (`https://solstice.tidalboxstudio.com`, live since 2026-10-14),
+  differences from Krita, GPU status, representative benchmarks,
   supported environment and non-affiliation. Keep individual feature entries
   as names and links; put detailed workflows, architecture and build notes in
-  the dedicated documents. Do not invent a website URL before it exists.
+  the dedicated documents.
 - Put user-facing workflow, supported scope, screenshots, and user-visible
   limitations in a stable Markdown document directly under `docs/`, such as
   `docs/puppet-warp.md`.
