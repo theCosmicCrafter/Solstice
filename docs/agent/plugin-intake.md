@@ -48,9 +48,10 @@ update possible.
 - License: GPL-3.0
 - PyQt6 status: upstream already dual-Qt — it ships its own `PyQt`
   unversioned package that imports PyQt6 when present. No shim needed.
-- Local patches: `__init__.py` — the Krita-6 OpenGL warning now reads
-  `%APPDATA%/Solstice/config/kritadisplayrc` in addition to Krita's
-  `%LOCALAPPDATA%/kritadisplayrc` (Solstice profile location).
+- Local patches: `__init__.py` — the Krita-6 OpenGL startup warning is
+  removed entirely. Solstice renders via its Vulkan engine and exposes no
+  OpenGL toggle, so the warning could never be satisfied and blocked every
+  first paint with a modal.
 - Default state: enabled
 - Last re-check: 2026-10-14 — vendored; pie menus/trackers need GUI
   verification on a real build
@@ -236,6 +237,10 @@ Known limits (patch the plugin, don't extend the shim):
 - License: GPL-3.0-or-later (upstream), port is a rewrite on the visionml
   architecture.
 - Last re-check: 2026-03 — ported; pending real-build GUI verification.
+- Note: the user's legacy pykrita `smart_select` install under
+  `%APPDATA%\Solstice\resources\pykrita` was set aside
+  (`smart_select.disabled`) — its ctypes DLL loader is superseded by the
+  native tool.
 
 ## Shim test harness
 

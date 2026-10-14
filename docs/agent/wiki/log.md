@@ -1215,3 +1215,17 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - Gotcha recorded: a second app instance silently fails to bind :5678; the
   token is per-profile, so a fresh Solstice profile requires an MCP server
   restart to pick up the new kritarc token.
+
+## 2026-10-14 trial-build feedback: shortcut_composer modal + stale plugins
+
+- Real-build test of run 38627747022: `shortcut_composer`'s Krita-6
+  OpenGL warning fired as a modal on startup. Solstice's canvas is Vulkan
+  with no OpenGL toggle, so the warning is unresolvable — the vendored
+  `__init__.py` now drops the block (and the orphaned `platform`/`Path`
+  imports). Same patch applied to the running test install.
+- User-profile plugin cleanup (approved): legacy `smart_select` (ctypes
+  DLL loader — superseded by native Smart Matting), plus user-installed
+  `ai_diffusion` and `kritamcp` that shadowed the vendored copies were
+  renamed to `*.disabled` in `%APPDATA%\Solstice\resources\pykrita`. The
+  user kritamcp was the unhardened upstream; two bridges would also have
+  raced for :5678.

@@ -7,9 +7,7 @@ The only python file directly run by krita during plugin init phase.
 Checks whether plugin requirements are met and aborts the start if not.
 """
 import os
-import platform
 import sys
-from pathlib import Path
 
 # Appending this file location to python PATH allows to directly import
 # main packages instead of using relative imports.
@@ -41,40 +39,10 @@ def main() -> None:
         warning_box.exec()
         return
 
-    # On Windows, since krita 6 transparent Qt widgets are rendered black
-    # unless canvas is rendered with OpenGL, or the acceleration is disabled
-    # Show a warning message on startup when this situation is detected
-    if platform.system() == "Windows" and Krita.version.major >= 6:
-        warning_needed = True
-        # Solstice keeps kritadisplayrc under %APPDATA%\Solstice\config
-        # (see KisSolsticePaths); check both locations.
-        for _displayrc in (
-            Path.home()/"AppData"/"Roaming"/"Solstice"/"config"/"kritadisplayrc",
-            Path.home()/"AppData"/"Local"/"kritadisplayrc",
-        ):
-            try:
-                with open(_displayrc) as f:
-                    text = f.read()
-                    if "OpenGLRenderer=desktop" in text \
-                            or "OpenGLRenderer=none" in text:
-                        warning_needed = False
-                        break
-            except OSError:
-                continue
-
-        if warning_needed:
-            warning_box = QMessageBox()
-            warning_box.setIcon(QMessageBox.Icon.Warning)
-            warning_box.setWindowTitle("Warning: OpenGL is not being used")
-            warning_box.setTextFormat(Qt.TextFormat.RichText)
-            warning_box.setText(
-                "Shortcut Composer detected that OpenGL is not being used.<br>"
-                "This may result in transparency issues.<br>"
-                "Please, change renderer to OpenGL in:<br><br>"
-                "Settings > Configure Krita > Display > Canvas Acceleration"
-                "<br><br>Then, restart krita.")
-            warning_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-            warning_box.exec()
+    # Solstice renders the canvas with its Vulkan engine; there is no
+    # OpenGL fallback toggle, so upstream's "OpenGL is not being used"
+    # startup warning is removed here — the pie menus render through Qt
+    # widgets regardless of the canvas backend.
 
     from .shortcut_composer import ShortcutComposer  # noqa
     Krita.add_extension(ShortcutComposer)
