@@ -51,7 +51,11 @@ features Solstice adds are described in its [user guides](docs/README.md).
   [Asset Library](docs/asset-library.md), [Rest Note](docs/rest-note.md) and
   [Lazy Tools](docs/lazy-tools.md).
 - **[Vision ML](docs/vision-ml.md)**: native tools for AI-assisted selection,
-  background removal and Smart Fill.
+  background removal, Smart Fill and Smart Matting lasso selection.
+- **Bundled extensions**: AI Diffusion (ComfyUI), Pigment.O, Imagine Board,
+  Shortcut Composer, BuliNotes, BuliBrushSwitch, Timer Watch and the local
+  MCP agent bridge ship enabled on first run; Blender Layer is bundled but
+  off by default.
 - **[Puppet Warp](docs/puppet-warp.md)**: pose and reshape artwork with movable
   and rotatable pins in the Transform Tool.
 - **[Docker locks](docs/docker-locks.md)**: lock the widths and heights of
@@ -146,6 +150,9 @@ Vulkan image engine and a separately maintained native feature set. Selected
 Python-based extensions have been reimplemented in C++, with compatibility
 for existing settings where practical. The Asset Library is also available
 from the welcome page, and Puppet Warp is integrated into the Transform Tool.
+A set of Krita Python plugins is bundled and enabled by default through a
+PyQt6 compatibility layer, and a token-authenticated loopback bridge lets
+local MCP agents drive the application.
 
 Android support and its build and packaging infrastructure have been removed.
 The right-click Popup Palette and the On-Canvas Brush Editor have been removed
@@ -200,16 +207,16 @@ performance.** They are not frame rates or pen-to-screen latency measurements.
 Measured on October 11, 2026, with an AMD Ryzen 9 9950X and NVIDIA RTX PRO 6000
 Blackwell (driver 596.86), using local development builds:
 
-| Workload | CPU | GPU |
-| --- | ---: | ---: |
-| Resident full layer projection, 4096 x 4096 RGBA32F, 16 layers | 270 ms | 60.6 ms |
-| Canvas data preparation, 4096 x 4096 RGBA32F, 8 layers | 1215 ms | 1.81 ms |
-| Four mirror passes, 14 dabs of 73 x 73 pixels | 0.949 ms | 0.437 ms |
-| Four mirror passes, 32 dabs of 256 x 256 pixels | 51.1 ms | 2.08 ms |
-| Transform Tool apply, scale + rotate (bicubic), 2480 x 3508 RGBA32F | 502 ms | 61.5 ms |
-| Liquify apply, 20 strokes, 2480 x 3508 RGBA32F | 253 ms | 63.5 ms |
-| Gaussian Blur apply, radius 30, 2480 x 3508 RGBA32F | 212 ms | 68.0 ms |
-| Puppet Warp apply, 3 pins, 2480 x 3508 RGBA32F | 750 ms | 212 ms |
+| Workload                                                            |      CPU |      GPU |
+| ------------------------------------------------------------------- | -------: | -------: |
+| Resident full layer projection, 4096 x 4096 RGBA32F, 16 layers      |   270 ms |  60.6 ms |
+| Canvas data preparation, 4096 x 4096 RGBA32F, 8 layers              |  1215 ms |  1.81 ms |
+| Four mirror passes, 14 dabs of 73 x 73 pixels                       | 0.949 ms | 0.437 ms |
+| Four mirror passes, 32 dabs of 256 x 256 pixels                     |  51.1 ms |  2.08 ms |
+| Transform Tool apply, scale + rotate (bicubic), 2480 x 3508 RGBA32F |   502 ms |  61.5 ms |
+| Liquify apply, 20 strokes, 2480 x 3508 RGBA32F                      |   253 ms |  63.5 ms |
+| Gaussian Blur apply, radius 30, 2480 x 3508 RGBA32F                 |   212 ms |  68.0 ms |
+| Puppet Warp apply, 3 pins, 2480 x 3508 RGBA32F                      |   750 ms |   212 ms |
 
 The affine transform and Liquify results are identical to the CPU results,
 pixel for pixel; so are Puppet Warp's parts, which are then combined on the
@@ -231,13 +238,13 @@ exclude dab generation, scheduling and display.
 Completed-stroke measurements from the same day show both the remaining
 overhead and workloads that benefit from GPU brushes:
 
-| Queued stroke | CPU only | GPU projection and brush |
-| --- | ---: | ---: |
-| RGBA32F, 64px Normal Wash | 6.19 ms | 10.88 ms |
-| RGBA32F, 256px Normal Buildup | 8.15 ms | 10.70 ms |
-| RGBA16F, 128px Soft Light (SVG) Wash, selection and both mirrors | 73.60 ms | 11.46 ms |
-| RGBA32F, 300px textured (pattern) Buildup | 53.35 ms | 18.42 ms |
-| RGBA32F, 300px textured with a masking brush, Wash | 80.51 ms | 37.45 ms |
+| Queued stroke                                                    | CPU only | GPU projection and brush |
+| ---------------------------------------------------------------- | -------: | -----------------------: |
+| RGBA32F, 64px Normal Wash                                        |  6.19 ms |                 10.88 ms |
+| RGBA32F, 256px Normal Buildup                                    |  8.15 ms |                 10.70 ms |
+| RGBA16F, 128px Soft Light (SVG) Wash, selection and both mirrors | 73.60 ms |                 11.46 ms |
+| RGBA32F, 300px textured (pattern) Buildup                        | 53.35 ms |                 18.42 ms |
+| RGBA32F, 300px textured with a masking brush, Wash               | 80.51 ms |                 37.45 ms |
 
 These use a 1024 x 1024 document, four layers and 24 queued line segments.
 Each value is the median of five-sample medians from three fresh processes.
