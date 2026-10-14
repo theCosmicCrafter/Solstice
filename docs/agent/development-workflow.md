@@ -110,6 +110,11 @@ Examples: `libs\ui`, `libs\widgets`, `krita`, `plugins\dockers\restnote`.
 
 ## Upstream synchronization
 
+Historical. Merging upstream was discontinued (see `AGENTS.md`, "Branch
+policy"); upstream changes now arrive as approved cherry-picks following
+`docs/agent/upstream-intake.md`. The points below still explain why upstream
+files should be edited sparingly.
+
 - `krita/6.0` tracks upstream Krita 6 only. Merge it into `krita-sol`; do not
   cherry-pick custom work onto it.
 - Minimize edits to upstream files so merges stay clean: prefer new files,

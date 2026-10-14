@@ -28,7 +28,11 @@
 
 Make custom changes on `main`. Upstream Krita synchronization has
 been discontinued for this repository. Do not restore the `upstream` remote
-or resume upstream merges unless the user explicitly requests it. `origin`
+or resume upstream merges unless the user explicitly requests it. Selective
+intake is allowed: Hermes Agent reviews upstream Krita weekly, and Claude
+cherry-picks only the items the user approved and records every decision in
+the ledger of `docs/agent/upstream-intake.md`. Fetch upstream commits by
+path or URL into `FETCH_HEAD`; do not add a persistent remote. `origin`
 is `https://github.com/udtren/Solstice.git`. This policy supersedes the older
 branch and synchronization instructions in `docs/agent/development-workflow.md`;
 that document's build, test and installation instructions still apply.
@@ -72,6 +76,12 @@ as an upstream synchronization source.
 
 `docs/agent/wiki/index.md`: cross-cutting concepts, decisions, pitfalls,
 benchmarks, and the GPU engine phase history.
+
+### Upstream intake
+
+`docs/agent/upstream-intake.md`: weekly upstream Krita review (Hermes Agent
+reports on the DGX Spark share), the cherry-pick procedure, and the ledger of
+adopted, rejected and held upstream commits.
 
 ### Task backlog
 

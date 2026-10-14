@@ -1011,3 +1011,13 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   ([GitHub Actions](../github-actions.md), "Python plugins"). The
   `v0.2.0-beta` notes now say it is superseded, and the merged
   `ci/python-plugins` branch was deleted.
+
+## 2026-10-14 ingest: upstream selective intake
+
+- New decision page [upstream-selective-intake](decisions/upstream-selective-intake.md):
+  weekly upstream review by Hermes Agent, user decision, cherry-picks by
+  Claude; `AGENTS.md` Branch policy and index, new
+  [upstream-intake.md](../upstream-intake.md) (procedure and ledger),
+  `development-workflow.md` upstream section marked historical.
+- Validation run 2026-W42 on the DGX share: 70 commits, 32 reviewed in 16
+  items; series dry runs and an isolated object directory were needed.

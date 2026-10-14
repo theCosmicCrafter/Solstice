@@ -80,6 +80,8 @@ matches the task.
   changes avoid the main XMLGUI file.
 - [Solstice version vs. Krita compatibility version](decisions/versioning.md):
   why `0.1.0-alpha` is shown while `6.0.5-prealpha` stays internal.
+- [Upstream: weekly review, selective cherry-picks](decisions/upstream-selective-intake.md):
+  Hermes reports, the user decides, Claude cherry-picks; dry-run lessons.
 
 ### Pitfalls
 
