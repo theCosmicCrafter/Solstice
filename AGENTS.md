@@ -19,12 +19,12 @@
 
 ## Branch policy
 
-| Branch | Purpose |
-| --- | --- |
-| `main` | Primary Solstice development and GitHub default branch (user decision, 2026-10-13), including the Vulkan GPU engine. Created from `krita-sol-gpu` at the start of the 0.2.0-beta release preparation. |
-| `krita-sol-gpu` | Former primary branch (GPU engine development until 2026-10-13); retained for reference, no longer updated. See `docs/agent/gpu-engine.md`. |
-| `krita-sol` | Historical pre-GPU development branch; retained for reference. |
-| `krita/6.0` | Historical upstream snapshot; retained for reference, no longer synchronized. |
+| Branch          | Purpose                                                                                                                                                                                               |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main`          | Primary Solstice development and GitHub default branch (user decision, 2026-10-13), including the Vulkan GPU engine. Created from `krita-sol-gpu` at the start of the 0.2.0-beta release preparation. |
+| `krita-sol-gpu` | Former primary branch (GPU engine development until 2026-10-13); retained for reference, no longer updated. See `docs/agent/gpu-engine.md`.                                                           |
+| `krita-sol`     | Historical pre-GPU development branch; retained for reference.                                                                                                                                        |
+| `krita/6.0`     | Historical upstream snapshot; retained for reference, no longer synchronized.                                                                                                                         |
 
 Make custom changes on `main`. Upstream Krita synchronization has
 been discontinued for this repository. Do not restore the `upstream` remote
@@ -99,17 +99,24 @@ adopted, rejected and held upstream commits.
 `docs/agent/todo.md`: task candidates the user has registered but not
 started.
 
+### Plugin integration plan
+
+`docs/agent/plugin-integration-megaplan.md`: approved roadmap for vendored
+third-party plugins, the bundled agent bridge and the Smart Select native
+port into `plugins/visionml`. `docs/agent/plugin-intake.md`: per-plugin
+vendoring ledger (source, pin, patches, re-check cadence).
+
 ### General development guides
 
 Read these before adding or updating any feature:
 
-| Document | Use it for |
-| --- | --- |
-| `docs/agent/codebase-map.md` | Repository layout, library layering, key classes, and deciding which folder a change belongs in |
-| `docs/agent/extension-points.md` | Recipes and required files for dockers, view plugins, tools, filters, file formats, settings, actions, and icons |
-| `docs/agent/coding-rules.md` | Conventions, persistence/compatibility, undo and threading, lifecycle, formatting, and files to leave alone |
-| `docs/agent/development-workflow.md` | Build, test, install, hand-off checklist, and upstream synchronization |
-| `docs/agent/feature-inventory.md` | Every custom touch point in upstream files, undocumented changes, and the new-feature/document template |
+| Document                             | Use it for                                                                                                       |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `docs/agent/codebase-map.md`         | Repository layout, library layering, key classes, and deciding which folder a change belongs in                  |
+| `docs/agent/extension-points.md`     | Recipes and required files for dockers, view plugins, tools, filters, file formats, settings, actions, and icons |
+| `docs/agent/coding-rules.md`         | Conventions, persistence/compatibility, undo and threading, lifecycle, formatting, and files to leave alone      |
+| `docs/agent/development-workflow.md` | Build, test, install, hand-off checklist, and upstream synchronization                                           |
+| `docs/agent/feature-inventory.md`    | Every custom touch point in upstream files, undocumented changes, and the new-feature/document template          |
 
 ### Feature documents
 

@@ -1086,3 +1086,24 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   [qt6-detach-on-iteration](pitfalls/qt6-detach-on-iteration.md).
 - Checked in the dev build: 560 `Node.save()` calls (29 layers, 20 rounds)
   on an F32 document converted on open, 0 failures, no crash.
+
+## 2026-10-14 plan: plugin integration megaplan
+
+- Approved roadmap for shipping a custom Solstice with third-party Krita
+  plugins integrated: `docs/agent/plugin-integration-megaplan.md`, tracked
+  per-plugin in `docs/agent/plugin-intake.md` (new ledger, mirrors
+  `upstream-intake.md`).
+- Verified facts for the plan: `plugins/extensions/pykrita` is intact and
+  bundled plugins register through `install_pykrita_plugin()` in
+  `plugins/python/CMakeLists.txt` (installed to `share/krita/pykrita` with
+  `kritapykrita_<name>.desktop`); bundled Python code must be PyQt6
+  (`plugins/python/scripter/scripter.py` tries PyQt6 first, PyQt5 fallback);
+  `.github/workflows/windows-build.yml` is self-contained
+  `workflow_dispatch` and usable on a fork unchanged.
+- Plugin facts: upstream `krita-ai-diffusion` >= 1.52 is already PyQt6;
+  `EyeOdin/Timer_Watch` (not Grum999) is the real Timer Watch;
+  `tom-jk/krita-quick-export` is Krita 5.3-only (incompatible here);
+  Grum999 plugins live on Codeberg (GitHub mirrors archived).
+- Open check for Phase 1: how bundled pykrita plugin enablement is seeded
+  (default kritarc vs. always-enabled), and whether a shared
+  PyQt5->PyQt6 alias shim in `libkritapykrita/` covers the PyQt5 plugins.
