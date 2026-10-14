@@ -1021,3 +1021,19 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   `development-workflow.md` upstream section marked historical.
 - Validation run 2026-W42 on the DGX share: 70 commits, 32 reviewed in 16
   items; series dry runs and an isolated object directory were needed.
+
+## 2026-10-14 intake: upstream 2026-W42
+
+- Adopted items U-2026W42-01 to 06 (nine upstream commits: thumbnail cache
+  assert, animation curves scrolling, AssistantsToolOptions.ui class name,
+  perspective transform conditions, second-wheel horizontal scrolling, PSD
+  group collapse and layer locks); every other W42 candidate rejected by
+  the user. Ledger in [upstream-intake.md](../upstream-intake.md).
+- Applying from the shallow share mirror: `git fetch` would make this
+  repository shallow, so commits are applied with the share's
+  `scripts/intake.sh` (`git am -3 --keep-non-patch`; plain `git am` drops
+  `[psd]`); recorded in
+  [upstream-selective-intake](decisions/upstream-selective-intake.md).
+- `kis_psd_test` loads the PSD import/export plugins from the install tree:
+  the new round-trip tests failed until `libs/psd` and `plugins/impex/psd`
+  were installed.

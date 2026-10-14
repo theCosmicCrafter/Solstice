@@ -23,8 +23,12 @@ Popup Palette removal, branding), so merges are no longer practical. Upstream
 still fixes crashes and file-format issues that Solstice shares.
 
 **How to apply.**
-- Never add a persistent `upstream` remote; fetch commits from the share
-  mirror into `FETCH_HEAD`.
+- Never add a persistent `upstream` remote. Do not fetch from the share
+  mirror either: it is shallow, and a fetch from a shallow repository makes
+  the receiver shallow. Apply patches with the share's `scripts/intake.sh`
+  (`git am -3 --keep-non-patch` after importing the preimage blobs; plain
+  `git am` drops subject prefixes such as `[psd]`). First used for
+  2026-W42.
 - Dry runs must test a commit both alone and after the earlier candidates of
   its branch: in the first run (2026-W42) ten commits conflicted alone but
   applied cleanly in series.

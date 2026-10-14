@@ -31,8 +31,8 @@ been discontinued for this repository. Do not restore the `upstream` remote
 or resume upstream merges unless the user explicitly requests it. Selective
 intake is allowed: Hermes Agent reviews upstream Krita weekly, and Claude
 cherry-picks only the items the user approved and records every decision in
-the ledger of `docs/agent/upstream-intake.md`. Fetch upstream commits by
-path or URL into `FETCH_HEAD`; do not add a persistent remote. `origin`
+the ledger of `docs/agent/upstream-intake.md`. Apply upstream commits as
+patches following that document; do not add a persistent remote. `origin`
 is `https://github.com/udtren/Solstice.git`. This policy supersedes the older
 branch and synchronization instructions in `docs/agent/development-workflow.md`;
 that document's build, test and installation instructions still apply.
