@@ -147,6 +147,26 @@ update possible.
 - Last re-check: 2026-10-14 — vendored; server connect/generation needs a
   real build + ComfyUI on :8189
 
+### kritamcp
+
+- Source: https://github.com/nanayax3/krita-mcp, local clone at
+  `C:\Users\richk\CascadeProjects\krita-mcp` @ `83fec0e`
+- Pinned: local clone `83fec0e` (41-tool HTTP bridge)
+- Vendored at: plugins/python/kritamcp/
+- License: MIT
+- PyQt6 status: shim-only (`PyQt5` imports covered); import-level
+  verified 2026-10-14
+- Local patches:
+  - bearer-token auth added to the loopback bridge — generated once via
+    `secrets.token_hex(24)`, stored in kritarc group `kritamcp`,
+    constant-time compared; `/health` stays open, `/info` + all POSTs
+    require `Authorization: Bearer`
+  - companion change outside this repo: `krita-mcp/server.py` reads the
+    token from `KRITAMCP_TOKEN` or kritarc and sends the header
+- Default state: enabled
+- Last re-check: 2026-10-14 — vendored; end-to-end MCP round-trip needs a
+  real build + the external server running
+
 ## PyQt5 -> PyQt6 compatibility shim
 
 `plugins/python/PyQt5/` is a shared re-export layer installed to

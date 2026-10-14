@@ -1173,3 +1173,18 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   websockets git submodule was populated and ships as source.
 - Vendored patch: default ComfyUI URL `127.0.0.1:8189` (ComfyUI Desktop).
 - Verified: imports clean under PyQt6 6.11 with the stub harness.
+
+## 2026-10-14 ingest: kritamcp bridge vendored + hardened
+
+- Phase 4 (bridge side): vendored `kritamcp` (nanayax3/krita-mcp local
+  clone `83fec0e`, MIT, 41 tools on loopback :5678) into
+  `plugins/python/kritamcp`, enabled by default.
+- Hardening applied (codex-mcp pattern): lazily generated bearer token in
+  kritarc `[kritamcp] token`, `hmac.compare_digest` check on all endpoints
+  except `/health`; 401 JSON on failure.
+- Companion patch outside the repo: `krita-mcp/server.py` resolves the
+  token from `KRITAMCP_TOKEN` or kritarc (Solstice profile first) and
+  sends `Authorization: Bearer` on POSTs.
+- Note for later phases: upstream pykrita's `builtins.Krita` injection and
+  the `importAvoidWrongPyQtHack` exemption make PyQt5-era bridges work
+  unmodified under Qt6.
