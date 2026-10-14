@@ -166,7 +166,7 @@ export formats write the file directly and are not covered.)
 ## Requirements
 
 - An NVIDIA Blackwell GPU (GeForce RTX 50 series or RTX PRO Blackwell) with a
-  current driver. Other GPUs are not supported.
+  current driver, the only tested GPU. Other GPUs are untested.
 - Windows. The canvas must use desktop OpenGL, not ANGLE/Direct3D;
   otherwise compositing still runs on the GPU, but the canvas display does
   not.

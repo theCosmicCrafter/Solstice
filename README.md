@@ -264,7 +264,7 @@ a packaged release.
 - **Primary tested platform:** Windows 11, 64-bit desktop.
 - **GPU engine target:** NVIDIA Blackwell GPUs (GeForce RTX 50 series and
   RTX PRO Blackwell). Validation and benchmarks use an RTX PRO 6000 Blackwell;
-  other GPU architectures are unsupported by this experimental engine.
+  other GPUs are untested.
 - **Graphics APIs:** Vulkan 1.3 and desktop OpenGL with Vulkan/OpenGL external
   memory and semaphore interoperability for the accelerated canvas path.
   ANGLE/Direct3D does not provide that canvas path.

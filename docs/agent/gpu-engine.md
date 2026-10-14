@@ -185,7 +185,7 @@ details are in the phase records, now in the wiki history pages (see
 | Direction | Move the engine as a whole to the GPU. Upstream sync is given up on this branch. |
 | GPU API | Vulkan. |
 | Working color space | RGBA float only (32-bit, optionally 16-bit storage). Other color models (8/16-bit integer, CMYK, Lab, gray) are converted on import/export, not painted in. |
-| Hardware | NVIDIA Blackwell only (RTX 50 series, RTX PRO Blackwell). Other GPUs are untested and have no compatibility guarantee. |
+| Hardware | NVIDIA Blackwell (RTX 50 series, RTX PRO Blackwell) is the only tested target. Other GPUs are untested and have no compatibility guarantee, but nothing Blackwell-specific is required: device selection accepts any GPU with the Vulkan 1.3 features in "Phase 0 technology decisions", and `isBlackwell()` only logs a warning. Docs say "untested", never that other GPUs fall back to the CPU (user decision, 2026-10-14). |
 | Priorities | All of brush latency, many-layer documents, and filters matter; the phase order below is chosen by dependency, not by priority. |
 | Implementation workflow | Bundle several related implementation tasks and their automated checks into one manual-test handoff, as requested by the user. |
 

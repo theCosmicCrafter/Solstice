@@ -1049,3 +1049,12 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   ([versioning](../versioning.md), "Releasing").
 - `SHA256SUMS.txt` has CRLF line endings: check it with
   `tr -d '\r' < SHA256SUMS.txt | sha256sum -c -`.
+
+## 2026-10-14 docs: other GPUs are untested, not CPU-only
+
+- The README, the GPU engine guide and the website had implied that other
+  GPUs are rejected and Solstice falls back to the CPU. The code only
+  requires Vulkan 1.3 features (`KisGpuContext.cpp`); `isBlackwell()` just
+  logs a warning. The wording is now "the only tested GPU; other GPUs are
+  untested" (user decision; no call for reports). Check the device selection
+  code before describing hardware support.
