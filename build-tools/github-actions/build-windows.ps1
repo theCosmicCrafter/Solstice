@@ -21,6 +21,9 @@ $env:PATH = "$CompilerBin;$Deps/bin;$env:VULKAN_SDK/Bin;$env:PATH"
 $env:PKG_CONFIG_PATH = "$Deps/lib/pkgconfig;$Deps/share/pkgconfig"
 $env:QT_PLUGIN_PATH = "$Deps/plugins"
 $env:PYTHONUTF8 = '1'
+# SIP, PyQt6 and pyqt-builder from the dependency packages (built for the
+# same Python 3.13); without them the Python plugins are silently left out
+$env:PYTHONPATH = "$Deps/lib/site-packages"
 
 # The Solstice version from the top-level CMakeLists.txt (docs/agent/versioning.md)
 function Get-SolsticeVersion {
@@ -57,6 +60,10 @@ if ($Stage -eq 'configure') {
     $Cache = Get-Content -Raw (Join-Path $Build 'CMakeCache.txt')
     if ($Cache -notmatch '(?m)^HAVE_KRITA_GPU_ENGINE:INTERNAL=ON\r?$') {
         throw 'Configuration silently disabled the Vulkan GPU engine'
+    }
+    # pykrita configures its plugin only with Python, SIP and PyQt6 found
+    if (-not (Test-Path (Join-Path $Build 'plugins/extensions/pykrita/plugin'))) {
+        throw 'Configuration left out the Python plugins (SIP or PyQt6 not found)'
     }
     if ($Cache -notmatch '(?m)^KDE_INSTALL_USE_QT_SYS_PATHS:BOOL=ON\r?$') {
         throw 'Qt install paths are required for Windows QML deployment'
