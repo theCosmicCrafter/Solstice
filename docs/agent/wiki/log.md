@@ -1157,3 +1157,19 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   (offscreen). GUI verification still pending a real build.
 - Grum999 plugins ship Qt5-compiled `.rcc` icon packs via pktk UITheme —
   verify rendering; `QResource` format is nominally compatible.
+
+## 2026-10-14 ingest: ai_diffusion rebase + vendor
+
+- Phase 3: the user's enhanced `krita-ai-diffusion` (based on `ef1b04c`,
+  PyQt5-era) was merged onto upstream `main` (PyQt6-native, post-1.53) in
+  `_vendor_src/ai_diffusion_upstream` branch `enhancements` (merge
+  `f628900`). Only 3 real conflicts: `backend/client.py` (kept
+  `Quantization`, re-added the `quantization` field upstream dropped),
+  `backend/comfy_client.py` (kept `parallel` param on
+  `discover_models`), `backend/resources.py` (union of model search-path
+  patterns — upstream's contiguous patterns first, our wildcard variants
+  as fallbacks).
+- Vendored to `plugins/python/ai_diffusion/` without `debugpy`; the
+  websockets git submodule was populated and ships as source.
+- Vendored patch: default ComfyUI URL `127.0.0.1:8189` (ComfyUI Desktop).
+- Verified: imports clean under PyQt6 6.11 with the stub harness.
