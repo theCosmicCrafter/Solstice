@@ -1,6 +1,6 @@
 ---
 type: index
-updated: 2026-10-13
+updated: 2026-10-14
 ---
 
 # Agent wiki
@@ -94,6 +94,10 @@ matches the task.
 - [Python bindings declare their own return types](pitfalls/sip-return-types.md):
   a `.sip` file that says `void` gives Python `None` for a C++ `bool`
   (`Node.save()`); `.sip` edits do not trigger a rebuild.
+- [Iterating a Qt 6 container is a write](pitfalls/qt6-detach-on-iteration.md):
+  a non-const `begin()`/`rbegin()` detaches even a never-allocated list;
+  a GUI-thread loop over `KisImage`'s filter stack lost a worker's filter
+  (crash in `enableDirtyRequests()` during repeated `Node.save()`).
 
 ### Benchmarks
 

@@ -1069,3 +1069,18 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   found no other return-type mismatch. New pitfall
   [sip-return-types](pitfalls/sip-return-types.md): `.sip` edits do not
   trigger regeneration, and kritarunner cannot save files.
+
+## 2026-10-14 fix: crash in enableDirtyRequests during repeated Node.save
+
+- Solstice 0.2.0-beta.3 crashed (access violation reading
+  `FFFFFFFFFFFFFFF0` in `KisImage::removeProjectionUpdatesFilter`, from
+  `UpdateCommand::partB`) during repeated Python `Node.save()` on an RGBA
+  float document. Cause: `KisImage::projectionUpdatesFilters` was
+  unsynchronized, and the GUI thread's non-const iteration in
+  `refreshGraphAsync()` (from `initialRefreshGraph()` right after the
+  asynchronous `cropImage()` in `Node::save()`) detached the never-allocated
+  vector while a stroke worker appended the drop-all filter. Not
+  GPU-specific. The vector is now guarded by a mutex, and readers iterate
+  a snapshot. New test `KisImageProjectionUpdatesFilterTest` (crashed
+  before the fix), new pitfall
+  [qt6-detach-on-iteration](pitfalls/qt6-detach-on-iteration.md).
