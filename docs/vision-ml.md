@@ -26,6 +26,24 @@ ordinary selection. In Tool Options:
 
 The model used is MobileSAM.
 
+## Smart Matting Selection
+
+**Smart Matting Selection** in the toolbox traces a freehand outline around
+an object and then refines it into a soft-edged selection. Draw the lasso
+around the subject — the outline can be rough — and when you release the pen
+the BiRefNet matting model computes the selection inside it. Edges such as
+hair come out feathered instead of hard.
+
+The usual selection modes (replace, add, subtract, intersect, symmetric
+difference) and the grow, feather and anti-alias options apply, like every
+selection tool. The result is clipped to the drawn outline and to the
+pixels that actually exist, so the lasso itself can be sloppy.
+
+In Tool Options, **Backend** and **Model** are shared with the other Vision
+ML tools (see [Models and backend](#models-and-backend)); the tool uses the
+BiRefNet model chosen for background removal. Drop a BiRefNet HR-matting
+GGUF into the `birefnet` models folder for finer edge detail.
+
 ## Smart Fill Tool
 
 **Smart Fill Tool** in the toolbox removes something from a picture and fills
