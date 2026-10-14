@@ -4,6 +4,6 @@ ServiceTypes=Krita/PythonPlugin
 X-KDE-Library=blender_layer
 X-Python-2-Compatible=false
 X-Krita-Manual=Manual.html
-X-Solstice-EnabledByDefault=true
+X-Solstice-EnabledByDefault=false
 Name=Blender Layer
 Comment=Stream a 3d View from Blender directly into Krita
