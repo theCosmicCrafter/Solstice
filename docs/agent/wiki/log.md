@@ -1048,4 +1048,4 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   (user decision): every release is followed by the website update
   ([versioning](../versioning.md), "Releasing").
 - `SHA256SUMS.txt` has CRLF line endings: check it with
-  `tr -d '' < SHA256SUMS.txt | sha256sum -c -`.
+  `tr -d '\r' < SHA256SUMS.txt | sha256sum -c -`.
