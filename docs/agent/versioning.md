@@ -71,6 +71,31 @@ Do not change `KRITA_VERSION_STRING` unless the compatibility consequences
 above are intended. The Windows file version is numeric, so the label only
 appears in the version strings.
 
+## Releasing
+
+1. Bump the version (above), record it under History, commit and push
+   `main`.
+2. Run the "Windows x64 trial build" workflow on `main`
+   (`gh workflow run windows-build.yml --ref main`) and wait for it to
+   succeed (`docs/agent/github-actions.md`).
+3. Create the GitHub Release `v<version>` at the built commit, as a
+   prerelease while the version has a label. Attach the run's application
+   ZIP, `-dbg.zip`, `SHA256SUMS.txt`, `BUILD-INFO.txt` and
+   `windows-dependencies.lock.json`, and follow the previous release's
+   notes (what's new, download, highlights, supported environment, build
+   commit, run and SHA-256).
+4. Update the website the same day (user decision, 2026-10-14), in
+   `https://github.com/udtren/tidalboxstudio-web`:
+   - on `develop`, set `links.release`, `version` and `versionName` in
+     `solstice/src/site.ts` (the only place the version appears);
+   - in `solstice/`, run `npm run check` and `npm run build`, and confirm
+     the new version in `dist/index.html` and `dist/download/index.html`;
+   - commit and push `develop`, then, after the GitHub Release exists,
+     merge `develop` into `main` and push. Cloudflare Workers Builds
+     publishes `main` to `https://solstice.tidalboxstudio.com`; check the
+     live Download page shows the new version and its link opens the
+     release.
+
 ## History
 
 | Version | Date | Reason |

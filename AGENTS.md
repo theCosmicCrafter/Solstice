@@ -43,6 +43,17 @@ The active `Solstice` repository is independent of the Krita fork network;
 its three existing branch histories are preserved. Do not use the archive
 as an upstream synchronization source.
 
+## Releases and the website
+
+Every new GitHub Release of Solstice is followed, the same day, by a website
+update (user decision, 2026-10-14): in
+`https://github.com/udtren/tidalboxstudio-web` (local checkout
+`<projects-root>\tidalboxstudio-web`), update the version and release link
+in `solstice/src/site.ts` on `develop`, check and build the site, and merge
+`develop` into `main` to publish it. Publish the site only after the GitHub
+Release exists, so the site never links to a missing release. The steps are
+in `docs/agent/versioning.md` ("Releasing").
+
 ## Documentation organization
 
 - Keep `README.md` in English as the project overview: identity, the
