@@ -170,6 +170,13 @@ Python's `packaging` and `setuptools`.
 First check: run <https://github.com/udtren/Solstice/actions/runs/38488208727>
 (branch `ci/python-plugins`) configured with the Python plugins.
 
+Release check: the 0.2.0-beta.2 package (run
+<https://github.com/udtren/Solstice/actions/runs/38488980328>, commit
+`9224a5d118`) contains `lib/kritaplugins/kritapykrita.dll`, PyKrita,
+PyQt6 and the bundled plugins in `share/krita/pykrita`, and the user
+confirmed on 2026-10-14 that Configure Solstice shows the Python Plugin
+Manager.
+
 ## First trial run (2026-10-03)
 
 - Commit: `70bf96017d55f9e4c7b24ce3297416a199a2264f`.

@@ -1003,3 +1003,11 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   the application (user request); Solstice's guides cover what it adds.
 - README's Project page links the live website instead of calling it
   planned; AGENTS.md's README rule names the website.
+
+## 2026-10-14 release: 0.2.0-beta.2
+
+- GitHub Release `v0.2.0-beta.2` (prerelease, commit `9224a5d118`) was
+  published; the user confirmed the Python Plugin Manager in its package
+  ([GitHub Actions](../github-actions.md), "Python plugins"). The
+  `v0.2.0-beta` notes now say it is superseded, and the merged
+  `ci/python-plugins` branch was deleted.
