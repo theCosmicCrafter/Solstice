@@ -200,6 +200,8 @@ Read these before adding or updating any feature:
   `docs/agent/welcome-news.md`
 - MCP agent bridge (kritamcp plugin + external server config):
   `docs/agent/mcp-bridge.md`
+- End-to-end tests driving a real solstice.exe via the kritamcp bridge
+  (`tests/e2e/`): `docs/agent/e2e-testing.md`
 - Removal of the right-click Popup Palette and the On-Canvas Brush Editor
   (what was kept and why): `docs/agent/popup-palette-removal.md`
 

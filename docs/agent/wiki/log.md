@@ -1229,3 +1229,24 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   renamed to `*.disabled` in `%APPDATA%\Solstice\resources\pykrita`. The
   user kritamcp was the unhardened upstream; two bridges would also have
   raced for :5678.
+- kritamcp hardening round 2, driven by the new E2E suite (`tests/e2e/`):
+  token sidecar at `%LOCALAPPDATA%\krita\kritamcp.token` (kritarc only
+  syncs on exit; QStandardPaths resolves the `krita` app name, not
+  Solstice); window-readiness gate — commands requeue until the main
+  window is created because addView/createDocument deadlock during
+  construction (`windowIsCreated` is a dead signal — never emitted; the
+  real one is `windowCreated`, and it still didn't arrive in practice so a
+  15s fallback forces readiness); `showView` after `addView` so
+  view-scoped commands hit the new doc; `open_file` is idempotent —
+  re-opening an open path stack-overflows Krita in the import path;
+  `save` uses `saveAs` for `.kra`/`.krz` (exportImage flattens);
+  path-traversal check moved before `abspath` (it was dead code —
+  `..\..\evil.kra` actually escaped to the workspace); PyQt6 fixes:
+  `bytes()` on QByteArray in get_color_at, `flatten()`, `setResolution(int)`.
+- E2E suite: `tests/e2e/` drives a real solstice.exe over the kritamcp
+  bridge — launch/attach modes, `/health` wait, merged stderr capture to
+  `_last_run_stderr.log`, 18 tests covering auth, docs, pixel readback,
+  layers/undo, selections, filters, export bytes, traversal rejection,
+  error paths, a repeated-ops loop and a configurable soak pass. Found
+  and fixed the bugs above. Run: `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python
+  -m pytest tests/e2e -v -p pytest_timeout --timeout 600`.

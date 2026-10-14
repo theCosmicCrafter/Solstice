@@ -24,12 +24,37 @@ SERVER_PORT = 5678
 # ("kritamcp" group). External MCP servers (krita-cli, server.py) must
 # send it as `Authorization: Bearer <token>`. /health stays open so the
 # server can probe liveness before it has the token.
+#
+# kritarc is only flushed when the app saves settings (typically on exit),
+# so a freshly generated token is mirrored to <config>/kritamcp.token
+# immediately — clients can authenticate in the same session it was created.
+def _token_sidecar_path():
+    from PyQt5.QtCore import QStandardPaths
+    cfg = QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)
+    return os.path.join(cfg, "kritamcp.token")
+
+
 def _bridge_token():
     app = Krita.instance()
     token = app.readSetting("kritamcp", "token", "")
     if not token:
+        try:
+            with open(_token_sidecar_path(), "r", encoding="ascii") as f:
+                token = f.read().strip()
+        except OSError:
+            pass
+    if not token:
         token = secrets.token_hex(24)
         app.writeSetting("kritamcp", "token", token)
+    try:
+        with open(_token_sidecar_path(), "w", encoding="ascii") as f:
+            f.write(token)
+        try:
+            os.chmod(_token_sidecar_path(), 0o600)
+        except OSError:
+            pass
+    except OSError:
+        pass
     return token
 
 BRIDGE_TOKEN = None  # resolved lazily on first request (Krita must exist)
@@ -252,6 +277,9 @@ class KritaMCPExtension(Extension):
         self.timer = None
         self.current_brush_size = 20
         self.current_opacity = 1.0
+        # Commands are only executed once the main window is fully created:
+        # window.addView() deadlocks when called during window construction.
+        self._window_ready = False
 
     def setup(self):
         """Called when extension is loaded."""
@@ -274,15 +302,58 @@ class KritaMCPExtension(Extension):
             self.timer.timeout.connect(self.process_commands)
             self.timer.start(50)  # Check every 50ms
 
+        # windowCreated fires when main-window construction completes
+        # (via checkSanity, ~1s after the ctor). windowIsCreated exists in
+        # the API but is never emitted. The Notifier must be activated or
+        # its signals never fire.
+        try:
+            notifier = Krita.instance().notifier()
+            notifier.setActive(True)
+            notifier.windowCreated.connect(self._on_window_ready)
+            print("[KritaMCP] windowCreated signal connected", flush=True)
+        except Exception as e:
+            print(f"[KritaMCP] windowCreated connect failed: {e}", flush=True)
+        # Plugin enabled at runtime with the window already up: ready now.
+        # Checked once, here — during initial construction isVisible() can
+        # read True too early, so it must not be used as a running gate.
+        try:
+            qw = window.qwindow() if window else None
+            vis = qw.isVisible() if qw is not None else None
+            print(f"[KritaMCP] createActions window visible={vis}", flush=True)
+            if vis:
+                self._window_ready = True
+        except Exception as e:
+            print(f"[KritaMCP] visibility probe failed: {e}", flush=True)
+        # Last-resort fallback: if the signal never arrives, force-ready
+        # after a bounded delay rather than starving the bridge forever.
+        QTimer.singleShot(15000, self._force_ready)
+
+    def _on_window_ready(self):
+        self._window_ready = True
+        print("[KritaMCP] window ready — command processing enabled", flush=True)
+
+    def _force_ready(self):
+        if not self._window_ready:
+            print("[KritaMCP] readiness fallback fired (signal missed)", flush=True)
+            self._window_ready = True
+
     def process_commands(self):
         """Process commands from queue in main thread."""
         item = command_queue.pop()
         if item is None:
             return
 
+        if not self._window_ready:
+            # Window still constructing — requeue so the requester waits
+            # inside its command timeout instead of deadlocking in addView.
+            command_queue.push(item[0], item[1])
+            return
+
         command_id, command = item
+        print(f"[KritaMCP] exec #{command_id} {command.get('action')}", flush=True)
         result = self.execute_command(command)
         command_queue.set_result(command_id, result)
+        print(f"[KritaMCP] done #{command_id} {command.get('action')}", flush=True)
 
     def execute_command(self, command):
         """Execute a paint command and return result."""
@@ -413,15 +484,22 @@ class KritaMCPExtension(Extension):
 
         # Create document with background color
         doc = app.createDocument(width, height, name, "RGBA", "U8", "", 120.0)
+        print("[KritaMCP] new_canvas: created", flush=True)
 
         window = app.activeWindow()
         if window:
-            window.addView(doc)
+            view = window.addView(doc)
+            if view:
+                # addView alone doesn't guarantee activation — undo/redo
+                # and other view-scoped commands would hit the wrong doc.
+                window.showView(view)
+        print("[KritaMCP] new_canvas: view added", flush=True)
 
         # Create a paint layer
         root = doc.rootNode()
         layer = doc.createNode("paint", "paintlayer")
         root.addChildNode(layer, None)
+        print("[KritaMCP] new_canvas: layer added", flush=True)
 
         # Fill background using pixel data
         color = QColor(bg_color)
@@ -430,8 +508,10 @@ class KritaMCPExtension(Extension):
         # Create pixel data for entire canvas (BGRA format)
         pixel_data = bytes([b, g, r, 255] * (width * height))
         layer.setPixelData(pixel_data, 0, 0, width, height)
+        print("[KritaMCP] new_canvas: pixels set", flush=True)
 
         doc.refreshProjection()
+        print("[KritaMCP] new_canvas: refreshed", flush=True)
 
         return {"status": "ok", "width": width, "height": height, "name": name}
 
@@ -838,18 +918,22 @@ class KritaMCPExtension(Extension):
         if not filepath:
             return {"error": "No path specified"}
 
-        # Validate path - prevent path traversal
-        filepath = os.path.abspath(filepath)
+        # Validate path - prevent path traversal. Check the raw path:
+        # abspath() resolves ".." away, so checking afterwards is dead code.
         if ".." in filepath:
             return {"error": "Invalid path: path traversal not allowed"}
+        filepath = os.path.abspath(filepath)
 
         doc = self.get_active_document()
         if not doc:
             return {"error": "No active document"}
 
-        # Batch mode suppresses export dialog
         doc.setBatchmode(True)
-        doc.exportImage(filepath, InfoObject())
+        if filepath.lower().endswith((".kra", ".krz")):
+            # Native format: saveAs keeps layers; exportImage would flatten.
+            doc.saveAs(filepath)
+        else:
+            doc.exportImage(filepath, InfoObject())
         doc.setBatchmode(False)
 
         return {"status": "ok", "path": filepath}
@@ -863,9 +947,11 @@ class KritaMCPExtension(Extension):
         if not doc:
             return {"error": "No active document"}
 
-        # Get projection pixel data at point
+        # Get projection pixel data at point.
+        # QByteArray[i] yields bytes in PyQt6 — coerce to bytes() first so
+        # indexing yields ints for the hex format below.
         layer = doc.rootNode()
-        pixel_data = layer.projectionPixelData(x, y, 1, 1)
+        pixel_data = bytes(layer.projectionPixelData(x, y, 1, 1))
 
         if len(pixel_data) >= 4:
             # RGBA
@@ -897,15 +983,35 @@ class KritaMCPExtension(Extension):
         if not filepath:
             return {"error": "No path specified"}
 
-        # Validate path - prevent path traversal
-        filepath = os.path.abspath(filepath)
+        # Validate path - prevent path traversal. Check the raw path:
+        # abspath() resolves ".." away, so checking afterwards is dead code.
         if ".." in filepath:
             return {"error": "Invalid path: path traversal not allowed"}
+        filepath = os.path.abspath(filepath)
 
         if not os.path.exists(filepath):
             return {"error": f"File not found: {filepath}"}
 
         app = Krita.instance()
+
+        # Idempotent: re-opening a file that already has a view crashes
+        # Krita (stack overflow in the import path). Return the open doc.
+        target = os.path.normcase(filepath)
+        for existing in app.documents():
+            try:
+                if existing.fileName() and os.path.normcase(
+                    os.path.abspath(existing.fileName())
+                ) == target:
+                    return {
+                        "status": "ok",
+                        "path": filepath,
+                        "name": existing.name(),
+                        "width": existing.width(),
+                        "height": existing.height(),
+                        "already_open": True,
+                    }
+            except Exception:
+                continue
 
         # Open the document
         doc = app.openDocument(filepath)
@@ -915,7 +1021,9 @@ class KritaMCPExtension(Extension):
         # Add view to active window
         window = app.activeWindow()
         if window:
-            window.addView(doc)
+            view = window.addView(doc)
+            if view:
+                window.showView(view)
 
         return {"status": "ok", "path": filepath, "name": doc.name(), "width": doc.width(), "height": doc.height()}
 
@@ -1226,7 +1334,9 @@ class KritaMCPExtension(Extension):
 
         window = app.activeWindow()
         if window:
-            window.addView(doc)
+            view = window.addView(doc)
+            if view:
+                window.showView(view)
 
         root = doc.rootNode()
 
@@ -1410,7 +1520,7 @@ class KritaMCPExtension(Extension):
         if not doc:
             return {"error": "No active document"}
 
-        doc.setResolution(float(dpi))
+        doc.setResolution(int(dpi))
         return {"status": "ok", "dpi": dpi}
 
     def cmd_flatten_image(self, params):
@@ -1419,7 +1529,7 @@ class KritaMCPExtension(Extension):
         if not doc:
             return {"error": "No active document"}
 
-        doc.flattenImage()
+        doc.flatten()
         doc.refreshProjection()
         return {"status": "ok"}
 

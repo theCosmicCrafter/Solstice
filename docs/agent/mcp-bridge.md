@@ -24,6 +24,11 @@ painting, selections, filters, templates and export. `GET /health` and
 - On first request the bridge lazily generates a 48-hex token via
   `secrets.token_hex(24)` and stores it under `[kritamcp] token` in the
   Solstice kritarc (`%APPDATA%\Solstice\config\kritarc`).
+- kritarc only syncs when settings are saved (typically app exit), so a
+  freshly generated token is also mirrored to a sidecar file immediately:
+  `%LOCALAPPDATA%\krita\kritamcp.token` (QStandardPaths.AppConfigLocation —
+  the Qt app name stays `krita`). Clients should check the sidecar before
+  kritarc so they can authenticate in the same session the token was created.
 - Every non-`/health` request must send `Authorization: Bearer <token>`;
   verification uses `hmac.compare_digest`. Failures get a JSON 401.
 - The token is regenerated only if the setting is removed; no rotation
@@ -33,8 +38,9 @@ painting, selections, filters, templates and export. `GET /health` and
 
 - `KRITA_URL` env var overrides the endpoint (default
   `http://localhost:5678`).
-- Token resolution order: `KRITAMCP_TOKEN` env var → Solstice kritarc
-  `[kritamcp] token` → (legacy) `%APPDATA%\krita\kritarc`.
+- Token resolution order: `KRITAMCP_TOKEN` env var → sidecar file
+  (`%LOCALAPPDATA%\krita\kritamcp.token`, written at generation time) →
+  Solstice kritarc `[kritamcp] token` → (legacy) `%APPDATA%\krita\kritarc`.
 - Depends on `httpx` and `fastmcp`; run with the repo's `venv` or
   `pip install -r requirements.txt`. Default request timeout is 120 s —
   canvas export and save need it; do not lower it below ~30 s.
@@ -44,10 +50,31 @@ painting, selections, filters, templates and export. `GET /health` and
 
 ## Alternatives evaluated
 
-| Option | Shape | Why not the primary |
-| --- | --- | --- |
-| krita-cli (edithatogo/krita-cli) | `uv tool install` CLI + same kritamcp bridge protocol; adds a `krita` command for scripting | Solstice keeps the vendored bridge as the stable contract; krita-cli remains a compatible client for shell use — it sends the same bearer token once configured |
-| krita-codex-mcp (cyyprezz) | Windows-first MCP server + loopback bridge, ~13 tools, UUID layer addressing, bearer auth | Its auth pattern was adopted in the vendored bridge; the full plugin was not vendored because kritamcp's action surface is wider. Optionally installable later as a user plugin — no fork work required |
+| Option                           | Shape                                                                                       | Why not the primary                                                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| krita-cli (edithatogo/krita-cli) | `uv tool install` CLI + same kritamcp bridge protocol; adds a `krita` command for scripting | Solstice keeps the vendored bridge as the stable contract; krita-cli remains a compatible client for shell use — it sends the same bearer token once configured                                         |
+| krita-codex-mcp (cyyprezz)       | Windows-first MCP server + loopback bridge, ~13 tools, UUID layer addressing, bearer auth   | Its auth pattern was adopted in the vendored bridge; the full plugin was not vendored because kritamcp's action surface is wider. Optionally installable later as a user plugin — no fork work required |
+
+## Additional Solstice hardening (found by the E2E suite)
+
+- **Startup gate**: commands are requeued until the main window is fully
+  created. `window.addView()`/`createDocument()` deadlock when invoked
+  during window construction (the QTimer can fire inside a nested
+  `processEvents` loop). Gate: `notifier.windowCreated` plus a 15 s
+  fallback (`windowIsCreated` exists in the API but is never emitted).
+- **`showView` after `addView`**: `new_canvas`/`open_file` now activate
+  the new view explicitly — view-scoped commands (`edit_undo` etc.) would
+  otherwise silently target whichever view was already active.
+- **`open_file` is idempotent**: re-opening a path that already has an
+  open view crashes Krita with a stack overflow in the import path; the
+  bridge returns the existing document's info instead.
+- **`save` uses `saveAs` for `.kra`/`.krz`** (keeps layers); `exportImage`
+  for everything else. Path-traversal validation now checks the raw path —
+  `abspath()` resolves `..` before the old check ran.
+- PyQt6 fixes: `QByteArray`→`bytes()` coercion in `get_color_at`,
+  `flatten()` (not `flattenImage`), `setResolution(int)`.
+- Stderr instrumentation: `[KritaMCP] exec/done #id action` lines make a
+  hung command attributable in `_last_run_stderr.log` captures.
 
 ## Failure modes to keep in mind
 
@@ -58,3 +85,6 @@ painting, selections, filters, templates and export. `GET /health` and
   enough.
 - `POST` bodies are JSON only; a malformed body returns 400, unknown actions
   404, Krita-side exceptions 500 with the message in `error`.
+- Re-opening a file that is already open in a view **crashes Krita**
+  (stack overflow in the import path) — an upstream libkis issue; the
+  bridge guards it, direct Scripter `openDocument` calls do not.

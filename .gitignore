@@ -51,3 +51,4 @@ _packaging
 env
 env_deactivate
 krita-deps-management/
+tests/e2e/_last_run_stderr.log
