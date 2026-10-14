@@ -975,3 +975,16 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   mirror"). Lesson: a mirror repository's own workflow can upload to its
   own releases with the built-in token, so no cross-repository secret is
   needed.
+
+## 2026-10-14 ingest: 0.2.0-beta release, launch, Python plugins, beta.2
+
+- 0.2.0-beta was published as a GitHub prerelease and the website went live
+  at solstice.tidalboxstudio.com (Cloudflare Workers, `develop` merged into
+  `main`). The user then found no Python Plugin Manager: the CI build had
+  always configured without the Python plugins
+  ([GitHub Actions](../github-actions.md), "Python plugins"). 0.2.0-beta.2
+  is the corrected build.
+- Lesson: an optional feature that configure drops silently must be checked
+  in CI like the GPU engine is, or a release can ship without it unnoticed;
+  check what the published package contains against a local build, not only
+  that the build succeeds.

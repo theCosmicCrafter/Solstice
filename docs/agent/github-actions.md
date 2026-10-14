@@ -143,6 +143,33 @@ Refresh procedure: run `refresh-dependency-lock.py`, review the recipe diff
 (as above), commit and push, then run the mirror workflow with that ref at
 once (KDE keeps builds only for a few weeks), then a build on `main`.
 
+## Python plugins (2026-10-14)
+
+The user found no Python Plugin Manager in the 0.2.0-beta ZIP. Every CI build
+until then had configured without Python plugins (pykrita): CMake ran with
+setup-python's interpreter, which has neither the dependency packages' SIP
+and PyQt6 nor the build-only modules SIP imports. Local builds get them from
+`env.bat`'s `PYTHONPATH` (`<install>\lib\site-packages`) and the system
+Python's `packaging` and `setuptools`.
+
+- `build-windows.ps1` sets `PYTHONPATH` to `$Deps/lib/site-packages` (the
+  dependency packages install SIP, PyQt6, pyqt6-sip and pyqt-builder there,
+  built for Python 3.13 like setup-python's).
+- The workflow's "Prepare Python build modules" step installs `packaging`
+  25.0 and `setuptools` 80.9.0 (the local versions; SIP requires setuptools
+  69.5 or newer) from `python-build-requirements.txt`, hash-pinned,
+  wheels only. The KDE packages stopped shipping such build-only modules
+  (upstream moved them to build dependencies). The `run:` line is quoted:
+  `--only-binary :all:` contains `: `, which YAML reads as a mapping.
+- Configure fails when `plugins/extensions/pykrita/plugin` is not in the
+  build tree (pykrita adds `sip`, `plugin` and `kritarunner` only with
+  Python, SIP and PyQt found), so the plugins cannot be lost silently again.
+- The packager already copies the dependencies' `lib\site-packages` and
+  Krita's `lib\krita-python-libs`.
+
+First check: run <https://github.com/udtren/Solstice/actions/runs/38488208727>
+(branch `ci/python-plugins`) configured with the Python plugins.
+
 ## First trial run (2026-10-03)
 
 - Commit: `70bf96017d55f9e4c7b24ce3297416a199a2264f`.
@@ -156,7 +183,7 @@ once (KDE keeps builds only for a few weeks), then a build on `main`.
   validate the cache value before starting the long compilation step.
 - No application ZIP was produced by this run; subsequent runs below verified
   the corrected configuration and packaging.
-- SIP/PyQt6 were not found with setup-python's interpreter, so Python plugin
+- (Fixed 2026-10-14, see "Python plugins" below.) SIP/PyQt6 were not found with setup-python's interpreter, so Python plugin
   support is disabled. Resolve the dependency package's Python module layout
   and interpreter compatibility before claiming parity with local builds.
   Eigen3 and xsimd were found through their supported-version fallbacks; the
