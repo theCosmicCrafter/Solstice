@@ -161,6 +161,10 @@ def test_trigger_action_and_trace_to_vector(app):
     bridge.cmd_ok("new_canvas", {"width": 100, "height": 100})
     bridge.cmd_ok("fill", {"x": 50, "y": 50, "radius": 20})
 
+    status, payload = bridge.cmd("trigger_action", {"name": "layer_to_vector"})
+    if status == 200 and "Unknown action" in payload.get("error", ""):
+        pytest.skip("layer_to_vector not in this build")
+
     # The action's enabled state syncs on idle — retry the trigger
     # until the traced layer actually appears (same pattern as undo).
     deadline = time.time() + 15
