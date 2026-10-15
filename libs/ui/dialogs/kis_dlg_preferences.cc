@@ -513,7 +513,7 @@ GeneralTab::GeneralTab(QWidget *_parent, const char *_name)
     txtBackupFileSuffix->setValidator(validator);
     intNumBackupFiles->setValue(cfg.readEntry<int>("numberofbackupfiles", 1));
 
-    cmbDefaultExportFileType->clear(); 
+    cmbDefaultExportFileType->clear();
     QStringList mimeFilter = KisImportExportManager::supportedMimeTypes(KisImportExportManager::Export);
 
         QMap<QString, QString> mimeTypeMap;
@@ -601,7 +601,7 @@ GeneralTab::GeneralTab(QWidget *_parent, const char *_name)
 
     if (!qEnvironmentVariable("APPIMAGE").isEmpty()) {
         // AppImages don't have access to platform plugins. BUG: 447805
-        // Setting the checkbox to false is 
+        // Setting the checkbox to false is
         m_chkNativeFileDialog->setChecked(false);
         m_chkNativeFileDialog->setEnabled(false);
     }
@@ -765,7 +765,6 @@ void GeneralTab::setDefault()
     cmbCustomFont->setCurrentFont(qApp->font());
     intFontSize->setValue(qApp->font().pointSize());
 
-        
     m_cmbMDIType->setCurrentIndex((int)QMdiArea::TabbedView);
     m_chkRubberBand->setChecked(cfg.useOpenGL(true));
     KoColor mdiColor;
@@ -1558,9 +1557,9 @@ void TabletSettingsTab::setDefault()
     m_page->chkUseRightMiddleClickWorkaround->setChecked(
         KisConfig(true).useRightMiddleTabletButtonWorkaround(true));
 
-#if defined Q_OS_WIN && (defined QT5_HAS_WINTAB_SWITCH || QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)) 
-        m_page->radioWintab->setChecked(!cfg.useWin8PointerInput(true));
-        m_page->radioWin8PointerInput->setChecked(cfg.useWin8PointerInput(true));
+#if defined Q_OS_WIN && (defined QT5_HAS_WINTAB_SWITCH || QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    m_page->radioWintab->setChecked(!cfg.useWin8PointerInput(true));
+    m_page->radioWin8PointerInput->setChecked(cfg.useWin8PointerInput(true));
 #else
         m_page->grpTabletApi->setVisible(false);
 #endif
@@ -2248,6 +2247,7 @@ DisplaySettingsTab::DisplaySettingsTab(QWidget *parent, const char *name)
     chkSelectionOutlineAntialiasing->setChecked(cfg.antialiasSelectionOutline());
     chkChannelsAsColor->setChecked(cfg.showSingleChannelAsColor());
     chkHidePopups->setChecked(cfg.hidePopups());
+    chkSmoothHighZoom->setChecked(cfg.smoothHighZoom());
 
     connect(grpOpenGL, SIGNAL(toggled(bool)), SLOT(slotUseOpenGLToggled(bool)));
 
@@ -2308,6 +2308,7 @@ void DisplaySettingsTab::setDefault()
     chkSelectionOutlineAntialiasing->setChecked(cfg.antialiasSelectionOutline(true));
     chkChannelsAsColor->setChecked(cfg.showSingleChannelAsColor(true));
     chkHidePopups->setChecked(cfg.hidePopups(true));
+    chkSmoothHighZoom->setChecked(cfg.smoothHighZoom(true));
 
     KoColor gridColor(KoColorSpaceRegistry::instance()->rgb8());
     gridColor.fromQColor(cfg.getPixelGridColor(true));
@@ -2901,9 +2902,9 @@ bool KisDlgPreferences::editPreferences(std::optional<PageDesc>page)
         cfg.setUseRightMiddleTabletButtonWorkaround(
             m_tabletSettings->m_page->chkUseRightMiddleClickWorkaround->isChecked());
 
-#if defined Q_OS_WIN && (defined QT5_HAS_WINTAB_SWITCH || QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)) 
+#if defined Q_OS_WIN && (defined QT5_HAS_WINTAB_SWITCH || QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
         cfg.setUseWin8PointerInput(m_tabletSettings->m_page->radioWin8PointerInput->isChecked());
-        
+
 #  if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
         // Qt6 supports switching the tablet API on the fly
         using QWindowsApplication = QNativeInterface::Private::QWindowsApplication;
@@ -2958,6 +2959,7 @@ bool KisDlgPreferences::editPreferences(std::optional<PageDesc>page)
         cfg.setAntialiasSelectionOutline(m_displaySettings->chkSelectionOutlineAntialiasing->isChecked());
         cfg.setShowSingleChannelAsColor(m_displaySettings->chkChannelsAsColor->isChecked());
         cfg.setHidePopups(m_displaySettings->chkHidePopups->isChecked());
+        cfg.setSmoothHighZoom(m_displaySettings->chkSmoothHighZoom->isChecked());
 
         cfg.setHideDockersFullscreen(m_fullscreenSettings->chkDockers->checkState());
         cfg.setHideMenuFullscreen(m_fullscreenSettings->chkMenu->checkState());

@@ -128,6 +128,7 @@ xsi:schemaLocation="http://www.kde.org/standards/kxmlgui/1.0  http://www.kde.org
       <Separator/>
       <Action name="view_grid"/>
       <Action name="view_pixel_grid"/>
+      <Action name="view_smooth_high_zoom"/>
 
 
       <Separator/>

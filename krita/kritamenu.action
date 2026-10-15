@@ -171,7 +171,7 @@
       <shortcut></shortcut>
       <isCheckable>false</isCheckable>
       <statusTip></statusTip>
-    </Action>    
+    </Action>
     <Action name="save_incremental_version">
       <icon></icon>
       <text>Save Incremental &amp;Version</text>
@@ -984,6 +984,18 @@
       <shortcut></shortcut>
       <isCheckable>true</isCheckable>
       <statusTip></statusTip>
+    </Action>
+    <Action name="view_smooth_high_zoom">
+      <icon></icon>
+      <text>Smooth Rendering at High Zoom</text>
+      <whatsThis></whatsThis>
+      <toolTip>Smoothly filter the canvas when zoomed in beyond 200%</toolTip>
+      <iconText>Smooth Rendering at High Zoom</iconText>
+      <activationFlags>1000</activationFlags>
+      <activationConditions>1000</activationConditions>
+      <shortcut></shortcut>
+      <isCheckable>true</isCheckable>
+      <statusTip>Filter the canvas smoothly at high zoom instead of showing raw pixels</statusTip>
     </Action>
     <Action name="view_grid">
       <icon>view-grid</icon>

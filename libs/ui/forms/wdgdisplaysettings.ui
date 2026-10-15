@@ -524,7 +524,7 @@
        <string>Miscellaneous</string>
       </attribute>
       <layout class="QFormLayout" name="formLayout_5">
-       <item row="6" column="0" colspan="2">
+       <item row="7" column="0" colspan="2">
         <spacer name="verticalSpacer_5">
          <property name="orientation">
           <enum>Qt::Orientation::Vertical</enum>
@@ -588,6 +588,19 @@
          </property>
          <property name="text">
           <string>&amp;Move checkers when scrolling</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QCheckBox" name="chkSmoothHighZoom">
+         <property name="toolTip">
+          <string>Smoothly filters the canvas image when zoomed in beyond 200%. Disable to inspect raw pixels.</string>
+         </property>
+         <property name="text">
+          <string>Smooth rendering at high zoom</string>
          </property>
          <property name="checked">
           <bool>true</bool>

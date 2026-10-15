@@ -86,6 +86,7 @@ public:
 
     QSharedPointer<KisDisplayFilter> displayFilter;
     KisOpenGL::FilterMode filterMode;
+    bool smoothHighZoom{false};
     bool proofingConfigIsUpdated=false;
 
     bool wrapAroundMode{false};
@@ -968,8 +969,13 @@ void KisOpenGLCanvasRenderer::drawImageTiles(int firstCol, int lastCol, int firs
             if (currentLodPlane > 0) {
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
             } else if (SCALE_MORE_OR_EQUAL_TO(scaleX, scaleY, 2.0)) {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                if (d->smoothHighZoom) {
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                } else {
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                }
             } else {
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -1011,6 +1017,7 @@ void KisOpenGLCanvasRenderer::updateConfig()
     d->openGLImageTextures->generateCheckerTexture(KisCanvasWidgetBase::createCheckersImage(cfg.checkSize()));
     d->openGLImageTextures->updateConfig(cfg.useOpenGLTextureBuffer(), cfg.numMipmapLevels());
     d->filterMode = (KisOpenGL::FilterMode) cfg.openGLFilteringMode();
+    d->smoothHighZoom = cfg.smoothHighZoom();
 
     updateCursorColor();
 }

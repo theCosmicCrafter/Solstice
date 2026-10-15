@@ -1210,6 +1210,17 @@ void KisConfig::enablePixelGrid(bool v) const
     m_cfg.writeEntry("pixelGridEnabled", v);
 }
 
+bool KisConfig::smoothHighZoom(bool defaultValue) const
+{
+    bool enabled = true;
+    return (defaultValue ? enabled : m_cfg.readEntry("smoothHighZoom", enabled));
+}
+
+void KisConfig::setSmoothHighZoom(bool v) const
+{
+    m_cfg.writeEntry("smoothHighZoom", v);
+}
+
 quint32 KisConfig::guidesLineStyle(bool defaultValue) const
 {
     int v = m_cfg.readEntry("guidesLineStyle", 0);
@@ -2490,7 +2501,7 @@ QString KisConfig::ffmpegLocation(bool defaultValue) const {
 
 void KisConfig::setFFMpegLocation(const QString& value) {
     m_cfg.writeEntry("ffmpegLocation", value);
-}   
+}
 
 qreal KisConfig::timelineZoom(bool defaultValue) const
 {
@@ -2952,4 +2963,3 @@ QDebug operator<<(QDebug debug, const KisConfig::CanvasSurfaceBitDepthMode &mode
 
     return debug.space();
 }
-

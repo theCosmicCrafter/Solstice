@@ -241,6 +241,7 @@ public:
     KisSignalAutoConnectionsStore viewConnections;
     KSelectAction *actionAuthor {nullptr}; // Select action for author profile.
     KisAction *showPixelGrid {nullptr};
+    KisAction *smoothHighZoom{nullptr};
 
     QDeadlineTimer zoomRotationMessageTimer;
     QString zoomMessage;
@@ -340,6 +341,7 @@ KisViewManager::KisViewManager(QWidget *parent, KisKActionCollection *_actionCol
 
     connect(KisConfigNotifier::instance(), SIGNAL(configChanged()), SLOT(slotUpdateAuthorProfileActions()));
     connect(KisConfigNotifier::instance(), SIGNAL(pixelGridModeChanged()), SLOT(slotUpdatePixelGridAction()));
+    connect(KisConfigNotifier::instance(), SIGNAL(configChanged()), SLOT(slotUpdateSmoothHighZoomAction()));
 
     connect(KoToolManager::instance(), SIGNAL(createOpacityResource(bool, KoToolBase*)), SLOT(slotCreateOpacityResource(bool, KoToolBase*)));
 
@@ -546,6 +548,10 @@ void KisViewManager::setCurrentView(KisView *view)
         d->viewConnections.addUniqueConnection(&d->statusBar, SIGNAL(sigCancellationRequested()), doc->image(), SLOT(requestStrokeCancellation()));
 
         d->viewConnections.addUniqueConnection(d->showPixelGrid, SIGNAL(toggled(bool)), canvasController, SLOT(slotTogglePixelGrid(bool)));
+        d->viewConnections.addUniqueConnection(d->smoothHighZoom,
+                                               SIGNAL(toggled(bool)),
+                                               canvasController,
+                                               SLOT(slotToggleSmoothHighZoom(bool)));
 
         imageView->zoomManager()->setShowRulers(d->showRulersAction->isChecked());
         imageView->zoomManager()->setRulersTrackMouse(d->rulersTrackMouseAction->isChecked());
@@ -820,6 +826,9 @@ void KisViewManager::createActions()
 
     d->showPixelGrid = actionManager()->createAction("view_pixel_grid");
     slotUpdatePixelGridAction();
+
+    d->smoothHighZoom = actionManager()->createAction("view_smooth_high_zoom");
+    slotUpdateSmoothHighZoomAction();
 
     d->toggleFgBg = actionManager()->createAction("toggle_fg_bg");
     connect(d->toggleFgBg, SIGNAL(triggered(bool)), this, SLOT(slotToggleFgBg()));
@@ -1395,7 +1404,7 @@ void KisViewManager::switchCanvasOnly(bool toggled)
 
     if (useCanvasOffsetCompensation && toggled) {
         const KoZoomMode::Mode mode = d->currentImageView->canvasController()->zoomState().mode;
-        
+
         const bool allowedZoomMode =
             (mode == KoZoomMode::ZOOM_CONSTANT) ||
             (mode == KoZoomMode::ZOOM_HEIGHT);
@@ -1674,6 +1683,16 @@ void KisViewManager::slotUpdatePixelGridAction()
 
     KisConfig cfg(true);
     d->showPixelGrid->setChecked(cfg.pixelGridEnabled() && cfg.useOpenGL());
+}
+
+void KisViewManager::slotUpdateSmoothHighZoomAction()
+{
+    KIS_SAFE_ASSERT_RECOVER_RETURN(d->smoothHighZoom);
+
+    KisSignalsBlocker b(d->smoothHighZoom);
+
+    KisConfig cfg(true);
+    d->smoothHighZoom->setChecked(cfg.smoothHighZoom());
 }
 
 void KisViewManager::slotActivateTransformTool()

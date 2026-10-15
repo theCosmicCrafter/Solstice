@@ -318,6 +318,9 @@ public:
     bool pixelGridEnabled(bool defaultValue = false) const;
     void enablePixelGrid(bool v) const;
 
+    bool smoothHighZoom(bool defaultValue = false) const;
+    void setSmoothHighZoom(bool v) const;
+
     quint32 guidesLineStyle(bool defaultValue = false) const;
     void setGuidesLineStyle(quint32 v) const;
     QColor guidesColor(bool defaultValue = false) const;
@@ -700,7 +703,7 @@ public:
 
     bool autoZoomTimelineToPlaybackRange(bool defaultValue = false) const;
     void setAutoZoomTimelineToPlaybackRange(bool value);
-    
+
     QString ffmpegLocation(bool defaultValue = false) const;
     void setFFMpegLocation(const QString& value);
 
@@ -728,9 +731,6 @@ public:
     bool stabilizerDelayedPaint(bool defaultValue = false) const;
     void setStabilizerDelayedPaint(bool value);
 
-    
-
-
     bool calculateAnimationCacheInBackground(bool defaultValue = false) const;
     void setCalculateAnimationCacheInBackground(bool value);
 
@@ -739,10 +739,10 @@ public:
 
     bool autoSmoothBezierCurves(bool defaultValue = false) const;
     void setAutoSmoothBezierCurves(bool value);
-    
+
     bool activateTransformToolAfterPaste(bool defaultValue = false) const;
     void setActivateTransformToolAfterPaste(bool value);
-    
+
     bool zoomHorizontal(bool defaultValue = false) const;
     void setZoomHorizontal(bool value);
 

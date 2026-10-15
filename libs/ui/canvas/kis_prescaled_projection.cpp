@@ -393,8 +393,9 @@ void KisPrescaledProjection::fillInUpdateInformation(const QRect &viewportRect,
 
     info->borderWidth = 0;
     if (SCALE_MORE_OR_EQUAL_TO(info->scaleX, info->scaleY, 1.0)) {
-        if (SCALE_LESS_THAN(info->scaleX, info->scaleY, 2.0)) {
-            dbgRender << "smoothBetween100And200Percent" << Qt::endl;
+        KisConfig cfg(true);
+        if (SCALE_LESS_THAN(info->scaleX, info->scaleY, 2.0) || cfg.smoothHighZoom()) {
+            dbgRender << "smoothHighZoom" << Qt::endl;
             info->renderHints = QPainter::SmoothPixmapTransform;
             info->borderWidth = borderSize;
         }
@@ -437,4 +438,3 @@ void KisPrescaledProjection::drawUsingBackend(QPainter &gc, KisPPUpdateInfoSP in
         patch.drawMe(gc, info->viewportRect, info->renderHints);
     }
 }
-

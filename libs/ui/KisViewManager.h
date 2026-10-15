@@ -218,7 +218,7 @@ public Q_SLOTS:
 
     void slotViewAdded(KisView *view);
     void slotViewRemoved(KisView *view);
-    
+
     void slotActivateTransformTool();
 
     // Change and update author
@@ -254,6 +254,7 @@ private Q_SLOTS:
     void openResourcesDirectory();
     void guiUpdateTimeout();
     void slotUpdatePixelGridAction();
+    void slotUpdateSmoothHighZoomAction();
     void slotSaveShowRulersState(bool value);
     void slotSaveRulersTrackMouseState(bool value);
     void slotResetRotation();

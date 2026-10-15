@@ -393,6 +393,14 @@ void KisCanvasController::slotTogglePixelGrid(bool value)
     KisConfigNotifier::instance()->notifyPixelGridModeChanged();
 }
 
+void KisCanvasController::slotToggleSmoothHighZoom(bool value)
+{
+    KisConfig cfg(false);
+    cfg.setSmoothHighZoom(value);
+
+    KisConfigNotifier::instance()->notifyConfigChanged();
+}
+
 void KisCanvasController::slotToggleLevelOfDetailMode(bool value)
 {
     KisCanvas2 *kritaCanvas = dynamic_cast<KisCanvas2*>(canvas());

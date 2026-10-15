@@ -91,6 +91,7 @@ public Q_SLOTS:
     void slotSetWrapAroundModeAxisH();
     void slotSetWrapAroundModeAxisV();
     void slotTogglePixelGrid(bool value);
+    void slotToggleSmoothHighZoom(bool value);
     void slotToggleLevelOfDetailMode(bool value);
 
 protected:
