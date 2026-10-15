@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urlparse
 from krita import *
 from PyQt5.QtCore import QPointF, QRectF, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
 # Configuration - customize these as needed
 SERVER_PORT = 5678
@@ -381,6 +381,8 @@ class KritaMCPExtension(Extension):
                 return self.cmd_redo(params)
             elif action == "trigger_action":
                 return self.cmd_trigger_action(params)
+            elif action == "screenshot":
+                return self.cmd_screenshot(params)
             elif action == "clear":
                 return self.cmd_clear(params)
             elif action == "save":
@@ -888,6 +890,38 @@ class KritaMCPExtension(Extension):
             action.trigger()
             return {"status": "ok"}
         return {"error": "Could not trigger redo"}
+
+    def cmd_screenshot(self, params):
+        """Grab the main window to a PNG under CANVAS_OUTPUT_DIR.
+
+        Optional 'zoom' sets the canvas zoom level first (4.0 = 400%)
+        so tests can verify actual display filtering, not just the
+        document projection.
+        """
+        filename = params.get("filename", "screenshot.png")
+        app = Krita.instance()
+        window = app.activeWindow()
+        if not window:
+            return {"error": "No window"}
+
+        zoom = params.get("zoom")
+        if zoom is not None:
+            view = self.get_active_view()
+            if not view:
+                return {"error": "No active view"}
+            view.canvas().setZoomLevel(float(zoom))
+            QApplication.processEvents()
+
+        qwin = window.qwindow()
+        if not qwin:
+            return {"error": "No qwindow"}
+        image = qwin.grabWindow().toImage()
+
+        if not filename.endswith('.png'):
+            filename += '.png'
+        filepath = os.path.join(CANVAS_OUTPUT_DIR, filename)
+        image.save(filepath)
+        return {"status": "ok", "path": filepath}
 
     def cmd_trigger_action(self, params):
         """Trigger an application action by name (e.g. layer_to_vector).

@@ -13,12 +13,112 @@ unknown-action handling, and a soak pass that watches process health.
 import struct
 import sys
 import time
+import zlib
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
 from solstice_bridge import resolve_token  # noqa: E402
+
+
+def _png_pixels(path):
+    """Minimal stdlib PNG decoder (8-bit gray/RGB/RGBA, non-interlaced)
+    returning (w, h, bpp, raw bytes). The suite stays dependency-free."""
+    data = Path(path).read_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n", "not a PNG"
+    pos = 8
+    w = h = bitdepth = colortype = None
+    idat = bytearray()
+    while pos < len(data):
+        length, ctype = struct.unpack(">I4s", data[pos:pos + 8])
+        chunk = data[pos + 8:pos + 8 + length]
+        if ctype == b"IHDR":
+            w, h, bitdepth, colortype = struct.unpack(">IIBB", chunk[:10])
+        elif ctype == b"IDAT":
+            idat += chunk
+        elif ctype == b"IEND":
+            break
+        pos += 12 + length
+    assert bitdepth == 8 and colortype in (0, 2, 6), f"unsupported PNG (depth {bitdepth}, type {colortype})"
+    bpp = {0: 1, 2: 3, 6: 4}[colortype]
+    raw = zlib.decompress(bytes(idat))
+    stride = w * bpp
+    out = bytearray(h * stride)
+    prev = bytearray(stride)
+    rp = 0
+    for row in range(h):
+        f = raw[rp]
+        rp += 1
+        line = bytearray(raw[rp:rp + stride])
+        rp += stride
+        if f == 1:  # Sub
+            for i in range(bpp, stride):
+                line[i] = (line[i] + line[i - bpp]) & 255
+        elif f == 2:  # Up
+            for i in range(stride):
+                line[i] = (line[i] + prev[i]) & 255
+        elif f == 3:  # Average
+            for i in range(stride):
+                a = line[i - bpp] if i >= bpp else 0
+                line[i] = (line[i] + ((a + prev[i]) >> 1)) & 255
+        elif f == 4:  # Paeth
+            for i in range(stride):
+                a = line[i - bpp] if i >= bpp else 0
+                b = prev[i]
+                c = prev[i - bpp] if i >= bpp else 0
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                pr = a if pa <= pb and pa <= pc else (b if pb <= pc else c)
+                line[i] = (line[i] + pr) & 255
+        out[row * stride:(row + 1) * stride] = line
+        prev = line
+    return w, h, bpp, bytes(out)
+
+
+def _edge_intermediates(path):
+    """Fraction of 'intermediate' (blended) pixels around the largest
+    solid bright blob in a screenshot. Locates the painted disc via the
+    row with the longest consecutive bright run, so sparse UI chrome
+    (icons, text) can't pollute the measurement. Nearest-neighbor
+    scaling shows ~0 blended edge pixels; linear/smooth shows real ones."""
+    w, h, bpp, pix = _png_pixels(path)
+
+    def bright(x, y):
+        o = (y * w + x) * bpp
+        return pix[o] > 200 and (bpp == 1 or pix[o + 1] > 200)
+
+    # row with the longest consecutive bright run = disc center
+    best_row, best_x0, best_x1, best_len = -1, 0, 0, 0
+    for y in range(0, h, 2):
+        run_start = None
+        for x in range(w):
+            if bright(x, y):
+                if run_start is None:
+                    run_start = x
+            elif run_start is not None:
+                if x - run_start > best_len:
+                    best_len, best_row, best_x0, best_x1 = x - run_start, y, run_start, x
+                run_start = None
+        if run_start is not None and w - run_start > best_len:
+            best_len, best_row, best_x0, best_x1 = w - run_start, y, run_start, w
+    if best_len < 40:
+        return None  # no canvas content found (e.g. grab came back black)
+
+    # edge ramp width: intermediate-valued pixels in the narrow strips
+    # flanking the bright run. Hard (nearest) edge: ~0; smooth: several.
+    total = mid = 0
+    for dy in (-2, -1, 0, 1, 2):
+        y = best_row + dy
+        if y < 0 or y >= h:
+            continue
+        for x in list(range(max(best_x0 - 8, 0), min(best_x0 + 4, w))) + \
+                 list(range(max(best_x1 - 4, 0), min(best_x1 + 8, w))):
+            v = pix[(y * w + x) * bpp]
+            total += 1
+            if 40 < v < 215:
+                mid += 1
+    return mid / total if total else None
 
 
 def _png_dims(path):
@@ -182,6 +282,49 @@ def test_trigger_action_and_trace_to_vector(app):
 
     status, payload = bridge.cmd("trigger_action", {"name": "no_such_action_xyz"})
     assert status == 200 and "error" in payload
+
+
+def test_smooth_high_zoom_display(app):
+    """View > Smooth high zoom changes actual canvas rendering above
+    200%: a hard-edged disc at 400% shows blended edge pixels with the
+    setting on and hard blocks with it off. Verified in real window
+    screenshot pixels — the document projection can't see display
+    filtering."""
+    bridge, _ = app
+    status, payload = bridge.cmd("screenshot", {"filename": "probe"})
+    if status != 200 or "error" in payload:
+        pytest.skip("screenshot command not in this build")
+    status, payload = bridge.cmd("trigger_action", {"name": "view_smooth_high_zoom"})
+    if "error" in payload:
+        pytest.skip("view_smooth_high_zoom not in this build")
+
+    bridge.cmd_ok("new_canvas", {"width": 64, "height": 64, "background": "#000000"})
+    bridge.cmd_ok("set_color", {"color": "#ffffff"})
+    bridge.cmd_ok("fill", {"x": 32, "y": 32, "radius": 16})
+
+    # Toggle state is unknown going in — measure, flip, measure again;
+    # the states must produce visibly different edge blending.
+    status, payload = bridge.cmd("screenshot", {"filename": "zoom_a", "zoom": 4.0})
+    if status != 200 or "error" in payload:
+        pytest.skip(f"screenshot failed: {payload}")
+    inter_a = _edge_intermediates(payload["path"])
+
+    bridge.cmd_ok("trigger_action", {"name": "view_smooth_high_zoom"})
+    time.sleep(1.0)
+
+    status, payload = bridge.cmd("screenshot", {"filename": "zoom_b", "zoom": 4.0})
+    if status != 200 or "error" in payload:
+        pytest.skip(f"screenshot failed: {payload}")
+    inter_b = _edge_intermediates(payload["path"])
+
+    if inter_a is None or inter_b is None:
+        pytest.skip("canvas content not captured (grabWindow gave no image)")
+
+    blended, hard = max(inter_a, inter_b), min(inter_a, inter_b)
+    assert blended > 0.01, f"no blended edge pixels in either state ({inter_a}, {inter_b})"
+    assert blended > hard + 0.005, (
+        f"toggling view_smooth_high_zoom did not change rendering "
+        f"({inter_a} vs {inter_b})")
 
 
 def test_undo_redo_layer_ops(app):
