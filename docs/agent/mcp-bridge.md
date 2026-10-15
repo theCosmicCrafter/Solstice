@@ -15,11 +15,13 @@
 
 The bridge is a `QThread`-hosted `http.server.HTTPServer` on `127.0.0.1:5678`.
 All Krita API calls are marshalled onto the GUI thread; requests are
-`POST /` JSON `{action, params}` — 42 actions covering documents, layers,
+`POST /` JSON `{action, params}` — 43 actions covering documents, layers,
 painting, selections, filters, templates and export, plus
 `trigger_action` (`params.name`) which triggers any application action by
 id — the escape hatch for features with no dedicated command (e.g.
-`layer_to_vector`). `GET /health` and `GET /info` are the only
+`layer_to_vector`) — and `screenshot` (`params.filename`, optional
+`params.zoom`) which grabs the main window to PNG for display-level
+verification. `GET /health` and `GET /info` are the only
 unauthenticated endpoints.
 
 ### Auth (Solstice hardening)
