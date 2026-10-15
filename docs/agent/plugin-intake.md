@@ -106,9 +106,11 @@ update possible.
   catch-all shim module); import-level verified 2026-10-14. Ships
   Qt5-compiled `.rcc` icon resources loaded through pktk's UITheme —
   Qt6 `QResource` reads them; verify icon rendering on a real build.
-- Local patches: none
+- Local patches: `pktk/widgets/wseparator.py` — `VLine|Sunken` split into
+  `setFrameShape` + `setFrameShadow` (PyQt6 rejects the int produced by
+  OR-ing two enums)
 - Default state: enabled
-- Last re-check: 2026-10-14 — vendored; upstream is archived, treat as
+- Last re-check: 2026-10-15 — vendored; upstream is archived, treat as
   effectively self-maintained
 
 ### bulibrushswitch
@@ -118,10 +120,14 @@ update possible.
 - Vendored at: plugins/python/bulibrushswitch/
 - License: GPL-3.0
 - PyQt6 status: shim-only; import-level verified 2026-10-14. Same pktk
-  `.rcc` caveat as bulinotes.
-- Local patches: none
+  `.rcc` caveat as bulinotes. `QSignalMapper.mapped[str]` bridged in the
+  shim (`ekrita_tools` tool-change tracking).
+- Local patches: `pktk/widgets/wseparator.py` — `VLine|Sunken` split into
+  `setFrameShape` + `setFrameShadow` (PyQt6 rejects the int produced by
+  OR-ing two enums)
 - Default state: enabled
-- Last re-check: 2026-10-14 — vendored
+- Last re-check: 2026-10-15 — loads clean on a real build (windowCreated
+  path exercised, no tracebacks)
 
 ### ai_diffusion
 
@@ -193,13 +199,14 @@ crash). `PyQt` (unversioned) is not affected by the guard.
 Current coverage:
 
 | Qt5 surface                                                                                                  | Shim behaviour                                                                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `from PyQt5 import QtX` submodules                                                                           | Re-export the PyQt6 modules (`QtCore`, `QtGui`, `QtWidgets`, `QtMultimedia`, `QtNetwork`, `QtPrintSupport`, `QtSql`, `QtSvg`, `QtSvgWidgets`, `QtXml`, `uic`, `sip`) |
 | `from PyQt import QtX`, `from PyQt5.Qt import *`                                                             | `PyQt` unversioned alias package + `Qt` catch-all module combining QtCore/QtGui/QtWidgets/QtSvg/QtPrintSupport                                                       |
 | Unscoped enums (`Qt.AlignLeft`, `Qt.NoModifier`, `QEvent.MouseButtonPress`, `QMessageBox.Ok`, ...)           | Every enum member hoisted onto its class (`_expose_enum_members`); uses `__members__` so zero-valued flags (`NoModifier`) and aliases survive                        |
 | `exec_()`                                                                                                    | Alias to `exec()` on every PyQt6 class that has `exec`                                                                                                               |
 | `QAction`/`QFileSystemModel`/`QShortcut`/`QUndo*`/`QStandardItem*` in QtWidgets                              | Re-exported from PyQt6.QtGui                                                                                                                                         |
 | `QRegExp`                                                                                                    | Subclass wrapper over `QRegularExpression` (`exactMatch`, `indexIn`, `cap`, case sensitivity)                                                                        |
+| `QSignalMapper.mapped[str                                                                                    | int                                                                                                                                                                  | QObject]` | Property returning a subscriptable proxy over Qt6's `mappedString`/`mappedInt`/`mappedObject` (the Qt5 `QWidget` overload has no Qt6 equivalent) |
 | `QRegExpValidator`                                                                                           | Alias to `QRegularExpressionValidator`                                                                                                                               |
 | `QMediaPlayer.setMedia`/`setVolume`/`media`, `QMediaContent`                                                 | Wrapper classes; volume bridged through an owned `QAudioOutput`, `setMedia` maps to `setSource`                                                                      |
 | `QDesktopWidget` / `QApplication.desktop()`                                                                  | Minimal QWidget stand-in backed by `QGuiApplication` screens (`screenGeometry`, `availableGeometry`, `screenCount`)                                                  |
