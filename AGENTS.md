@@ -106,6 +106,13 @@ third-party plugins, the bundled agent bridge and the Smart Select native
 port into `plugins/visionml`. `docs/agent/plugin-intake.md`: per-plugin
 vendoring ledger (source, pin, patches, re-check cadence).
 
+### Vector-quality plan
+
+`docs/agent/vector-quality-megaplan.md`: approved roadmap for
+vector-grade sharpness — configurable smooth high-zoom display,
+true-vector workflow hardening (incl. Trace-to-Vector), productizing the
+brush-stroke layer, quality defaults/export, and AI/ML output quality.
+
 ### General development guides
 
 Read these before adding or updating any feature:

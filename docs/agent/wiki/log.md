@@ -1250,3 +1250,18 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   error paths, a repeated-ops loop and a configurable soak pass. Found
   and fixed the bugs above. Run: `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python
   -m pytest tests/e2e -v -p pytest_timeout --timeout 600`.
+---
+## 2026-10-18 — vector-quality megaplan
+
+- `docs/agent/vector-quality-megaplan.md` approved and written: six
+  phases (V1 smooth-zoom display, V2 vector hardening + Trace-to-Vector,
+  V3 brush-stroke-layer productization, V4 defaults/export, V5 AI/ML
+  output, V6 validation). User decisions: full scope, high-zoom
+  smoothing configurable (default ON), AI output quality included.
+- Diagnosis verified in source: >200 % zoom unfiltered by design in
+  `kis_prescaled_projection.cpp` (~L395-405); GL canvas (default, mode
+  3 = mipmaps+shader) vs QPainter fallback selected via
+  `KisCanvas2::createCanvas`; `KisShapeLayer` paints through canvas
+  projection so vector layers should already be zoom-crisp;
+  `KisBrushStrokeLayer` re-render engine + 19 tests already exist;
+  Lanczos3/Bicubic already registered.
