@@ -852,7 +852,6 @@ void KisLayerManager::traceLayerToVector()
     addLayerCommon(node, layer, true, &applicator);
 
     applicator.applyCommand(m_view->canvasBase()->shapeController()->addShapeDirect(shape, layer.data()),
-                            KisStrokeJobData::SEQUENTIAL,
                             KisStrokeJobData::BARRIER);
 
     applicator.end();
