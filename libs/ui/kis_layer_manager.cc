@@ -807,6 +807,11 @@ void KisLayerManager::traceLayerToVector()
         }
     }
 
+    // rawData() writes do not invalidate the outline cache; a fresh
+    // pixel selection reports a valid (empty) cache — invalidate it so
+    // the job below actually computes the outline
+    selection->pixelSelection()->invalidateOutlineCache();
+
     // outline the selection into a document-space path
     if (!selection->outlineCacheValid()) {
         image->addSpontaneousJob(new KisUpdateOutlineJob(selection, false, Qt::transparent));
