@@ -73,6 +73,28 @@ for _cls_name in dir():
 
 del _cls_name, _cls
 
+# Qt6 removed QSignalMapper.mapped[...] in favour of typed signals
+# (mappedInt, mappedString, mappedObject); the QWidget overload has no
+# Qt6 equivalent. Restore the subscriptable Qt5 surface.
+
+
+class _SignalMapperMappedProxy:
+    def __init__(self, mapper):
+        self._mapper = mapper
+
+    def __getitem__(self, key):
+        if key is int:
+            return self._mapper.mappedInt
+        if key is str:
+            return self._mapper.mappedString
+        if key is _QtCoreMod.QObject:
+            return self._mapper.mappedObject
+        raise KeyError(key)
+
+
+if "mapped" not in dir(_QtCoreMod.QSignalMapper):
+    _QtCoreMod.QSignalMapper.mapped = property(_SignalMapperMappedProxy)
+
 try:
     from PyQt6.QtCore import QRegularExpression
 

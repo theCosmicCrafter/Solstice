@@ -262,7 +262,7 @@ def test_trigger_action_and_trace_to_vector(app):
     bridge.cmd_ok("fill", {"x": 50, "y": 50, "radius": 20})
 
     status, payload = bridge.cmd("trigger_action", {"name": "layer_to_vector"})
-    if status == 200 and "Unknown action" in payload.get("error", ""):
+    if "Unknown action" in payload.get("error", ""):
         pytest.skip("layer_to_vector not in this build")
 
     # The action's enabled state syncs on idle — retry the trigger
@@ -295,7 +295,7 @@ def test_smooth_high_zoom_display(app):
     if status != 200 or "error" in payload:
         pytest.skip("screenshot command not in this build")
     status, payload = bridge.cmd("trigger_action", {"name": "view_smooth_high_zoom"})
-    if "error" in payload:
+    if "Unknown action" in payload.get("error", ""):
         pytest.skip("view_smooth_high_zoom not in this build")
 
     bridge.cmd_ok("new_canvas", {"width": 64, "height": 64, "background": "#000000"})
@@ -304,7 +304,7 @@ def test_smooth_high_zoom_display(app):
 
     # Toggle state is unknown going in — measure, flip, measure again;
     # the states must produce visibly different edge blending.
-    status, payload = bridge.cmd("screenshot", {"filename": "zoom_a", "zoom": 4.0})
+    status, payload = bridge.cmd("screenshot", {"filename": "zoom_a", "zoom": 4.0, "scope": "canvas"})
     if status != 200 or "error" in payload:
         pytest.skip(f"screenshot failed: {payload}")
     inter_a = _edge_intermediates(payload["path"])
@@ -312,13 +312,13 @@ def test_smooth_high_zoom_display(app):
     bridge.cmd_ok("trigger_action", {"name": "view_smooth_high_zoom"})
     time.sleep(1.0)
 
-    status, payload = bridge.cmd("screenshot", {"filename": "zoom_b", "zoom": 4.0})
+    status, payload = bridge.cmd("screenshot", {"filename": "zoom_b", "zoom": 4.0, "scope": "canvas"})
     if status != 200 or "error" in payload:
         pytest.skip(f"screenshot failed: {payload}")
     inter_b = _edge_intermediates(payload["path"])
 
     if inter_a is None or inter_b is None:
-        pytest.skip("canvas content not captured (grabWindow gave no image)")
+        pytest.skip("canvas content not captured (grab gave no image)")
 
     blended, hard = max(inter_a, inter_b), min(inter_a, inter_b)
     assert blended > 0.01, f"no blended edge pixels in either state ({inter_a}, {inter_b})"

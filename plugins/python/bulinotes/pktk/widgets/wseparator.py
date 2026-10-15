@@ -33,7 +33,8 @@ class WVLine(QFrame):
 
     def __init__(self, parent=None):
         super(WVLine, self).__init__(parent)
-        self.setFrameShape(self.VLine | self.Sunken)
+        self.setFrameShape(self.VLine)
+        self.setFrameShadow(self.Sunken)
 
 
 class WHLine(QFrame):
@@ -41,4 +42,5 @@ class WHLine(QFrame):
 
     def __init__(self, parent=None):
         super(WHLine, self).__init__(parent)
-        self.setFrameShape(self.HLine | self.Sunken)
+        self.setFrameShape(self.HLine)
+        self.setFrameShadow(self.Sunken)

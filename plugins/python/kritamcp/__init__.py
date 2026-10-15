@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urlparse
 from krita import *
 from PyQt5.QtCore import QPointF, QRectF, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMessageBox, QWidget
 
 # Configuration - customize these as needed
 SERVER_PORT = 5678
@@ -915,7 +915,24 @@ class KritaMCPExtension(Extension):
         qwin = window.qwindow()
         if not qwin:
             return {"error": "No qwindow"}
-        image = qwin.grabWindow().toImage()
+
+        if params.get("scope") == "canvas":
+            # Grab only the canvas widget so window chrome can't pollute
+            # pixel analysis. The canvas widget is a C++ class not
+            # exported to SIP (KisQPainterCanvas or KisOpenGLCanvas2),
+            # so find it via metaObject().className().
+            canvas_widget = next(
+                (w for w in qwin.findChildren(QWidget)
+                 if w.metaObject().className()
+                 in ("KisQPainterCanvas", "KisOpenGLCanvas2")),
+                None)
+            if canvas_widget is None:
+                return {"error": "Canvas widget not found"}
+            image = canvas_widget.grab().toImage()
+        elif hasattr(qwin, "grab"):
+            image = qwin.grab().toImage()
+        else:
+            image = qwin.grabWindow().toImage()
 
         if not filename.endswith('.png'):
             filename += '.png'
