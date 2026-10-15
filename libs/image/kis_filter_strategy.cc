@@ -263,7 +263,7 @@ KisFilterStrategy *KisFilterStrategyRegistry::autoFilterStrategy(QSize originalS
     if (xScaleFactor > 1.f || yScaleFactor > 1.f) { // Enlargement.
         return KisFilterStrategyRegistry::instance()->value("Bicubic");
     } else if (xScaleFactor < 1.f || yScaleFactor < 1.f) { // Reduction.
-        return KisFilterStrategyRegistry::instance()->value("Bicubic");
+        return KisFilterStrategyRegistry::instance()->value("Lanczos3");
     }
 
     return KisFilterStrategyRegistry::instance()->value("NearestNeighbor");

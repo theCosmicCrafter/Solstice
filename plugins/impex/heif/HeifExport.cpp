@@ -174,7 +174,7 @@ KisImportExportErrorCode HeifExport::convert(KisDocument *document, QIODevice *i
 
     ConversionPolicy conversionPolicy = ConversionPolicy::KeepTheSame;
     bool convertToRec2020 = false;
-    
+
     if (cs->hasHighDynamicRange() && cs->colorModelId() != GrayAColorModelID) {
         QString conversionOption =
             (configuration->getString("floatingPointConversionOption",
@@ -540,7 +540,7 @@ void KisWdgOptionsHeif::setConfiguration(const KisPropertiesConfigurationSP cfg)
     cmbChroma->setItemData(1, i18nc("@tooltip", "The brightness of the image will be at full resolution, while the colorfulness will be halved horizontally."), Qt::ToolTipRole);
     cmbChroma->setItemData(2, i18nc("@tooltip", "Both brightness and colorfulness of the image will be at full resolution."), Qt::ToolTipRole);
     chkLossless->setChecked(cfg->getBool("lossless", true));
-    sliderQuality->setValue(qreal(cfg->getInt("quality", 50)));
+    sliderQuality->setValue(qreal(cfg->getInt("quality", 90)));
     cmbChroma->setCurrentIndex(chromaOptions.indexOf(cfg->getString("chroma", "444")));
     m_hasAlpha = cfg->getBool(KisImportExportFilter::ImageContainsTransparencyTag, false);
 
@@ -549,7 +549,7 @@ void KisWdgOptionsHeif::setConfiguration(const KisPropertiesConfigurationSP cfg)
 
     // Rav1e doesn't support monochrome. To get around this, people may need to convert to sRGB first.
     chkMonochromesRGB->setVisible(cfg->getString(KisImportExportFilter::ColorModelIDTag) == "GRAYA");
-    
+
     conversionSettings->setVisible(cfg->getBool(KisImportExportFilter::HDRTag, false));
 
     QStringList conversionOptionsList = { i18nc("Color space name", "Rec 2100 PQ"), i18nc("Color space name", "Rec 2100 HLG")};
@@ -558,19 +558,19 @@ void KisWdgOptionsHeif::setConfiguration(const KisPropertiesConfigurationSP cfg)
                               i18nc("@tooltip", "The image will be converted to Rec 2020 linear first, and then encoded with a Hybrid Log Gamma curve."
                                " Recommended for HDR images where the display may not understand HDR.")};
     QStringList conversionOptionName = {"Rec2100PQ", "Rec2100HLG"};
-    
+
     if (cfg->getString(KisImportExportFilter::ColorModelIDTag) == "RGBA") {
         if (cicpPrimaries != PRIMARIES_UNSPECIFIED) {
             conversionOptionsList << i18nc("Color space option plus transfer function name", "Keep colorants, encode PQ");
             toolTipList << i18nc("@tooltip", "The image will be linearized first, and then encoded with a perceptual quantizer curve"
                                             " (also known as the SMPTE 2048 curve). Recommended for images where the absolute brightness is important.");
             conversionOptionName << "ApplyPQ";
-            
+
             conversionOptionsList << i18nc("Color space option plus transfer function name", "Keep colorants, encode HLG");
             toolTipList << i18nc("@tooltip", "The image will be linearized first, and then encoded with a Hybrid Log Gamma curve."
                                             " Recommended for images intended for screens which cannot understand PQ");
             conversionOptionName << "ApplyHLG";
-            
+
             conversionOptionsList << i18nc("Color space option plus transfer function name", "Keep colorants, encode SMPTE ST 428");
             toolTipList << i18nc("@tooltip",
                                  "The image will be linearized first, and then encoded with SMPTE ST 428."

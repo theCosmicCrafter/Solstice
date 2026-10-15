@@ -122,19 +122,26 @@ sets no `SmoothPixmapTransform` hint; the GL canvas's
 Most of this already exists; the work is verify + productize + one new
 feature.
 
-1. **Vector-layer crispness verification.** Create a vector layer, draw
-   shapes/text, zoom through {25…800 %}; confirm re-rasterization at
-   canvas resolution. Add regression coverage; fix only if doc-res
-   rasterization is found.
-2. **Discoverability.** Layer-type badge/icon in the Layers docker so
-   paint / vector / stroke layers are visually distinct at a glance;
-   ensure "New Vector Layer" is one click away.
+1. ~~**Vector-layer crispness verification.**~~ Confirmed by inspection
+   (2026-10-18): `KisShapeLayerCanvas::repaint()`
+   (`libs/ui/flake/kis_shape_layer_canvas.cpp:403+`) paints shapes with
+   a `documentToView()` transform into view-resolution patches — vector
+   layers re-rasterize at canvas resolution and stay sharp at any zoom.
+   Remaining: GUI confirmation + regression coverage.
+2. **Discoverability.** `add_new_shape_layer` already sits in the layer
+   docker's new-layer menu (`LayerBox.cpp:661`). Remaining: verify
+   type-badge visibility on nodes (GUI pass); consider surfacing stroke
+   layers equally.
 3. **Vector tool QA pass.** Exercise `defaulttool` shape editing,
    `svgtexttool`, `karbonplugins` path tools on this fork — no known
    regressions, but unverified since the Solstice divergence.
 4. **SVG/PDF round-trip audit.** `plugins/impex/{svg,pdf}`: vector
-   layers must export as real vectors, not flattened raster. Document
-   the exact round-trip fidelity (gradients, text, masks).
+   layers must export as real vectors, not flattened raster. Done
+   (audit): SVG _import_ asks for a resolution
+   (`plugins/impex/svg/kis_svg_import.cc:50`) — default PPI raised
+   100 → 300 (`preferredVectorImportResolution`); PDF import already
+   defaults to 300 dpi (`pdfimportwidgetbase.ui`). Export fidelity
+   still needs the GUI pass.
 5. **New feature — Trace to Vector.** Raster/alpha → `KoPathShape`(s)
    on a new vector layer (potrace-style outline tracing). Initial
    scope: monochrome/alpha line art — potrace-class tracing is
@@ -175,31 +182,37 @@ The engine is built and tested; the work is productizing it.
 
 ## Phase V4 — Quality defaults & output pipeline
 
-1. **New-document defaults audit.** `wdgnewimage` + templates: DPI
-   default, size presets, bit depth. Proposal: keep 8-bit default
-   (memory), ensure print-oriented presets default to 300 DPI;
-   document "draw at 2–4x final size" guidance.
-2. **Scale Image default filter.** Registry default is Bicubic
-   (`kis_filter_strategy.cc:264`); evaluate Lanczos3 as the downscale
-   default — test, then decide. Record the decision here.
-3. **Transform tool default filter.** Audit `KisTransformWorker`'s
-   default filter strategy; align with V4.2.
-4. **Export quality.** Audit PNG/JXL/HEIF quality defaults in
-   `plugins/impex/`; evaluate a **supersampled export** option (render
-   at 2x, Lanczos downscale) — cheap, large visible gain on textured
-   or noisy art.
+1. ~~**New-document defaults audit.**~~ Done: new docs default to
+   2480×3508 @ 300 ppi (A4 print) and **RGBA 32-bit float**
+   (`colorDepthDef=F32` embedded in kritarc defaults; `defImageResolution`
+   = 300). Print presets ship 300/600 ppi. No changes needed.
+2. ~~**Scale Image default filter.**~~ Done: `autoFilterStrategy()`
+   (`libs/image/kis_filter_strategy.cc:251`) picks NearestNeighbor for
+   ≤256 px sources (pixel-art guard), Bicubic for enlargement, and now
+   **Lanczos3 for reduction** (sharper downscales, less aliasing).
+   The dialog defaults to Auto, so this is the effective default.
+3. ~~**Transform tool default filter.**~~ Audited: defaults to Bicubic
+   (`kis_tool_transform_config_widget.cpp:100`). Kept — transforms mix
+   up/downscale and interactive preview; Lanczos ringing is worse there.
+4. **Export quality.** Partially done: JXL already defaults to
+   lossless (effort 7); PNG is lossless. **WebP default quality raised
+   75 → 90, HEIF 50 → 90.** Supersampled export (render 2x + Lanczos
+   downscale) remains an open stretch item — needs an export-dialog
+   option touching shared impex code.
 5. **Color path.** Proofing + display color conversion already exist;
    documentation only.
 
 ## Phase V5 — AI/ML output quality
 
-1. **AI Diffusion.** Audit vendored generation/upscale resolution
-   defaults; document a hires-fix/upscale workflow through the existing
-   ComfyUI wiring (127.0.0.1:8189); ensure output lands at print-viable
-   resolution.
-2. **Smart Matting.** Evaluate making the HR-matting variant the
-   default model (the model selector shipped in `8cdeebdc`); audit
-   default feather/refine values for clean mask edges.
+1. **AI Diffusion.** Audited: `StyleSettings.preferred_resolution` = 0
+   (auto — resolved per checkpoint, correct). Upscale quality is
+   ComfyUI-workflow dependent; remaining work is documenting a
+   hires-fix/upscale recipe through the existing 127.0.0.1:8189 wiring.
+2. **Smart Matting.** Audited: default is BiRefNet-dynamic-F16 with
+   lite fallback (`VisionML.cpp:157-160`); HR-matting variant selectable
+   via the tool-options model selector (`8cdeebdc`). Kept dynamic as
+   default (quality/speed balance); document HR for maximum edge
+   detail. Remaining: default feather/refine audit (GUI pass).
 3. **Stretch / research only:** native VisionML upscale pass (a
    Real-ESRGAN-class model through `plugins/visionml` infra). Listed
    for evaluation, not committed scope.

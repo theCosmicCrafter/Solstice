@@ -72,7 +72,7 @@ void KisWdgOptionsWebP::setConfiguration(const KisPropertiesConfigurationSP cfg)
 
     preset->setCurrentIndex(cfg->getInt("preset", 0));
     lossless->setChecked(cfg->getBool("lossless", true));
-    quality->setValue(cfg->getDouble("quality", 75.0));
+    quality->setValue(cfg->getDouble("quality", 90.0));
     KisSpinBoxI18nHelper::setText(quality, i18nc("{n} is the number value, % is the percent sign", "{n}%"));
     tradeoff->setValue(cfg->getInt("method", 4));
     dithering->setChecked(cfg->getBool("dithering", true));

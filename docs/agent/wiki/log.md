@@ -1280,3 +1280,17 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   box filter + `Qt::SmoothTransformation` prescale — acceptable, no fix.
 - New user doc `docs/canvas-display.md` covers backends, zoom behavior,
   the toggle, and max-quality tips.
+
+## 2026-10-18 — vector-quality audits (V2/V4/V5) + quality defaults
+
+- V2.1 confirmed by inspection: `KisShapeLayerCanvas::repaint()` paints
+  shapes via `documentToView()` into view-resolution patches — vector
+  layers already stay crisp at any zoom.
+- V4 done: Scale Image "Auto" filter now uses Lanczos3 for reductions
+  (was Bicubic); `autoFilterStrategy()` still NearestNeighbor under
+  256 px and Bicubic for enlargement. Vector import default PPI
+  100 → 300 (`preferredVectorImportResolution`); WebP default quality
+  75 → 90, HEIF 50 → 90. New-doc defaults already 300 ppi + RGBA32F.
+- V5 audited: AI Diffusion preferred_resolution=0 auto-resolves per
+  checkpoint (fine); Smart Matting defaults to BiRefNet-dynamic, HR
+  selectable in tool options.

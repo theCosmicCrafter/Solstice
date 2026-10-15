@@ -292,7 +292,7 @@ void KisConfig::defImageResolution(qreal res) const
 
 int KisConfig::preferredVectorImportResolutionPPI(bool defaultValue) const
 {
-    return defaultValue ? 100.0 : m_cfg.readEntry("preferredVectorImportResolution", 100.0);
+    return defaultValue ? 300.0 : m_cfg.readEntry("preferredVectorImportResolution", 300.0);
 }
 
 void KisConfig::setPreferredVectorImportResolutionPPI(int value) const
