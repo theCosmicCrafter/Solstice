@@ -128,10 +128,13 @@ feature.
    a `documentToView()` transform into view-resolution patches — vector
    layers re-rasterize at canvas resolution and stay sharp at any zoom.
    Remaining: GUI confirmation + regression coverage.
-2. **Discoverability.** `add_new_shape_layer` already sits in the layer
-   docker's new-layer menu (`LayerBox.cpp:661`). Remaining: verify
-   type-badge visibility on nodes (GUI pass); consider surfacing stroke
-   layers equally.
+2. ~~**Discoverability.**~~ Mostly done (audit 2026-10-18):
+   `add_new_shape_layer` sits in the layer docker's new-layer menu
+   (`LayerBox.cpp:661`), and node-type badges already exist —
+   `KisShapeLayer::icon()` renders `vectorLayer` in the thumbnail
+   corner, `KisBrushStrokeLayer::icon()` renders `krita_tool_freehand`
+   (or `warning` when the record no longer matches the pixels).
+   Remaining: GUI confirmation the badges read clearly at docker size.
 3. **Vector tool QA pass.** Exercise `defaulttool` shape editing,
    `svgtexttool`, `karbonplugins` path tools on this fork — no known
    regressions, but unverified since the Solstice divergence.
@@ -164,7 +167,8 @@ The engine is built and tested; the work is productizing it.
    (pixel+recorded mix handled; mass edits fall back to pixel scaling
    with the "drawn again, except about N%" notice).
 2. **Productize.**
-   - Layers docker badge/icon for stroke layers.
+   - ~~Layers docker badge/icon for stroke layers~~ — exists via
+     `KisBrushStrokeLayer::icon()` (audit 2026-10-18).
    - **Resolution-independent export:** on Scale Image / export at a
      different resolution, stroke layers re-render at the target
      resolution instead of pixel-scaling — the mechanism already exists
