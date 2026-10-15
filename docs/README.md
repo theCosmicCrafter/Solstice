@@ -47,6 +47,8 @@ Technical notes for developers are in [`agent`](agent/).
 - [Docker locks](docker-locks.md): locking the size of docked dockers.
 - [Overview live update](overview-live-update.md): the Overview follows the
   canvas while you paint.
+- [Canvas display](canvas-display.md): canvas backends, zoom filtering and
+  the Smooth Rendering at High Zoom option.
 - [Solstice interface](ui-modernization.md): fonts, theme and widget style.
 - [Visual branding](visual-branding.md): the application and document
   icons.

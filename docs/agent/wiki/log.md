@@ -1265,3 +1265,18 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   projection so vector layers should already be zoom-crisp;
   `KisBrushStrokeLayer` re-render engine + 19 tests already exist;
   Lanczos3/Bicubic already registered.
+
+## 2026-10-18 — smooth high-zoom option (V1)
+
+- Phase V1 of the vector-quality megaplan implemented (`f2e920ad`):
+  new `smoothHighZoom` kritarc key (default ON). QPainter canvas now
+  applies `SmoothPixmapTransform` above 200 % when enabled; the GL
+  canvas's `SCALE >= 2.0` tile-draw branch uses GL_LINEAR instead of
+  GL_NEAREST. UI: checkable `view_smooth_high_zoom` action (View menu)
+  + `chkSmoothHighZoom` in Display settings (Miscellaneous tab).
+  Propagates via `KisConfigNotifier::configChanged` — no canvas rebuild
+  needed (`resetCanvas` `needReset` only checks backend + filter mode).
+- Under-100 % zoom audit: pyramid `downsamplePixels()` is a proper 2×2
+  box filter + `Qt::SmoothTransformation` prescale — acceptable, no fix.
+- New user doc `docs/canvas-display.md` covers backends, zoom behavior,
+  the toggle, and max-quality tips.

@@ -57,52 +57,65 @@ imagery produced below print resolution.
 
 ## What already exists to build on
 
-| Capability | Location | State |
-| --- | --- | --- |
-| GL canvas w/ HQ filter modes | `libs/ui/opengl/` | Present, default mode 3 |
-| Vector (shape) layers | `libs/ui/flake/kis_shape_layer.cc` | Present — verify crispness |
-| Vector tools | `plugins/tools/{defaulttool,karbonplugins,svgtexttool,tool_polyline,tool_polygon}` | Present — QA needed |
-| Stroke-recorded layers | `libs/ui/KisBrushStrokeLayer.*` | Implemented + tested (stages through 2c + transform/move) |
-| SVG / PDF impex | `plugins/impex/{svg,pdf}` | Present — audit round-trip |
-| Bicubic / Lanczos3 | `libs/image/kis_filter_strategy.cc` | Present — audit defaults |
-| Vulkan compute engine | `libs/gpu/` | Brush/paint compositing only (not display) |
-| AI output | `plugins/python/ai_diffusion/`, `plugins/visionml/` | Vendored + native — audit res/edge defaults |
+| Capability                   | Location                                                                           | State                                                     |
+| ---------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| GL canvas w/ HQ filter modes | `libs/ui/opengl/`                                                                  | Present, default mode 3                                   |
+| Vector (shape) layers        | `libs/ui/flake/kis_shape_layer.cc`                                                 | Present — verify crispness                                |
+| Vector tools                 | `plugins/tools/{defaulttool,karbonplugins,svgtexttool,tool_polyline,tool_polygon}` | Present — QA needed                                       |
+| Stroke-recorded layers       | `libs/ui/KisBrushStrokeLayer.*`                                                    | Implemented + tested (stages through 2c + transform/move) |
+| SVG / PDF impex              | `plugins/impex/{svg,pdf}`                                                          | Present — audit round-trip                                |
+| Bicubic / Lanczos3           | `libs/image/kis_filter_strategy.cc`                                                | Present — audit defaults                                  |
+| Vulkan compute engine        | `libs/gpu/`                                                                        | Brush/paint compositing only (not display)                |
+| AI output                    | `plugins/python/ai_diffusion/`, `plugins/visionml/`                                | Vendored + native — audit res/edge defaults               |
 
 ## Phase V1 — Display quality: "smooth zoom" everywhere
 
-Smallest phase, highest perceived impact. The >200 % hard-pixel cutoff
-is the literal complaint.
+Status: implemented (2026-10-18, `f2e920ad`; pending CI artifact +
+GUI check).
 
-1. **Canvas audit on target hardware.** Confirm which canvas is active
-   (KisUsageLogger already logs `Use OpenGL: ...`); document the
-   QPainter-fallback conditions in user docs so support can tell the two
-   apart.
-2. **New option: smooth rendering at high zoom** (default ON; user
-   decision — configurable, not forced).
-   - `KisConfig::smoothHighZoom()` / `setSmoothHighZoom()` in
-     `libs/ui/kis_config.{h,cc}`, persisted in kritarc.
-   - `libs/ui/canvas/kis_prescaled_projection.cpp`: extend the
-     `SCALE_MORE_OR_EQUAL_TO(scale,1)` branch so `SmoothPixmapTransform`
-     also applies above 200 % when enabled (today only the 100–200 %
-     sub-branch gets it).
-   - `libs/ui/opengl/kis_opengl_canvas2.cpp` +
-     `KisOpenGLCanvasRenderer.cpp`: audit the magnification sampler;
-     switch to LINEAR magnification under the toggle. Shader-level
-     change — verify on real GPU *and* the QPainter fallback.
-   - UI surface: checkbox on the Display settings page
-     (`libs/ui/dialogs/kis_dlg_preferences.cc`, near
-     `grpOpenGL`/`cmbFilterMode` ~L2087) **and** a View-menu toggle so
-     painters can flip it mid-session without opening Preferences.
-   - Naming: surface it as "Smooth rendering at high zoom" — be honest
-     in docs that it filters the display; it does not add detail.
-3. **Below-100 % quality audit.** Check `kis_image_pyramid.cpp`
-   filtering (box-filter mip levels). If grain is visible at 25–75 %
-   zoom, add a deferred "HQ settle" pass that re-scales the visible
-   region with a better kernel after zoom stops (debounced; interactive
-   speed first, quality second).
-4. **Banding/"grain" from 8-bit.** Document that QPainter canvas is
-   8-bit while the GL canvas supports 10-bit + dither. Optional stretch:
-   ordered-dither toggle on the QPainter path.
+Smallest phase, highest perceived impact. The >200 % hard-pixel cutoff
+is the literal complaint — **both** canvas backends hard-code
+nearest-neighbor magnification past 200 % (the QPainter path simply
+sets no `SmoothPixmapTransform` hint; the GL canvas's
+`SCALE_MORE_OR_EQUAL_TO(scaleX, scaleY, 2.0)` branch in
+`KisOpenGLCanvasRenderer.cpp` forces `GL_NEAREST`).
+
+1. ~~**Canvas audit on target hardware.**~~ Done: GL canvas is default
+   when probing passes (`useOpenGL` → `kritadisplayrc`
+   `OpenGLRenderer`, default `"auto"`); QPainter is the fallback.
+   `Use OpenGL:` is in the startup sysinfo log. Documented in
+   `docs/canvas-display.md`.
+2. ~~**New option: smooth rendering at high zoom**~~ (default ON; user
+   decision — configurable, not forced). Implemented:
+   - `KisConfig::smoothHighZoom()` / `setSmoothHighZoom()` —
+     `libs/ui/kis_config.{h,cc}`, kritarc key `smoothHighZoom`.
+   - `libs/ui/canvas/kis_prescaled_projection.cpp`
+     `fillInUpdateInformation()`: `SmoothPixmapTransform` now applies
+     above 200 % when enabled.
+   - `libs/ui/opengl/KisOpenGLCanvasRenderer.cpp`: `d->smoothHighZoom`
+     read in `updateConfig()`; the ≥200 % draw branch uses `GL_LINEAR`
+     instead of `GL_NEAREST` when enabled.
+   - UI surface: **View → Smooth Rendering at High Zoom** checkable
+     action (`view_smooth_high_zoom` in `kritamenu.action` +
+     `krita5.xmlgui`), wired via `KisViewManager` +
+     `KisCanvasController::slotToggleSmoothHighZoom`; Display settings
+     checkbox `chkSmoothHighZoom` in `wdgdisplaysettings.ui`
+     (Miscellaneous tab — applies to both backends) + load/save/default
+     in `kis_dlg_preferences.cc`. Propagation:
+     `KisConfigNotifier::configChanged` → `KisCanvas2::slotConfigChanged`
+     (no canvas rebuild — `needReset` doesn't include this flag) +
+     canvas-widget `slotConfigChanged` → `renderer->updateConfig()` +
+     repaint.
+3. ~~**Below-100 % quality audit.**~~ Done: `kis_image_pyramid.cpp`
+   `downsamplePixels()` is a proper 2×2 box filter (area averaging —
+   correct, better than bilinear at large downscales) building mip
+   planes; `KisImagePatch::preScale()` uses `Qt::SmoothTransformation`.
+   Verdict: acceptable; an optional debounced "HQ settle" pass remains a
+   possible later refinement, low ROI.
+4. ~~**Banding/"grain" from 8-bit.**~~ Done (documented): QPainter
+   canvas is 8-bit; GL canvas supports 10-bit + dither.
+   `docs/canvas-display.md` notes the gradient-banding difference.
+   Ordered-dither toggle stays a stretch.
 
 ## Phase V2 — True-vector workflow hardening
 
@@ -209,21 +222,21 @@ The engine is built and tested; the work is productizing it.
 
 ## File map (verified)
 
-| Component | Path |
-| --- | --- |
-| Zoom filter decision | `libs/ui/canvas/kis_prescaled_projection.cpp` (~L395-405) |
-| QPainter canvas | `libs/ui/canvas/kis_qpainter_canvas.cpp` |
-| GL canvas / renderer | `libs/ui/opengl/kis_opengl_canvas2.cpp`, `KisOpenGLCanvasRenderer.cpp`, `kis_opengl.h:33-37` |
-| Canvas selection | `libs/ui/canvas/kis_canvas2.cpp` (`createCanvas`, ~L369/777) |
-| Settings | `libs/ui/kis_config.{h,cc}` (`useOpenGL`, `openGLFilteringMode`) |
-| Display prefs UI | `libs/ui/dialogs/kis_dlg_preferences.cc` (~L2087) |
-| Vector layer | `libs/ui/flake/kis_shape_layer.cc` |
-| Stroke layer | `libs/ui/KisBrushStrokeLayer.{h,cpp}`, `KisBrushStrokeLayerIO.cpp`, `libs/ui/kis_layer_manager.cc` |
-| Scale filters | `libs/image/kis_filter_strategy.{h,cc}` |
-| Vector tools | `plugins/tools/{defaulttool,karbonplugins,svgtexttool,tool_polyline,tool_polygon}` |
-| Impex | `plugins/impex/{svg,pdf}` |
-| AI quality | `plugins/python/ai_diffusion/`, `plugins/visionml/` |
-| Prior art / context | `docs/agent/brush-stroke-layer-plan.md`, `docs/agent/gpu-engine.md` |
+| Component            | Path                                                                                               |
+| -------------------- | -------------------------------------------------------------------------------------------------- |
+| Zoom filter decision | `libs/ui/canvas/kis_prescaled_projection.cpp` (~L395-405)                                          |
+| QPainter canvas      | `libs/ui/canvas/kis_qpainter_canvas.cpp`                                                           |
+| GL canvas / renderer | `libs/ui/opengl/kis_opengl_canvas2.cpp`, `KisOpenGLCanvasRenderer.cpp`, `kis_opengl.h:33-37`       |
+| Canvas selection     | `libs/ui/canvas/kis_canvas2.cpp` (`createCanvas`, ~L369/777)                                       |
+| Settings             | `libs/ui/kis_config.{h,cc}` (`useOpenGL`, `openGLFilteringMode`)                                   |
+| Display prefs UI     | `libs/ui/dialogs/kis_dlg_preferences.cc` (~L2087)                                                  |
+| Vector layer         | `libs/ui/flake/kis_shape_layer.cc`                                                                 |
+| Stroke layer         | `libs/ui/KisBrushStrokeLayer.{h,cpp}`, `KisBrushStrokeLayerIO.cpp`, `libs/ui/kis_layer_manager.cc` |
+| Scale filters        | `libs/image/kis_filter_strategy.{h,cc}`                                                            |
+| Vector tools         | `plugins/tools/{defaulttool,karbonplugins,svgtexttool,tool_polyline,tool_polygon}`                 |
+| Impex                | `plugins/impex/{svg,pdf}`                                                                          |
+| AI quality           | `plugins/python/ai_diffusion/`, `plugins/visionml/`                                                |
+| Prior art / context  | `docs/agent/brush-stroke-layer-plan.md`, `docs/agent/gpu-engine.md`                                |
 
 ## Risks
 
