@@ -169,10 +169,12 @@ The engine is built and tested; the work is productizing it.
 2. **Productize.**
    - ~~Layers docker badge/icon for stroke layers~~ — exists via
      `KisBrushStrokeLayer::icon()` (audit 2026-10-18).
-   - **Resolution-independent export:** on Scale Image / export at a
-     different resolution, stroke layers re-render at the target
-     resolution instead of pixel-scaling — the mechanism already exists
-     through `transform()`; wire it into export paths.
+   - ~~Resolution-independent export~~ — already works (audit
+     2026-10-18): advanced export's Resize tab calls
+     `savingImage()->scaleImage()` (`KisImportExportManager.cpp:726`),
+     which routes through `kis_transform_processing_visitor` →
+     `KisRedrawableLayerInterface::createTransformRedrawCommand` —
+     stroke layers re-render at the target resolution automatically.
    - Optional setting: "default new lineart layer = stroke layer" for
      ink-first workflows.
    - User doc (`docs/brush-stroke-layer.md` if absent): what it is,
