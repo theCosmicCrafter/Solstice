@@ -379,6 +379,8 @@ class KritaMCPExtension(Extension):
                 return self.cmd_undo(params)
             elif action == "redo":
                 return self.cmd_redo(params)
+            elif action == "trigger_action":
+                return self.cmd_trigger_action(params)
             elif action == "clear":
                 return self.cmd_clear(params)
             elif action == "save":
@@ -886,6 +888,21 @@ class KritaMCPExtension(Extension):
             action.trigger()
             return {"status": "ok"}
         return {"error": "Could not trigger redo"}
+
+    def cmd_trigger_action(self, params):
+        """Trigger an application action by name (e.g. layer_to_vector).
+
+        The action's enabled state syncs on the event loop, so callers
+        should verify the effect rather than assume it ran.
+        """
+        name = params.get("name")
+        if not name:
+            return {"error": "Missing 'name' parameter"}
+        action = Krita.instance().action(name)
+        if not action:
+            return {"error": f"Unknown action: {name}"}
+        action.trigger()
+        return {"status": "ok", "action": name}
 
     def cmd_clear(self, params):
         """Clear the canvas."""

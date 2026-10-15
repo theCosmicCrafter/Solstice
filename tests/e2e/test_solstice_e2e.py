@@ -152,6 +152,34 @@ def _wait_for(predicate, timeout=10.0, interval=0.25):
     return False
 
 
+def test_trigger_action_and_trace_to_vector(app):
+    """trigger_action drives application actions end-to-end. Uses
+    layer_to_vector (Solstice Trace-to-Vector) as the deep check: paint
+    pixels, trigger the action, then the layer list must gain a
+    vectorlayer node. Effects land asynchronously — poll."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 100, "height": 100})
+    bridge.cmd_ok("fill", {"x": 50, "y": 50, "radius": 20})
+
+    # The action's enabled state syncs on idle — retry the trigger
+    # until the traced layer actually appears (same pattern as undo).
+    deadline = time.time() + 15
+    traced = None
+    while time.time() < deadline and traced is None:
+        bridge.cmd_ok("trigger_action", {"name": "layer_to_vector"})
+        time.sleep(0.5)
+        layers = bridge.cmd_ok("list_layers")["layers"]
+        for layer in layers:
+            if layer["type"] == "vectorlayer":
+                traced = layer
+                break
+    assert traced, "trigger_action(layer_to_vector) produced no vector layer"
+    assert "Traced" in traced["name"]
+
+    status, payload = bridge.cmd("trigger_action", {"name": "no_such_action_xyz"})
+    assert status == 200 and "error" in payload
+
+
 def test_undo_redo_layer_ops(app):
     """Node add/remove is undoable; pixel writes are not — so undo is
     verified on layer operations where Krita has a real undo adapter.
