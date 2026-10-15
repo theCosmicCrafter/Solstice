@@ -20,8 +20,11 @@ painting, selections, filters, templates and export, plus
 `trigger_action` (`params.name`) which triggers any application action by
 id — the escape hatch for features with no dedicated command (e.g.
 `layer_to_vector`) — and `screenshot` (`params.filename`, optional
-`params.zoom`) which grabs the main window to PNG for display-level
-verification. `GET /health` and `GET /info` are the only
+`params.zoom`, optional `params.scope="canvas"`) which grabs the main
+window — or only the canvas widget (`KisQPainterCanvas`/
+`KisOpenGLCanvas2`, located by `metaObject().className()`) — to PNG for
+display-level verification; canvas scope keeps window chrome out of
+pixel analysis. `GET /health` and `GET /info` are the only
 unauthenticated endpoints.
 
 ### Auth (Solstice hardening)
