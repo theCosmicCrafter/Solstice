@@ -1294,3 +1294,18 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - V5 audited: AI Diffusion preferred_resolution=0 auto-resolves per
   checkpoint (fine); Smart Matting defaults to BiRefNet-dynamic, HR
   selectable in tool options.
+
+## 2026-10-18 — Trace to Vector Layer (V2.5)
+
+- New `layer_to_vector` action (Layer > Convert > Trace to Vector Layer):
+  `KisLayerManager::traceLayerToVector()` binarizes the node's projection
+  alpha (>=50%), runs `KisUpdateOutlineJob` + `outlineCache()` for the
+  `QPainterPath`, and parents a FG-filled `KoPathShape` into a new
+  `KisShapeLayer` — one `KisProcessingApplicator` undo step. No potrace
+  needed; the selection-outline pipeline already does the work.
+- `krita5.xmlgui` version/hash must be bumped together
+  (`krita/CMakeLists.txt`, `KRITA5_XMLGUI_VERSION` 547 -> 548) — CI
+  fails on the hash check otherwise.
+- clang-format note: `--lines=` on an include block re-sorts adjacent
+  includes; whole-file format on this repo (clang-format 21) produces
+  huge unrelated churn — always scope to changed lines.

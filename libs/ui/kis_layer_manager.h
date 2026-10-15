@@ -81,6 +81,10 @@ private Q_SLOTS:
 
     void convertLayerToFileLayer(KisNodeSP source);
 
+    /// Solstice: traces the active layer's alpha into a filled vector
+    /// path on a new vector layer (docs/agent/vector-quality-megaplan.md)
+    void traceLayerToVector();
+
     KisLayerSP addPaintLayer(KisNodeSP activeNode);
     KisNodeSP addGroupLayer(KisNodeSP activeNode);
 

@@ -239,6 +239,7 @@ xsi:schemaLocation="http://www.kde.org/standards/kxmlgui/1.0  http://www.kde.org
       <Menu name="LayerConvert">
         <text>&amp;Convert</text>
         <Action name="convert_to_paint_layer"/>
+        <Action name="layer_to_vector"/>
         <Action name="convert_to_transparency_mask"/>
         <Action name="convert_to_filter_mask"/>
         <Action name="convert_to_selection_mask"/>

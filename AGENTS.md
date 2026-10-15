@@ -211,6 +211,9 @@ Read these before adding or updating any feature:
   (`tests/e2e/`): `docs/agent/e2e-testing.md`
 - Removal of the right-click Popup Palette and the On-Canvas Brush Editor
   (what was kept and why): `docs/agent/popup-palette-removal.md`
+- Trace to Vector Layer (raster alpha → filled `KoPathShape` on a new
+  vector layer; Layer > Convert > Trace to Vector Layer):
+  `docs/agent/trace-to-vector.md`
 
 Before changing a listed feature, read its complete agent document. When a new
 custom feature is added, create its `docs/agent/<feature>.md` technical document,

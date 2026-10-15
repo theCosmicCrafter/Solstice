@@ -142,13 +142,16 @@ feature.
    100 → 300 (`preferredVectorImportResolution`); PDF import already
    defaults to 300 dpi (`pdfimportwidgetbase.ui`). Export fidelity
    still needs the GUI pass.
-5. **New feature — Trace to Vector.** Raster/alpha → `KoPathShape`(s)
-   on a new vector layer (potrace-style outline tracing). Initial
-   scope: monochrome/alpha line art — potrace-class tracing is
-   monochrome; multi-color tracing is a later stretch. Gives raster
-   artists a real path to vector output. Implementation home: new tool
-   or Layer-menu action; evaluate embedding a potrace-compatible
-   implementation vs writing a Qt/alpha-edge tracer.
+5. **New feature — Trace to Vector.** Raster/alpha → `KoPathShape`
+   on a new vector layer. **Implemented 2026-10-14** as
+   **Layer > Convert > Trace to Vector Layer** — no potrace
+   dependency needed: the existing selection-outline pipeline
+   (`KisSelection::outlineCache` → `KoPathShape::createShapeFromPainterPath`)
+   already produces paths. Trace = alpha-binarize (≥50%) → outline →
+   filled `KoPathShape` (foreground color) on a new `KisShapeLayer`.
+   Single undo step via `KisProcessingApplicator`. Details:
+   `docs/agent/trace-to-vector.md`. Later stretch: multi-color
+   posterized tracing, Bezier smoothing of the traced path.
 6. **Stretch:** vector boolean ops and per-shape erase via flake.
 
 ## Phase V3 — Brush Stroke Layer → the "vector brush" tier

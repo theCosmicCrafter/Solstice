@@ -36,27 +36,37 @@
 #include <KisPart.h>
 #include <KisMainWindow.h>
 
-#include <filter/kis_filter_configuration.h>
+#include <KisImageBarrierLock.h>
+#include <KisImageResolutionProxy.h>
+#include <KisMimeDatabase.h>
+#include <KoColor.h>
+#include <KoColorBackground.h>
+#include <KoPathShape.h>
+#include <KoShapeController.h>
 #include <filter/kis_filter.h>
-#include <kis_filter_strategy.h>
+#include <filter/kis_filter_configuration.h>
+#include <flake/kis_shape_layer.h>
 #include <generator/kis_generator_layer.h>
-#include <kis_file_layer.h>
 #include <kis_adjustment_layer.h>
-#include <kis_mask.h>
+#include <kis_clipboard.h>
 #include <kis_clone_layer.h>
+#include <kis_default_bounds.h>
+#include <kis_file_layer.h>
+#include <kis_filter_strategy.h>
 #include <kis_group_layer.h>
 #include <kis_image.h>
+#include <kis_iterator_ng.h>
 #include <kis_layer.h>
-#include <kis_paint_device.h>
-#include <kis_selection.h>
-#include <flake/kis_shape_layer.h>
-#include <kis_undo_adapter.h>
-#include <kis_painter.h>
-#include <kis_meta_data_store.h>
+#include <kis_mask.h>
 #include <kis_meta_data_merge_strategy_registry.h>
+#include <kis_meta_data_store.h>
+#include <kis_paint_device.h>
+#include <kis_painter.h>
+#include <kis_pixel_selection.h>
 #include <kis_psd_layer_style.h>
-#include <KisMimeDatabase.h>
-#include <kis_clipboard.h>
+#include <kis_selection.h>
+#include <kis_undo_adapter.h>
+#include <kis_update_outline_job.h>
 
 #include "kis_config.h"
 #include "kis_cursor.h"
@@ -169,6 +179,9 @@ void KisLayerManager::setup(KisActionManager* actionManager)
 
     KisAction *action = actionManager->createAction("trim_to_image");
     connect(action, SIGNAL(triggered()), this, SLOT(trimToImage()));
+
+    action = actionManager->createAction("layer_to_vector");
+    connect(action, SIGNAL(triggered()), this, SLOT(traceLayerToVector()));
 
     action = actionManager->createAction("purge_unused_image_data");
     connect(action, SIGNAL(triggered()), this, SLOT(purgeUnusedImageData()));
@@ -680,7 +693,7 @@ void KisLayerManager::addLayerCommon(KisNodeSP activeNode, KisNodeSP layer, bool
 
 KisLayerSP KisLayerManager::addPaintLayer(KisNodeSP activeNode)
 {
-    KisImageWSP image = m_view->image();    
+    KisImageWSP image = m_view->image();
     KisLayerSP layer = new KisPaintLayer(image.data(),  image->nextLayerName( i18n("Paint Layer") ), OPACITY_OPAQUE_U8, image->colorSpace());
 
     KisConfig cfg(true);
@@ -744,6 +757,100 @@ KisNodeSP KisLayerManager::addShapeLayer(KisNodeSP activeNode)
     addLayerCommon(activeNode, layer, false, 0);
 
     return layer;
+}
+
+void KisLayerManager::traceLayerToVector()
+{
+    if (!m_view)
+        return;
+
+    KisImageWSP image = m_view->image();
+    KisNodeSP node = m_view->activeNode();
+    if (!image || !node)
+        return;
+
+    if (!m_view->blockUntilOperationsFinished(image)) {
+        return;
+    }
+
+    KisPaintDeviceSP device = node->projection() ? node->projection() : node->paintDevice();
+    if (!device)
+        device = node->original();
+    if (!device || device->exactBounds().isEmpty()) {
+        m_view->showFloatingMessage(i18nc("@info:status", "Nothing to trace: the layer has no painted pixels"),
+                                    QIcon(),
+                                    2000,
+                                    KisFloatingMessage::Low);
+        return;
+    }
+
+    // build a selection from the layer's alpha (Select Opaque semantics,
+    // binarized at 50% so faint residue does not inflate the outline)
+    KisSelectionSP selection =
+        new KisSelection(new KisDefaultBounds(image), toQShared(new KisImageResolutionProxy(image)));
+    {
+        KisPixelSelectionSP pixelSelection = selection->pixelSelection();
+        const QRect rc = device->exactBounds();
+        const KoColorSpace *cs = device->colorSpace();
+
+        KisImageBarrierLock lock(image);
+        KisHLineConstIteratorSP devIter = device->createHLineConstIteratorNG(rc.x(), rc.y(), rc.width());
+        KisHLineIteratorSP selIter = pixelSelection->createHLineIteratorNG(rc.x(), rc.y(), rc.width());
+
+        for (int row = rc.y(); row < rc.y() + rc.height(); ++row) {
+            do {
+                const bool opaque = cs->opacityU8(devIter->oldRawData()) >= 128;
+                *selIter->rawData() = opaque ? MAX_SELECTED : MIN_SELECTED;
+            } while (devIter->nextPixel() && selIter->nextPixel());
+            devIter->nextRow();
+            selIter->nextRow();
+        }
+    }
+
+    // outline the selection into a document-space path
+    if (!selection->outlineCacheValid()) {
+        image->addSpontaneousJob(new KisUpdateOutlineJob(selection, false, Qt::transparent));
+        if (!m_view->blockUntilOperationsFinished(image)) {
+            return;
+        }
+    }
+
+    QPainterPath outline = selection->outlineCache();
+    if (outline.isEmpty()) {
+        m_view->showFloatingMessage(i18nc("@info:status", "Nothing to trace: the layer has no painted pixels"),
+                                    QIcon(),
+                                    2000,
+                                    KisFloatingMessage::Low);
+        return;
+    }
+
+    QTransform transform = m_view->canvasBase()->coordinatesConverter()->imageToDocumentTransform();
+    KoPathShape *shape = KoPathShape::createShapeFromPainterPath(transform.map(outline));
+    shape->setShapeId(KoPathShapeId);
+
+    // fill with the foreground color, no stroke
+    KoColor fgColor =
+        m_view->canvasBase()->resourceManager()->resource(KoCanvasResource::ForegroundColor).value<KoColor>();
+    shape->setBackground(toQShared(new KoColorBackground(fgColor.toQColor())));
+
+    KisShapeLayerSP layer = new KisShapeLayer(m_view->document()->shapeController(),
+                                              image.data(),
+                                              image->nextLayerName(i18n("Traced Layer")),
+                                              OPACITY_OPAQUE_U8);
+
+    KisProcessingApplicator applicator(image,
+                                       0,
+                                       KisProcessingApplicator::NONE,
+                                       KisImageSignalVector(),
+                                       kundo2_i18n("Trace to Vector Layer"));
+
+    addLayerCommon(node, layer, true, &applicator);
+
+    applicator.applyCommand(m_view->canvasBase()->shapeController()->addShapeDirect(shape, layer.data()),
+                            KisStrokeJobData::SEQUENTIAL,
+                            KisStrokeJobData::BARRIER);
+
+    applicator.end();
 }
 
 KisNodeSP KisLayerManager::addAdjustmentLayer(KisNodeSP activeNode)
@@ -1122,4 +1229,3 @@ void KisLayerManager::layerStyle()
         image->postExecutionUndoAdapter()->addCommand(command);
     }
 }
-
