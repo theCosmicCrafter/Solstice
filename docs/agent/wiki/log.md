@@ -1309,3 +1309,21 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - clang-format note: `--lines=` on an include block re-sorts adjacent
   includes; whole-file format on this repo (clang-format 21) produces
   huge unrelated churn — always scope to changed lines.
+
+## 2026-10-18 — E2E run vs real V1 artifact + plugin PyQt6 fixes
+
+- Full suite vs `f0f5bae0` artifact: 18 pass, trace test skipped (feature
+  absent from that build). Smooth-zoom screenshot test PASSED against
+  real display output — toggle measurably changes edge blending at 400%.
+- `window.qwindow()` returns the top-level *widget* (QMainWindow), not a
+  QWindow — grab is `widget.grab()`, not `grabWindow()`. `scope="canvas"`
+  grabs `KisQPainterCanvas`/`KisOpenGLCanvas2` directly via
+  `metaObject().className()`; whole-window grabs let UI chrome
+  (210-gray icons, docker text) poison edge-pixel metrics.
+- PyQt6 gotchas found on real plugin load: `QSignalMapper.mapped[...]`
+  removed (use `mappedString`/`mappedInt`/`mappedObject` — shim restores
+  the subscript surface); `QFrame.VLine|QFrame.Sunken` yields `int` and
+  `setFrameShape` rejects it — split into shape+shadow calls.
+- `applyCommand`/`applyVisitor` take `(Sequentiality, Exclusivity)` —
+  `BARRIER` is a Sequentiality; passing it as the second arg fails to
+  compile.
