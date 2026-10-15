@@ -56,6 +56,15 @@ features Solstice adds are described in its [user guides](docs/README.md).
   Shortcut Composer, BuliNotes, BuliBrushSwitch, Timer Watch and the local
   MCP agent bridge ship enabled on first run; Blender Layer is bundled but
   off by default.
+- **[Trace to Vector Layer](docs/trace-to-vector.md)**: turn a paint layer's
+  alpha into a crisp vector shape with Layer > Convert, part of the
+  vector-quality roadmap.
+- **[Smooth Rendering at High Zoom](docs/canvas-display.md)**: optional
+  filtered display above 200 % zoom (View menu and Display settings, on by
+  default) on both canvas backends — no more hard pixels when inspecting
+  artwork up close.
+- **Sharper output defaults**: Lanczos3 for image downscaling, 300 ppi
+  vector/SVG imports, and 90-quality WebP/HEIF exports.
 - **[Puppet Warp](docs/puppet-warp.md)**: pose and reshape artwork with movable
   and rotatable pins in the Transform Tool.
 - **[Docker locks](docs/docker-locks.md)**: lock the widths and heights of
@@ -152,7 +161,8 @@ for existing settings where practical. The Asset Library is also available
 from the welcome page, and Puppet Warp is integrated into the Transform Tool.
 A set of Krita Python plugins is bundled and enabled by default through a
 PyQt6 compatibility layer, and a token-authenticated loopback bridge lets
-local MCP agents drive the application.
+local MCP agents drive the application — including an end-to-end pytest
+suite (`tests/e2e`) that exercises a real build through that bridge.
 
 Android support and its build and packaging infrastructure have been removed.
 The right-click Popup Palette and the On-Canvas Brush Editor have been removed

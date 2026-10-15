@@ -31,6 +31,8 @@ Technical notes for developers are in [`agent`](agent/).
 
 - [Puppet Warp](puppet-warp.md): posing and reshaping artwork with pins in
   the Transform Tool.
+- [Trace to Vector Layer](trace-to-vector.md): converting a paint layer
+  into a crisp vector shape.
 - [Vision ML](vision-ml.md): AI-assisted selection, Smart Fill and
   background removal, run on your computer.
 

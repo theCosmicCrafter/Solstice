@@ -1327,3 +1327,13 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - `applyCommand`/`applyVisitor` take `(Sequentiality, Exclusivity)` —
   `BARRIER` is a Sequentiality; passing it as the second arg fails to
   compile.
+
+## 2026-10-18 — Documentation refresh for handoff
+
+- `vector-quality-megaplan.md` gained a handoff snapshot (done/verified
+  vs in-flight vs open scope) and V1/V2.5/V6 status updates;
+  `plugin-integration-megaplan.md` phases 0-5 marked complete with the
+  verification results, phase 6 (packaging/release) left pending.
+- README highlights now list Trace to Vector, Smooth Rendering at High
+  Zoom and the sharper output defaults; `docs/trace-to-vector.md` is the
+  new user guide, indexed from `docs/README.md`.

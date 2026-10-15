@@ -1,14 +1,22 @@
 # Plugin integration megaplan — agent reference
 
-Status: approved (2026-10-14). Roadmap for shipping a custom Solstice build
-with selected third-party Krita plugins integrated — vendored Python plugins,
-a bundled MCP agent bridge, and one native port (Smart Select) into
-`plugins/visionml`.
+Status: approved (2026-10-14), **phases 0–5 complete** (2026-10-18).
+Roadmap for shipping a custom Solstice build with selected third-party
+Krita plugins integrated — vendored Python plugins, a bundled MCP agent
+bridge, and one native port (Smart Select) into `plugins/visionml`.
 
 Decisions (user, 2026-10-14): mixed integration depth (per-plugin choice),
 agent/MCP bridge is core scope, end state is a buildable fork, Smart Select
 gets a full native port, builds run via GitHub Actions on this repository,
 this document is the canonical plan.
+
+**Where this plan stands:** every plugin is vendored and loading clean on
+a real build (2026-10-18 verification — zero startup tracebacks, incl.
+the two PyQt6 fixes recorded in `plugin-intake.md`); the kritamcp bridge
+is hardened and covered by `tests/e2e/` (18 tests, all green);
+Smart Matting ships native in `plugins/visionml`. Remaining: Phase 6
+packaging/release and the GUI verification pass. Follow-on work moved to
+`vector-quality-megaplan.md`.
 
 ## Anchor: what Solstice already provides
 
@@ -74,14 +82,14 @@ this document is the canonical plan.
 
 ## Phases
 
-### Phase 0 — fork bootstrap and baseline build
+### Phase 0 — fork bootstrap and baseline build — done
 
 - Clone, confirm `main`, dispatch `windows-build.yml`; install artifact ZIP;
   verify visionml and the Python Plugin Manager.
 - This document + `plugin-intake.md` skeleton.
 - Exit: unsigned ZIP builds from the fork and runs.
 
-### Phase 1 — PyQt6 compat layer and vendor harness
+### Phase 1 — PyQt6 compat layer and vendor harness — done
 
 - Prototype the PyQt5 alias shim; test against Pigment.O first.
 - Vendor procedure doc: pinned source -> normalize desktop file name ->
@@ -90,8 +98,12 @@ this document is the canonical plan.
   need a Solstice default-config seed, not just installation).
 - Pilot: Timer Watch end-to-end.
 - Exit: one vendored plugin works in a CI-built ZIP.
+- Result: `plugins/python/PyQt5/` + `plugins/python/PyQt/` shim packages
+  installed next to the plugins; coverage table + real-build fixes
+  (`QSignalMapper.mapped`, `QFrame` shape/shadow split) in
+  `plugin-intake.md`.
 
-### Phase 2 — vendor Tier-A plugins
+### Phase 2 — vendor Tier-A plugins — done
 
 Repeatable recipe per plugin; order by risk:
 
@@ -103,9 +115,10 @@ Repeatable recipe per plugin; order by risk:
 6. Optional cherry-picked Rebecca's tools scripts
 
 Exit: all chosen plugins appear in the Plugin Manager and load without
-console errors.
+console errors. Verified on a real build 2026-10-18 — zero plugin
+tracebacks at startup after the `wseparator` + `QSignalMapper` fixes.
 
-### Phase 3 — AI Diffusion
+### Phase 3 — AI Diffusion — done
 
 - Diff local enhanced copy against upstream >= 1.52; port still-missing
   enhancements; vendor as `plugins/python/ai_diffusion` (desktop file +
@@ -116,7 +129,7 @@ console errors.
   own inference.
 - Exit: generate/inpaint round trip through ComfyUI inside a CI-built ZIP.
 
-### Phase 4 — agent bridge (`solstice-mcp`)
+### Phase 4 — agent bridge (`kritamcp`) — done
 
 - Vendor edithatogo/krita-cli `krita-plugin/` as `plugins/python/kritamcp`;
   verify resource-path references resolve under the Solstice resource dir.
@@ -126,8 +139,16 @@ console errors.
   dispatch timeouts, capability/security reporting, structured errors.
 - Exit: `krita` CLI and an MCP client drive the CI build — create doc, paint,
   save, export under allowed roots; `krita_preview`-equivalent verified.
+- **Verified by `tests/e2e/`** (see `e2e-testing.md`): 18 tests green on a
+  real build — auth enforcement, document lifecycle, pixels, layers,
+  undo/redo, selections, filters, export, path-traversal rejection, soak.
+  The suite found + fixed 7 real bugs (startup deadlock, `open_file`
+  crash, traversal bypass, token sidecar, silent undo, flattened `.kra`
+  saves, PyQt6 API drift). Later additions: `trigger_action` (any action
+  by id) and `screenshot` (`zoom`, `scope="canvas"`) for display-level
+  verification.
 
-### Phase 5 — Smart Select native port — implemented (pending real-build test)
+### Phase 5 — Smart Select native port — implemented (built; GUI check pending)
 
 - Shipped as `SmartMattingTool` in `plugins/visionml/src/smartselect/`:
   `KisToolOutlineBase` freehand lasso -> `SegmentationToolHelper::
@@ -137,11 +158,12 @@ applyMattingMask` -> padded crop -> `VisionModels::removeBackground`
 - Reuses the existing sampled-layers modes, all five selection actions, and
   grow/feather/anti-alias post-processing through `KisSelectionToolHelper`.
 - Model: uses the `background_removal` task slot (BiRefNet Lite bundled;
-  BiRefNet Dynamic or HR-matting GGUFs drop into `visionml/models`).
-- Remaining: compile in the real build, GUI verification of lasso/matte
-  quality, optional user doc `docs/smart-matting.md`.
+  BiRefNet Dynamic or HR-matting GGUFs drop into `visionml/models`);
+  HR-matting selectable in the tool-options model dropdown.
+- Remaining: GUI verification of lasso/matte quality on a real build,
+  optional user doc `docs/smart-matting.md`.
 
-### Phase 6 — packaging, defaults, release
+### Phase 6 — packaging, defaults, release — pending
 
 - Bundled-default enablement set (AI Diffusion, kritamcp, Pigment.O on;
   Blender Layer off).

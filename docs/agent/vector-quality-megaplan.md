@@ -1,15 +1,45 @@
 # Vector-quality megaplan — agent reference
 
-Status: approved (2026-10-18). Roadmap for making Solstice deliver
-"vector quality" — artwork that stays crisp at every zoom level and at
-every output size — across the display pipeline, authoring workflows,
-document output, and AI/ML output.
+Status: approved (2026-10-18), in execution. Roadmap for making Solstice
+deliver "vector quality" — artwork that stays crisp at every zoom level
+and at every output size — across the display pipeline, authoring
+workflows, document output, and AI/ML output.
 
 Decisions (user, 2026-10-18): full scope — display quality, true-vector
 workflows, stroke-recorded "vector brush" layers, and quality defaults;
 high-zoom smoothing is a **configurable** option (default ON), not a
 forced behavior; output/defaults **and** AI/ML image quality are in
 scope. This document is the canonical plan.
+
+## Handoff snapshot (updated 2026-10-18)
+
+**Done and verified on a real build**
+
+| Phase                                                                                                                         | State                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V1 smooth high-zoom (config, both canvas backends, UI surface)                                                                | Implemented `f2e920ad`; E2E-verified on artifact `f0f5bae0` — toggling `view_smooth_high_zoom` measurably changes edge blending in canvas-scoped screenshots at 400 % (`test_smooth_high_zoom_display` PASSED) |
+| V4 quality defaults (Lanczos3 downscale, SVG import 300 ppi, WebP/HEIF 90)                                                    | Implemented `a57a771f`                                                                                                                                                                                         |
+| V2.1 / V2.2 / V3.2 audits (vector layers re-render at view res; type badges exist; stroke-layer res-independent export works) | Confirmed by inspection, no code needed                                                                                                                                                                        |
+| V2.5 Trace to Vector Layer                                                                                                    | Implemented `b3954216` (+ outline-cache fix `3ff93727`, document guard `75066f02`, compile fix `307c7e72`); E2E test written — awaiting feature-complete CI artifact for a live run                            |
+| Bridge support: `trigger_action`, `screenshot` (+`zoom`, `scope="canvas"`)                                                    | Implemented + verified `6e95ee4e`                                                                                                                                                                              |
+
+**In flight / next**
+
+- CI build `38677471608` (head `307c7e72`) carries Trace to Vector +
+  all bridge/plugin fixes. On completion: deploy artifact, run
+  `pytest tests/e2e` — trace and smooth-zoom tests must PASS, not skip.
+- Manual GUI pass still owed: View-menu/prefs toggle on both canvas
+  backends (E2E covered whichever backend was active on the test box;
+  parity needs the manual matrix), vendored-plugin dockers, Smart
+  Matting lasso, Trace to Vector UX.
+- Open scope: V2.3 vector-tool QA, V2.4 SVG/PDF export fidelity, V3.1
+  "lineart = stroke layer" option, V4.4 supersampled export, V5.2 HR
+  matting default audit, V6 manual zoom matrix.
+
+**Cross-references:** plugin bundling roadmap —
+`plugin-integration-megaplan.md`; per-plugin pins/patches —
+`plugin-intake.md`; E2E suite — `e2e-testing.md`; MCP bridge —
+`mcp-bridge.md`.
 
 ## What "grainy / pixelated" actually is — verified diagnosis
 
@@ -70,8 +100,11 @@ imagery produced below print resolution.
 
 ## Phase V1 — Display quality: "smooth zoom" everywhere
 
-Status: implemented (2026-10-18, `f2e920ad`; pending CI artifact +
-GUI check).
+Status: implemented (2026-10-18, `f2e920ad`) and **E2E-verified on a
+real build** (`f0f5bae0` artifact, `test_smooth_high_zoom_display` —
+canvas-scoped screenshot pixel analysis shows the toggle changing edge
+blending at 400 %). GL-vs-QPainter parity confirmation remains part of
+the V6 manual matrix.
 
 Smallest phase, highest perceived impact. The >200 % hard-pixel cutoff
 is the literal complaint — **both** canvas backends hard-code
@@ -146,14 +179,18 @@ feature.
    defaults to 300 dpi (`pdfimportwidgetbase.ui`). Export fidelity
    still needs the GUI pass.
 5. **New feature — Trace to Vector.** Raster/alpha → `KoPathShape`
-   on a new vector layer. **Implemented 2026-10-14** as
+   on a new vector layer. **Implemented 2026-10-18** as
    **Layer > Convert > Trace to Vector Layer** — no potrace
    dependency needed: the existing selection-outline pipeline
    (`KisSelection::outlineCache` → `KoPathShape::createShapeFromPainterPath`)
    already produces paths. Trace = alpha-binarize (≥50%) → outline →
    filled `KoPathShape` (foreground color) on a new `KisShapeLayer`.
    Single undo step via `KisProcessingApplicator`. Details:
-   `docs/agent/trace-to-vector.md`. Later stretch: multi-color
+   `docs/agent/trace-to-vector.md`. Fixes since: outline-cache
+   invalidation (`3ff93727`), `document()` null guard (`75066f02`),
+   `BARRIER` sequentiality compile fix (`307c7e72`). E2E coverage:
+   `test_trigger_action_and_trace_to_vector` — pending live run on the
+   feature-complete artifact. Later stretch: multi-color
    posterized tracing, Bezier smoothing of the traced path.
 6. **Stretch:** vector boolean ops and per-shape erase via flake.
 
@@ -231,9 +268,11 @@ The engine is built and tested; the work is productizing it.
 - **Unit:** brush-stroke-layer tests already quantify sharpness
   (translucent-pixel ratio at 4x) — keep as the regression baseline;
   add coverage for the smooth-high-zoom render flag where testable.
-- **E2E:** extend `tests/e2e` if the bridge can drive zoom/canvas state
-  (kritamcp may need a `set_zoom` / canvas-info action — small bridge
-  addition if missing). Pixel-readback assertions exist to reuse.
+- **E2E:** done — the bridge drives display state without new commands:
+  `trigger_action` flips any registered action and `screenshot` takes
+  `zoom` + `scope="canvas"` (grabs only the canvas widget, keeping UI
+  chrome out of pixel metrics). `test_smooth_high_zoom_display` and
+  `test_trigger_action_and_trace_to_vector` exercise both.
 - **Manual matrix:** zoom {25, 50, 100, 200, 400, 800 %} × canvas
   {QPainter, GL} × content {paint layer, vector layer, stroke layer,
   AI-generated image}.
