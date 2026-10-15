@@ -761,7 +761,7 @@ KisNodeSP KisLayerManager::addShapeLayer(KisNodeSP activeNode)
 
 void KisLayerManager::traceLayerToVector()
 {
-    if (!m_view)
+    if (!m_view || !m_view->document())
         return;
 
     KisImageWSP image = m_view->image();
