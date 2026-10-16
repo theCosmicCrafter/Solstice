@@ -6,7 +6,10 @@ Allows Claude (or any MCP client) to paint by sending commands to this plugin.
 import hmac
 import json
 import os
+import re
 import secrets
+import sys
+import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -58,8 +61,160 @@ def _bridge_token():
     return token
 
 BRIDGE_TOKEN = None  # resolved lazily on first request (Krita must exist)
+BRIDGE_LISTENING = False
 CANVAS_OUTPUT_DIR = os.path.expanduser("~/krita-mcp-output")
 TEMPLATE_DIR = os.path.join(os.environ.get("APPDATA", ""), "krita", "templates")
+
+SUPPORTED_ACTIONS = [
+    # Painting
+    "new_canvas", "set_color", "set_brush", "stroke",
+    "fill", "draw_shape", "get_canvas", "undo", "redo",
+    "trigger_action", "screenshot", "clear", "save",
+    "get_color_at", "list_brushes", "open_file",
+    # Layer management
+    "add_layer", "remove_layer", "list_layers",
+    "set_active_layer", "set_layer_opacity",
+    "set_layer_blend_mode", "set_layer_visibility",
+    "move_layer", "duplicate_layer", "merge_down",
+    # Templates
+    "create_from_template", "save_as_template",
+    "list_templates", "get_layer_presets",
+    # Document
+    "get_document_info", "resize_canvas",
+    "scale_image", "set_resolution", "flatten_image",
+    # Selection
+    "select_all", "deselect", "select_rect",
+    # Filters
+    "apply_filter", "list_filters",
+    # Export
+    "export_layers", "export_document",
+]
+
+
+def _resolve_allowed_path(path, *, for_write=True):
+    """Validate and resolve a path against allowed roots.
+
+    Returns (resolved_path, None) on success, or (None, error_dict) on rejection.
+    """
+    if not path or not isinstance(path, str):
+        return None, {"error": "No path specified"}
+
+    # Reject '..' segments in the raw string
+    raw_parts = path.replace("\\", "/").split("/")
+    if ".." in raw_parts:
+        return None, {"error": "Invalid path: path traversal ('..') not allowed"}
+
+    # Reject UNC and device namespace paths (\\host\share, //host/share, \\?\, \\.\)
+    norm_path = path.replace("/", "\\")
+    if norm_path.startswith("\\\\") or path.startswith(("//", "\\\\")) or "\\\\?\\" in norm_path or "\\\\.\\" in norm_path:
+        return None, {"error": "Invalid path: UNC and device namespace paths are not allowed"}
+
+    # Build allowed roots list
+    allowed_roots = []
+
+    # 1. CANVAS_OUTPUT_DIR
+    if CANVAS_OUTPUT_DIR:
+        try:
+            allowed_roots.append(os.path.realpath(CANVAS_OUTPUT_DIR))
+        except Exception:
+            pass
+
+    # 2. TEMPLATE_DIR
+    if TEMPLATE_DIR:
+        try:
+            allowed_roots.append(os.path.realpath(TEMPLATE_DIR))
+        except Exception:
+            pass
+
+    # 3. Active document folder if any
+    try:
+        app = Krita.instance()
+        doc = app.activeDocument() if app else None
+        if doc and doc.fileName():
+            doc_dir = os.path.dirname(os.path.realpath(doc.fileName()))
+            if doc_dir:
+                allowed_roots.append(doc_dir)
+    except Exception:
+        pass
+
+    # 4. User home Documents and Pictures
+    home = os.path.expanduser("~")
+    for subdir in ("Documents", "Pictures"):
+        try:
+            allowed_roots.append(os.path.realpath(os.path.join(home, subdir)))
+        except Exception:
+            pass
+
+    try:
+        from PyQt5.QtCore import QStandardPaths
+        for loc in (
+            QStandardPaths.StandardLocation.DocumentsLocation,
+            QStandardPaths.StandardLocation.PicturesLocation,
+        ):
+            sp = QStandardPaths.writableLocation(loc)
+            if sp:
+                allowed_roots.append(os.path.realpath(sp))
+    except Exception:
+        pass
+
+    # 5. Temp directories
+    temp_dirs = [tempfile.gettempdir()]
+    for env_k in ("TEMP", "TMP", "TMPDIR"):
+        val = os.environ.get(env_k)
+        if val:
+            temp_dirs.append(val)
+    for td in temp_dirs:
+        try:
+            allowed_roots.append(os.path.realpath(td))
+        except Exception:
+            pass
+
+    # 6. Extra roots from KRITAMCP_ALLOWED_ROOTS environment variable
+    env_roots = os.environ.get("KRITAMCP_ALLOWED_ROOTS", "")
+    if env_roots:
+        for r in env_roots.split(os.pathsep):
+            if r.strip():
+                try:
+                    allowed_roots.append(os.path.realpath(r.strip()))
+                except Exception:
+                    pass
+
+    # 7. Roots from kritarc setting
+    try:
+        app = Krita.instance()
+        if app:
+            rc_roots = app.readSetting("kritamcp", "allowed_roots", "")
+            if rc_roots:
+                for r in rc_roots.split(os.pathsep):
+                    if r.strip():
+                        try:
+                            allowed_roots.append(os.path.realpath(r.strip()))
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+
+    try:
+        resolved = os.path.realpath(path)
+    except Exception as e:
+        return None, {"error": f"Invalid path resolution: {e}"}
+
+    target_comp = resolved.lower() if os.name == 'nt' else resolved
+
+    is_allowed = False
+    for root in allowed_roots:
+        root_comp = root.lower() if os.name == 'nt' else root
+        try:
+            if os.path.commonpath([target_comp, root_comp]) == root_comp:
+                is_allowed = True
+                break
+        except (ValueError, OSError):
+            continue
+
+    if not is_allowed:
+        return None, {"error": f"Path is not in an allowed directory: {path}"}
+
+    return resolved, None
 
 # Predefined layer stack presets for template creation
 LAYER_PRESETS = {
@@ -169,6 +324,25 @@ class PaintRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
 
+    def _check_host(self):
+        """Host header check: allow only 127.0.0.1[:port], localhost[:port], [::1][:port]."""
+        host_hdr = self.headers.get('Host', '').strip()
+        host = host_hdr
+        if host.startswith('['):
+            bracket_end = host.find(']')
+            if bracket_end != -1:
+                host_part = host[:bracket_end + 1]
+            else:
+                host_part = host
+        else:
+            host_part = host.split(':')[0]
+
+        allowed = ('127.0.0.1', 'localhost', '[::1]')
+        if host_part not in allowed:
+            self.send_json_response({"error": "Forbidden: invalid Host header"}, 403)
+            return False
+        return True
+
     def _authorized(self):
         """Bearer-token check. Returns True if the request may proceed."""
         global BRIDGE_TOKEN
@@ -183,10 +357,16 @@ class PaintRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Handle GET requests - mainly for health check."""
+        if not self._check_host():
+            return
+
         parsed = urlparse(self.path)
 
         if parsed.path == '/health':
-            self.send_json_response({"status": "ok", "plugin": "kritamcp"})
+            resp = {"status": "ok", "plugin": "kritamcp"}
+            if BRIDGE_LISTENING:
+                resp["bridge"] = "listening"
+            self.send_json_response(resp)
         elif parsed.path == '/info':
             if not self._authorized():
                 return
@@ -194,29 +374,7 @@ class PaintRequestHandler(BaseHTTPRequestHandler):
                 "status": "ok",
                 "canvas_dir": CANVAS_OUTPUT_DIR,
                 "template_dir": TEMPLATE_DIR,
-                "commands": [
-                    # Painting
-                    "new_canvas", "set_color", "set_brush", "stroke",
-                    "fill", "draw_shape", "get_canvas", "undo", "redo",
-                    "clear", "save", "get_color_at", "list_brushes", "open_file",
-                    # Layer management
-                    "add_layer", "remove_layer", "list_layers",
-                    "set_active_layer", "set_layer_opacity",
-                    "set_layer_blend_mode", "set_layer_visibility",
-                    "move_layer", "duplicate_layer", "merge_down",
-                    # Templates
-                    "create_from_template", "save_as_template",
-                    "list_templates", "get_layer_presets",
-                    # Document
-                    "get_document_info", "resize_canvas",
-                    "scale_image", "set_resolution", "flatten_image",
-                    # Selection
-                    "select_all", "deselect", "select_rect",
-                    # Filters
-                    "apply_filter", "list_filters",
-                    # Export
-                    "export_layers", "export_document",
-                ]
+                "commands": list(SUPPORTED_ACTIONS),
             })
         else:
             self.send_json_response({"error": "Unknown endpoint"}, 404)
@@ -225,10 +383,32 @@ class PaintRequestHandler(BaseHTTPRequestHandler):
         """Handle POST requests - paint commands."""
         global command_counter
 
+        if not self._check_host():
+            return
+
         if not self._authorized():
             return
 
-        content_length = int(self.headers.get('Content-Length', 0))
+        cl_header = self.headers.get('Content-Length')
+        if cl_header is None:
+            self.send_json_response({"error": "Missing Content-Length"}, 400)
+            return
+
+        try:
+            content_length = int(cl_header)
+            if content_length < 0:
+                raise ValueError("Negative Content-Length")
+        except (ValueError, TypeError):
+            self.send_json_response({"error": "Invalid Content-Length"}, 400)
+            return
+
+        MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MiB
+        if content_length > MAX_CONTENT_LENGTH:
+            self.send_json_response(
+                {"error": "Payload Too Large: Content-Length exceeds 50 MiB"}, 413
+            )
+            return
+
         body = self.rfile.read(content_length).decode('utf-8')
 
         try:
@@ -260,10 +440,21 @@ class ServerThread(QThread):
         self.server = None
 
     def run(self):
-        self.server = HTTPServer(('localhost', self.port), PaintRequestHandler)
-        self.server.serve_forever()
+        global BRIDGE_LISTENING
+        try:
+            self.server = HTTPServer(('127.0.0.1', self.port), PaintRequestHandler)
+            BRIDGE_LISTENING = True
+            print(f"[KritaMCP] HTTP server started on 127.0.0.1:{self.port}", flush=True)
+            self.server.serve_forever()
+        except OSError as e:
+            BRIDGE_LISTENING = False
+            print(f"[KritaMCP] port {self.port} in use or failed to bind: {e}", file=sys.stderr, flush=True)
+        finally:
+            BRIDGE_LISTENING = False
 
     def stop(self):
+        global BRIDGE_LISTENING
+        BRIDGE_LISTENING = False
         if self.server:
             self.server.shutdown()
 
@@ -294,7 +485,6 @@ class KritaMCPExtension(Extension):
         if self.server_thread is None:
             self.server_thread = ServerThread(SERVER_PORT)
             self.server_thread.start()
-            print(f"[KritaMCP] HTTP server started on port {SERVER_PORT}")
 
         # Start timer to process command queue
         if self.timer is None:
@@ -361,98 +551,13 @@ class KritaMCPExtension(Extension):
             action = command.get("action")
             params = command.get("params", {})
 
-            if action == "new_canvas":
-                return self.cmd_new_canvas(params)
-            elif action == "set_color":
-                return self.cmd_set_color(params)
-            elif action == "set_brush":
-                return self.cmd_set_brush(params)
-            elif action == "stroke":
-                return self.cmd_stroke(params)
-            elif action == "fill":
-                return self.cmd_fill(params)
-            elif action == "draw_shape":
-                return self.cmd_draw_shape(params)
-            elif action == "get_canvas":
-                return self.cmd_get_canvas(params)
-            elif action == "undo":
-                return self.cmd_undo(params)
-            elif action == "redo":
-                return self.cmd_redo(params)
-            elif action == "trigger_action":
-                return self.cmd_trigger_action(params)
-            elif action == "screenshot":
-                return self.cmd_screenshot(params)
-            elif action == "clear":
-                return self.cmd_clear(params)
-            elif action == "save":
-                return self.cmd_save(params)
-            elif action == "get_color_at":
-                return self.cmd_get_color_at(params)
-            elif action == "list_brushes":
-                return self.cmd_list_brushes(params)
-            elif action == "open_file":
-                return self.cmd_open_file(params)
-            # Layer management
-            elif action == "add_layer":
-                return self.cmd_add_layer(params)
-            elif action == "remove_layer":
-                return self.cmd_remove_layer(params)
-            elif action == "list_layers":
-                return self.cmd_list_layers(params)
-            elif action == "set_active_layer":
-                return self.cmd_set_active_layer(params)
-            elif action == "set_layer_opacity":
-                return self.cmd_set_layer_opacity(params)
-            elif action == "set_layer_blend_mode":
-                return self.cmd_set_layer_blend_mode(params)
-            elif action == "set_layer_visibility":
-                return self.cmd_set_layer_visibility(params)
-            elif action == "move_layer":
-                return self.cmd_move_layer(params)
-            elif action == "duplicate_layer":
-                return self.cmd_duplicate_layer(params)
-            elif action == "merge_down":
-                return self.cmd_merge_down(params)
-            # Template management
-            elif action == "create_from_template":
-                return self.cmd_create_from_template(params)
-            elif action == "save_as_template":
-                return self.cmd_save_as_template(params)
-            elif action == "list_templates":
-                return self.cmd_list_templates(params)
-            elif action == "get_layer_presets":
-                return self.cmd_get_layer_presets(params)
-            # Document management
-            elif action == "get_document_info":
-                return self.cmd_get_document_info(params)
-            elif action == "resize_canvas":
-                return self.cmd_resize_canvas(params)
-            elif action == "scale_image":
-                return self.cmd_scale_image(params)
-            elif action == "set_resolution":
-                return self.cmd_set_resolution(params)
-            elif action == "flatten_image":
-                return self.cmd_flatten_image(params)
-            # Selection
-            elif action == "select_all":
-                return self.cmd_select_all(params)
-            elif action == "deselect":
-                return self.cmd_deselect(params)
-            elif action == "select_rect":
-                return self.cmd_select_rect(params)
-            # Filters
-            elif action == "apply_filter":
-                return self.cmd_apply_filter(params)
-            elif action == "list_filters":
-                return self.cmd_list_filters(params)
-            # Export
-            elif action == "export_layers":
-                return self.cmd_export_layers(params)
-            elif action == "export_document":
-                return self.cmd_export_document(params)
-            else:
+            if action not in SUPPORTED_ACTIONS:
                 return {"error": f"Unknown action: {action}"}
+
+            handler = getattr(self, f"cmd_{action}", None)
+            if handler:
+                return handler(params)
+            return {"error": f"Unknown action: {action}"}
 
         except Exception as e:
             return {"error": str(e)}
@@ -854,17 +959,25 @@ class KritaMCPExtension(Extension):
 
     def cmd_get_canvas(self, params):
         """Export current canvas to file and return path."""
-        filename = params.get("filename", "canvas.png")
+        raw_filename = params.get("filename", "canvas.png")
+        if not raw_filename or os.path.basename(raw_filename) != raw_filename or "/" in raw_filename or "\\" in raw_filename:
+            return {"error": "Invalid filename: must be a bare filename without directories"}
+        if ".." in raw_filename:
+            return {"error": "Invalid filename: path traversal ('..') not allowed"}
 
         doc = self.get_active_document()
         if not doc:
             return {"error": "No active document"}
 
+        filename = raw_filename
         # Ensure filename has extension
         if not filename.endswith('.png'):
             filename += '.png'
 
         filepath = os.path.join(CANVAS_OUTPUT_DIR, filename)
+        filepath, err = _resolve_allowed_path(filepath, for_write=True)
+        if err:
+            return err
 
         # Export image (batch mode suppresses export dialog)
         doc.setBatchmode(True)
@@ -898,7 +1011,20 @@ class KritaMCPExtension(Extension):
         so tests can verify actual display filtering, not just the
         document projection.
         """
-        filename = params.get("filename", "screenshot.png")
+        raw_filename = params.get("filename", "screenshot.png")
+        if not raw_filename or os.path.basename(raw_filename) != raw_filename or "/" in raw_filename or "\\" in raw_filename:
+            return {"error": "Invalid filename: must be a bare filename without directories"}
+        if ".." in raw_filename:
+            return {"error": "Invalid filename: path traversal ('..') not allowed"}
+
+        filename = raw_filename
+        if not filename.endswith('.png'):
+            filename += '.png'
+        filepath = os.path.join(CANVAS_OUTPUT_DIR, filename)
+        filepath, err = _resolve_allowed_path(filepath, for_write=True)
+        if err:
+            return err
+
         app = Krita.instance()
         window = app.activeWindow()
         if not window:
@@ -934,9 +1060,6 @@ class KritaMCPExtension(Extension):
         else:
             image = qwin.grabWindow().toImage()
 
-        if not filename.endswith('.png'):
-            filename += '.png'
-        filepath = os.path.join(CANVAS_OUTPUT_DIR, filename)
         image.save(filepath)
         return {"status": "ok", "path": filepath}
 
@@ -986,11 +1109,9 @@ class KritaMCPExtension(Extension):
         if not filepath:
             return {"error": "No path specified"}
 
-        # Validate path - prevent path traversal. Check the raw path:
-        # abspath() resolves ".." away, so checking afterwards is dead code.
-        if ".." in filepath:
-            return {"error": "Invalid path: path traversal not allowed"}
-        filepath = os.path.abspath(filepath)
+        filepath, err = _resolve_allowed_path(filepath, for_write=True)
+        if err:
+            return err
 
         doc = self.get_active_document()
         if not doc:
@@ -1051,11 +1172,9 @@ class KritaMCPExtension(Extension):
         if not filepath:
             return {"error": "No path specified"}
 
-        # Validate path - prevent path traversal. Check the raw path:
-        # abspath() resolves ".." away, so checking afterwards is dead code.
-        if ".." in filepath:
-            return {"error": "Invalid path: path traversal not allowed"}
-        filepath = os.path.abspath(filepath)
+        filepath, err = _resolve_allowed_path(filepath, for_write=False)
+        if err:
+            return err
 
         if not os.path.exists(filepath):
             return {"error": f"File not found: {filepath}"}
@@ -1448,18 +1567,30 @@ class KritaMCPExtension(Extension):
         if not template_name:
             template_name = doc.name() or "Untitled Template"
 
-        # Sanitize filename
-        safe_name = "".join(
-            c for c in template_name
-            if c.isalnum() or c in (' ', '-', '_')
-        ).strip()
+        # Sanitize name: only [A-Za-z0-9 _-]
+        if not re.match(r'^[A-Za-z0-9 _-]+$', template_name):
+            return {"error": "Invalid template name: allowed characters are [A-Za-z0-9 _-]"}
+        safe_name = template_name.strip()
+        if not safe_name:
+            return {"error": "Invalid template name"}
+
+        # Sanitize category: only [A-Za-z0-9 _-]
+        safe_category = ""
+        if category:
+            if not re.match(r'^[A-Za-z0-9 _-]+$', category):
+                return {"error": "Invalid category name: allowed characters are [A-Za-z0-9 _-]"}
+            safe_category = category.strip()
 
         target_dir = TEMPLATE_DIR
-        if category:
-            target_dir = os.path.join(TEMPLATE_DIR, category)
-        os.makedirs(target_dir, exist_ok=True)
+        if safe_category:
+            target_dir = os.path.join(TEMPLATE_DIR, safe_category)
 
         filepath = os.path.join(target_dir, f"{safe_name}.kra")
+        filepath, err = _resolve_allowed_path(filepath, for_write=True)
+        if err:
+            return err
+
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         doc.setBatchmode(True)
         doc.saveAs(filepath)
@@ -1468,8 +1599,8 @@ class KritaMCPExtension(Extension):
         return {
             "status": "ok",
             "path": filepath,
-            "name": template_name,
-            "category": category,
+            "name": safe_name,
+            "category": safe_category,
         }
 
     def cmd_list_templates(self, params):
@@ -1688,6 +1819,10 @@ class KritaMCPExtension(Extension):
         output_dir = params.get("output_dir", CANVAS_OUTPUT_DIR)
         prefix = params.get("prefix", "layer")
 
+        output_dir, err = _resolve_allowed_path(output_dir, for_write=True)
+        if err:
+            return err
+
         doc = self.get_active_document()
         if not doc:
             return {"error": "No active document"}
@@ -1735,6 +1870,10 @@ class KritaMCPExtension(Extension):
         filepath = params.get("path")
         if not filepath:
             return {"error": "Export path required"}
+
+        filepath, err = _resolve_allowed_path(filepath, for_write=True)
+        if err:
+            return err
 
         doc = self.get_active_document()
         if not doc:

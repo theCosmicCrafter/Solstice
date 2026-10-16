@@ -68,3 +68,24 @@ if "QDesktopWidget" not in dir():
     from PyQt6.QtWidgets import QApplication
     if not hasattr(QApplication, "desktop"):
         QApplication.desktop = staticmethod(_app_desktop)
+
+if hasattr(QLayout, "setContentsMargins") and not hasattr(QLayout, "setMargin"):
+    QLayout.setMargin = lambda self, m: self.setContentsMargins(m, m, m, m)
+
+if hasattr(QHeaderView, "setSectionResizeMode") and not hasattr(QHeaderView, "setResizeMode"):
+    QHeaderView.setResizeMode = lambda self, *args, **kwargs: self.setSectionResizeMode(*args, **kwargs)
+
+for _txt_cls in (QTextEdit, QPlainTextEdit):
+    if hasattr(_txt_cls, "setTabStopDistance") and not hasattr(_txt_cls, "setTabStopWidth"):
+        _txt_cls.setTabStopWidth = lambda self, w: self.setTabStopDistance(float(w))
+    if hasattr(_txt_cls, "tabStopDistance") and not hasattr(_txt_cls, "tabStopWidth"):
+        _txt_cls.tabStopWidth = lambda self: int(self.tabStopDistance())
+del _txt_cls
+
+_orig_set_frame_style = QFrame.setFrameStyle
+def _frame_set_frame_style(self, style):
+    if hasattr(style, "value"):
+        style = style.value
+    return _orig_set_frame_style(self, int(style))
+
+QFrame.setFrameStyle = _frame_set_frame_style

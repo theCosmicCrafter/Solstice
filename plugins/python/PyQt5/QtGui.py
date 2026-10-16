@@ -27,12 +27,13 @@ for _cls_name in dir():
 
 del _cls_name, _cls
 
-# Qt5 renamed/removals frequently hit by plugins:
+def _qfontmetrics_width(self, *args, **kwargs):
+    return self.horizontalAdvance(*args, **kwargs)
 
 if not hasattr(QFontMetrics, "width"):
-    QFontMetrics.width = QFontMetrics.horizontalAdvance
+    QFontMetrics.width = _qfontmetrics_width
 if not hasattr(QFontMetricsF, "width"):
-    QFontMetricsF.width = QFontMetricsF.horizontalAdvance
+    QFontMetricsF.width = _qfontmetrics_width
 
 
 def _point_compat(name, source):
@@ -61,6 +62,65 @@ for _evt in (QMouseEvent, QWheelEvent):
         _evt.screenPos = lambda self: self.globalPosition()
 
 del _evt
+
+if not hasattr(QWheelEvent, "delta"):
+    QWheelEvent.delta = lambda self: self.angleDelta().y() or self.angleDelta().x()
+
+_orig_palette_color = QPalette.color
+def _palette_color(self, *args):
+    new_args = []
+    if len(args) == 1:
+        role = args[0]
+        if isinstance(role, int) and not isinstance(role, QPalette.ColorRole):
+            try:
+                role = QPalette.ColorRole(role)
+            except ValueError:
+                pass
+        new_args.append(role)
+    elif len(args) == 2:
+        group, role = args
+        if isinstance(group, int) and not isinstance(group, QPalette.ColorGroup):
+            try:
+                group = QPalette.ColorGroup(group)
+            except ValueError:
+                pass
+        if isinstance(role, int) and not isinstance(role, QPalette.ColorRole):
+            try:
+                role = QPalette.ColorRole(role)
+            except ValueError:
+                pass
+        new_args.extend([group, role])
+    else:
+        new_args = args
+    return _orig_palette_color(self, *new_args)
+
+QPalette.color = _palette_color
+
+_orig_palette_setColor = QPalette.setColor
+def _palette_setColor(self, *args):
+    new_args = list(args)
+    if len(args) == 2:
+        role, color = args
+        if isinstance(role, int) and not isinstance(role, QPalette.ColorRole):
+            try:
+                new_args[0] = QPalette.ColorRole(role)
+            except ValueError:
+                pass
+    elif len(args) == 3:
+        group, role, color = args
+        if isinstance(group, int) and not isinstance(group, QPalette.ColorGroup):
+            try:
+                new_args[0] = QPalette.ColorGroup(group)
+            except ValueError:
+                pass
+        if isinstance(role, int) and not isinstance(role, QPalette.ColorRole):
+            try:
+                new_args[1] = QPalette.ColorRole(role)
+            except ValueError:
+                pass
+    return _orig_palette_setColor(self, *new_args)
+
+QPalette.setColor = _palette_setColor
 
 try:
     from PyQt6.QtGui import QRegularExpressionValidator

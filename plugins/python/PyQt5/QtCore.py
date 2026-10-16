@@ -73,6 +73,14 @@ for _cls_name in dir():
 
 del _cls_name, _cls
 
+if hasattr(Qt, "MouseButton") and hasattr(Qt.MouseButton, "MiddleButton"):
+    Qt.MouseButton.MidButton = Qt.MouseButton.MiddleButton
+    Qt.MidButton = Qt.MouseButton.MiddleButton
+
+if hasattr(_QtCoreMod, "QStandardPaths") and hasattr(_QtCoreMod.QStandardPaths, "StandardLocation"):
+    if hasattr(_QtCoreMod.QStandardPaths.StandardLocation, "AppDataLocation") and not hasattr(_QtCoreMod.QStandardPaths, "DataLocation"):
+        _QtCoreMod.QStandardPaths.DataLocation = _QtCoreMod.QStandardPaths.StandardLocation.AppDataLocation
+
 # Qt6 removed QSignalMapper.mapped[...] in favour of typed signals
 # (mappedInt, mappedString, mappedObject); the QWidget overload has no
 # Qt6 equivalent. Restore the subscriptable Qt5 surface.
@@ -134,6 +142,31 @@ try:
             return self._last_match.capturedLength() if self._last_match else -1
 
         _last_match = None
+
+    if hasattr(_QtCoreMod, "QSortFilterProxyModel"):
+        _QSortFilterProxyModel = _QtCoreMod.QSortFilterProxyModel
+        if not hasattr(_QSortFilterProxyModel, "setFilterRegExp"):
+            def _proxy_set_filter_regexp(self, pattern):
+                if isinstance(pattern, str):
+                    self.setFilterRegularExpression(pattern)
+                elif isinstance(pattern, QRegularExpression):
+                    self.setFilterRegularExpression(pattern)
+                elif hasattr(pattern, "pattern"):
+                    self.setFilterRegularExpression(pattern.pattern())
+                else:
+                    self.setFilterRegularExpression(str(pattern))
+
+            _QSortFilterProxyModel.setFilterRegExp = _proxy_set_filter_regexp
+
+        if not hasattr(_QSortFilterProxyModel, "filterRegExp"):
+            def _proxy_filter_regexp(self):
+                regex = self.filterRegularExpression()
+                try:
+                    return QRegExp(regex)
+                except Exception:
+                    return regex
+
+            _QSortFilterProxyModel.filterRegExp = _proxy_filter_regexp
 
 except ImportError:  # pragma: no cover - PyQt6 always has it
     pass

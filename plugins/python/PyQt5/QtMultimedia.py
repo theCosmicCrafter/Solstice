@@ -77,3 +77,17 @@ class QMediaPlayer(_QMediaPlayer):
 
     def isMuted(self):  # noqa: N802 - Qt5 API name
         return self._compat_audio.isMuted()
+
+
+try:
+    from PyQt6.QtMultimedia import QSoundEffect
+
+    class QSound:
+        """Minimal Qt5 QSound stand-in using QSoundEffect."""
+        @staticmethod
+        def play(filename):
+            effect = QSoundEffect()
+            effect.setSource(QUrl.fromLocalFile(filename))
+            effect.play()
+except ImportError:
+    pass
