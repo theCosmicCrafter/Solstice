@@ -1446,17 +1446,9 @@ class KritaMCPExtension(Extension):
             node.remove()
             parent.addChildNode(node, above)
         elif direction == "down" and idx > 0:
-            below_node = siblings[idx - 1] if idx >= 2 else None
-            node.remove()
-            if below_node:
-                parent.addChildNode(node, None)
-                # Re-insert below the target
-                siblings_new = parent.childNodes()
-                for i, s in enumerate(siblings_new):
-                    if s.name() == node.name() and i > 0:
-                        break
-            else:
-                parent.addChildNode(node, None)
+            below = siblings[idx - 1]
+            below.remove()
+            parent.addChildNode(below, node)
 
         doc.refreshProjection()
         return {"status": "ok", "layer": node.name(), "direction": direction}
@@ -1883,8 +1875,13 @@ class KritaMCPExtension(Extension):
         if not doc:
             return {"error": "No active document"}
 
+        doc.waitForDone()
         doc.setBatchmode(True)
-        result = doc.exportImage(filepath, InfoObject())
+        cfg = InfoObject()
+        if filepath.lower().endswith(".png"):
+            cfg.setProperty("alpha", True)
+            cfg.setProperty("compression", 6)
+        result = doc.exportImage(filepath, cfg)
         doc.setBatchmode(False)
 
         return {"status": "ok", "path": filepath, "success": result}

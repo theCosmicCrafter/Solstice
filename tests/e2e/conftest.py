@@ -20,7 +20,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 from solstice_bridge import Bridge, BridgeError  # noqa: E402
 
 DEFAULT_EXE = (
-    r"F:\solstice-test\app-307c7e72\Solstice-0.2.0-beta.4-windows-x64-307c7e72c64f\bin\solstice.exe"
+    r"F:\solstice-test\app-a50aa6f7\Solstice-0.2.0-beta.4-windows-x64-a50aa6f7ca63\bin\solstice.exe"
+    if Path(r"F:\solstice-test\app-a50aa6f7\Solstice-0.2.0-beta.4-windows-x64-a50aa6f7ca63\bin\solstice.exe").exists()
+    else r"F:\solstice-test\app-307c7e72\Solstice-0.2.0-beta.4-windows-x64-307c7e72c64f\bin\solstice.exe"
     if Path(r"F:\solstice-test\app-307c7e72\Solstice-0.2.0-beta.4-windows-x64-307c7e72c64f\bin\solstice.exe").exists()
     else r"F:\solstice-test\app\Solstice-0.2.0-beta.4-windows-x64-43e54bc88775\bin\solstice.exe"
 )

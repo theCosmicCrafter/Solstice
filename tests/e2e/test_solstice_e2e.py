@@ -105,20 +105,23 @@ def _edge_intermediates(path):
     if best_len < 40:
         return None  # no canvas content found (e.g. grab came back black)
 
-    # edge ramp width: intermediate-valued pixels in the narrow strips
-    # flanking the bright run. Hard (nearest) edge: ~0; smooth: several.
-    total = mid = 0
+    # edge ramp width: gradient transitions in the narrow strips flanking
+    # the bright run. Hard (nearest) edge has a single step change (~9% of pairs);
+    # smooth (linear) filtering creates a gradual ramp where nearly all adjacent
+    # pairs have intermediate gradient transitions.
+    total = transitions = 0
     for dy in (-2, -1, 0, 1, 2):
         y = best_row + dy
         if y < 0 or y >= h:
             continue
-        for x in list(range(max(best_x0 - 8, 0), min(best_x0 + 4, w))) + \
-                 list(range(max(best_x1 - 4, 0), min(best_x1 + 8, w))):
-            v = pix[(y * w + x) * bpp]
-            total += 1
-            if 40 < v < 215:
-                mid += 1
-    return mid / total if total else None
+        for strip in (range(max(best_x0 - 8, 0), min(best_x0 + 4, w)),
+                      range(max(best_x1 - 4, 0), min(best_x1 + 8, w))):
+            vals = [pix[(y * w + x) * bpp] for x in strip]
+            for i in range(len(vals) - 1):
+                total += 1
+                if abs(int(vals[i + 1]) - int(vals[i])) >= 2:
+                    transitions += 1
+    return transitions / total if total else None
 
 
 def _png_dims(path):
@@ -399,26 +402,53 @@ def test_merge_and_flatten(app):
 # ─── selections & filters ───────────────────────────────────────────
 
 def test_selection_ops(app):
+    """Selections strictly constrain raster operations: painting inside alters pixels,
+    painting outside is blocked, and deselect releases the constraint."""
     bridge, _ = app
-    bridge.cmd_ok("new_canvas", {"width": 100, "height": 100})
-    bridge.cmd_ok("select_rect", {"x": 10, "y": 10, "width": 40, "height": 40})
+    bridge.cmd_ok("new_canvas", {"width": 100, "height": 100, "background": "#000000"})
+    bridge.cmd_ok("select_rect", {"x": 20, "y": 20, "width": 40, "height": 40})
+    bridge.cmd_ok("set_color", {"color": "#ffffff"})
+    # Fill at (30, 30) with large radius covering (80, 80) if unmasked
+    bridge.cmd_ok("fill", {"x": 30, "y": 30, "radius": 50})
+
+    in_sel = bridge.cmd_ok("get_color_at", {"x": 30, "y": 30})
+    out_sel = bridge.cmd_ok("get_color_at", {"x": 80, "y": 80})
+    assert in_sel["r"] > 200, f"selection interior not painted: {in_sel}"
+    assert out_sel["r"] < 30 and out_sel["g"] < 30 and out_sel["b"] < 30, f"fill leaked outside selection: {out_sel}"
+
     bridge.cmd_ok("deselect")
-    bridge.cmd_ok("select_all")
-    bridge.cmd_ok("deselect")
+    # Now painting outside must succeed
+    bridge.cmd_ok("set_color", {"color": "#00ff00"})
+    bridge.cmd_ok("fill", {"x": 80, "y": 80, "radius": 10})
+    freed = bridge.cmd_ok("get_color_at", {"x": 80, "y": 80})
+    assert freed["g"] > 200, f"painting after deselect failed: {freed}"
 
 
 def test_filters(app):
+    """Filters alter pixel values mathematically: a hard edge diffused by Gaussian blur
+    shows intermediate values across the previously sharp boundary."""
     bridge, _ = app
     filters = bridge.cmd_ok("list_filters")["filters"]
     assert len(filters) > 20
     blur = next((f for f in filters if "blur" in f.lower()), None)
     assert blur, "no blur filter found"
 
-    bridge.cmd_ok("new_canvas", {"width": 120, "height": 120})
+    bridge.cmd_ok("new_canvas", {"width": 120, "height": 120, "background": "#000000"})
     bridge.cmd_ok("set_color", {"color": "#ffffff"})
     bridge.cmd_ok("fill", {"x": 60, "y": 60, "radius": 30})
+
+    pre_29 = bridge.cmd_ok("get_color_at", {"x": 60, "y": 29})["r"]
+    pre_30 = bridge.cmd_ok("get_color_at", {"x": 60, "y": 30})["r"]
+    assert pre_29 < 10 and pre_30 > 240, f"sharp edge not present before filter: 29={pre_29}, 30={pre_30}"
+
     res = bridge.cmd_ok("apply_filter", {"name": blur})
     assert res["filter"] == blur
+
+    # After blur filter: convolution diffuses across boundary (y=29 gains light, y=30 loses light)
+    post_29 = bridge.cmd_ok("get_color_at", {"x": 60, "y": 29})["r"]
+    post_30 = bridge.cmd_ok("get_color_at", {"x": 60, "y": 30})["r"]
+    assert post_29 > 30, f"blur filter did not diffuse outward to y=29: {post_29}"
+    assert post_30 < 200, f"blur filter did not soften white edge at y=30: {post_30}"
 
 
 # ─── save / export ──────────────────────────────────────────────────
@@ -587,26 +617,63 @@ def test_info_advertises_all_actions(app):
 
 
 def test_set_layer_blend_mode(app):
-    """Set blending mode on a layer."""
+    """Set blending mode applies actual composite math: Red base * Blue multiply = Black."""
     bridge, _ = app
-    bridge.cmd_ok("new_canvas", {"width": 80, "height": 80})
-    bridge.cmd_ok("add_layer", {"name": "BlendTestLayer"})
-    res = bridge.cmd_ok("set_layer_blend_mode", {"name": "BlendTestLayer", "blend_mode": "multiply"})
+    bridge.cmd_ok("new_canvas", {"width": 80, "height": 80, "background": "#ffffff"})
+    bridge.cmd_ok("set_color", {"color": "#ff0000"})
+    bridge.cmd_ok("clear", {"color": "#ff0000"})
+
+    bridge.cmd_ok("add_layer", {"name": "TopMultiply"})
+    bridge.cmd_ok("set_active_layer", {"name": "TopMultiply"})
+    bridge.cmd_ok("set_color", {"color": "#0000ff"})
+    bridge.cmd_ok("clear", {"color": "#0000ff"})
+
+    # In Normal mode: top layer is Blue
+    px_normal = bridge.cmd_ok("get_color_at", {"x": 40, "y": 40})
+    assert px_normal["b"] > 200 and px_normal["r"] < 50
+
+    # In Multiply mode: Red (#ff0000) * Blue (#0000ff) -> Black (0, 0, 0)
+    res = bridge.cmd_ok("set_layer_blend_mode", {"name": "TopMultiply", "blend_mode": "multiply"})
     assert res.get("status") == "ok"
+
+    px_mult = bridge.cmd_ok("get_color_at", {"x": 40, "y": 40})
+    assert px_mult["r"] < 30 and px_mult["g"] < 30 and px_mult["b"] < 30, f"multiply blend mode did not darken: {px_mult}"
+
+    layers = bridge.cmd_ok("list_layers")["layers"]
+    mul_node = next(l for l in layers if l["name"] == "TopMultiply")
+    assert mul_node.get("blend_mode") == "multiply"
 
 
 def test_move_layer(app):
-    """Move a layer up or down in the layer stack."""
+    """Move a layer reorders the layer hierarchy and changes visual occlusion."""
     bridge, _ = app
-    bridge.cmd_ok("new_canvas", {"width": 80, "height": 80})
-    bridge.cmd_ok("add_layer", {"name": "LayerLower"})
+    bridge.cmd_ok("new_canvas", {"width": 80, "height": 80, "background": "#ffffff"})
+    bridge.cmd_ok("clear", {"color": "#ff0000"})  # base paint layer is RED
+
     bridge.cmd_ok("add_layer", {"name": "LayerUpper"})
+    bridge.cmd_ok("set_active_layer", {"name": "LayerUpper"})
+    bridge.cmd_ok("clear", {"color": "#0000ff"})  # upper layer is BLUE
+
+    # Upper is on top -> pixel is BLUE
+    px_top = bridge.cmd_ok("get_color_at", {"x": 40, "y": 40})
+    assert px_top["b"] > 200 and px_top["r"] < 50
+
+    layers_before = [l["name"] for l in bridge.cmd_ok("list_layers")["layers"]]
+    assert layers_before[-1] == "LayerUpper"
+
+    # Move upper layer DOWN below base layer
     res = bridge.cmd_ok("move_layer", {"name": "LayerUpper", "direction": "down"})
     assert res.get("status") == "ok"
 
+    layers_after = [l["name"] for l in bridge.cmd_ok("list_layers")["layers"]]
+    assert layers_after != layers_before
+    # Now base layer is on top -> pixel must be RED
+    px_after = bridge.cmd_ok("get_color_at", {"x": 40, "y": 40})
+    assert px_after["r"] > 200 and px_after["b"] < 50, f"layer reorder did not change visual occlusion: {px_after}"
+
 
 def test_list_templates(app):
-    """List available templates returns a list."""
+    """List available templates returns a valid list of template specs."""
     bridge, _ = app
     res = bridge.cmd_ok("list_templates")
     assert res.get("status") == "ok"
@@ -614,8 +681,17 @@ def test_list_templates(app):
 
 
 def test_clear_canvas(app):
-    """Clear canvas command executes and fills canvas with requested color."""
+    """Clear canvas fills the entire pixel buffer with the requested color."""
     bridge, _ = app
     bridge.cmd_ok("new_canvas", {"width": 64, "height": 64, "background": "#ff0000"})
+    pre = bridge.cmd_ok("get_color_at", {"x": 32, "y": 32})
+    assert pre["r"] > 200 and pre["g"] < 50
+
     res = bridge.cmd_ok("clear", {"color": "#00ff00"})
     assert res.get("status") == "ok"
+
+    # Verify both center and corners were actually filled
+    center = bridge.cmd_ok("get_color_at", {"x": 32, "y": 32})
+    corner = bridge.cmd_ok("get_color_at", {"x": 5, "y": 5})
+    assert center["g"] > 200 and center["r"] < 50, f"center not cleared to green: {center}"
+    assert corner["g"] > 200 and corner["r"] < 50, f"corner not cleared to green: {corner}"
