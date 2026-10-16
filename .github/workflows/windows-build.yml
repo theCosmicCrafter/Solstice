@@ -2,6 +2,12 @@ name: Windows x64 trial build
 
 on:
   workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: "Run tests/e2e against the packaged build (experimental: hosted runner has no GPU)"
+        type: boolean
+        default: false
+        required: false
 
 permissions:
   contents: read
@@ -28,7 +34,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: '3.13'
+          python-version: "3.13"
       - name: Restore dependency cache
         id: deps
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -52,7 +58,7 @@ jobs:
             ${{ env.CI_ROOT }}\dependencies-ready.json
           key: ${{ steps.deps.outputs.cache-primary-key }}
       - name: Prepare Python build modules
-        run: 'python -m pip install --only-binary :all: --require-hashes -r build-tools/github-actions/python-build-requirements.txt'
+        run: "python -m pip install --only-binary :all: --require-hashes -r build-tools/github-actions/python-build-requirements.txt"
       - name: Configure Release build
         run: ./build-tools/github-actions/build-windows.ps1 -Stage configure -Root "$env:CI_ROOT"
       - name: Compile and install
@@ -61,6 +67,18 @@ jobs:
         run: python -m pip install --require-hashes -r build-tools/ci-scripts/requirements-windows.txt
       - name: Create unsigned ZIP
         run: ./build-tools/github-actions/build-windows.ps1 -Stage package -Root "$env:CI_ROOT"
+      - name: Run E2E suite on packaged build (optional)
+        if: inputs.run_e2e == true
+        run: |
+          $zip = Get-ChildItem "$env:CI_ROOT\packages\Solstice-*-windows-x64-*.zip" |
+            Where-Object { $_.Name -notlike "*-dbg.zip" } | Select-Object -First 1
+          Expand-Archive -Path $zip.FullName -DestinationPath "$env:CI_ROOT\e2e-app"
+          $exe = Get-ChildItem "$env:CI_ROOT\e2e-app\*\bin\solstice.exe" | Select-Object -First 1
+          if (-not $exe) { throw "packaged solstice.exe not found" }
+          python -m pip install pytest pytest-timeout
+          $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = "1"
+          $env:SOLSTICE_EXE = $exe.FullName
+          python -m pytest tests/e2e -v -p pytest_timeout --timeout 600
       - name: Upload trial build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
