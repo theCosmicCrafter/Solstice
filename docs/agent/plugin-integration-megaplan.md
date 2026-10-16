@@ -362,7 +362,27 @@ converter.
   - **XY/parameter sweep** — the job system already batches; an XY
     grid over seed/steps/CFG feeding the history view is a moderate
     add with real QA value for tuning curated presets (7.7).
-- Skip: 3D builder, audio-reactive video, save-mp4 — outside scope.
+  - **Image Compare** — before/after slider + diff view for the
+    generation-history docker; cheap UI win for judging edits.
+  - **Image Grid** — render a whole batch as one labeled grid; same
+    QA value as XY for presets.
+- Already covered natively: Inpaint/Outpaint "stitch" (paste original
+  back, keep only generated area, feather + color-match) is our
+  `apply_grow_feather`/`expand_mask` linear-kernel + auto-derived
+  blend (`workflow.py:926-934`, `model.py:482-483`); Image Composer /
+  Paint / Sketch / Text Overlay — Krita's own canvas beats them;
+  Pause Image — our results already land in history for
+  review-before-apply.
+- **LoRA Loader Pixaroma reads trigger words from each file** —
+  validates the 7.1/7.3 modelspec approach (safetensors
+  `ss_tag_frequency`/`modelspec` fields); do the same in
+  `deduce_from_filename`/`File.metadata`.
+- **License: MIT** — the whole pack can ship inside the managed
+  ComfyUI install (7.6) with attribution; their custom-workflow nodes
+  become available to our custom-workflow feature for free.
+- Skip: 3D builder, audio-reactive video, save-mp4, canvas node-tools
+  (Node Colors, control panels, set/get wires) — ComfyUI-canvas
+  ergonomics with no counterpart in a docker-first UX.
 
 Deployment note: both are server-side extensions — installing them
 into the managed ComfyUI (7.6) makes their node-level features
