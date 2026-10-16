@@ -9,13 +9,14 @@
 import argparse
 import glob
 import itertools
+import logging
 import os
-import re
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
-import logging
+
 from components import MergeFolders
 
 # Subroutines
@@ -509,6 +510,26 @@ if os.path.isdir(f"{KRITA_INSTALL_DIR}\\lib\\krita-python-libs"):
 if os.path.isdir(f"{DEPS_INSTALL_DIR}\\lib\\site-packages"):
     MergeFolders.merge_folders(f"{DEPS_INSTALL_DIR}\\lib\\site-packages", f"{pkg_root}\\lib\\site-packages")
 
+# Vendored pykrita plugins (ai_diffusion) need numpy and Pillow at
+# runtime (image.py to_array/to_pil, mask ops). The bundled interpreter
+# is CPython 3.13/win_amd64 — install matching cp313 binary wheels into
+# the packaged site-packages. Solstice-specific step.
+logger.info("")
+logger.info("Installing bundled Python wheels (numpy, Pillow) for vendored plugins...")
+_wheels_site_packages = f"{pkg_root}\\lib\\site-packages"
+os.makedirs(_wheels_site_packages, exist_ok=True)
+subprocess.run(
+    [
+        sys.executable, "-m", "pip", "install",
+        "--no-deps", "--only-binary", ":all:",
+        "--implementation", "cp", "--abi", "cp313",
+        "--platform", "win_amd64", "--python-version", "3.13",
+        "--target", _wheels_site_packages,
+        "numpy==2.2.6", "Pillow==11.3.0",
+    ],
+    check=True,
+)
+
 # MLT plugins and their data
 MergeFolders.merge_folders(f"{DEPS_INSTALL_DIR}\\lib\\mlt", f"{pkg_root}\\lib\\mlt")
 MergeFolders.merge_folders(f"{DEPS_INSTALL_DIR}\\share\\mlt", f"{pkg_root}\\share\\mlt")
@@ -555,11 +576,11 @@ QMLDIR_ARGS = ["--qmldir", fr"{KRITA_SRC_DIR}\plugins\dockers\textproperties"]
 if os.path.isdir(fr"{KRITA_INSTALL_DIR}\qml"):
     QMLDIR_ARGS += ["--qmlimport", fr"{KRITA_INSTALL_DIR}\qml"]
 
-# A safeguard for the case when KDE_INSTALL_USE_QT_SYS_PATHS is not properly 
+# A safeguard for the case when KDE_INSTALL_USE_QT_SYS_PATHS is not properly
 # activated on Windows and the QML modules are installed into a default KDE's
-# location instead of the one returned by qtpath. If you see this error you 
+# location instead of the one returned by qtpath. If you see this error you
 # should either recreate your build tree, or pass -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
-# to the build or check if you have non-standard qt.conf in your installation 
+# to the build or check if you have non-standard qt.conf in your installation
 # root.
 
 if os.path.isdir(fr"{KRITA_INSTALL_DIR}\lib\qml"):
@@ -584,7 +605,7 @@ if useQt6Build:
         ["windeployqt.exe", *QMLDIR_ARGS,
         "-gui", "-core", "-core5compat", "-openglwidgets", "-svgwidgets", "-opengl",
         "-concurrent", "-network", "-printsupport", "-svg",
-        "-xml", "-sql", "-qml", "-quick", "-quickwidgets", *verboseOption,
+        "-xml", "-sql", "-qml", "-quick", "-quickwidgets", "-multimedia", *verboseOption,
         f"{pkg_root}\\bin\\solstice.exe", f"{pkg_root}\\bin\\krita.dll"])
 else:
     verboseOption = ["-verbose", "2"] if useVerbosePackagingLog else []
@@ -621,7 +642,7 @@ for d in os.walk(pkg_root):
         shutil.rmtree(pycache)
 
 if os.path.exists(f"{pkg_root}\\lib\\site-packages"):
-    logger.info(f"Deleting unnecessary Python packages")
+    logger.info("Deleting unnecessary Python packages")
     for f in glob.glob(f"{pkg_root}\\lib\\site-packages\\packaging*"):
         shutil.rmtree(f)
     for f in glob.glob(f"{pkg_root}\\lib\\site-packages\\pip*"):
@@ -645,7 +666,7 @@ if os.path.exists(f"{pkg_root}\\lib\\site-packages"):
     for f in glob.glob(f"{pkg_root}\\lib\\site-packages\\easy-install.pth"):
         os.remove(f)
 
-if not os.environ.get('KRITACI_SKIP_SPLIT_DEBUG', '0').lower() in ['true', '1', 'on']:
+if os.environ.get('KRITACI_SKIP_SPLIT_DEBUG', '0').lower() not in ['true', '1', 'on']:
     logger.info("")
     logger.info("Splitting debug info from binaries...")
 
@@ -740,7 +761,7 @@ run_subprocess_checked(
     [os.environ["SEVENZIP_EXE"], "a", "-tzip",
     f"{pkg_name}.zip", f"{pkg_root}\\", "-xr!*.debug"])
 
-if not os.environ.get('KRITACI_SKIP_DEBUG_PACKAGE', '0').lower() in ['true', '1', 'on']:
+if os.environ.get('KRITACI_SKIP_DEBUG_PACKAGE', '0').lower() not in ['true', '1', 'on']:
     logger.info("")
     logger.info("Packaging debug info...")
     # (note that the top-level package dir is not included)

@@ -1054,6 +1054,10 @@ class KritaMCPExtension(Extension):
                 None)
             if canvas_widget is None:
                 return {"error": "Canvas widget not found"}
+            # Queue a repaint and let it land before grabbing — a stale
+            # framebuffer after zoom/content changes can come back empty.
+            canvas_widget.update()
+            QApplication.processEvents()
             image = canvas_widget.grab().toImage()
         elif hasattr(qwin, "grab"):
             image = qwin.grab().toImage()
