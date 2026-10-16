@@ -400,16 +400,21 @@ def process_regions(
     if parent_layer and not parent_layer.is_root:
         parent_region = root.find_linked(parent_layer)
 
+    # Expand @name tokens into saved snippet text (see text.expand_snippets)
+    snippets = load_snippets()
+    positive = expand_snippets(root.positive, snippets)
+    negative = expand_snippets(root.negative, snippets)
+
     parent_prompt = ""
     job_info = []
     control = root.control.to_api(bounds, time)
     if parent_layer and parent_region:
-        parent_prompt = parent_region.positive
+        parent_prompt = expand_snippets(parent_region.positive, snippets)
         control += parent_region.control.to_api(bounds, time)
         job_info = [JobRegion(parent_layer.id_string, parent_prompt, bounds)]
     result = ConditioningInput(
-        positive=workflow.merge_prompt(parent_prompt, root.positive),
-        negative=root.negative,
+        positive=workflow.merge_prompt(parent_prompt, positive),
+        negative=negative,
         control=control,
     )
 
@@ -437,13 +442,14 @@ def process_regions(
         if coverage_rough < 2 * min_coverage:
             continue
 
+        region_prompt = expand_snippets(region.positive, snippets)
         region_result = RegionInput(
             layer.get_mask(bounds),
             layer_bounds,
-            workflow.merge_prompt(region.positive, root.positive),
+            workflow.merge_prompt(region_prompt, positive),
             control=region.control.to_api(bounds, time),
         )
-        job_params = JobRegion(layer.id_string, region.positive, layer_bounds)
+        job_params = JobRegion(layer.id_string, region_prompt, layer_bounds)
         result_regions.append((region_result, job_params))
 
     # Remove from each region mask any overlapping areas from regions above it.
@@ -458,7 +464,7 @@ def process_regions(
         coverage = mask.average()
         if coverage > 0.9 and min_coverage > 0:
             # Single region covers (almost) entire image, don't use regional conditioning.
-            result.positive = region.positive
+            result.positive = expand_snippets(region.positive, snippets)
             result.control += region.control
             return result, [job_region]
         elif coverage < min_coverage:

@@ -211,85 +211,137 @@ Audit findings (vendored tree, 2026-10-16):
   SD1.5/SDXL ancillaries + 6/11 legacy checkpoints into every managed
   install.
 
-#### 7.1 Safetensors arch detection — cheap, do first
+#### 7.1 Safetensors arch detection — implemented
 
-- Safetensors headers are length-prefixed JSON; read first 8 bytes +
-  header, parse `__metadata__.modelspec.architecture`/`title` —
-  stdlib-only, no deps, no GB-scale reads.
-- Where: populate `File.metadata` inside `compute_hash_async`
-  (`files.py:79`, already async + progress-callbacked) and consume in
-  `deduce_from_filename` (`client.py:230`) as a higher-priority source
-  than folder/filename heuristics.
-- Exit: a checkpoint in an unlabeled folder with a garbage filename is
-  still arch-detected correctly; heuristics remain as fallback.
+- `backend/modelspec.py` (new, pure stdlib): reads the 8-byte length +
+  JSON header only (32 MiB cap, never raises); `arch_keys` priority
+  `modelspec.architecture` → `base_model` → `title` → `ss_sd_model_name`
+  → `ss_base_model_version`; trigger words from
+  `modelspec.trigger_phrase` + `ss_tag_frequency` (freq-sorted, cap 50);
+  `extract_metadata_fields` produces the cached subset.
+- Consumed in `File.read_model_metadata` (`files.py`) after every hash
+  path (`compute_hash`, `compute_hash_async`, `compute_partial_hash`),
+  persisted via `ModelMetadataCache`; feeds `lora_triggers` for the
+  existing workflow trigger-word collection. `File.update` merges
+  metadata so user edits survive re-scans.
+- Arch consumption: `deduce_from_filename(filename, metadata)` tries
+  `Arch.from_metadata_string` (hint table mapping modelspec/Kohya
+  spellings → `from_string` ids, variant detection via filename+hint
+  context) before folder/filename heuristics.
+- `comfy_client._refresh_models` resolves server-reported filenames to
+  local files via `_local_metadata_resolver` (index of `server_path`
+  `models/{checkpoints,diffusion_models,unet}` roots, `ModelMetadataCache`
+  backed) so headers are read once per file change.
+- Tests: `plugins/python/ai_diffusion/tests/test_modelspec.py` (26
+  stdlib-only tests, conftest stubs the `ai_diffusion` package import).
+- Remaining: the `ui/style.py` LoRA-import path gets metadata for free;
+  checkpoint arch from metadata only applies to local/managed servers
+  (remote servers have no reachable files — the server-side
+  `etn/model_info` endpoint already reports `base_model` there).
 
-#### 7.2 Generic fallback arch
+#### 7.2 Generic fallback arch — implemented
 
-- Unknown `Arch.from_string` results currently mean "unsupported". Add
-  `Arch.generic` mapped to a minimal workflow (txt2img + img2img, no
-  controlnet/inpaint/regions) so newly released models are usable day
-  one instead of dead.
-- Where: `Arch` enum + `from_string` fallback (`resources.py:101-144`),
-  `is_compatible`, and the style-checkpoint matcher.
-- Exit: unknown checkpoint selectable and generates a plain image;
-  no control/region UI offered for `generic`.
+- `Arch.generic = "Generic"`; `from_checkpoint_name` falls through to it
+  instead of assuming sd15; `from_string("generic")` round-trips.
+- `is_compatible` treats generic as compatible with everything
+  (permissive side); `Arch.list()` includes it so workloads/styles can
+  declare it.
+- Restrictive capability properties are allow-lists generic is not in:
+  no regions, LCM, clip-skip, attention guidance, edit, controlnet —
+  only basic txt2img/img2img. `text_encoders` → `clip_l`;
+  `workflow.py` encoder dispatch → `stable_diffusion`; default VAE
+  search `["vae"]`; universal sampler preset ("Default - DPM++ 2M")
+  already applies.
+- In `parse_model_info` a model whose `base_model` resolves to nothing
+  now deduces to generic instead of being dropped.
+- Remaining: `ui/theme.py` `checkpoint_icon(generic)` falls to a warning
+  icon — acceptable; a dedicated generic style preset optional.
 
-#### 7.3 CivitAI lookup + model browser — optional, network-gated
+#### 7.3 CivitAI lookup + model browser — implemented (runtime verify pending)
 
-- Hash-prefix query against CivitAI's model-version API for files that
-  survive 7.1+7.2 unidentified → name/arch/cover preview. Download
-  writes into ComfyUI's model folders, never Solstice's.
-- Opt-in setting, offline by default; reuse `ModelMetadataCache` for
-  lookup results.
-- Exit: identify an unknown checkpoint by hash with UI showing the
-  resolved card; nothing happens without the toggle.
+- `backend/civitai.py` (new): `CivitaiClient` over `RequestManager` —
+  `lookup_by_hash` (model-version endpoint → name/version/images/
+  trigger words/base-model/downloadUrl/page URL), `search` (public
+  model listing). Offline-safe: failures log + return None, never
+  block the UI thread. The client takes the hex SHA-256; callers
+  convert the plugin's stored base64 hash.
+- `ui/model_browser.py` (new, ~1060 lines): `ModelLibraryModel`
+  aggregates checkpoint + LoRA collections into a card view —
+  thumbnail (`.preview.png`/`png`/`webp`/`jpg` siblings), name,
+  architecture badge (modelspec-derived via `Arch.from_metadata_string`,
+  raw string fallback), local/remote status, mtime, trigger-word
+  snippet. Background scan (`_scan_files_metadata` on the executor)
+  reads safetensors headers + mtimes off the UI thread; preview
+  decode likewise (`QImage`, not `QPixmap`, for thread safety).
+  CivitAI tab: opt-in identify (compute hash → hex → lookup), shows
+  name/type/base model/trigger words/preview, "Apply trigger words"
+  writes `lora_triggers`/`lora_strength` metadata, download uses
+  `network.download` (`.part` resume) into a user-chosen folder and
+  registers the result into the matching collection. Browse button
+  added to the LoRA list header (`ui/style.py`); setting
+  `settings.civitai_lookup` surfaces in the plugin settings page.
+- Tests: `tests/plugins/test_civitai.py` (7 tests, needs PyQt6 —
+  skipped on bare-Python environments).
+- Remaining: runtime verification — delegate painting, metadata-worker
+  thread behavior, settings sync, identify/download flows (manual GUI
+  matrix item).
 
-#### 7.4 Layered-generation polish
+#### 7.4 Layered-generation polish — implemented (runtime verify pending)
 
-- Runtime-verify `[Layer N]` decomposition lands correctly (manual GUI
-  matrix item — needs the Qwen-Image-Layered VAE + checkpoint in
-  ComfyUI).
-- Semantic naming: Qwen-Layered emits background + ordered elements —
-  name `Background`, `Element N` instead of `[Layer N]`
-  (`model.py:853-855`, where `prefix=` is built).
-- Reproducibility: write prompt/seed/model/checkpoint into layer props
-  (Krita layer names are long-lived; use `setProperty`/name suffix
-  consistent with how `create_result_layer` already names results).
-- Exit: a 4-layer generation produces 4 named layers carrying their
-  provenance.
+- Semantic naming: `apply_generated_result` names `[Layer 1]
+Background`, `[Layer N] Element M` (slot 0 = merged composite,
+  1..N = elements bottom→top — comment cites `comfy_workflow.py:594`
+  and `workflow.py:225`).
+- Provenance: `_record_layer_provenance` stores prompt/negative/seed/
+  checkpoint/style/sampler/strength/workflow_kind as JSON in a dynamic
+  `"ai_diffusion_params"` QObject property on the layer node — runtime
+  only, not persisted to `.kra` (no Krita API for persistent per-layer
+  custom data; documented).
+- Remaining: runtime-verify `[Layer N]` decomposition end-to-end
+  (manual GUI matrix item — needs the Qwen-Image-Layered VAE +
+  checkpoint in ComfyUI).
 
-#### 7.4a Alpha-layer generation
+#### 7.4a Alpha-layer generation — implemented
 
-- Widen `supports_alpha` (`resources.py:241`) as RGBA archs land
-  (Qwen 2.1 variants, Z-Image alpha) — small enum/property edit per
-  upstream release.
-- LayerDiffuse-class transparent generation is absent upstream —
-  candidate local workflow on top of the existing SDXL graph.
-- Asset UX: a "cutout" generation mode that lands an RGBA layer ready
-  to composite — chains into Smart Matting (edge refine) and
-  alpha-aware Trace to Vector.
-- Exit: RGBA layer with real transparency lands from a supported arch;
-  checkerboard shows through.
+- `supports_alpha` widened: `qwen2` + `qwen_l` (layered output is
+  inherently RGBA). Z-Image left out — no verified alpha evidence;
+  widen per release after a real-generation check.
+- **Cutout output mode** (`model.matte_output`, QueuePopup "Cutout"
+  checkbox): each generated layer is post-processed in-place with the
+  native `background_removal` filter (Vision ML / BiRefNet) — generated
+  content lands as a clean cutout layer, no ComfyUI node round-trip.
+  Missing filter surfaces a warning instead of failing.
+- Still open: LayerDiffuse-class transparent generation workflow;
+  GUI verification on a real build.
 
-#### 7.5 Solstice pipeline chain — the differentiator
+#### 7.5 Solstice pipeline chain — in-app recipe + E2E
 
 - Generated layer → Smart Matting refine → Trace to Vector. AI asset →
   decomposed layers → vector paths: the workflow no upstream has.
-- Mechanically: the kritamcp `trigger_action` bridge already drives
-  `layer_to_vector` and Smart Matting is a native tool — the chain is
-  scriptable today; productize as a docker shortcut or menu macro
-  rather than new engine code.
-- Prerequisite: Smart Matting GUI verification (Phase 5 remaining item).
-- Exit: one-click (or one-command) path from a generated layer to a
-  vector layer, verified on a real build.
+- **In-app**: QueuePopup "Cutout" + "Vectorize" toggles
+  (`model.matte_output`, `model.vectorize_output`) chain the two native
+  features onto every generated layer — the productized macro, no
+  agent needed. `_apply_output_vectorize` triggers the registered
+  `layer_to_vector` action on the result layer (activates it first,
+  restores the user's active layer afterwards).
+- **Agent path** (unchanged): `apply_filter {"name":
+"background_removal"}` → `trigger_action {"name": "layer_to_vector"}`.
+  Recipe in `docs/agent/mcp-bridge.md` §Pipeline recipes.
+- E2E: `test_matting_to_vector_pipeline` in `tests/e2e` drives the
+  full chain on a real build.
+- Remaining: GUI verification of both toggle paths on a real build.
 
-#### 7.6 ComfyUI first-run installer
+#### 7.6 ComfyUI first-run installer — present upstream, verify only
 
-- Optional managed-server _application_ install on first use (detect
-  missing server → offer download). Application only — model weights
-  stay user-managed per the Phase 6 no-bundled-weights rule.
+- The plugin already ships the full flow: `WelcomeWidget` → server-mode
+  chooser (`ui/settings.py` add*option: Online Service / Local Managed
+  Server / Custom Server) → managed mode downloads and installs the
+  ComfyUI \_application* itself; model weights stay user-managed per the
+  Phase 6 no-bundled-weights rule (workloads are opt-in checkboxes).
+- External servers reuse is explicit (`ServerMode.external` + custom
+  URL); managed defaults point at `127.0.0.1:8189` (local patch).
 - Exit: fresh profile with no ComfyUI gets a guided path to a running
-  server; skip is frictionless.
+  server; skip is frictionless. Verify in the manual GUI matrix.
 
 #### 7.7 Perf/defaults + 7.7a SOTA-first curation
 
@@ -298,12 +350,17 @@ Audit findings (vendored tree, 2026-10-16):
   not structure).
 - `ModelMetadataCache` exists — extend entries with the 7.1 modelspec
   fields so connect-time stays O(headers) not O(file sizes).
-- SOTA-first install profile: move the ~8 SD1.5/SDXL `required`
-  ancillaries + legacy checkpoints in `presets/models.json` to
-  `optional` under a "full/legacy" profile; default managed install
-  pulls only current-arch weights. Add a `show_legacy_styles` filter
-  for builtin SD1.5/SDXL styles (mirroring `show_builtin_styles`,
-  `style.py:319-322`).
+- SOTA-first install profile (implemented): the ~8 SD1.5/SDXL `required`
+  ancillaries in `presets/models.json` were demoted to `optional`, and
+  the 6 legacy checkpoints copied to a new `legacy_checkpoints` key
+  (`checkpoints` keeps the union — `resources.py`, `server.py`, and
+  `ui/server.py` hard-index these categories, so an exclusive move would
+  strand them). The Workloads tab groups (SD1.5/SDXL/Flux/Flux 2/Z-Image)
+  are opt-in checkboxes — selecting a legacy workload now installs its
+  checkpoint only; ancillaries are individually selectable packages.
+  `show_legacy_styles` filters builtin SD1.5/SDXL styles (mirroring
+  `show_builtin_styles`, `style.py`); `settings.recent_styles` factory
+  defaults now point at SOTA styles.
 - Exit: fresh managed install downloads no SD1.5/SDXL weight by
   default; legacy remains opt-in, not deleted.
 
@@ -354,18 +411,36 @@ converter.
 - Already beat: BiRefNet remove-bg is a ComfyUI node for them; Solstice
   has it _natively_ in Vision ML (in-process, no server). Our story is
   stronger here.
-- Worth taking:
-  - **Saved prompt snippets / `@tag` expansion** — small UI add on top
-    of the existing autocomplete.
-  - **Per-line batch generation** — check whether the batch widget
-    accepts a prompt list; if not, a simple loop.
-  - **XY/parameter sweep** — the job system already batches; an XY
-    grid over seed/steps/CFG feeding the history view is a moderate
-    add with real QA value for tuning curated presets (7.7).
-  - **Image Compare** — before/after slider + diff view for the
-    generation-history docker; cheap UI win for judging edits.
-  - **Image Grid** — render a whole batch as one labeled grid; same
-    QA value as XY for presets.
+- Taken (implemented):
+  - **Saved prompt snippets / `@tag` expansion** — `text.py`
+    `pattern_snippet` + `snippets.json` in `user_data_dir`; expanded
+    once in `model/region.py process_regions` so generation, live and
+    animation paths all get it; `SnippetsDialog` (raw-JSON editor) on
+    the prompt context menu. Unknown `@tokens` pass through; `@@x` and
+    `@` inside words don't match.
+  - **Per-line batch generation** — `batch_per_line` property + "Per
+    Line" checkbox on the batch row; `_enqueue_jobs_per_line`
+    re-prepares prompts per line (per-line wildcards/LoRA/metadata)
+    and enqueues one job per non-empty line on the same seed schedule
+    as regular batches; batch slider disabled in this mode.
+  - **Image Compare** — history context menu "Compare Images" (exactly
+    2 selected): `CompareDialog`/`_CompareView` split view with a
+    draggable divider.
+  - **Image Grid** — history context menu "Save Grid as Layer":
+    `_compose_grid` builds a sqrt-proportioned labeled grid and lands
+    it as `[Grid] <name>` via `layers.create`.
+  - **LoRA trigger words from file metadata** — implemented via
+    `modelspec.trigger_words_from_metadata` → `lora_triggers` (7.1).
+  - **Parameter sweep (XY-lite)** — `backend/sweep.py` `{{steps:…}}` /
+    `{{cfg:…}}` prompt spec; `_enqueue_jobs_sweep` runs one job per
+    value on the shared seed schedule, results labeled
+    `name [axis=value]` — feeds the history grid/compare views for
+    preset QA. 9 stdlib tests.
+- Done since: model browser with previews + CivitAI identify/download
+  (7.3, `ui/model_browser.py`); output post-processing chain —
+  "Cutout" (Smart Matting) + "Vectorize" (Trace to Vector) toggles on
+  the QueuePopup batch row (7.4a/7.5).
+- Still open: LoRA recipe share/import (cheap follow-up).
 - Already covered natively: Inpaint/Outpaint "stitch" (paste original
   back, keep only generated area, feather + color-match) is our
   `apply_grow_feather`/`expand_mask` linear-kernel + auto-derived

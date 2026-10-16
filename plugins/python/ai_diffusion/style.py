@@ -14,7 +14,13 @@ from .backend.resources import Arch
 from .localization import translate as _
 from .settings import Setting, settings
 from .util import client_logger as log
-from .util import encode_json, find_unused_path, plugin_dir, read_json_with_comments, user_data_dir
+from .util import (
+    encode_json,
+    find_unused_path,
+    plugin_dir,
+    read_json_with_comments,
+    user_data_dir,
+)
 
 
 class StyleSettings:
@@ -246,6 +252,18 @@ def _map_sampler_preset(filepath: str | Path, name: str, steps: int, cfg: float)
         return StyleSettings.sampler.default
 
 
+# Built-in style files which target legacy SD1.5/SDXL-era checkpoints.
+# Update this list when legacy styles are added, renamed or retargeted.
+LEGACY_STYLE_FILES = {
+    "cinematic-photo.json",
+    "digital-artwork.json",
+    "cinematic-photo-xl.json",
+    "digital-artwork-xl.json",
+    "anime-illustrious.json",
+    "anime-noobai-xl.json",
+}
+
+
 class Styles(QObject):
     default_builtin_folder = Path(__file__).parent / "styles"
     default_user_folder = user_data_dir / "styles"
@@ -316,16 +334,26 @@ class Styles(QObject):
     def find(self, filename: str):
         return next((style for style in self._list if style.filename == filename), None)
 
-    def filtered(self, show_builtin: bool | None = None):
+    def filtered(self, show_builtin: bool | None = None, show_legacy: bool | None = None):
         if show_builtin is None:
             show_builtin = settings.show_builtin_styles
-        return [s for s in self._list if show_builtin or not self.is_builtin(s)]
+        if show_legacy is None:
+            show_legacy = settings.show_legacy_styles
+        return [
+            s
+            for s in self._list
+            if (show_builtin or not self.is_builtin(s))
+            and (show_legacy or not self.is_legacy(s))
+        ]
 
     def is_builtin(self, style: Style):
         return style.filepath.is_relative_to(self.builtin_folder)
 
+    def is_legacy(self, style: Style):
+        return self.is_builtin(style) and style.filepath.name in LEGACY_STYLE_FILES
+
     def _handle_settings_change(self, name: str, value):
-        if name == "show_builtin_styles":
+        if name in ("show_builtin_styles", "show_legacy_styles"):
             self.changed.emit()
 
     def __getitem__(self, index) -> Style:

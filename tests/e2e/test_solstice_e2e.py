@@ -284,6 +284,34 @@ def test_trigger_action_and_trace_to_vector(app):
     assert "error" in payload
 
 
+def test_matting_to_vector_pipeline(app):
+    """The generate/matte → trace chain: apply the Vision ML background
+    removal filter to raster content (headless, default config), then
+    trace the resulting alpha into a vector layer — the Solstice
+    pipeline recipe, exercised end-to-end."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 128, "height": 128, "background": "#ffffff"})
+    bridge.cmd_ok("set_color", {"color": "#202020"})
+    bridge.cmd_ok("fill", {"x": 64, "y": 64, "radius": 32})
+
+    status, payload = bridge.cmd("apply_filter", {"name": "background_removal"})
+    if "error" in payload:
+        pytest.skip(f"background_removal filter unavailable: {payload['error']}")
+
+    # The matte rewrites layer alpha; trace must then find a subject.
+    deadline = time.time() + 15
+    traced = None
+    while time.time() < deadline and traced is None:
+        bridge.cmd_ok("trigger_action", {"name": "layer_to_vector"})
+        time.sleep(0.5)
+        layers = bridge.cmd_ok("list_layers")["layers"]
+        for layer in layers:
+            if layer["type"] == "vectorlayer":
+                traced = layer
+                break
+    assert traced, "matting→trace pipeline produced no vector layer"
+
+
 def test_smooth_high_zoom_display(app):
     """View > Smooth high zoom changes actual canvas rendering above
     200%: a hard-edged disc at 400% shows blended edge pixels with the

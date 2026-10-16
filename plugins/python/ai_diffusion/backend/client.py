@@ -21,7 +21,14 @@ from ..util import PluginError, ensure
 from ..util import client_logger as log
 from .api import WorkflowInput
 from .comfy_workflow import ComfyObjectInfo
-from .resources import Arch, ControlMode, CustomNode, ResourceId, ResourceKind, UpscalerName
+from .resources import (
+    Arch,
+    ControlMode,
+    CustomNode,
+    ResourceId,
+    ResourceKind,
+    UpscalerName,
+)
 
 
 class ServerError(Exception):
@@ -227,10 +234,25 @@ class CheckpointInfo(NamedTuple):
         )
 
     @staticmethod
-    def deduce_from_filename(filename: str):
-        """Deduce architecture and quantization from filename."""
+    def deduce_from_filename(filename: str, metadata: dict | None = None):
+        """Deduce architecture and quantization from filename.
+
+        If `metadata` (a safetensors modelspec `__metadata__` dict, or a subset
+        as produced by modelspec.extract_metadata_fields) is provided, it takes
+        priority over folder/filename heuristics.
+        """
         name_lower = filename.lower()
-        arch = Arch.from_checkpoint_name(filename)
+        arch = None
+        for hint in arch_strings_from_metadata(metadata or {}):
+            arch = Arch.from_metadata_string(hint, filename)
+            if arch is None:
+                candidate = Arch.from_checkpoint_name(hint)
+                if candidate is not Arch.generic:
+                    arch = candidate
+            if arch is not None:
+                break
+        if arch is None:
+            arch = Arch.from_checkpoint_name(filename)
 
         # Detect quantization from filename patterns
         quant = Quantization.none

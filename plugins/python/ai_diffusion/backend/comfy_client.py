@@ -546,12 +546,16 @@ class ComfyClient(Client):
         self, nodes: ComfyObjectInfo, checkpoints: dict | None, diffusion_models: dict | None
     ):
         models = self.models
+        local_metadata = self._local_metadata_resolver()
 
         def parse_model_info(models: dict, model_format: FileFormat):
             parsed = (
                 (
                     filename,
-                    Arch.from_string(info["base_model"], info.get("type", "eps"), filename),
+                    Arch.from_string(info.get("base_model", ""), info.get("type", "eps"), filename)
+                    or CheckpointInfo.deduce_from_filename(
+                        filename, local_metadata(filename)
+                    ).arch,
                     info.get("is_inpaint", False),
                     info.get("is_refiner", False),
                 )
@@ -567,7 +571,7 @@ class ComfyClient(Client):
             models.checkpoints = parse_model_info(checkpoints, FileFormat.checkpoint)
         else:
             models.checkpoints = {
-                filename: CheckpointInfo.deduce_from_filename(filename)
+                filename: CheckpointInfo.deduce_from_filename(filename, local_metadata(filename))
                 for filename in nodes.options("CheckpointLoaderSimple", "ckpt_name")
             }
         if diffusion_models:
@@ -575,6 +579,48 @@ class ComfyClient(Client):
 
         models.vae = nodes.options("VAELoader", "vae_name")
         models.loras = nodes.options("LoraLoader", "lora_name")
+
+    def _local_metadata_resolver(self):
+        """Build a filename -> modelspec-metadata resolver for locally reachable
+        model files.
+
+        When ComfyUI runs on this machine (managed install or a local server
+        path) its checkpoint filenames can be resolved to files on disk, letting
+        us read safetensors `__metadata__` (architecture, base model, trigger
+        words) that the server's model_info endpoint may not report. Returns a
+        resolver that yields extracted metadata fields or None for files that
+        cannot be resolved/read — never raises, never blocks on remote files.
+        """
+        roots = []
+        if settings.server_path:
+            base = Path(settings.server_path)
+            # Managed layout uses base_path `../models` relative to the ComfyUI
+            # install dir; `models` directly under it covers conventional installs.
+            roots += [base.parent / "models", base / "models"]
+        index: dict[str, Path] = {}
+        for root in roots:
+            for sub in ("checkpoints", "diffusion_models", "unet"):
+                folder = root / sub
+                if not folder.is_dir():
+                    continue
+                try:
+                    for path in folder.rglob("*.safetensors"):
+                        index.setdefault(path.relative_to(folder).as_posix(), path)
+                        index.setdefault(path.name, path)
+                except OSError:
+                    continue
+
+        def resolve(filename: str):
+            path = index.get(filename) or index.get(Path(filename).name)
+            if path is None:
+                return None
+            metadata = ModelMetadataCache.get(path)
+            if metadata is None:
+                metadata = extract_metadata_fields(read_safetensors_metadata(path))
+                ModelMetadataCache.set(path, metadata)
+            return metadata or None
+
+        return resolve
 
         if "UnetLoaderGGUF" in nodes:
             for name in nodes.options("UnetLoaderGGUF", "unet_name"):

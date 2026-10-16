@@ -63,6 +63,7 @@
 #include "kis_guides_config.h"
 #include <kis_adjustment_layer.h>
 #include <kis_filter_mask.h>
+#include <kis_filter_strategy.h>
 
 #include <KisImportUserFeedbackInterface.h>
 
@@ -679,6 +680,7 @@ bool KisImportExportManager::askUserAboutExportConfiguration(
 
         if (isAdvancedExporting) {
             wdgImageSize = new WdgImageSize(box, m_document->image()->width(), m_document->image()->height(), m_document->image()->yRes());
+            wdgImageSize->setSupersamplingAvailable(true);
 
             box->addTab(wdgImageSize,i18n("Resize"));
         }
@@ -723,7 +725,18 @@ bool KisImportExportManager::askUserAboutExportConfiguration(
 
             const QSize desiredSize(wdgImageSize->desiredWidth(), wdgImageSize->desiredHeight());
             double res = wdgImageSize->desiredResolution();
-            m_document->savingImage()->scaleImage(desiredSize,res,res,wdgImageSize->filterType());
+            if (wdgImageSize->supersamplingRequested() && desiredSize != m_document->savingImage()->size()) {
+                // Supersampled export (Solstice): render at twice the target
+                // size with a cheap filter first — vector and brush stroke
+                // layers re-render at that resolution — then downscale to the
+                // target with Lanczos3 for sharper edges
+                KisFilterStrategyRegistry *registry = KisFilterStrategyRegistry::instance();
+                m_document->savingImage()->scaleImage(desiredSize * 2, res, res, registry->value("Bilinear"));
+                m_document->savingImage()->waitForDone();
+                m_document->savingImage()->scaleImage(desiredSize, res, res, registry->value("Lanczos3"));
+            } else {
+                m_document->savingImage()->scaleImage(desiredSize, res, res, wdgImageSize->filterType());
+            }
             m_document->savingImage()->waitForDone();
             KisLayerUtils::forceAllDelayedNodesUpdate(m_document->savingImage()->root());
             m_document->savingImage()->waitForDone();

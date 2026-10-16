@@ -44,6 +44,7 @@ from ..backend.client import (
 from ..backend.network import NetworkError
 from ..backend.resolution import compute_bounds, compute_relative_bounds
 from ..backend.resources import ControlMode
+from ..backend.sweep import parse_sweep_spec
 from ..document import Document, KritaDocument, SelectionModifiers
 from ..files import FileLibrary
 from ..image import BlendMode, Bounds, DummyImage, Extent, Image, Mask
@@ -72,7 +73,13 @@ from .custom_workflow import (
 )
 from .jobs import Job, JobKind, JobParams, JobQueue, JobRegion, JobState
 from .properties import ObservableProperties, Property
-from .region import Region, RegionLink, RootRegion, get_region_inpaint_mask, process_regions
+from .region import (
+    Region,
+    RegionLink,
+    RootRegion,
+    get_region_inpaint_mask,
+    process_regions,
+)
 
 
 class QueueMode(Enum):
@@ -137,6 +144,9 @@ class DocumentModel(QObject, ObservableProperties):
     region_only = Property(False, persist=True)
     edit_mode = Property(False, persist=True)
     batch_count = Property(1, persist=True)
+    batch_per_line = Property(False, persist=True)
+    matte_output = Property(False, persist=True)
+    vectorize_output = Property(False, persist=True)
     seed = Property(0, persist=True)
     fixed_seed = Property(False, persist=True)
     resolution_multiplier = Property(1.0, persist=True)
@@ -153,6 +163,9 @@ class DocumentModel(QObject, ObservableProperties):
     region_only_changed = pyqtSignal(bool)
     edit_mode_changed = pyqtSignal(bool)
     batch_count_changed = pyqtSignal(int)
+    batch_per_line_changed = pyqtSignal(bool)
+    matte_output_changed = pyqtSignal(bool)
+    vectorize_output_changed = pyqtSignal(bool)
     seed_changed = pyqtSignal(int)
     fixed_seed_changed = pyqtSignal(bool)
     resolution_multiplier_changed = pyqtSignal(float)
@@ -225,9 +238,23 @@ class DocumentModel(QObject, ObservableProperties):
             self.report_error(util.log_error(e))
             return
         self.clear_error()
-        jobs = self.enqueue_jobs(
-            input, JobKind.diffusion, job_params, cond_orig, self.batch_count, queue_mode
-        )
+        sweep = (None, [], "")
+        if cond_orig is not None:
+            axis, values, cleaned = parse_sweep_spec(cond_orig.positive)
+            if axis is not None:
+                sweep = (axis, values, cleaned)
+                cond_orig = replace(cond_orig, positive=cleaned)
+        prompt_lines: list[str] = []
+        if self.batch_per_line and cond_orig is not None:
+            prompt_lines = [s for s in (l.strip() for l in cond_orig.positive.splitlines()) if s]
+        if sweep[0] is not None:
+            jobs = self._enqueue_jobs_sweep(input, job_params, cond_orig, sweep, queue_mode)
+        elif len(prompt_lines) > 1:
+            jobs = self._enqueue_jobs_per_line(input, job_params, cond_orig, prompt_lines, queue_mode)
+        else:
+            jobs = self.enqueue_jobs(
+                input, JobKind.diffusion, job_params, cond_orig, self.batch_count, queue_mode
+            )
         eventloop.run(_report_errors(self, jobs))
 
     def _prepare_workflow(self, dryrun=False):
@@ -367,6 +394,69 @@ class DocumentModel(QObject, ObservableProperties):
         if self.workspace is not Workspace.custom:
             self._track_style_usage(self.style)
 
+    async def _enqueue_jobs_per_line(
+        self,
+        input: WorkflowInput,
+        params: JobParams,
+        original_cond: ConditioningInput,
+        lines: list[str],
+        queue_mode: QueueMode | None,
+    ):
+        """Enqueue one job for each non-empty line of the prompt ("per line" batch mode).
+        Each line is evaluated with the same seed schedule used for regular batches."""
+        sampling = ensure(input.sampling)
+        for i, line in enumerate(lines):
+            seed = sampling.seed + i * settings.batch_size
+            line_cond = replace(original_cond, positive=line)
+            prepared = workflow.prepare_prompts(
+                line_cond, self.style, seed, self.arch, params.inpaint_mode, params.ref_layers
+            )
+            line_input = replace(
+                input, sampling=replace(sampling, seed=seed), conditioning=prepared.conditioning
+            )
+            line_params = copy(params)
+            line_params.metadata = params.metadata | prepared.metadata
+            line_params.name = line_params.metadata.get("prompt_eval", params.name)
+            await self.enqueue_jobs(
+                line_input, JobKind.diffusion, line_params, None, count=1, queue_mode=queue_mode
+            )
+
+    async def _enqueue_jobs_sweep(
+        self,
+        input: WorkflowInput,
+        params: JobParams,
+        original_cond: ConditioningInput,
+        sweep: tuple,
+        queue_mode: QueueMode | None,
+    ):
+        """Enqueue one job per value of a {{axis:v1,v2}} prompt spec. Each job
+        shares the (spec-stripped) prompt but overrides the swept sampling
+        field; results land in history where the grid/compare views line them
+        up for parameter QA."""
+        axis, values, _cleaned = sweep
+        sampling = ensure(input.sampling)
+        for i, value in enumerate(values):
+            seed = sampling.seed + i * settings.batch_size
+            overrides = {"seed": seed}
+            if axis == "steps":
+                overrides["total_steps"] = int(value)
+            else:
+                overrides["cfg_scale"] = float(value)
+            prepared = workflow.prepare_prompts(
+                original_cond, self.style, seed, self.arch, params.inpaint_mode, params.ref_layers
+            )
+            job_input = replace(
+                input,
+                sampling=replace(sampling, **overrides),
+                conditioning=prepared.conditioning,
+            )
+            job_params = copy(params)
+            job_params.metadata = params.metadata | prepared.metadata | {"sweep": f"{axis}={value}"}
+            job_params.name = f"{job_params.metadata.get('prompt_eval', params.name)} [{axis}={value}]"
+            await self.enqueue_jobs(
+                job_input, JobKind.diffusion, job_params, None, count=1, queue_mode=queue_mode
+            )
+
     async def _enqueue_job(self, job: Job, input: WorkflowInput, front: bool = False):
         if not self.jobs.any_executing():
             self.progress = 0.0
@@ -446,7 +536,21 @@ class DocumentModel(QObject, ObservableProperties):
                 input, _ = self._prepare_upscale_image(dryrun=True)
             else:
                 return 0
-            return input.cost * self.batch_count
+            count = self.batch_count
+            if kind is JobKind.diffusion:
+                _axis, sweep_values, _cleaned = parse_sweep_spec(
+                    self.active_regions.active_or_root.positive
+                )
+                if _axis is not None:
+                    count = len(sweep_values)
+                elif self.batch_per_line:
+                    lines = sum(
+                        1
+                        for l in self.active_regions.active_or_root.positive.splitlines()
+                        if l.strip()
+                    )
+                    count = max(1, lines)
+            return input.cost * count
         except Exception as e:
             util.client_logger.warning(f"Failed to estimate workflow cost: {type(e)} {e!s}")
             return 0
@@ -768,7 +872,9 @@ class DocumentModel(QObject, ObservableProperties):
             else:
                 name = f"{prefix}{trim_text(params.name, 200)} ({params.seed})"
                 pos = self.layers.active if behavior is ApplyBehavior.layer_active else None
-                self.layers.create(name, image, bounds, above=pos)
+                layer = self.layers.create(name, image, bounds, above=pos)
+                self._record_layer_provenance(layer, params)
+                self._post_process_output_layer(layer)
         else:  # apply to regions
             with RestoreActiveLayer(self.layers) as restore:
                 active_id = Region.link_target(self.layers.active).id_string
@@ -798,6 +904,8 @@ class DocumentModel(QObject, ObservableProperties):
             new_layer = self.layers.update_layer_image(
                 region_layer, image, params.bounds, blend=BlendMode.keep
             )
+            self._record_layer_provenance(new_layer, params)
+            self._post_process_output_layer(new_layer)
             if region is not None:
                 region.link(new_layer)
             return new_layer
@@ -840,9 +948,102 @@ class DocumentModel(QObject, ObservableProperties):
         if job_region.is_background:
             insert_pos = self.regions.last_unlinked_layer(region_layer)
 
-        return self.layers.create(
+        layer = self.layers.create(
             name, region_image, region_bounds, parent=region_layer, above=insert_pos
         )
+        self._record_layer_provenance(layer, params)
+        self._post_process_output_layer(layer)
+        return layer
+
+    def _post_process_output_layer(self, layer: Layer):
+        """Optional output pipeline applied to each freshly generated layer:
+        Cutout (native Smart Matting edge refine) followed by Vectorize
+        (Trace to Vector Layer). Both are off by default."""
+        if self.matte_output:
+            self._apply_output_matte(layer)
+        if self.vectorize_output:
+            self._apply_output_vectorize(layer)
+
+    def _apply_output_matte(self, layer: Layer):
+        """Refine the layer's alpha with the native background removal filter
+        (Vision ML / Smart Matting), turning generated content into a clean
+        cutout that composites over any background."""
+        try:
+            from krita import Krita
+
+            filt = Krita.instance().filter("background_removal")
+        except Exception:
+            filt = None
+        if filt is None:
+            self.report_error(
+                Error(
+                    ErrorKind.warning,
+                    _(
+                        "Cutout is enabled, but the background removal filter is not available"
+                        " (is the Vision ML plugin loaded?)"
+                    ),
+                )
+            )
+            return
+        try:
+            bounds = layer.bounds
+            filt.apply(layer.node, bounds.x, bounds.y, bounds.width, bounds.height)
+            self.document.refresh()
+        except Exception as e:
+            log.warning(f"Cutout background removal failed on layer {layer.name}: {e}")
+            self.report_error(
+                Error(ErrorKind.warning, _("Cutout background removal failed") + f": {e}")
+            )
+
+    def _apply_output_vectorize(self, layer: Layer):
+        """Trace the raster layer's alpha into a vector layer via the native
+        Trace to Vector action (Layer > Convert > Trace to Vector Layer)."""
+        try:
+            from krita import Krita
+
+            action = Krita.instance().action("layer_to_vector")
+        except Exception:
+            action = None
+        if action is None:
+            self.report_error(
+                Error(
+                    ErrorKind.warning,
+                    _("Vectorize is enabled, but the Trace to Vector action is not available"),
+                )
+            )
+            return
+        try:
+            with RestoreActiveLayer(self.layers):
+                self.layers.active = layer
+                action.trigger()
+        except Exception as e:
+            log.warning(f"Vectorize failed on layer {layer.name}: {e}")
+            self.report_error(
+                Error(ErrorKind.warning, _("Trace to Vector failed") + f": {e}")
+            )
+
+    def _record_layer_provenance(self, layer: Layer, params: JobParams):
+        """Store key generation parameters on the layer's Krita node as a dynamic
+        property, so prompt/seed/checkpoint/style stay recoverable from the layer.
+        krita.Node is a QObject, so setProperty attaches a runtime property (it is
+        not persisted into the .kra file)."""
+        try:
+            meta = params.metadata
+            data = {
+                "prompt": meta.get("prompt_final", meta.get("prompt", "")),
+                "negative_prompt": meta.get(
+                    "negative_prompt_final", meta.get("negative_prompt", "")
+                ),
+                "seed": params.seed,
+                "checkpoint": meta.get("checkpoint", ""),
+                "style": params.style,
+                "sampler": meta.get("sampler", ""),
+                "strength": meta.get("strength", 1.0),
+                "workflow_kind": params.workflow_kind.name,
+            }
+            layer.node.setProperty("ai_diffusion_params", json.dumps(data))
+        except Exception as e:
+            log.warning(f"Failed to store generation params on layer {layer.name}: {e}")
 
     def apply_generated_result(self, job_id: str, index: int):
         job = self.jobs.find(job_id)
@@ -851,8 +1052,14 @@ class DocumentModel(QObject, ObservableProperties):
         if job.kind is JobKind.animation and len(job.results) > 1:
             self.apply_animation(job)
         elif job.params.is_layered and len(job.results) > 1:
+            # Qwen-Image-Layered packs the layers into the temporal ("t") axis of a
+            # video latent (backend/comfy_workflow.py:594 empty_latent_layers). Slot 0
+            # is the merged image, slots 1..N are the decomposed layers ordered bottom
+            # to top; pack_latent_layers (backend/workflow.py:225) keeps slot 0, so
+            # job.results[0] is the background/composite and 1..N are elements.
             for i, image in enumerate(job.results):
-                self.apply_result(image, job.params, prefix=f"[Layer {i + 1}] ")
+                label = "Background" if i == 0 else f"Element {i}"
+                self.apply_result(image, job.params, prefix=f"[Layer {i + 1}] {label} - ")
         else:
             self.apply_result(
                 job.results[index],

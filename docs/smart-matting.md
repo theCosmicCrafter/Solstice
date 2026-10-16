@@ -14,7 +14,7 @@ used.
 
 - **Toolbox**: located in the **Select** section of the toolbox (alongside the
   rectangular, elliptical, and freehand selection tools).
-- **Tool name**: **Smart Matting Selection** (tooltip: *Smart Matting Selection (Vision ML)*).
+- **Tool name**: **Smart Matting Selection** (tooltip: _Smart Matting Selection (Vision ML)_).
 - **Internal ID / Action name**: `SmartMattingTool` (icon: `tool_smart_matting`).
 - **Activation**: click the dashed-lasso icon in the toolbox or assign a custom
   shortcut in **Settings > Configure Solstice... > Keyboard Shortcuts**.
@@ -69,7 +69,14 @@ In Tool Options, the **Model** dropdown allows selecting the active matting mode
 
 ### Installing extra models
 
-Additional GGUF models should be placed in your Solstice resource directory:
+**In-app download**: when BiRefNet Dynamic is not installed, a download
+icon appears next to the **Model** dropdown (in Smart Matting tool options
+and the Background Removal filter). Clicking it downloads
+`BiRefNet-dynamic-F16.gguf` (~900 MB) directly into the user models folder
+and selects it automatically.
+
+Additional GGUF models can also be placed manually in your Solstice
+resource directory:
 
 ```
 %APPDATA%\Solstice\resources\visionml\models\birefnet\

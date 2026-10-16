@@ -1374,3 +1374,54 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   polish, generate→matting→trace chain, SOTA-first install profile,
   ComfyUI first-run installer, 1.54.0 re-vendor; order + exits
   documented (`77f02b4a`).
+
+## 2026-10-16 — Phase 7 implementation lanes (parallel)
+
+- Lane A backend (`f8..` uncommitted): `backend/modelspec.py` stdlib
+  safetensors header reader (`__metadata__` → arch strings, trigger
+  words, 32 MiB cap, never raises); `Arch.generic` fallback arch
+  (clip_l TE, stable_diffusion workflow, permissive `is_compatible`,
+  restrictive capability lists exclude it); `deduce_from_filename`
+  takes metadata priority; `files.py` reads modelspec on every hash
+  path into `ModelMetadataCache` + `lora_triggers`; parent wired
+  `comfy_client._local_metadata_resolver` so server filenames resolve
+  to local safetensors under `settings.server_path` roots (managed
+  installs) — metadata finally reaches arch deduction on both the
+  `etn/model_info` missing-`base_model` path and the filename-only
+  path. 26 stdlib tests in `plugins/python/ai_diffusion/tests/`.
+- Lane B UX: `@snippet` expansion (`text.py` + `region.py`
+  `process_regions` funnel — covers generate/live/animation),
+  `SnippetsDialog`, per-line batch (`batch_per_line` +
+  `_enqueue_jobs_per_line` on the regular seed schedule), semantic
+  layered names `[Layer N] Background/Element M`, provenance JSON in
+  `ai_diffusion_params` node property (runtime only — .kra has no
+  per-layer custom-data API), history "Compare Images" split dialog
+  and "Save Grid as Layer".
+- Lane C curation: `models.json` — 9 legacy-only `required` entries
+  demoted to `optional`, 6 legacy checkpoints copied to new
+  `legacy_checkpoints` key (union kept in `checkpoints`: consumers
+  hard-index categories); `show_legacy_styles` setting + style filter;
+  `recent_styles` defaults now SOTA; `ernie-image.json` duplicate
+  display name fixed ("Ernie Image"); all 14 SOTA style presets
+  audited — values already correct, no changes needed.
+- Lane D: `backend/civitai.py` — hash/version lookup + validated
+  cancellable download over `RequestManager`; 7 tests in
+  `tests/plugins/`.
+- Lane E C++: V3.1 `newPaintLayersAreBrushStrokeLayers` (config +
+  `addPaintLayer` branch; parent added the missing Preferences
+  checkbox `chkNewLayersAreStrokeLayers`), V4.4 supersampled export
+  (2× Bilinear → Lanczos3, export-Resize-tab only), V2.4 decided +
+  implemented: new `kritasvgexport` impex filter — visible
+  `KisShapeLayer`s → `<g>` groups via `SvgWriter`, `MultiLayerCheck`
+  SUPPORTED so Advanced Export doesn't flatten vectors. Parent fixed
+  a stacking-order bug: `recursiveApplyNodes` walks top-first
+  (`firstChild` = top of stack); export now iterates
+  `lastChild→prevSibling` so SVG `<g>` order is bottom-first.
+- Lane F: `test_matting_to_vector_pipeline` E2E (`apply_filter
+  background_removal` → `layer_to_vector`), pipeline recipes doc in
+  `mcp-bridge.md`.
+- Lane G: Vision ML optional BiRefNet-Dynamic download button on the
+  model select (KisRemoteFileFetcher + `KRITAUI_EXPORT`; parent added
+  .part + rename hardening).
+- Wiki/testing note: `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` needed on this
+  box — system site-packages has a broken logfire/opentelemetry pair.

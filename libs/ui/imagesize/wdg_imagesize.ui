@@ -354,6 +354,16 @@
     </widget>
    </item>
    <item>
+    <widget class="QCheckBox" name="supersampleCkb">
+     <property name="toolTip">
+      <string>Render at twice the target size first, then downscale with Lanczos3 for sharper edges (slower)</string>
+     </property>
+     <property name="text">
+      <string>Supersampled (sharper, slower)</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -406,6 +416,7 @@
   <tabstop>printResolutionUnit</tabstop>
   <tabstop>constrainProportionsCkb</tabstop>
   <tabstop>adjustPrintSizeSeparatelyCkb</tabstop>
+  <tabstop>supersampleCkb</tabstop>
  </tabstops>
  <resources/>
  <connections/>

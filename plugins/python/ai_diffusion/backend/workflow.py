@@ -165,6 +165,8 @@ def load_checkpoint_with_lora(w: ComfyWorkflow, checkpoint: CheckpointInput, mod
                 clip = w.load_clip(te["qwen_3vl_4b"], type="krea2")
             case Arch.qwen2:
                 clip = w.load_clip(te["qwen_3vl_8b"], type="qwen_image")
+            case Arch.generic:
+                clip = w.load_clip(te["clip_l"], "stable_diffusion")
             case _:
                 raise RuntimeError(f"No text encoder for model architecture {arch.name}")
 

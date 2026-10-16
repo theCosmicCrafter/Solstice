@@ -8,6 +8,8 @@
 #ifndef KISREMOTEFILEFETCHER_H
 #define KISREMOTEFILEFETCHER_H
 
+#include <kritaui_export.h>
+
 #include <QIODevice>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -17,7 +19,7 @@
 /**
  * @brief The KisRemoteFileFetcher class can fetch a remote file and blocks until the file is downloaded
  */
-class KisRemoteFileFetcher : public QObject
+class KRITAUI_EXPORT KisRemoteFileFetcher : public QObject
 {
     Q_OBJECT
 public:
@@ -28,7 +30,6 @@ public:
     bool fetchFile(const QUrl &remote, QIODevice *io);
 
     static QByteArray fetchFile(const QUrl &remote);
-
 
 private Q_SLOTS:
     void error(QNetworkReply::NetworkError error);

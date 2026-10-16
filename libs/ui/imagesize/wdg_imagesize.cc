@@ -35,6 +35,7 @@ const QString WdgImageSize::PARAM_SIZE_UNIT = WdgImageSize::PARAM_PREFIX + "_siz
 const QString WdgImageSize::PARAM_RES_UNIT = WdgImageSize::PARAM_PREFIX + "_resunit";
 const QString WdgImageSize::PARAM_RATIO_LOCK = WdgImageSize::PARAM_PREFIX + "_ratioLock";
 const QString WdgImageSize::PARAM_PRINT_SIZE_SEPARATE = WdgImageSize::PARAM_PREFIX + "_printSizeSeparatly";
+const QString WdgImageSize::PARAM_SUPERSAMPLED = WdgImageSize::PARAM_PREFIX + "_supersampled";
 
 #include "ui_wdg_imagesize.h"
 
@@ -286,6 +287,12 @@ WdgImageSize::WdgImageSize(QWidget *parent, int width, int height, double resolu
     m_page->constrainProportionsCkb->setChecked(cfg.readEntry<bool>(PARAM_RATIO_LOCK, true));
     m_page->adjustPrintSizeSeparatelyCkb->setChecked(cfg.readEntry<bool>(PARAM_PRINT_SIZE_SEPARATE, false));
 
+    // The supersampled resize is offered only when the widget is used for
+    // export (setSupersamplingAvailable); it stays hidden in the regular
+    // Scale Image dialog
+    m_page->supersampleCkb->setChecked(cfg.readEntry<bool>(PARAM_SUPERSAMPLED, false));
+    m_page->supersampleCkb->setVisible(false);
+
     QHBoxLayout *l = new QHBoxLayout();
     l->addWidget(m_page);
     this->setLayout(l);
@@ -298,6 +305,7 @@ WdgImageSize::~WdgImageSize()
     KisConfig cfg(false);
     cfg.writeEntry<bool>(PARAM_PRINT_SIZE_SEPARATE, m_page->adjustPrintSizeSeparatelyCkb->isChecked());
     cfg.writeEntry<bool>(PARAM_RATIO_LOCK, m_page->constrainProportionsCkb->isChecked());
+    cfg.writeEntry<bool>(PARAM_SUPERSAMPLED, m_page->supersampleCkb->isChecked());
 
     cfg.writeEntry<QString>(PARAM_IMSIZE_UNIT, m_widthUnitManager->getApparentUnitSymbol());
     cfg.writeEntry<QString>(PARAM_SIZE_UNIT, m_printSizeUnitManager->getApparentUnitSymbol());
@@ -334,6 +342,16 @@ KisFilterStrategy *WdgImageSize::filterType()
     }
 
     return filter;
+}
+
+void WdgImageSize::setSupersamplingAvailable(bool value)
+{
+    m_page->supersampleCkb->setVisible(value);
+}
+
+bool WdgImageSize::supersamplingRequested() const
+{
+    return m_page->supersampleCkb->isVisible() && m_page->supersampleCkb->isChecked();
 }
 
 void WdgImageSize::slotSyncPrintToPixelSize()

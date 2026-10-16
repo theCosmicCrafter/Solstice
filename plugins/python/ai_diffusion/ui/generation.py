@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from textwrap import wrap as wrap_text
 from typing import ClassVar, cast
 
@@ -9,6 +10,7 @@ from PyQt6.QtCore import (
     QItemSelectionModel,
     QMetaObject,
     QPoint,
+    QRect,
     QSize,
     Qt,
     QTimer,
@@ -23,11 +25,15 @@ from PyQt6.QtGui import (
     QKeyEvent,
     QKeySequence,
     QMouseEvent,
+    QPainter,
+    QPaintEvent,
     QPalette,
 )
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFrame,
     QHBoxLayout,
     QListView,
@@ -38,6 +44,7 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QSizePolicy,
+    QSlider,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -55,7 +62,7 @@ from ..model.region import RootRegion
 from ..model.root import root
 from ..settings import settings
 from ..style import Styles
-from ..util import ensure, flatten, is_one, sequence_equal
+from ..util import ensure, flatten, is_one, sequence_equal, trim_text
 from . import theme
 from .region import RegionPromptWidget
 from .widget import (
@@ -441,6 +448,12 @@ class HistoryWidget(QListWidget):
             menu.addAction(_("Copy Seed"), self._copy_seed)
             menu.addAction(_("Info to Clipboard"), self._info_to_clipboard)
             menu.addSeparator()
+            image_items = self._selected_image_items()
+            compare_action = ensure(menu.addAction(_("Compare Images"), self._compare_images))
+            compare_action.setEnabled(len(image_items) == 2)
+            grid_action = ensure(menu.addAction(_("Save Grid as Layer"), self._save_grid_layer))
+            grid_action.setEnabled(len(image_items) > 0)
+            menu.addSeparator()
             save_action = ensure(menu.addAction(_("Save Image"), self._save_image))
             if self._model.document.filename == "":
                 tt = _(
@@ -501,6 +514,55 @@ class HistoryWidget(QListWidget):
                 data["style"] = f"{style.name} ({style.filename})"
             text = json.dumps(data, indent=2)
             clipboard.setText(text)
+
+    def _selected_image_items(self) -> list[QListWidgetItem]:
+        """Selected items which point at a concrete result image (not group headers)."""
+        return [
+            item
+            for item in self.selectedItems()
+            if item.data(Qt.ItemDataRole.UserRole + 1) is not None
+        ]
+
+    def _compare_images(self):
+        items = self._selected_image_items()
+        if len(items) != 2:
+            return
+        images: list[Image] = []
+        for item in items:
+            job_id, index = self.item_info(item)
+            job = self._model.jobs.find(job_id)
+            if job is None or index is None or index >= len(job.results):
+                return
+            images.append(job.results[index])
+        CompareDialog(images[0], images[1], self).exec()
+
+    def _save_grid_layer(self):
+        items = self._selected_image_items()
+        if len(items) == 0:
+            return
+        images: list[Image] = []
+        labels: list[str] = []
+        name = ""
+        if len(items) == 1:  # single selection: grid all results of that job
+            job_id, _ = self.item_info(items[0])
+            job = ensure(self._model.jobs.find(job_id))
+            images = list(job.results)
+            labels = [f"{i + 1}" for i in range(len(images))]
+            name = job.params.name
+        else:  # multi-selection: grid the selected results
+            for item in items:
+                job_id, index = self.item_info(item)
+                if job := self._model.jobs.find(job_id):
+                    if index is not None and index < len(job.results):
+                        images.append(job.results[index])
+                        labels.append(f"{index + 1}")
+                        name = name or job.params.name
+        if len(images) < 2:
+            return
+        grid = _compose_grid(images, labels)
+        self._model.layers.create(
+            f"[Grid] {trim_text(name, 180)}", grid, Bounds(0, 0, *grid.extent)
+        )
 
     def _save_image(self):
         items = self.selectedItems()
@@ -567,6 +629,98 @@ class AnimatedListItem(QListWidgetItem):
     def _next_frame(self):
         self._current = (self._current + 1) % len(self._images)
         self.setIcon(self._images[self._current])
+
+
+class CompareDialog(QDialog):
+    """Shows two generation results split by a draggable divider for comparison."""
+
+    def __init__(self, image_a: Image, image_b: Image, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setWindowTitle(_("Compare Images"))
+        layout = QVBoxLayout(self)
+
+        self._view = _CompareView(image_a, image_b, self)
+        layout.addWidget(self._view, 1)
+
+        slider = QSlider(Qt.Orientation.Horizontal, self)
+        slider.setRange(0, 100)
+        slider.setValue(50)
+        slider.setToolTip(_("Drag to reveal more of the left or right image"))
+        slider.valueChanged.connect(self._view.set_split)
+        layout.addWidget(slider)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, self)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        size = Extent.largest(image_a.extent, image_b.extent)
+        self.resize(min(1200, size.width + 60), min(900, size.height + 140))
+
+
+class _CompareView(QWidget):
+    """Paints the first image left and the second image right of a split position."""
+
+    def __init__(self, image_a: Image, image_b: Image, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._pixmaps = (image_a.to_pixmap(), image_b.to_pixmap())
+        self._split = 0.5
+        self.setMinimumSize(320, 240)
+
+    def set_split(self, value: int):
+        self._split = value / 100
+        self.update()
+
+    def paintEvent(self, e: QPaintEvent | None):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), self.palette().color(QPalette.ColorRole.Window))
+        split_x = int(self.width() * self._split)
+        for i, pixmap in enumerate(self._pixmaps):
+            scaled = pixmap.scaled(
+                self.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            x = (self.width() - scaled.width()) // 2
+            y = (self.height() - scaled.height()) // 2
+            painter.save()
+            if i == 0:
+                painter.setClipRect(0, 0, split_x, self.height())
+            else:
+                painter.setClipRect(split_x, 0, self.width() - split_x, self.height())
+            painter.drawPixmap(x, y, scaled)
+            painter.restore()
+        painter.setPen(QColor(theme.highlight))
+        painter.drawLine(split_x, 0, split_x, self.height())
+        painter.end()
+
+
+def _compose_grid(images: list[Image], labels: list[str]) -> Image:
+    """Compose result images into a single labeled grid image."""
+    count = len(images)
+    cols = math.ceil(math.sqrt(count))
+    rows = math.ceil(count / cols)
+    label_height = 24
+    cell_w = max(img.extent.width for img in images)
+    cell_h = max(img.extent.height for img in images)
+    grid = Image.create(Extent(cols * cell_w, rows * (cell_h + label_height)), QColor(30, 30, 30))
+    for i, img in enumerate(images):
+        row, col = divmod(i, cols)
+        cell_x = col * cell_w
+        cell_y = row * (cell_h + label_height)
+        scaled = Image.scale_to_fit(img, Extent(cell_w, cell_h))
+        grid.draw_image(
+            scaled, (cell_x + (cell_w - scaled.width) // 2, cell_y + (cell_h - scaled.height) // 2)
+        )
+
+    pixmap = grid.to_pixmap()  # Image has no text helper, draw labels on the pixmap
+    painter = QPainter(pixmap)
+    painter.setPen(QColor(theme.grey))
+    for i, label in enumerate(labels):
+        row, col = divmod(i, cols)
+        rect = QRect(col * cell_w, row * (cell_h + label_height) + cell_h, cell_w, label_height)
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, label)
+    painter.end()
+    return Image(pixmap.toImage())
 
 
 class CustomInpaintWidget(QWidget):

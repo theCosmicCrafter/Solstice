@@ -1,6 +1,7 @@
 #include "VisionML.h"
 
 #include "KisOptionButtonStrip.h"
+#include "KisRemoteFileFetcher.h"
 #include "KoColorProfile.h"
 #include "KoColorSpace.h"
 #include "KoColorSpaceRegistry.h"
@@ -15,6 +16,7 @@
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
 #include <QHBoxLayout>
@@ -391,7 +393,8 @@ VisionMLImage VisionMLImage::prepare(KisPaintDevice const &device, QRect bounds)
     const KoColorSpace *srgbCs = KoColorSpaceRegistry::instance()->rgb8();
     const KoColorProfile *srgbProfile = srgbCs ? srgbCs->profile() : nullptr;
     const KoColorProfile *csProfile = cs ? cs->profile() : nullptr;
-    const bool isSRGB = csProfile && srgbProfile && (*csProfile == *srgbProfile || csProfile->name() == srgbProfile->name());
+    const bool isSRGB =
+        csProfile && srgbProfile && (*csProfile == *srgbProfile || csProfile->name() == srgbProfile->name());
 
     if (cs && cs->pixelSize() == 4 && cs->id() == "RGBA" && isSRGB) {
         // Stored as BGRA, 8 bits per channel in sRGB in Krita. Direct fast path.
@@ -523,6 +526,18 @@ VisionMLModelSelect::VisionMLModelSelect(QSharedPointer<VisionModels> models,
         layout->addWidget(folderButton);
     }
 
+    // Offer the optional higher-quality BiRefNet Dynamic weights when the
+    // task is background removal and the file is not yet on disk.
+    if (m_task == VisionMLTask::background_removal) {
+        m_downloadButton = new QToolButton;
+        m_downloadButton->setIcon(KisIconUtils::loadIcon("download"));
+        m_downloadButton->setFixedSize(24, 24);
+        m_downloadButton->setToolTip(i18n("Download the optional higher-quality BiRefNet Dynamic model"));
+        connect(m_downloadButton, &QToolButton::clicked, this, &VisionMLModelSelect::downloadModel);
+        layout->addWidget(m_downloadButton);
+        m_downloadButton->setVisible(resolveModelPath(QStringLiteral("birefnet/BiRefNet-dynamic-F16.gguf")).isEmpty());
+    }
+
     m_fileWatcher = new QFileSystemWatcher(this);
     m_fileWatcher->addPath(findModelPath(m_task));
     connect(m_fileWatcher, &QFileSystemWatcher::directoryChanged, this, &VisionMLModelSelect::updateModels);
@@ -602,6 +617,54 @@ void VisionMLModelSelect::openModelsFolder()
         QMessageBox::warning(nullptr,
                              i18nc("@title:window", "Solstice - Vision ML"),
                              i18n("Failed to open folder: ") + folder);
+    }
+}
+
+void VisionMLModelSelect::downloadModel()
+{
+    // Only the background-removal task has an optional download so far:
+    // the higher-quality BiRefNet Dynamic weights (~900 MB) from the same
+    // Hugging Face repository the bundled Lite weights come from.
+    const QString relativeName = QStringLiteral("birefnet/BiRefNet-dynamic-F16.gguf");
+    const QUrl url(QStringLiteral("https://huggingface.co/Acly/BiRefNet-GGUF/resolve/main/BiRefNet-dynamic-F16.gguf"));
+
+    // KisRemoteFileFetcher shows its own confirmation + progress dialog.
+    const QString folder = findModelPath(m_task);
+    QDir().mkpath(folder);
+    const QString outPath = QDir(folder).filePath(QFileInfo(relativeName).fileName());
+    // Download to a .part file and rename on success so a crash mid-download
+    // cannot leave a corrupt model that resolveModelPath would pick up.
+    const QString partPath = outPath + QStringLiteral(".part");
+    QFile out(partPath);
+    if (!out.open(QIODevice::WriteOnly)) {
+        QMessageBox::warning(this,
+                             i18nc("@title:window", "Solstice - Vision ML"),
+                             i18n("Cannot write model file: ") + outPath);
+        return;
+    }
+
+    KisRemoteFileFetcher fetcher;
+    const bool ok = fetcher.fetchFile(url, &out);
+    out.close();
+    if (!ok || !QFile::rename(partPath, outPath)) {
+        out.remove(); // don't leave a partial file behind
+        if (ok) {
+            QMessageBox::warning(this,
+                                 i18nc("@title:window", "Solstice - Vision ML"),
+                                 i18n("Cannot move downloaded model into place: ") + outPath);
+        } else {
+            QMessageBox::warning(this,
+                                 i18nc("@title:window", "Solstice - Vision ML"),
+                                 i18n("Model download failed: ") + url.toString());
+        }
+        return;
+    }
+
+    // The filesystem watcher refreshes the list; select the new model
+    // and hide the offer.
+    m_shared->setModelName(m_task, relativeName);
+    if (m_downloadButton) {
+        m_downloadButton->setVisible(false);
     }
 }
 

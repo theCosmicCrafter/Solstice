@@ -96,3 +96,19 @@ unauthenticated endpoints.
 - Re-opening a file that is already open in a view **crashes Krita**
   (stack overflow in the import path) — an upstream libkis issue; the
   bridge guards it, direct Scripter `openDocument` calls do not.
+
+## Pipeline recipes
+
+Compound workflows built from existing actions — these are the
+documented chains higher-level features build on:
+
+- **Generate/matte → vector**: `apply_filter` with
+  `{"name": "background_removal"}` runs the Vision ML BiRefNet matte on
+  the active layer headlessly (default config), then
+  `trigger_action` with `{"name": "layer_to_vector"}` traces the
+  resulting alpha into a new vector layer. Covered by
+  `test_matting_to_vector_pipeline` in `tests/e2e`.
+- **Any menu action**: `trigger_action` resolves by action id —
+  `view_smooth_high_zoom`, tool ids like `SmartMattingTool`, filters
+  like `krita_filter_background_removal` (the last opens its dialog;
+  for headless matting use `apply_filter` instead).

@@ -46,7 +46,13 @@ from ..model.connection import ConnectionState, apply_performance_preset
 from ..model.properties import Binding
 from ..model.root import collect_diagnostics, root
 from ..model.updates import UpdateState
-from ..settings import ImageFileFormat, PerformancePreset, ServerMode, Settings, settings
+from ..settings import (
+    ImageFileFormat,
+    PerformancePreset,
+    ServerMode,
+    Settings,
+    settings,
+)
 from ..style import Style
 from .server import ServerWidget
 from .settings_widgets import (
@@ -753,6 +759,7 @@ class InterfaceSettings(SettingsTab):
         self.add("new_seed_after_apply", SwitchSetting(S._new_seed_after_apply, parent=self))
         self.add("save_image_format", ComboBoxSetting(S._save_image_format, parent=self))
         self.add("save_image_metadata", SwitchSetting(S._save_image_metadata, parent=self))
+        self.add("civitai_lookup", SwitchSetting(S._civitai_lookup, parent=self))
         self.add("debug_dump_workflow", SwitchSetting(S._debug_dump_workflow, parent=self))
 
         self._widgets["save_image_format"].value_changed.connect(self._update_image_format_widgets)

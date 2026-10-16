@@ -371,6 +371,14 @@ class LoraList(QWidget):
         self._refresh_button.clicked.connect(root.connection.refresh)
         header_layout.addWidget(self._refresh_button, 0)
 
+        self._browse_button = QToolButton(self)
+        self._browse_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        browse_icon = Krita.instance().icon("view-list-icons")
+        self._browse_button.setIcon(icon("filter") if browse_icon.isNull() else browse_icon)
+        self._browse_button.setToolTip(_("Open the model browser"))
+        self._browse_button.clicked.connect(self._open_model_browser)
+        header_layout.addWidget(self._browse_button, 0)
+
         if settings.server_mode is ServerMode.managed:
             open_folder = self.open_folder_button = QToolButton(self)
             open_folder.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
@@ -456,6 +464,11 @@ class LoraList(QWidget):
             file = File.local(path, FileFormat.lora, compute_hash=True)
             root.files.loras.add(file)
             self._add_item(file)
+
+    def _open_model_browser(self):
+        from .model_browser import show_model_browser
+
+        show_model_browser(self)
 
     @property
     def filter(self):
@@ -623,6 +636,10 @@ class StylePresets(SettingsTab):
         self._show_builtin_checkbox.setChecked(settings.show_builtin_styles)
         self._show_builtin_checkbox.toggled.connect(self.write)
 
+        self._show_legacy_checkbox = QCheckBox(_("Show legacy SD1.5/SDXL styles"), self)
+        self._show_legacy_checkbox.setChecked(settings.show_legacy_styles)
+        self._show_legacy_checkbox.toggled.connect(self.write)
+
         style_control_layout = QHBoxLayout()
         style_control_layout.setContentsMargins(0, 0, 0, 0)
         style_control_layout.addWidget(self._style_list)
@@ -636,6 +653,7 @@ class StylePresets(SettingsTab):
         builtin_layout.addWidget(self._builtin_message)
         builtin_layout.addWidget(self._builtin_copy)
         builtin_layout.addStretch()
+        builtin_layout.addWidget(self._show_legacy_checkbox)
         builtin_layout.addWidget(self._show_builtin_checkbox)
         frame_layout = QVBoxLayout()
         frame_layout.addLayout(style_control_layout)
@@ -964,6 +982,7 @@ class StylePresets(SettingsTab):
 
     def _read(self):
         self._show_builtin_checkbox.setChecked(settings.show_builtin_styles)
+        self._show_legacy_checkbox.setChecked(settings.show_legacy_styles)
         if client := root.connection.client_if_connected:
             default_vae = cast(str, StyleSettings.vae.default)
             self._style_widgets["vae"].set_items([default_vae] + client.models.vae)
@@ -973,6 +992,8 @@ class StylePresets(SettingsTab):
     def _write(self):
         if settings.show_builtin_styles != self._show_builtin_checkbox.isChecked():
             settings.show_builtin_styles = self._show_builtin_checkbox.isChecked()
+        if settings.show_legacy_styles != self._show_legacy_checkbox.isChecked():
+            settings.show_legacy_styles = self._show_legacy_checkbox.isChecked()
         style = self.current_style
         for name, widget in self._style_widgets.items():
             if widget.value is not None:

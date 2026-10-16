@@ -50,6 +50,7 @@ pattern_lora = re.compile(r"<lora:([^:<>]+)(?::(-?[^:<>]*))?>", re.IGNORECASE)
 pattern_layer = re.compile(r"<layer:([^>]+)>", re.IGNORECASE)
 pattern_weight_expr = re.compile(r"\([^:()]+:(-?[\d.]+)\)")
 pattern_wildcard = re.compile(r"(\{[^{}]+\|[^{}]+\})")
+pattern_snippet = re.compile(r"(?<![\w@])@(\w+)")
 
 
 def strip_prompt_comments(prompt: str):
@@ -137,6 +138,39 @@ def replace_layers(prompt: str, layer_mapping: dict[str, int], replacement="Pict
         return replacement.format(layer_mapping[match[1]])
 
     return pattern_layer.sub(replace, prompt).strip()
+
+
+def snippets_file_path() -> Path:
+    """Saved prompt snippets live next to the user styles folder."""
+    return user_data_dir / "snippets.json"
+
+
+def load_snippets() -> dict[str, str]:
+    """Load the saved prompt snippets: a JSON object of {"name": "text to insert"}."""
+    try:
+        data = json.loads(snippets_file_path().read_text("utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(k): v for k, v in data.items() if isinstance(v, str)}
+
+
+def save_snippets(snippets: dict[str, str]):
+    path = snippets_file_path()
+    path.write_text(json.dumps(snippets, indent=2, ensure_ascii=False), "utf-8")
+
+
+def expand_snippets(text: str, snippets: dict[str, str] | None = None) -> str:
+    """Expand @name tokens in a prompt using the saved snippets. Unknown @tokens
+    are passed through untouched."""
+    if "@" not in text:
+        return text
+    if snippets is None:
+        snippets = load_snippets()
+    if not snippets:
+        return text
+    return pattern_snippet.sub(lambda m: snippets.get(m[1], m[0]), text)
 
 
 def eval_wildcards(text: str, seed: int):

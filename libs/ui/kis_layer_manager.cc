@@ -697,9 +697,25 @@ void KisLayerManager::addLayerCommon(KisNodeSP activeNode, KisNodeSP layer, bool
 KisLayerSP KisLayerManager::addPaintLayer(KisNodeSP activeNode)
 {
     KisImageWSP image = m_view->image();
-    KisLayerSP layer = new KisPaintLayer(image.data(),  image->nextLayerName( i18n("Paint Layer") ), OPACITY_OPAQUE_U8, image->colorSpace());
 
     KisConfig cfg(true);
+
+    KisLayerSP layer;
+    if (cfg.newPaintLayersAreBrushStrokeLayers()) {
+        // Solstice: "new paint layer" creates a brush stroke layer for
+        // ink-first workflows (it is a KisPaintLayer, so the callers and
+        // addLayerCommon treat it like one)
+        layer = new KisBrushStrokeLayer(image.data(),
+                                        image->nextLayerName(i18n("Brush Stroke Layer")),
+                                        OPACITY_OPAQUE_U8,
+                                        image->colorSpace());
+    } else {
+        layer = new KisPaintLayer(image.data(),
+                                  image->nextLayerName(i18n("Paint Layer")),
+                                  OPACITY_OPAQUE_U8,
+                                  image->colorSpace());
+    }
+
     layer->setPinnedToTimeline(cfg.autoPinLayersToTimeline());
 
     addLayerCommon(activeNode, layer, false, 0);

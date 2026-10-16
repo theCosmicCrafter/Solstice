@@ -1631,7 +1631,7 @@
                <widget class="QLabel" name="label_17">
                 <property name="toolTip">
                  <string>In some Krita versions before 5.0 text size could be dependent on the current display DPI (which was a bug).
-In Krita 5.0 this bug has been fixed, which may cause files created in previous versions look different. 
+In Krita 5.0 this bug has been fixed, which may cause files created in previous versions look different.
 
 When loading old files Krita will try to adjust font size to the DPI of the current screen.
 If the file has been created on a different display, try adjusting this value manually.
@@ -1794,6 +1794,16 @@ To restore the old behavior you can force Krita to use Display DPI for fonts by 
              </property>
              <property name="text">
               <string>Ignore high function keys (F13-F24)</string>
+             </property>
+            </widget>
+           </item>
+           <item row="16" column="1">
+            <widget class="QCheckBox" name="chkNewLayersAreStrokeLayers">
+             <property name="toolTip">
+              <string>When checked, "New Paint Layer" creates a brush stroke layer instead of a regular paint layer. Brush stroke layers record your strokes and can redraw them cleanly after the image is resized (ink-first workflows).</string>
+             </property>
+             <property name="text">
+              <string>New paint layers are brush stroke layers</string>
              </property>
             </widget>
            </item>

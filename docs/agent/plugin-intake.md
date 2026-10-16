@@ -145,11 +145,28 @@ update possible.
   PyQt6 directly, no shim needed
 - Local patches:
   - `settings.py` — default `server_url` is `127.0.0.1:8189`
-    (ComfyUI Desktop) instead of upstream `127.0.0.1:8188`
+    (ComfyUI Desktop) instead of upstream `127.0.0.1:8188`; new
+    `civitai_lookup` (opt-in) and `show_legacy_styles` (default off)
+    settings
   - enhancements re-applied onto upstream: `Quantization`/`quantization`
     field kept on `CheckpointInfo`, parallel `discover_models`,
     extra model search-path patterns merged union-style, async file
     hashing in `files.py`, settings additions
+  - Phase 7 deepening (2026-10, `plugin-integration-megaplan.md` Phase
+    7): `backend/modelspec.py` safetensors header parsing +
+    `ModelMetadataCache` metadata-driven `deduce_from_filename` wiring
+    (`backend/comfy_client.py` filename→path resolver); `Arch.generic`
+    fallback architecture; `backend/civitai.py` hash-lookup client +
+    `ui/model_browser.py` card browser (opt-in); `backend/sweep.py`
+    `{{axis:…}}` parameter sweeps; `text.py` `@snippet` expansion;
+    `model.py` per-line batching, layered-result semantic names +
+    `ai_diffusion_params` runtime provenance, `matte_output`/
+    `vectorize_output` post-processing (Smart Matting / Trace to
+    Vector); `ui/generation.py` Image Compare + Image Grid;
+    `presets/models.json` SOTA-first curation (`legacy_checkpoints`
+    split, ancillaries demoted to `optional`)
+  - Bug fix: `Arch.sd35` referenced by `from_checkpoint_name` did not
+    exist — model folders named `sd3.5/` crashed discovery
 - Default state: enabled
 - Last re-check: 2026-10-14 — vendored; server connect/generation needs a
   real build + ComfyUI on :8189

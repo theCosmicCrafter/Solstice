@@ -102,6 +102,7 @@ public:
     bool autopinLayersToTimeline();
     bool adaptivePlaybackRange();
     bool autoZoomTimelineToPlaybackRange();
+    bool newPaintLayersAreBrushStrokeLayers();
 
     bool renameMergedLayers();
     bool renamePastedLayers();

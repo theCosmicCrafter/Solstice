@@ -63,7 +63,7 @@ from ..model.model import (
     Workspace,
     no_error,
 )
-from ..model.properties import Bind, Binding, bind, bind_combo
+from ..model.properties import Bind, Binding, bind, bind_combo, bind_toggle
 from ..model.root import root
 from ..settings import Settings, settings
 from ..style import Style, Styles, sort_recent_styles
@@ -95,7 +95,7 @@ class QueuePopup(QMenu):
         self.setStyleSheet(
             f"""
             QWidget#QueuePopup {{
-                background-color: {palette.window().color().name()}; 
+                background-color: {palette.window().color().name()};
                 border: 1px solid {palette.dark().color().name()};
             }}"""
         )
@@ -132,8 +132,33 @@ class QueuePopup(QMenu):
         self._batch_slider.setToolTip(_("Number of jobs to enqueue at once"))
         self._batch_label = QLabel("1", self)
         self._batch_label.setVisible(supports_batch)
+        self._per_line_check = QCheckBox(_("Per Line"), self)
+        self._per_line_check.setToolTip(
+            _("Enqueue one job for each non-empty line in the text prompt")
+        )
+        self._per_line_check.setVisible(supports_batch)
+        self._per_line_check.toggled.connect(self._update_batch_enabled)
+        self._matte_check = QCheckBox(_("Cutout"), self)
+        self._matte_check.setToolTip(
+            _(
+                "Apply background removal to generated layers: each result lands as a"
+                " clean cutout (native Smart Matting)"
+            )
+        )
+        self._matte_check.setVisible(supports_batch)
+        self._vectorize_check = QCheckBox(_("Vectorize"), self)
+        self._vectorize_check.setToolTip(
+            _(
+                "Trace each generated layer's alpha into a vector layer"
+                " (Trace to Vector Layer)"
+            )
+        )
+        self._vectorize_check.setVisible(supports_batch)
         batch_layout.addWidget(self._batch_slider)
         batch_layout.addWidget(self._batch_label)
+        batch_layout.addWidget(self._per_line_check)
+        batch_layout.addWidget(self._matte_check)
+        batch_layout.addWidget(self._vectorize_check)
         self._layout.addLayout(batch_layout, 1, 1)
 
         self._seed_label = QLabel(_("Seed"), self)
@@ -208,9 +233,13 @@ class QueuePopup(QMenu):
         self._seed_input.setValue(model.seed)
         self._seed_input.setEnabled(model.fixed_seed)
         self._batch_label.setText(str(model.batch_count))
+        self._update_batch_enabled(model.batch_per_line)
         self._connections = [
             bind(model, "batch_count", self._batch_slider, "value"),
             model.batch_count_changed.connect(lambda v: self._batch_label.setText(str(v))),
+            bind_toggle(model, "batch_per_line", self._per_line_check),
+            bind_toggle(model, "matte_output", self._matte_check),
+            bind_toggle(model, "vectorize_output", self._vectorize_check),
             model.seed_changed.connect(lambda: self._seed_input.setValue(self._model.seed)),
             self._seed_input.valueChanged.connect(lambda v: setattr(self._model, "seed", int(v))),
             bind(model, "fixed_seed", self._seed_check, "checked", Bind.one_way),
@@ -223,6 +252,10 @@ class QueuePopup(QMenu):
             model.jobs.count_changed.connect(self._update_job_count),
         ]
         self._update_job_count()
+
+    def _update_batch_enabled(self, per_line: bool):
+        self._batch_slider.setEnabled(not per_line)
+        self._batch_label.setEnabled(not per_line)
 
     def _create_cancel_button(self, name: str, action: Callable[[], None]):
         button = QToolButton(self)
@@ -518,6 +551,62 @@ class ResizeHandle(QWidget):
             painter.drawEllipse(x - 1, y - 1, 2, 2)
 
 
+class SnippetsDialog(QDialog):
+    """Minimal editor for saved prompt snippets. Snippets expand @name tokens in the
+    text prompt; the file is edited as raw JSON {"name": "text to insert"}."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setWindowTitle(_("Prompt Snippets"))
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        info = QLabel(
+            _("Use @name in the text prompt to insert a snippet. Stored in")
+            + f" {snippets_file_path()}",
+            self,
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        self._editor = QPlainTextEdit(self)
+        try:
+            content = snippets_file_path().read_text("utf-8")
+        except OSError:
+            content = '{\n  "name": "text to insert"\n}\n'
+        self._editor.setPlainText(content)
+        layout.addWidget(self._editor)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel, self
+        )
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self.resize(440, 340)
+
+    def _save(self):
+        try:
+            data = json.loads(self._editor.toPlainText())
+            if not isinstance(data, dict) or not all(
+                isinstance(k, str) and isinstance(v, str) for k, v in data.items()
+            ):
+                raise ValueError
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                _("Prompt Snippets"),
+                _('Snippets must be a JSON object of "name": "text" pairs.'),
+            )
+            return
+        try:
+            save_snippets(data)
+        except OSError as e:
+            QMessageBox.warning(self, _("Prompt Snippets"), str(e))
+            return
+        self.accept()
+
+
 class TextPromptWidget(QPlainTextEdit):
     activated = pyqtSignal()
     text_changed = pyqtSignal(str)
@@ -581,6 +670,17 @@ class TextPromptWidget(QPlainTextEdit):
         if self._completer.is_active:
             return False
         return super().focusNextPrevChild(next)
+
+    def contextMenuEvent(self, e: QContextMenuEvent | None):
+        e = ensure(e)
+        menu = self.createStandardContextMenu(e.pos())
+        menu.addSeparator()
+        menu.addAction(_("Edit Snippets"), self._edit_snippets)
+        menu.exec(e.globalPos())
+        menu.deleteLater()
+
+    def _edit_snippets(self):
+        SnippetsDialog(self).exec()
 
     def notify_text_changed(self):
         self._completer.check_completion()

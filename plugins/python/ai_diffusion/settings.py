@@ -367,6 +367,13 @@ class Settings(QObject):
     show_builtin_styles: bool
     _show_builtin_styles = Setting(_("Show pre-installed styles"), True)
 
+    show_legacy_styles: bool
+    _show_legacy_styles = Setting(
+        _("Show legacy SD1.5/SDXL styles"),
+        False,
+        _("Show pre-installed styles for older Stable Diffusion 1.5 and SDXL checkpoints"),
+    )
+
     recent_styles_count: int
     _recent_styles_count = Setting(
         _("Recent Styles"),
@@ -379,9 +386,9 @@ class Settings(QObject):
         "Recent Styles",
         [
             "built-in/edit-flux2.json",
-            "built-in/anime-illustrious.json",
+            "built-in/z-image-turbo.json",
             "built-in/cinematic-photo-zimage.json",
-            "built-in/digital-artwork-xl.json",
+            "built-in/flux2-klein.json",
         ],
     )
 
@@ -469,6 +476,15 @@ class Settings(QObject):
         "Show Incompatible Models",
         True,
         "Show models that may exceed available VRAM (grayed out)",
+    )
+
+    civitai_lookup: bool
+    _civitai_lookup = Setting(
+        _("CivitAI Model Lookup"),
+        False,
+        _(
+            "Allow identifying local checkpoint and LoRA files on civitai.com by their SHA-256 hash. Only the file hash is sent; file content never leaves your machine."
+        ),
     )
 
     _performance_presets: ClassVar[dict[PerformancePreset, PerformancePresetSettings]] = {

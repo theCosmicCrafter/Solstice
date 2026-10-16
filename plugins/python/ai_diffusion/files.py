@@ -74,30 +74,32 @@ class File:
             self.hash = other.hash or self.hash
             self.path = other.path or self.path
             self.size = other.size or self.size
+            # preserve user-edited keys (lora_triggers, lora_strength)
+            self.metadata = {**(other.metadata or {}), **(self.metadata or {})} or None
         return has_changes
 
     async def compute_hash_async(self, progress_callback: Callable[[int, int], None] | None = None) -> str:
         """Compute hash asynchronously without blocking the main thread.
-        
+
         Args:
             progress_callback: Optional callback(current_bytes, total_bytes) for progress updates
-            
+
         Returns:
             Base64-encoded SHA256 hash of the file
         """
         if self.hash:
             return self.hash
-        
+
         assert self.path is not None, "Local filepath must be set to compute hash"
         assert self.size is not None, "File size must be known"
-        
+
         loop = asyncio.get_event_loop()
-        
+
         def _compute_hash():
             sha = hashlib.sha256()
             processed = 0
             chunk_size = 65536  # 64KB chunks for better performance
-            
+
             with open(self.path, "rb") as f:
                 while chunk := f.read(chunk_size):
                     sha.update(chunk)
@@ -108,12 +110,13 @@ class File:
                             self._invoke_progress(progress_callback, processed, self.size),
                             loop
                         )
-            
+
             return b64encode(sha.digest()).decode()
-        
+
         self.hash = await loop.run_in_executor(None, _compute_hash)
+        self.read_model_metadata()
         return self.hash
-    
+
     async def _invoke_progress(self, callback: Callable[[int, int], None], current: int, total: int):
         """Helper to invoke progress callback from executor thread."""
         try:
@@ -123,33 +126,34 @@ class File:
 
     def compute_partial_hash(self, max_mb: int = 100) -> str:
         """Compute hash of first and last N MB for quick comparison.
-        
+
         This is much faster for large model files and suitable for caching.
-        
+
         Args:
             max_mb: Number of MB to hash from start and end of file
-            
+
         Returns:
             Base64-encoded SHA256 hash of partial content
         """
         if self.hash:
             return self.hash
-        
+
         assert self.path is not None, "Local filepath must be set to compute hash"
-        
+
         sha = hashlib.sha256()
         max_bytes = max_mb * 1024 * 1024
-        
+
         with open(self.path, "rb") as f:
             # Hash first N MB
             sha.update(f.read(max_bytes))
-            
+
             # Hash last N MB if file is larger
             if self.size and self.size > max_bytes:
                 f.seek(-max_bytes, 2)
                 sha.update(f.read(max_bytes))
-        
+
         self.hash = b64encode(sha.digest()).decode()
+        self.read_model_metadata()
         return self.hash
 
     def compute_hash(self):
@@ -161,7 +165,30 @@ class File:
             while chunk := f.read(4096):
                 sha.update(chunk)
         self.hash = b64encode(sha.digest()).decode()
+        self.read_model_metadata()
         return self.hash
+
+    def read_model_metadata(self):
+        """Read modelspec metadata from the safetensors header into `metadata`.
+
+        Reads at most ~32 MiB from the start of the file (typically a few KB).
+        Results are stored in ModelMetadataCache so repeated scans stay cheap.
+        Existing metadata keys are never overwritten."""
+        if self.path is None or self.path.suffix.lower() != ".safetensors":
+            return
+        fields = ModelMetadataCache.get(self.path)
+        if fields is None:
+            fields = extract_metadata_fields(read_safetensors_metadata(self.path))
+            if fields:
+                ModelMetadataCache.set(self.path, fields)
+        if not fields:
+            return
+        if self.metadata is None:
+            self.metadata = {}
+        for key, value in fields.items():
+            self.metadata.setdefault(key, value)
+        if triggers := fields.get("trigger_words"):
+            self.metadata.setdefault("lora_triggers", " ".join(triggers))
 
     def meta(self, key: str, default=None) -> Any:
         return self.metadata.get(key, default) if self.metadata else default
@@ -169,11 +196,11 @@ class File:
 
 class ModelMetadataCache:
     """Persistent cache for model metadata with TTL and file modification tracking."""
-    
+
     _cache_file: Path = user_data_dir / "model_metadata_cache.json"
     _cache: dict[str, dict] = {}
     _default_ttl: int = 300  # 5 minutes default
-    
+
     @classmethod
     def load(cls):
         """Load cache from disk."""
@@ -184,11 +211,11 @@ class ModelMetadataCache:
             except Exception as e:
                 log.warning(f"Failed to load model metadata cache: {e}")
                 cls._cache = {}
-    
+
     @classmethod
     def get(cls, file_path: Path) -> dict | None:
         """Get cached metadata for a file if valid.
-        
+
         Returns metadata if:
         - Cache entry exists
         - File hasn't been modified since cache
@@ -198,12 +225,12 @@ class ModelMetadataCache:
         entry = cls._cache.get(key)
         if not entry:
             return None
-        
+
         # Check TTL
         cached_at = entry.get("cached_at", 0)
         if time.time() - cached_at > cls._default_ttl:
             return None
-        
+
         # Check if file modified
         try:
             current_mtime = file_path.stat().st_mtime
@@ -211,9 +238,9 @@ class ModelMetadataCache:
                 return None  # File changed, cache invalid
         except (OSError, FileNotFoundError):
             return None
-        
+
         return entry.get("metadata")
-    
+
     @classmethod
     def set(cls, file_path: Path, metadata: dict):
         """Cache metadata for a file."""
@@ -227,7 +254,7 @@ class ModelMetadataCache:
             cls._save()
         except (OSError, FileNotFoundError):
             pass
-    
+
     @classmethod
     def invalidate(cls, file_path: Path | None = None):
         """Invalidate cache entry or entire cache."""
@@ -236,7 +263,7 @@ class ModelMetadataCache:
         else:
             cls._cache.clear()
         cls._save()
-    
+
     @classmethod
     def _save(cls):
         """Save cache to disk."""

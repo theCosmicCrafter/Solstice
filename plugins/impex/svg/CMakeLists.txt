@@ -12,4 +12,14 @@ target_link_libraries(kritasvgimport kritaui )
 
 install(TARGETS kritasvgimport  DESTINATION ${KRITA_PLUGIN_INSTALL_DIR})
 
+set(kritasvgexport_SOURCES
+    kis_svg_export.cc
+    )
+
+kis_add_library(kritasvgexport MODULE ${kritasvgexport_SOURCES})
+
+target_link_libraries(kritasvgexport kritaui )
+
+install(TARGETS kritasvgexport  DESTINATION ${KRITA_PLUGIN_INSTALL_DIR})
+
 install(FILES krita_svg.desktop DESTINATION ${KDE_INSTALL_APPDIR})

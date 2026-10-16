@@ -66,6 +66,9 @@ class Document(QObject):
     def resize_canvas(self, width: int, height: int):
         """Resize the underlying canvas if supported by the implementation."""
 
+    def refresh(self):
+        """Trigger a projection refresh where supported by the implementation."""
+
     def annotate(self, key: str, value: QByteArray):
         pass
 
@@ -251,6 +254,9 @@ class KritaDocument(Document):
     def resize(self, extent: Extent):
         res = self._doc.resolution()
         self._doc.scaleImage(extent.width, extent.height, res, res, "Bilinear")
+
+    def refresh(self):
+        self._doc.refreshProjection()
 
     def resize_canvas(self, width: int, height: int):
         self._doc.resizeImage(0, 0, width, height)

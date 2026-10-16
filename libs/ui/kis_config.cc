@@ -2475,6 +2475,16 @@ void KisConfig::setAutoPinLayersToTimeline(bool value)
     m_cfg.writeEntry("autoPinLayers", value);
 }
 
+bool KisConfig::newPaintLayersAreBrushStrokeLayers(bool defaultValue) const
+{
+    return (defaultValue ? false : m_cfg.readEntry("newPaintLayersAreBrushStrokeLayers", false));
+}
+
+void KisConfig::setNewPaintLayersAreBrushStrokeLayers(bool value)
+{
+    m_cfg.writeEntry("newPaintLayersAreBrushStrokeLayers", value);
+}
+
 bool KisConfig::adaptivePlaybackRange(bool defaultValue) const
 {
     return (defaultValue ? true : m_cfg.readEntry("adaptivePlaybackRange", true));

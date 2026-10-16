@@ -220,6 +220,8 @@ Read these before adding or updating any feature:
 - Trace to Vector Layer (raster alpha → filled `KoPathShape` on a new
   vector layer; Layer > Convert > Trace to Vector Layer):
   `docs/agent/trace-to-vector.md`
+- SVG export (vector layers → `<g>` groups via `kritasvgexport` impex
+  filter): `docs/agent/svg-export.md`
 
 Before changing a listed feature, read its complete agent document. When a new
 custom feature is added, create its `docs/agent/<feature>.md` technical document,

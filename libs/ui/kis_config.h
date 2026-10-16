@@ -698,6 +698,11 @@ public:
     bool autoPinLayersToTimeline(bool defaultValue = false) const;
     void setAutoPinLayersToTimeline(bool value);
 
+    /// Whether "new paint layer" creates a KisBrushStrokeLayer instead
+    /// (ink-first workflows; Solstice)
+    bool newPaintLayersAreBrushStrokeLayers(bool defaultValue = false) const;
+    void setNewPaintLayersAreBrushStrokeLayers(bool value);
+
     bool adaptivePlaybackRange(bool defaultValue = false) const;
     void setAdaptivePlaybackRange(bool value);
 

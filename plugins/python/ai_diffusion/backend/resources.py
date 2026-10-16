@@ -71,6 +71,31 @@ optional_custom_nodes = [
 ]
 
 
+# Map normalized modelspec/training-metadata strings to `Arch.from_string` ids.
+# Ordered most specific first (eg. "flux2" before "flux", as matching is by
+# substring on the string with all non-alphanumeric characters removed).
+_arch_string_hints = [
+    ("qwenimage21", "qwen-image21"),
+    ("qwenimage", "qwen-image"),
+    ("zimage", "z-image"),
+    ("ernieimage", "ernie-image"),
+    ("illustrious", "illu"),
+    ("illu", "illu"),
+    ("krea", "krea2"),
+    ("anima", "anima"),
+    ("chroma", "chroma"),
+    ("flux2", "flux2"),
+    ("flux", "flux"),
+    ("stablediffusionxl", "sdxl"),
+    ("sdxl", "sdxl"),
+    ("stablediffusion3", "sd3"),
+    ("sd3", "sd3"),
+    ("stablediffusion", "sd15"),
+    ("sdv1", "sd15"),
+    ("sd15", "sd15"),
+]
+
+
 class Arch(Enum):
     """Diffusion model architectures."""
 
@@ -93,6 +118,7 @@ class Arch(Enum):
     zimage = "Z-Image"
     ernie = "ERNIE Image"
     krea2 = "Krea 2"
+    generic = "Generic"
 
     auto = "Automatic"
     all = "All"
@@ -141,6 +167,8 @@ class Arch(Enum):
             return Arch.ernie
         if string == "krea2":
             return Arch.krea2
+        if string == "generic":
+            return Arch.generic
         return None
 
     @staticmethod
@@ -182,7 +210,29 @@ class Arch(Enum):
         # Fall back to filename-based detection
         if Arch.sdxl.matches(checkpoint):
             return Arch.sdxl
-        return Arch.sd15
+        return Arch.generic
+
+    @staticmethod
+    def from_metadata_string(string: str, filename: str | None = None):
+        """Deduce architecture from a modelspec/training metadata string.
+
+        Accepts both the ids understood by `from_string` and common spellings
+        used by modelspec (eg. "Stable Diffusion XL") or Kohya training
+        metadata (eg. "sd_xl_base_1.0"). The `filename` and the metadata string
+        itself are both used to detect variants (eg. "edit", "kontext").
+        Returns None if the string does not indicate a known architecture.
+        """
+        context = f"{filename or ''} {string}"
+        arch = Arch.from_string(string.strip().lower(), filename=context)
+        if arch is not None:
+            return arch
+        normalized = "".join(c for c in string.lower() if c.isalnum())
+        for token, arch_string in _arch_string_hints:
+            if token in normalized:
+                arch = Arch.from_string(arch_string, filename=context)
+                if arch is not None:
+                    return arch
+        return None
 
     @staticmethod
     def match(a: Arch, b: Arch):
@@ -194,6 +244,8 @@ class Arch(Enum):
     def is_compatible(a: Arch, b: Arch):
         return (
             a is b
+            or a is Arch.generic
+            or b is Arch.generic
             or (a.is_sdxl_like and b.is_sdxl_like)
             or (a.is_flux_like and b.is_flux_like)
             or (a.is_qwen_like and b.is_qwen_like)
@@ -235,7 +287,8 @@ class Arch(Enum):
 
     @property
     def supports_alpha(self):
-        return self is Arch.qwen2
+        # qwen_l produces layered output which is inherently RGBA
+        return self in [Arch.qwen2, Arch.qwen_l]
 
     @property
     def is_edit(self):  # edit models make changes to input images
@@ -291,6 +344,8 @@ class Arch(Enum):
                 return ["ministral"]
             case Arch.krea2:
                 return ["qwen_3vl_4b"]
+            case Arch.generic:
+                return ["clip_l"]
             case _:
                 raise ValueError(f"Unsupported architecture: {self}")
 
@@ -316,6 +371,7 @@ class Arch(Enum):
             Arch.zimage,
             Arch.ernie,
             Arch.krea2,
+            Arch.generic,
         ]
 
 
@@ -883,6 +939,7 @@ search_paths: dict[str, list[str]] = {
     resource_id(ResourceKind.vae, Arch.zimage, "default"): ["z-image", "flux-", "flux_", "flux/", "flux1", "ae.s"],
     resource_id(ResourceKind.vae, Arch.ernie, "default"): ["flux2"],
     resource_id(ResourceKind.vae, Arch.krea2, "default"): ["qwen_image"],
+    resource_id(ResourceKind.vae, Arch.generic, "default"): ["vae"],
 }
 # fmt: on
 

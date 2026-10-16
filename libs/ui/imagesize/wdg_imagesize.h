@@ -29,6 +29,7 @@ public:
     static const QString PARAM_RES_UNIT;
     static const QString PARAM_RATIO_LOCK;
     static const QString PARAM_PRINT_SIZE_SEPARATE;
+    static const QString PARAM_SUPERSAMPLED;
 
     WdgImageSize(QWidget * parent, int width, int height, double resolution);
     ~WdgImageSize() override;
@@ -38,6 +39,13 @@ public:
     double desiredResolution();
 
     KisFilterStrategy *filterType();
+
+    /// Show the "Supersampled" option; export-time resize only, so it is
+    /// hidden in the regular Scale Image dialog (Solstice)
+    void setSupersamplingAvailable(bool value);
+    /// true when the option is shown and checked: render at twice the
+    /// target size first, then downscale with Lanczos3
+    bool supersamplingRequested() const;
 
 Q_SIGNALS:
     void sigDesiredSizeChanged(qint32 width, qint32 height, double resolution);

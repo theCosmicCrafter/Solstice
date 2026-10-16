@@ -558,6 +558,7 @@ GeneralTab::GeneralTab(QWidget *_parent, const char *_name)
     m_chkAutoPin->setChecked(cfg.autoPinLayersToTimeline());
     m_chkAdaptivePlaybackRange->setChecked(cfg.adaptivePlaybackRange());
     m_chkAutoZoom->setChecked(cfg.autoZoomTimelineToPlaybackRange());
+    chkNewLayersAreStrokeLayers->setChecked(cfg.newPaintLayersAreBrushStrokeLayers());
 
     //
     // Miscellaneous tab
@@ -808,6 +809,7 @@ void GeneralTab::setDefault()
 
     m_chkAutoPin->setChecked(cfg.autoPinLayersToTimeline(true));
     m_chkAdaptivePlaybackRange->setChecked(cfg.adaptivePlaybackRange(false));
+    chkNewLayersAreStrokeLayers->setChecked(cfg.newPaintLayersAreBrushStrokeLayers(true));
 
     m_urlResourceFolder->setFileName(KoResourcePaths::getAppDataLocation());
 
@@ -1045,6 +1047,11 @@ bool GeneralTab::adaptivePlaybackRange()
 bool GeneralTab::autoZoomTimelineToPlaybackRange()
 {
     return m_chkAutoZoom->isChecked();
+}
+
+bool GeneralTab::newPaintLayersAreBrushStrokeLayers()
+{
+    return chkNewLayersAreStrokeLayers->isChecked();
 }
 
 int GeneralTab::forcedFontDpi()
@@ -2853,6 +2860,7 @@ bool KisDlgPreferences::editPreferences(std::optional<PageDesc>page)
 
         // Animation..
         cfg.setAutoPinLayersToTimeline(m_general->autopinLayersToTimeline());
+        cfg.setNewPaintLayersAreBrushStrokeLayers(m_general->newPaintLayersAreBrushStrokeLayers());
         cfg.setAdaptivePlaybackRange(m_general->adaptivePlaybackRange());
         cfg.setAutoZoomTimelineToPlaybackRange(m_general->autoZoomTimelineToPlaybackRange());
 

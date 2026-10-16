@@ -12,6 +12,7 @@ forced behavior; output/defaults **and** AI/ML image quality are in
 scope. This document is the canonical plan.
 
 See also: `stabilization-plan.md` (2026-10-15 audit - defect list and revised open items; wins on conflicts until merged back).
+
 ## Handoff snapshot (updated 2026-10-15)
 
 **Done and verified on a real build**
@@ -37,9 +38,10 @@ See also: `stabilization-plan.md` (2026-10-15 audit - defect list and revised op
   backends (E2E covered whichever backend was active on the test box;
   parity needs the manual matrix), vendored-plugin dockers, Smart
   Matting lasso, Trace to Vector UX.
-- Open scope: V2.3 vector-tool QA, V2.4 SVG/PDF export decision (import-only verified; export filter needed or drop), V3.1
-  "lineart = stroke layer" option, V4.4 supersampled export, V5.2 dynamic/HR
+- Open scope: V2.3 vector-tool QA, V5.2 dynamic/HR
   matting weights & first-run download decision, V6 manual zoom matrix.
+  V2.4 SVG export, V3.1 "lineart = stroke layer" option and V4.4
+  supersampled export are implemented (pending CI build).
 
 **Cross-references:** plugin bundling roadmap —
 `plugin-integration-megaplan.md`; per-plugin pins/patches —
@@ -92,16 +94,16 @@ imagery produced below print resolution.
 
 ## What already exists to build on
 
-| Capability                   | Location                                                                           | State                                                     |
-| ---------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| GL canvas w/ HQ filter modes | `libs/ui/opengl/`                                                                  | Present, default mode 3                                   |
-| Vector (shape) layers        | `libs/ui/flake/kis_shape_layer.cc`                                                 | Present — verify crispness                                |
-| Vector tools                 | `plugins/tools/{defaulttool,karbonplugins,svgtexttool,tool_polyline,tool_polygon}` | Present — QA needed                                       |
-| Stroke-recorded layers       | `libs/ui/KisBrushStrokeLayer.*`                                                    | Implemented + tested (stages through 2c + transform/move) |
-| SVG / PDF impex              | `plugins/impex/{svg,pdf}`                                                          | Import-only (no SVG/PDF export filter exists; exports flatten) |
-| Bicubic / Lanczos3           | `libs/image/kis_filter_strategy.cc`                                                | Present — audit defaults                                  |
-| Vulkan compute engine        | `libs/gpu/`                                                                        | Brush/paint compositing only (not display)                |
-| AI output                    | `plugins/python/ai_diffusion/`, `plugins/visionml/`                                | Vendored + native — audit res/edge defaults               |
+| Capability                   | Location                                                                           | State                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| GL canvas w/ HQ filter modes | `libs/ui/opengl/`                                                                  | Present, default mode 3                                                |
+| Vector (shape) layers        | `libs/ui/flake/kis_shape_layer.cc`                                                 | Present — verify crispness                                             |
+| Vector tools                 | `plugins/tools/{defaulttool,karbonplugins,svgtexttool,tool_polyline,tool_polygon}` | Present — QA needed                                                    |
+| Stroke-recorded layers       | `libs/ui/KisBrushStrokeLayer.*`                                                    | Implemented + tested (stages through 2c + transform/move)              |
+| SVG / PDF impex              | `plugins/impex/{svg,pdf}`                                                          | SVG import + export (`kritasvgexport` on `SvgWriter`); PDF import-only |
+| Bicubic / Lanczos3           | `libs/image/kis_filter_strategy.cc`                                                | Present — audit defaults                                               |
+| Vulkan compute engine        | `libs/gpu/`                                                                        | Brush/paint compositing only (not display)                             |
+| AI output                    | `plugins/python/ai_diffusion/`, `plugins/visionml/`                                | Vendored + native — audit res/edge defaults                            |
 
 ## Phase V1 — Display quality: "smooth zoom" everywhere
 
@@ -182,11 +184,14 @@ feature.
    layers to raster. SVG import asks for a resolution
    (`plugins/impex/svg/kis_svg_import.cc:50`) — default PPI was raised
    from 100 to 300 (`preferredVectorImportResolution`); PDF import already
-   defaults to 300 dpi (`pdfimportwidgetbase.ui`). Real vector export is
-   an open scope **DECISION**: build a new `KisSVGExport` based on
-   `libs/flake/svg/SvgWriter` (medium effort), or drop the vector export
-   claim. Neither README nor docs should promise vector export until
-   decided.
+   defaults to 300 dpi (`pdfimportwidgetbase.ui`). **Decided and
+   implemented (SVG only):** `SvgWriter` turned out to be complete
+   (layers/groups/paths plus `SvgShape::saveSvg` for text; shapes without
+   a native element are embedded as images), so a `kritasvgexport` impex
+   plugin was added (`plugins/impex/svg/kis_svg_export.cc`). It exports
+   each visible vector layer as a `<g>` group in stacking order; raster
+   content is not represented. PDF export remains absent — do not promise
+   it in docs.
 5. **New feature — Trace to Vector.** Raster/alpha → `KoPathShape`
    on a new vector layer. **Implemented 2026-10-15** as
    **Layer > Convert > Trace to Vector Layer** — no potrace
@@ -221,8 +226,11 @@ The engine is built and tested; the work is productizing it.
      which routes through `kis_transform_processing_visitor` →
      `KisRedrawableLayerInterface::createTransformRedrawCommand` —
      stroke layers re-render at the target resolution automatically.
-   - Optional setting: "default new lineart layer = stroke layer" for
-     ink-first workflows.
+   - ~~Optional setting: "default new lineart layer = stroke layer"~~ —
+     implemented as `KisConfig::newPaintLayersAreBrushStrokeLayers`
+     (kritarc-only, default OFF): `KisLayerManager::addPaintLayer` then
+     creates a `KisBrushStrokeLayer` for every "new paint layer"
+     request (V3.1).
    - User doc (`docs/brush-stroke-layer.md` if absent): what it is,
      when redraws happen, honest limits (fills/filters/large edits fall
      back to pixel scaling; only recorded strokes re-render).
@@ -252,8 +260,12 @@ The engine is built and tested; the work is productizing it.
 4. **Export quality.** Partially done: JXL already defaults to
    lossless (effort 7); PNG is lossless. **WebP default quality raised
    75 → 90, HEIF 50 → 90.** Supersampled export (render 2x + Lanczos
-   downscale) remains an open stretch item — needs an export-dialog
-   option touching shared impex code.
+   downscale) is **implemented**: a "Supersampled" checkbox in the
+   export dialog's Resize tab (`wdg_imagesize.ui`, surfaced by
+   `KisImportExportManager` only for advanced export) makes
+   `savingImage()` scale to 2× the target with Bilinear first — vector
+   and brush stroke layers re-render at that resolution — then downscale
+   to the target with Lanczos3.
 5. **Color path.** Proofing + display color conversion already exist;
    documentation only.
 

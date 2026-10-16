@@ -17,6 +17,7 @@
 #include <QWidget>
 
 class KisPaintDevice;
+class QToolButton;
 
 enum class SegmentationMode {
     fast,
@@ -127,11 +128,13 @@ public Q_SLOTS:
     void updateModel(VisionMLTask, QString const &name);
     void openModelsFolder();
     void updateModels();
+    void downloadModel();
 
 private:
     QSharedPointer<VisionModels> m_shared;
     VisionMLTask m_task;
     QComboBox *m_select;
+    QToolButton *m_downloadButton = nullptr;
     QFileSystemWatcher *m_fileWatcher = nullptr;
 };
 
