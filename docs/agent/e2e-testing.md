@@ -7,11 +7,11 @@ bytes, PNG dimensions), HTTP status codes, and process liveness.
 
 ## Files
 
-| File | Role |
-| --- | --- |
-| `tests/e2e/solstice_bridge.py` | Minimal urllib client; token resolution mirrors `server.py` (`KRITAMCP_TOKEN` → `kritamcp.token` sidecar → kritarc `[kritamcp] token`; kritarc is parsed manually — KDE configs have keys before any `[section]`) |
-| `tests/e2e/conftest.py` | `ManagedApp` launch/teardown fixture, `/health` wait loop, merged stdout+stderr capture to `tests/e2e/_last_run_stderr.log` (gitignored) |
-| `tests/e2e/test_solstice_e2e.py` | 20 tests; see markers below |
+| File                             | Role                                                                                                                                                                                                              |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/e2e/solstice_bridge.py`   | Minimal urllib client; token resolution mirrors `server.py` (`KRITAMCP_TOKEN` → `kritamcp.token` sidecar → kritarc `[kritamcp] token`; kritarc is parsed manually — KDE configs have keys before any `[section]`) |
+| `tests/e2e/conftest.py`          | `ManagedApp` launch/teardown fixture, `/health` wait loop, merged stdout+stderr capture to `tests/e2e/_last_run_stderr.log` (gitignored)                                                                          |
+| `tests/e2e/test_solstice_e2e.py` | 27 tests; see markers below                                                                                                                                                                                       |
 
 ## Running
 

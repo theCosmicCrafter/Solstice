@@ -1348,3 +1348,15 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   end-to-end (vectorlayer node created). Smooth-zoom screenshot test
   skipped once with empty canvas grab — timing flake to watch.
 - Unified stabilization build dispatched: run `38866036586` (`4ac8e998`).
+
+## 2026-10-16 — Packaging/security gap closure; unified build re-dispatched
+
+- E1/E2/E3 resolved: `package-complete.py` pip-installs numpy 2.2.6 +
+  Pillow 11.3.0 (cp313 win_amd64) into the package; `-multimedia` added to
+  windeployqt; `run_e2e` opt-in dispatch input runs `tests/e2e` on the
+  packaged ZIP (`b6dff5c8`, `df89b79d`).
+- `cmd_screenshot` hardened: canvas scope requests a repaint and pumps
+  events before grab, plus a short retry — the empty-grab flake seen on
+  `307c7e72`.
+- Build `38866036586` cancelled (predated packaging fixes); unified build
+  re-dispatched as `38866815881` on `b6dff5c8`.
