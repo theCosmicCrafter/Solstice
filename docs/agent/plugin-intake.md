@@ -153,6 +153,15 @@ update possible.
 - Default state: enabled
 - Last re-check: 2026-10-14 — vendored; server connect/generation needs a
   real build + ComfyUI on :8189
+- Re-vendor trigger: upstream `v1.54.0` final (due ~end of Oct 2026;
+  `v1.54.0-pre` shipped 2026-10-03 with the upstream Krita 6/Qt6
+  migration and Qwen Image 2.1 support). Procedure: fast-forward
+  `_vendor_src/ai_diffusion_upstream` `origin/main`, re-apply the
+  `enhancements` branch (merge `f628900` is the template), keep the
+  `:8189` server_url patch, re-run plugin load + ComfyUI connect check.
+- Runtime verification owed: connect to ComfyUI Desktop on `:8189`,
+  run one generation, confirm result lands as a layer. Manual GUI
+  matrix item.
 
 ### kritamcp
 
@@ -210,10 +219,10 @@ Current coverage:
 | `QRegExpValidator`                                                                                           | Alias to `QRegularExpressionValidator`                                                                                                                               |
 | `QMediaPlayer.setMedia`/`setVolume`/`media`, `QMediaContent`                                                 | Wrapper classes; volume bridged through an owned `QAudioOutput`, `setMedia` maps to `setSource`                                                                      |
 | `QDesktopWidget` / `QApplication.desktop()`                                                                  | Minimal QWidget stand-in backed by `QGuiApplication` screens (`screenGeometry`, `availableGeometry`, `screenCount`)                                                  |
-| `QFontMetrics.width()`                                                                                       | Wrapped callable forwarding to `horizontalAdvance()` (avoids SIP unbound descriptor TypeError)                                      |
-| `Qt.MidButton` / `Qt.MouseButton.MidButton`                                                                 | Aliased to `Qt.MouseButton.MiddleButton` in `QtCore.py`                                                                              |
-| `QSortFilterProxyModel.setFilterRegExp()`                                                                    | Subclass method mapping string/QRegExp/QRegularExpression to `setFilterRegularExpression`                                            |
-| `QLayout.setMargin(m)`                                                                                       | Wrapper calling `setContentsMargins(m, m, m, m)` in `QtWidgets.py`                                                                   |
+| `QFontMetrics.width()`                                                                                       | Wrapped callable forwarding to `horizontalAdvance()` (avoids SIP unbound descriptor TypeError)                                                                       |
+| `Qt.MidButton` / `Qt.MouseButton.MidButton`                                                                  | Aliased to `Qt.MouseButton.MiddleButton` in `QtCore.py`                                                                                                              |
+| `QSortFilterProxyModel.setFilterRegExp()`                                                                    | Subclass method mapping string/QRegExp/QRegularExpression to `setFilterRegularExpression`                                                                            |
+| `QLayout.setMargin(m)`                                                                                       | Wrapper calling `setContentsMargins(m, m, m, m)` in `QtWidgets.py`                                                                                                   |
 | `QMouseEvent`/`QWheelEvent` `pos()`, `globalPos()`, `x()`, `y()`, `localPos()`, `windowPos()`, `screenPos()` | QPoint/QPointF bridges over `position()`/`globalPosition()`/`scenePosition()`                                                                                        |
 | `PyQt5.uic`                                                                                                  | `PyQt6.uic` re-export (`loadUi`, `loadUiType`, `compileUi` verified)                                                                                                 |
 | `PyQt5.sip`, `import sip`                                                                                    | `PyQt6.sip` re-export                                                                                                                                                |

@@ -118,7 +118,8 @@ Still to correct (assigned in Lane F): tool counts in
 3. Manual GUI matrix: toggle on QPainter and GL canvases, pixel-art
    `Nearest` mode, Smart Matting lasso in all three sampling modes, bulinotes
    and bulibrushswitch middle-click/search/code editor, Blender Layer off by
-   default.
+   default, AI Diffusion connect + one generation against ComfyUI on
+   `:8189` (intake ledger: never verified on a real build).
 4. Docs: `docs/smart-matting.md` (new), Smart Matting entry in
    `feature-inventory.md`, fix `vision-ml.md:82` (tool options do include the
    model selector), README note that the nine named extensions are in
