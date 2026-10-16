@@ -45,6 +45,7 @@ private Q_SLOTS:
     void testUpdates();
 
     void testQtScaling();
+    void testSmoothHighZoomToggle();
 };
 
 #endif

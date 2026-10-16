@@ -20,6 +20,7 @@ class KisNodeCommandsAdapter;
 class KisAction;
 class KisActionManager;
 class KisProcessingApplicator;
+class KoPathShape;
 
 /**
  * KisLayerManager takes care of the gui around working with layers:
@@ -84,6 +85,19 @@ private Q_SLOTS:
     /// Solstice: traces the active layer's alpha into a filled vector
     /// path on a new vector layer (docs/agent/vector-quality-megaplan.md)
     void traceLayerToVector();
+
+    /**
+     * Solstice (Lane D): Pure static helper that converts the painted pixels
+     * of @p device (alpha >= 128 / 50% opacity) in @p bounds into a document-space
+     * KoPathShape, scaled by @p xRes and @p yRes (in pixels per pt, where
+     * pt = px / res = px * 72.0 / ppi).
+     *
+     * Returns nullptr if device is null, bounds are empty, or the resulting outline is empty.
+     */
+    static KoPathShape *traceDeviceToPathShape(KisPaintDeviceSP device,
+                                               const QRect &bounds,
+                                               qreal xRes,
+                                               qreal yRes);
 
     KisLayerSP addPaintLayer(KisNodeSP activeNode);
     KisNodeSP addGroupLayer(KisNodeSP activeNode);

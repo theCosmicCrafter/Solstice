@@ -17,6 +17,7 @@
 #include <KoColorSpaceConstants.h>
 
 #include <kis_config.h>
+#include <kis_config_notifier.h>
 #include <kis_types.h>
 #include <kis_image.h>
 #include <kis_paint_device.h>
@@ -458,6 +459,40 @@ void KisPrescaledProjectionTest::testQtScaling()
     QCOMPARE(canvas, expectedResult);
 }
 
+void KisPrescaledProjectionTest::testSmoothHighZoomToggle()
+{
+    PrescaledProjectionTester t;
+
+    // Set zoom to >= 2.0 (scale = 2.0)
+    t.converter.setZoom(2.0);
+    t.projection.notifyCanvasStateChanged(KisCanvasState::fromConverter(t.converter));
+
+    // When smoothHighZoom is enabled, SmoothPixmapTransform should be present in renderHints at scale >= 2.0
+    KisConfig(false).setSmoothHighZoom(true);
+    KisConfigNotifier::instance()->notifyConfigChanged();
+    QCOMPARE(t.projection.smoothHighZoom(), true);
+
+    KisPPUpdateInfoSP info = t.projection.getInitialUpdateInformation(QRect());
+    t.projection.fillInUpdateInformation(QRect(0, 0, 100, 100), info);
+    QVERIFY(info->renderHints.testFlag(QPainter::SmoothPixmapTransform));
+
+    // When smoothHighZoom is disabled, SmoothPixmapTransform should be absent at scale >= 2.0
+    KisConfig(false).setSmoothHighZoom(false);
+    KisConfigNotifier::instance()->notifyConfigChanged();
+    QCOMPARE(t.projection.smoothHighZoom(), false);
+
+    info = t.projection.getInitialUpdateInformation(QRect());
+    t.projection.fillInUpdateInformation(QRect(0, 0, 100, 100), info);
+    QVERIFY(!info->renderHints.testFlag(QPainter::SmoothPixmapTransform));
+
+    // Toggle back on
+    KisConfig(false).setSmoothHighZoom(true);
+    KisConfigNotifier::instance()->notifyConfigChanged();
+    QCOMPARE(t.projection.smoothHighZoom(), true);
+
+    info = t.projection.getInitialUpdateInformation(QRect());
+    t.projection.fillInUpdateInformation(QRect(0, 0, 100, 100), info);
+    QVERIFY(info->renderHints.testFlag(QPainter::SmoothPixmapTransform));
+}
+
 SIMPLE_TEST_MAIN(KisPrescaledProjectionTest)
-
-

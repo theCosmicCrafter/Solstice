@@ -24,6 +24,7 @@ kis_add_tests(
     kis_derived_resources_test.cpp
     kis_animation_frame_cache_test.cpp
     kis_shape_layer_test.cpp
+    KisLayerManagerTest.cpp
     KisSafeDocumentLoaderTest.cpp
     KisSurfaceColorSpaceWrapperTest.cpp
 

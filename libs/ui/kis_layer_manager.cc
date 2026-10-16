@@ -43,11 +43,13 @@
 #include <KoColorBackground.h>
 #include <KoPathShape.h>
 #include <KoShapeController.h>
+#include <KoShapeCreateCommand.h>
 #include <filter/kis_filter.h>
 #include <filter/kis_filter_configuration.h>
 #include <flake/kis_shape_layer.h>
 #include <generator/kis_generator_layer.h>
 #include <kis_adjustment_layer.h>
+#include <kis_assert.h>
 #include <kis_clipboard.h>
 #include <kis_clone_layer.h>
 #include <kis_default_bounds.h>
@@ -65,6 +67,7 @@
 #include <kis_pixel_selection.h>
 #include <kis_psd_layer_style.h>
 #include <kis_selection.h>
+#include <kis_sequential_iterator.h>
 #include <kis_undo_adapter.h>
 #include <kis_update_outline_job.h>
 
@@ -759,6 +762,57 @@ KisNodeSP KisLayerManager::addShapeLayer(KisNodeSP activeNode)
     return layer;
 }
 
+KoPathShape *KisLayerManager::traceDeviceToPathShape(KisPaintDeviceSP device,
+                                                     const QRect &bounds,
+                                                     qreal xRes,
+                                                     qreal yRes)
+{
+    if (!device || bounds.isEmpty()) {
+        return nullptr;
+    }
+
+    // Build a selection from the layer's alpha.
+    //
+    // Limitation (D4): The alpha threshold is currently fixed at 50% opacity
+    // (opacityU8 >= 128). Faint residue below 128 is treated as transparent;
+    // pixels >= 128 are treated as fully opaque.
+    KisSelectionSP selection =
+        new KisSelection(new KisDefaultBounds(), toQShared(new KisImageResolutionProxy()));
+    {
+        KisPixelSelectionSP pixelSelection = selection->pixelSelection();
+        const KoColorSpace *cs = device->colorSpace();
+
+        KisSequentialConstIterator devIter(device, bounds);
+        KisSequentialIterator selIter(pixelSelection, bounds);
+
+        while (devIter.nextPixel() && selIter.nextPixel()) {
+            const bool opaque = cs->opacityU8(devIter.oldRawData()) >= 128;
+            *selIter.rawData() = opaque ? MAX_SELECTED : MIN_SELECTED;
+        }
+    }
+
+    selection->pixelSelection()->invalidateOutlineCache();
+    selection->pixelSelection()->recalculateOutlineCache();
+
+    const QPainterPath outline = selection->outlineCache();
+    if (outline.isEmpty()) {
+        return nullptr;
+    }
+
+    const qreal resX = xRes > 0.0 ? xRes : 1.0;
+    const qreal resY = yRes > 0.0 ? yRes : 1.0;
+    const QTransform transform = QTransform::fromScale(1.0 / resX, 1.0 / resY);
+
+    KoPathShape *shape = KoPathShape::createShapeFromPainterPath(transform.map(outline));
+    if (!shape) {
+        return nullptr;
+    }
+
+    shape->setShapeId(KoPathShapeId);
+    shape->setFillRule(outline.fillRule());
+    return shape;
+}
+
 void KisLayerManager::traceLayerToVector()
 {
     if (!m_view || !m_view->document())
@@ -768,6 +822,9 @@ void KisLayerManager::traceLayerToVector()
     KisNodeSP node = m_view->activeNode();
     if (!image || !node)
         return;
+
+    KoShapeControllerBase *shapeController = m_view->document()->shapeController();
+    KIS_SAFE_ASSERT_RECOVER_RETURN(shapeController);
 
     if (!m_view->blockUntilOperationsFinished(image)) {
         return;
@@ -784,32 +841,54 @@ void KisLayerManager::traceLayerToVector()
         return;
     }
 
-    // build a selection from the layer's alpha (Select Opaque semantics,
-    // binarized at 50% so faint residue does not inflate the outline)
+    const QRect rc = device->exactBounds();
+
+    // Size guard (D3): If the layer exceeds 64 megapixels (e.g. 8K x 8K), warn the user
+    // because synchronous tracing on the UI thread under image barrier lock may take
+    // noticeable time and freeze responsiveness.
+    const qint64 pixelCount = qint64(rc.width()) * rc.height();
+    const qint64 maxPixelsWithoutWarning = 64LL * 1024 * 1024; // 64 megapixels
+    if (pixelCount > maxPixelsWithoutWarning && m_view->mainWindow()) {
+        const int answer = QMessageBox::warning(
+            m_view->mainWindow(),
+            i18nc("@title:window", "Trace to Vector"),
+            i18n("The layer is very large (%1 megapixels). Tracing it to vector may take significant time and make Krita temporarily unresponsive. Do you want to continue?",
+                 QString::number(pixelCount / (1024.0 * 1024.0), 'f', 1)),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+
+        if (answer != QMessageBox::Yes) {
+            return;
+        }
+    }
+
+    // Build a selection from the layer's alpha (Select Opaque semantics,
+    // processed with KisSequentialIterator for speed).
+    //
+    // Limitation (D4): The alpha threshold is currently fixed at 50% opacity
+    // (opacityU8 >= 128). Pixels with alpha below 128 are treated as fully
+    // transparent; pixels at or above 128 are treated as fully opaque (MAX_SELECTED).
+    // Soft/antialiased edges are binarized without configurable thresholding or
+    // multi-level vectorization.
     KisSelectionSP selection =
         new KisSelection(new KisDefaultBounds(image), toQShared(new KisImageResolutionProxy(image)));
     {
         KisPixelSelectionSP pixelSelection = selection->pixelSelection();
-        const QRect rc = device->exactBounds();
         const KoColorSpace *cs = device->colorSpace();
 
         KisImageBarrierLock lock(image);
-        KisHLineConstIteratorSP devIter = device->createHLineConstIteratorNG(rc.x(), rc.y(), rc.width());
-        KisHLineIteratorSP selIter = pixelSelection->createHLineIteratorNG(rc.x(), rc.y(), rc.width());
+        KisSequentialConstIterator devIter(device, rc);
+        KisSequentialIterator selIter(pixelSelection, rc);
 
-        for (int row = rc.y(); row < rc.y() + rc.height(); ++row) {
-            do {
-                const bool opaque = cs->opacityU8(devIter->oldRawData()) >= 128;
-                *selIter->rawData() = opaque ? MAX_SELECTED : MIN_SELECTED;
-            } while (devIter->nextPixel() && selIter->nextPixel());
-            devIter->nextRow();
-            selIter->nextRow();
+        while (devIter.nextPixel() && selIter.nextPixel()) {
+            const bool opaque = cs->opacityU8(devIter.oldRawData()) >= 128;
+            *selIter.rawData() = opaque ? MAX_SELECTED : MIN_SELECTED;
         }
     }
 
     // rawData() writes do not invalidate the outline cache; a fresh
     // pixel selection reports a valid (empty) cache — invalidate it so
-    // the job below actually computes the outline
+    // the job below actually computes the outline (commit 3ff93727)
     selection->pixelSelection()->invalidateOutlineCache();
 
     // outline the selection into a document-space path
@@ -829,16 +908,40 @@ void KisLayerManager::traceLayerToVector()
         return;
     }
 
-    QTransform transform = m_view->canvasBase()->coordinatesConverter()->imageToDocumentTransform();
+    const qreal xRes = image->xRes() > 0.0 ? image->xRes() : 1.0;
+    const qreal yRes = image->yRes() > 0.0 ? image->yRes() : 1.0;
+
+    // Prefer taking resolution from image xRes/yRes, falling back gracefully
+    // to coordinatesConverter when present without assuming canvasBase is non-null (D1).
+    QTransform transform;
+    if (m_view->canvasBase() && m_view->canvasBase()->coordinatesConverter()) {
+        transform = m_view->canvasBase()->coordinatesConverter()->imageToDocumentTransform();
+    } else {
+        transform = QTransform::fromScale(1.0 / xRes, 1.0 / yRes);
+    }
+
     KoPathShape *shape = KoPathShape::createShapeFromPainterPath(transform.map(outline));
+    KIS_SAFE_ASSERT_RECOVER_RETURN(shape);
     shape->setShapeId(KoPathShapeId);
 
-    // fill with the foreground color, no stroke
-    KoColor fgColor =
-        m_view->canvasBase()->resourceManager()->resource(KoCanvasResource::ForegroundColor).value<KoColor>();
-    shape->setBackground(toQShared(new KoColorBackground(fgColor.toQColor())));
+    // Copy fill rule from outline so nested/donut subpaths keep holes (D2)
+    shape->setFillRule(outline.fillRule());
 
-    KisShapeLayerSP layer = new KisShapeLayer(m_view->document()->shapeController(),
+    // Fill with the foreground color, no stroke.
+    //
+    // Limitation (D4): Color conversion goes through 8-bit sRGB (toQColor())
+    // because KoColorBackground stores a QColor. Wide gamut, HDR, or CMYK/Lab
+    // source palettes are clamped/converted to standard 8-bit sRGB.
+    KoColor fgColor;
+    if (m_view->canvasBase() && m_view->canvasBase()->resourceManager()) {
+        fgColor = m_view->canvasBase()->resourceManager()->resource(KoCanvasResource::ForegroundColor).value<KoColor>();
+    } else if (m_view->canvasResourceProvider()) {
+        fgColor = m_view->canvasResourceProvider()->fgColor();
+    }
+    const QColor fillColor = fgColor.isValid() ? fgColor.toQColor() : Qt::black;
+    shape->setBackground(toQShared(new KoColorBackground(fillColor)));
+
+    KisShapeLayerSP layer = new KisShapeLayer(shapeController,
                                               image.data(),
                                               image->nextLayerName(i18n("Traced Layer")),
                                               OPACITY_OPAQUE_U8);
@@ -851,7 +954,14 @@ void KisLayerManager::traceLayerToVector()
 
     addLayerCommon(node, layer, true, &applicator);
 
-    applicator.applyCommand(m_view->canvasBase()->shapeController()->addShapeDirect(shape, layer.data()),
+    KUndo2Command *addShapeCmd = nullptr;
+    if (m_view->canvasBase() && m_view->canvasBase()->shapeController()) {
+        addShapeCmd = m_view->canvasBase()->shapeController()->addShapeDirect(shape, layer.data());
+    } else {
+        addShapeCmd = new KoShapeCreateCommand(shapeController, shape, layer.data());
+    }
+
+    applicator.applyCommand(addShapeCmd,
                             KisStrokeJobData::BARRIER);
 
     applicator.end();
