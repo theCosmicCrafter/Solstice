@@ -1425,3 +1425,36 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   .part + rename hardening).
 - Wiki/testing note: `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` needed on this
   box — system site-packages has a broken logfire/opentelemetry pair.
+
+## 2026-10-16 — Phase 7 completion + unified build d295c85d
+
+- Lane H (model browser): `ui/model_browser.py` (~1060 lines) —
+  ModelLibraryModel aggregates checkpoints+LoRAs, card delegate
+  (thumbnail/arch badge/mtime/trigger snippet), background
+  safetensors-header scan + preview decode on executor (QImage, never
+  QPixmap, for thread safety), opt-in CivitAI identify
+  (base64 hash → hex → `CivitaiClient.lookup_by_hash`), apply-trigger-
+  words writes `lora_triggers`, downloads via `network.download`
+  (.part resume) into user-chosen dir + register into collection.
+  Deviation resolved correctly: civitai.py intentionally has no
+  `lookup_by_file`/`download` — widget composes `compute_hash_async`
+  + `network.download`, which is the better pattern (resume support).
+- Parent added remaining Phase 7 items directly: `backend/sweep.py`
+  `{{axis: v1,v2}}` parameter sweeps + `_enqueue_jobs_sweep`; QueuePopup
+  "Cutout" (`matte_output` → native `background_removal` filter on
+  generated layers) + "Vectorize" (`vectorize_output` → triggers
+  `layer_to_vector` action, RestoreActiveLayer wrap) — the in-app
+  generate→matte→trace chain, no agent needed; `Document.refresh()`
+  added to interface + KritaDocument.
+- Feature-inventory: V5.2 BiRefNet download + `KisRemoteFileFetcher`
+  KRITAUI_EXPORT touch point recorded; verified V3.1/V4.4/V2.4 rows.
+- Verified: VisionML download writes into `userModels/birefnet/` (task
+  folder), `findModelPath` already returns the subfolder — file lands
+  where `resolveModelPath("birefnet/…")` finds it.
+- ernie-image.json diff reviewed — name fix only ("Ernie Image Turbo"
+  → "Ernie Image"), no content drift.
+- Committed d295c85d (54 files, +3537/-332), pushed, unified build
+  38873013963 dispatched. Tests: 35 pass / 7 skip (PyQt6 missing on
+  system Python; venv has PyQt6 but no pytest — documented).
+- Pending: build artifact → deploy → full E2E → manual GUI matrix
+  (model browser runtime behavior is the biggest unverified surface).
