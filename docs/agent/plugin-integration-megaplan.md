@@ -316,6 +316,59 @@ Audit findings (vendored tree, 2026-10-16):
 - Order matters: land 7.1–7.4 as _local_ commits in the enhancements
   branch so the re-vendor merge keeps them.
 
+#### 7.9 Borrowed UX — Pixaroma + ComfyUI-LoRA-Manager research (2026-10-16)
+
+Two external projects surveyed for stealable ideas. Both are ComfyUI
+**server-side** extensions, which dictates the adoption path.
+
+**ComfyUI-LoRA-Manager** (willmiao, registry `comfyui-lora-manager`):
+model browser web UI at `/loras` on the ComfyUI port — CivitAI
+download queue, cover previews, base-model badges, trigger words at a
+glance, saved "recipes" (LoRA combos), fuzzy search, extra folder
+paths, mature-content blur, LoRA randomizer pools, Danbooru+e621 tag
+autocomplete.
+
+- Already have: Danbooru+e621 autocomplete ships in `tags/`, extra
+  model search paths (local enhancement), per-style LoRA trigger text
+  (`ui/style.py:127` — manual entry only), NSFW filter param.
+- Worth taking:
+  - **Auto trigger-word discovery** — pull activation tags from CivitAI
+    by file hash so styles auto-fill the manual trigger field.
+    Natural extension of 7.3.
+  - **Model browser with previews** — the LoRA picker today is a bare
+    filename list (`ui/style.py` LoraItem); cover art + base-model
+    badge + trigger words is a large QoL jump. Two paths: (a) bundle
+    Lora-Manager in the managed install (7.6) and use its web UI —
+    zero plugin work; (b) consume its REST API from the docker —
+    native UX, medium work. Start with (a), graduate to (b) if the
+    API proves stable.
+  - **LoRA recipes** — a style already is a LoRA set; what LM adds is
+    share/import. Cheap: export/import style files.
+
+**ComfyUI-Pixaroma** (gitlab `pixaroma/comfyui-pixaroma`): creative-
+suite node pack — prompt shortcuts (`@tags`, random picks), Prompt
+Each (one image per prompt line, batch), BiRefNet remove-background
+node, inpaint crop+stitch, XY plot, image compare slider, Krea LoRA
+converter.
+
+- Already beat: BiRefNet remove-bg is a ComfyUI node for them; Solstice
+  has it _natively_ in Vision ML (in-process, no server). Our story is
+  stronger here.
+- Worth taking:
+  - **Saved prompt snippets / `@tag` expansion** — small UI add on top
+    of the existing autocomplete.
+  - **Per-line batch generation** — check whether the batch widget
+    accepts a prompt list; if not, a simple loop.
+  - **XY/parameter sweep** — the job system already batches; an XY
+    grid over seed/steps/CFG feeding the history view is a moderate
+    add with real QA value for tuning curated presets (7.7).
+- Skip: 3D builder, audio-reactive video, save-mp4 — outside scope.
+
+Deployment note: both are server-side extensions — installing them
+into the managed ComfyUI (7.6) makes their node-level features
+available to custom workflows for free; only the UI ideas need
+porting into the docker.
+
 Deferred/not pursued: backend swap off ComfyUI (forfeits the workflow
 ecosystem; perf lives server-side anyway), C++ port of the plugin
 (Python client + websockets is the right weight for a remote renderer).
