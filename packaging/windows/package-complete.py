@@ -605,7 +605,7 @@ if useQt6Build:
         ["windeployqt.exe", *QMLDIR_ARGS,
         "-gui", "-core", "-core5compat", "-openglwidgets", "-svgwidgets", "-opengl",
         "-concurrent", "-network", "-printsupport", "-svg",
-        "-xml", "-sql", "-qml", "-quick", "-quickwidgets", "-multimedia", *verboseOption,
+        "-xml", "-sql", "-qml", "-quick", "-quickwidgets", *verboseOption,
         f"{pkg_root}\\bin\\solstice.exe", f"{pkg_root}\\bin\\krita.dll"])
 else:
     verboseOption = ["-verbose", "2"] if useVerbosePackagingLog else []
