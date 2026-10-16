@@ -1360,3 +1360,17 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   `307c7e72`.
 - Build `38866036586` cancelled (predated packaging fixes); unified build
   re-dispatched as `38866815881` on `b6dff5c8`.
+
+## 2026-10-16 — Phase 7: AI Diffusion deepening planned
+
+- Audit of vendored ai_diffusion (1.54.0): Qwen-Image-Layered already
+  decomposes into N Krita layers end-to-end; RGBA pipeline complete;
+  catalog SOTA-current (Flux 2 Klein, Krea 2, Z-Image, Anima, ERNIE,
+  Qwen); metadata cache exists but no modelspec header parsing.
+- Bug: `Arch.sd35` (nonexistent member) crashed model discovery for
+  `sd3.5/` folders → fixed to `Arch.sd3` (`ee87d367`).
+- Phase 7 spec in `plugin-integration-megaplan.md`: safetensors arch
+  detection, generic fallback arch, CivitAI lookup, layered/alpha
+  polish, generate→matting→trace chain, SOTA-first install profile,
+  ComfyUI first-run installer, 1.54.0 re-vendor; order + exits
+  documented (`77f02b4a`).
