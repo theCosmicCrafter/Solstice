@@ -149,7 +149,7 @@ class Arch(Enum):
         # Check folder names in the path for model type indicators
         path_lower = checkpoint.lower()
         folder_part = path_lower.split("/")[0] if "/" in path_lower else path_lower.split("\\")[0] if "\\" in path_lower else ""
-        
+
         # Check folder names first (for subfolder organization)
         if folder_part:
             if "flux" in folder_part:
@@ -167,10 +167,7 @@ class Arch(Enum):
             elif "sdxl" in folder_part:
                 return Arch.sdxl
             elif "sd3" in folder_part:
-                if "3.5" in folder_part:
-                    return Arch.sd35
-                else:
-                    return Arch.sd3
+                return Arch.sd3
             elif "illustrious" in folder_part or "illu" in folder_part:
                 return Arch.illu
             elif "pony" in folder_part:
@@ -181,7 +178,7 @@ class Arch(Enum):
                 return Arch.zimage
             elif "qwen" in folder_part:
                 return Arch.qwen
-        
+
         # Fall back to filename-based detection
         if Arch.sdxl.matches(checkpoint):
             return Arch.sdxl

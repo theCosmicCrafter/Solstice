@@ -20,6 +20,7 @@ packaging/release and the GUI verification pass. Follow-on work moved to
 `vector-quality-megaplan.md`.
 
 See also: `stabilization-plan.md` (2026-10-15 audit - defect list and revised open items; wins on conflicts until merged back).
+
 ## Anchor: what Solstice already provides
 
 - `plugins/visionml` — native vision.cpp runtime (CPU or Vulkan) with
@@ -40,7 +41,7 @@ See also: `stabilization-plan.md` (2026-10-15 audit - defect list and revised op
 | Plugin                              | Verdict                                                         | Notes                                                                                                                                                                                                                                                      |
 | ----------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Krita AI Diffusion (Acly)           | Integrate — vendor latest upstream, re-apply local enhancements | Flagship. Upstream is already PyQt6. Local enhanced copy is PyQt5-era; extract still-missing enhancements (subfolder model detection, quantization display, metadata cache) onto upstream >= 1.52. Connect to existing ComfyUI at 127.0.0.1:8189. GPL-3.0. |
-| MCP bridge                          | Integrate — nanayax3/krita-mcp base + bearer auth               | nanayax3/krita-mcp based in-app HTTP bridge (42 POST actions + GET /health, /info, bearer token, MIT). krita-cli remains a compatible external client; codex-mcp stays a documented minimal alternative.                                                 |
+| MCP bridge                          | Integrate — nanayax3/krita-mcp base + bearer auth               | nanayax3/krita-mcp based in-app HTTP bridge (42 POST actions + GET /health, /info, bearer token, MIT). krita-cli remains a compatible external client; codex-mcp stays a documented minimal alternative.                                                   |
 | Krita Smart Select (Windows port)   | Integrate — native port into `plugins/visionml`                 | Own project; lasso -> BiRefNet soft-alpha matting is the one capability native visionml lacks. Native tool + GGUF inference removes the PyTorch worker.                                                                                                    |
 | Shortcut Composer                   | Integrate — vendor + PyQt6 patch                                | Own pie-menu/cursor-tracker widgets; unaffected by removed popup palette. GPL-3.0.                                                                                                                                                                         |
 | Pigment.O                           | Integrate — vendor + PyQt6 patch                                | Largest PyQt surface; stress test for the compat layer. `mask_set` kritarc key already handled by the settings-import rewrite list. GPL-3.0.                                                                                                               |
@@ -174,6 +175,42 @@ applyMattingMask` -> padded crop -> `VisionModels::removeBackground`
 - GitHub Release on the fork; README "Differences" update; optional website
   note per the release ritual in AGENTS.md.
 - Exit: named release ZIP installs to a fully integrated Solstice.
+
+### Phase 7 — AI Diffusion deepening — proposed (2026-10-16)
+
+Audit findings (vendored tree, 2026-10-16):
+
+- **Layered generation is already built.** `Arch.qwen_l` (Qwen-Image-Layered)
+  is wired end-to-end: `LayerCountWidget` appears when a layered checkpoint
+  is selected (`ui/generation.py:999`), `layer_count` defaults to 4
+  (`model/model.py:145`), the workflow builds `1 + n*4` decomposed latents
+  (`comfy_workflow.py:594`), and `apply_generated_result` splits the N
+  output images into N separate Krita layers named `[Layer N]`
+  (`model/model.py:851-855`). What is missing is verification and polish,
+  not the feature.
+- **Model discovery is already organic-ish:** live ComfyUI model lists +
+  folder/filename arch and quantization deduction (`client.py:230-248`,
+  `resources.py:from_checkpoint_name`). Hard limit: workflow support is
+  per-`Arch` enum — a new architecture detects but gets no workflows until
+  code is added. Latent bug fixed 2026-10-16: `Arch.sd35` (nonexistent
+  member) crashed discovery for `sd3.5/` folders → now maps to `Arch.sd3`.
+
+Planned items:
+
+| Item                                    | Scope                                                                                                                                                                      |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 7.1 Safetensors arch detection          | Parse `modelspec.architecture`/`title` header JSON for files ComfyUI/filename heuristics can't place; stdlib-only, cheap                                                   |
+| 7.2 Generic fallback arch               | Unknown checkpoints get basic txt2img/img2img instead of "unsupported"                                                                                                     |
+| 7.3 CivitAI model lookup/browser        | Hash-based identification of unknown checkpoints; optional download-into-ComfyUI docker. Network-gated, opt-in                                                             |
+| 7.4 Layered-generation polish           | Runtime-verify `[Layer N]` decomposition; semantic layer naming (background/elements) where model ordering permits; prompt/seed/model into layer props for reproducibility |
+| 7.5 Solstice pipeline chain             | Generated layer → Smart Matting → Trace to Vector: AI asset → decomposed layers → vector. Unique integration no upstream has                                               |
+| 7.6 ComfyUI first-run installer         | Optional managed-server app install on first use (app only — never model weights, per Phase 6 rule)                                                                        |
+| 7.7 Perf/defaults                       | Curated style presets (steps/CFG/sampler per arch); model-metadata cache to avoid re-hashing on connect                                                                    |
+| 7.8 Re-vendor at upstream v1.54.0 final | Tracked in `plugin-intake.md` (~end of Oct 2026)                                                                                                                           |
+
+Deferred/not pursued: backend swap off ComfyUI (forfeits the workflow
+ecosystem; perf lives server-side anyway), C++ port of the plugin (Python
+client + websockets is the right weight for a remote renderer).
 
 ## Risks
 
