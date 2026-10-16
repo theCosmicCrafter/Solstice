@@ -3,6 +3,7 @@ set(kritavisionml_SOURCES
     VisionMLPlugin.cpp
     filters/BackgroundRemovalFilter.cpp
     inpaint/InpaintTool.cpp
+    segmentation/SegmentationMatteUtils.h
     segmentation/SegmentationToolHelper.cpp
     segmentation/SelectSegmentFromPointTool.cpp
     segmentation/SelectSegmentFromRectTool.cpp

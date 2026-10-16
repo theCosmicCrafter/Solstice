@@ -20,6 +20,10 @@ endif()
 add_subdirectory(thirdparty/vision.cpp)
 add_subdirectory(src)
 
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
+
 set(_vision_model_root "${CMAKE_CURRENT_BINARY_DIR}/models")
 
 function(krita_vision_download_model relative_path url sha256)

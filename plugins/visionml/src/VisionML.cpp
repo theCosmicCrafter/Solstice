@@ -1,7 +1,9 @@
 #include "VisionML.h"
 
 #include "KisOptionButtonStrip.h"
+#include "KoColorProfile.h"
 #include "KoColorSpace.h"
+#include "KoColorSpaceRegistry.h"
 #include "KoJsonTrader.h"
 #include "KoResourcePaths.h"
 #include "kis_icon_utils.h"
@@ -386,13 +388,18 @@ VisionMLImage VisionMLImage::prepare(KisPaintDevice const &device, QRect bounds)
         return result; // Can happen eg. when using color label mode without matching layers.
     }
     KoColorSpace const *cs = device.colorSpace();
-    if (cs->pixelSize() == 4 && cs->id() == "RGBA") {
-        // Stored as BGRA, 8 bits per channel in Krita. No conversions for now, the segmentation network expects
-        // gamma-compressed sRGB, but works fine with other color spaces (probably).
+    const KoColorSpace *srgbCs = KoColorSpaceRegistry::instance()->rgb8();
+    const KoColorProfile *srgbProfile = srgbCs ? srgbCs->profile() : nullptr;
+    const KoColorProfile *csProfile = cs ? cs->profile() : nullptr;
+    const bool isSRGB = csProfile && srgbProfile && (*csProfile == *srgbProfile || csProfile->name() == srgbProfile->name());
+
+    if (cs && cs->pixelSize() == 4 && cs->id() == "RGBA" && isSRGB) {
+        // Stored as BGRA, 8 bits per channel in sRGB in Krita. Direct fast path.
         result.data = QImage(bounds.width(), bounds.height(), QImage::Format_ARGB32);
         device.readBytes(result.data.bits(), bounds);
     } else {
-        // Convert everything else to QImage::Format_ARGB32 in default color space (sRGB).
+        // Convert everything else (non-sRGB profile, wide-gamut, 16-bit/float, CMYK/Lab/Gray)
+        // to QImage::Format_ARGB32 in default color space (sRGB).
         result.data = device.convertToQImage(nullptr, bounds);
     }
     result.view.extent = {result.data.width(), result.data.height()};

@@ -4,6 +4,9 @@
 #include "KisOptionButtonStrip.h"
 #include "KoGroupButton.h"
 #include "KoResourcePaths.h"
+#include "SegmentationMatteUtils.h"
+#include "canvas/kis_canvas2.h"
+#include "canvas/kis_coordinates_converter.h"
 #include "kis_command_utils.h"
 #include "kis_default_bounds.h"
 #include "kis_image_animation_interface.h"
@@ -20,6 +23,8 @@
 #include <QPainter>
 #include <QPolygonF>
 #include <QRect>
+#include <QThread>
+#include <memory>
 
 namespace
 {
@@ -129,7 +134,17 @@ void SegmentationToolHelper::applySelectionMask(ImageInput const &input,
         return;
     }
 
-    KisCursorOverrideLock cursorLock(KisCursor::waitCursor());
+    auto cursorLock = std::shared_ptr<KisCursorOverrideLock>(
+        new KisCursorOverrideLock(KisCursor::waitCursor()),
+        [](KisCursorOverrideLock *lock) {
+            if (QThread::currentThread() == qApp->thread()) {
+                delete lock;
+            } else {
+                QMetaObject::invokeMethod(qApp, [lock]() {
+                    delete lock;
+                });
+            }
+        });
     KisProcessingApplicator applicator(input.image,
                                        input.node,
                                        KisProcessingApplicator::NO_IMAGE_UPDATES, // XXX
@@ -137,13 +152,20 @@ void SegmentationToolHelper::applySelectionMask(ImageInput const &input,
                                        kundo2_i18n("Select Segment"));
 
     KisPaintDeviceSP inputImage = selectPaintDevice(input, applicator);
+    if (!inputImage) {
+        applicator.cancel();
+        return;
+    }
 
+    const bool isColorLabeledMode = (input.sampleLayersMode == KisToolSelect::SampleColorLabeledLayers);
     if (m_mode == SegmentationMode::fast) {
         if (m_requiresUpdate || !m_shared->hasSegmentationImage() || input != m_lastInput) {
             processImage(input, applicator);
         }
     } else { // SegmentationMode::precise
-        m_bounds = inputImage->exactBounds();
+        m_bounds = isColorLabeledMode
+            ? (input.image ? input.image->bounds() : (input.node ? input.node->exactBounds() : QRect()))
+            : inputImage->exactBounds();
     }
 
     KisSelectionToolHelper helper(kisCanvas, kundo2_i18n("Segment Selection"));
@@ -160,24 +182,33 @@ void SegmentationToolHelper::applySelectionMask(ImageInput const &input,
         noWork |= !m_bounds.contains(point, true);
     }
     if (noWork) {
-        applicator.end();
+        applicator.cancel();
         return;
     }
 
     KisPixelSelectionSP selection = new KisPixelSelection(new KisSelectionDefaultBounds(inputImage));
+    const KisStrokeId strokeId = applicator.getStroke();
+    KisImageSP image = input.image;
 
     KUndo2Command *cmd = new KisCommandUtils::LambdaCommand([mode = m_mode,
                                                              shared = m_shared.get(),
                                                              report = &m_errorReporter,
                                                              inputImage,
+                                                             image,
+                                                             strokeId,
                                                              bounds = m_bounds,
                                                              prompt,
                                                              selection,
-                                                             options]() mutable -> KUndo2Command * {
+                                                             options,
+                                                             isColorLabeledMode,
+                                                             cursorLock]() mutable -> KUndo2Command * {
         try {
             visp::image_data mask;
             if (mode == SegmentationMode::fast) {
                 if (!shared->hasSegmentationImage()) {
+                    if (image) {
+                        image->cancelStroke(strokeId);
+                    }
                     return nullptr; // Early out when there was no input image to process.
                 }
                 if (prompt.canConvert<QPoint>()) {
@@ -190,23 +221,38 @@ void SegmentationToolHelper::applySelectionMask(ImageInput const &input,
                 selection->writeBytes(mask.data.get(), imageBounds(bounds.topLeft(), mask.extent));
             } else {
                 QRect rect = prompt.toRect().intersected(bounds);
-                VisionMLImage image = VisionMLImage::prepare(*inputImage, rect);
-                if (!image) {
+                if (isColorLabeledMode) {
+                    rect = rect.intersected(inputImage->exactBounds());
+                }
+                VisionMLImage img = VisionMLImage::prepare(*inputImage, rect);
+                if (!img) {
+                    if (image) {
+                        image->cancelStroke(strokeId);
+                    }
                     return nullptr;
                 }
-                mask = shared->removeBackground(image.view);
+                mask = shared->removeBackground(img.view);
                 selection->writeBytes(mask.data.get(), rect);
             }
             adjustSelection(selection, options);
             selection->invalidateOutlineCache();
         } catch (const std::exception &e) {
             Q_EMIT report->errorOccurred(QString(e.what()));
+            if (image) {
+                image->cancelStroke(strokeId);
+            }
         }
         return nullptr;
     });
     applicator.applyCommand(cmd, KisStrokeJobData::SEQUENTIAL);
 
     helper.selectPixelSelection(applicator, selection, options.action);
+
+    applicator.applyCommand(new KisCommandUtils::LambdaCommand([cursorLock]() mutable -> KUndo2Command * {
+        cursorLock.reset();
+        return nullptr;
+    }), KisStrokeJobData::SEQUENTIAL);
+
     applicator.end();
 }
 
@@ -221,7 +267,31 @@ void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
         return;
     }
 
-    KisCursorOverrideLock cursorLock(KisCursor::waitCursor());
+    // C6: tryDeselectCurrentSelection takes view coordinates of the unpadded lasso outline.
+    const QRectF unpaddedBBox = polygon.boundingRect();
+    const QRectF viewRect = kisCanvas->coordinatesConverter()->imageToWidget(unpaddedBBox);
+    KisSelectionToolHelper helper(kisCanvas, kundo2_i18n("Smart Matting Selection"));
+    if (helper.tryDeselectCurrentSelection(viewRect, options.action)) {
+        return;
+    }
+
+    if (unpaddedBBox.isEmpty()) {
+        return;
+    }
+
+    // C3: Keep wait cursor active throughout stroke execution using a shared_ptr released on stroke completion.
+    auto cursorLock = std::shared_ptr<KisCursorOverrideLock>(
+        new KisCursorOverrideLock(KisCursor::waitCursor()),
+        [](KisCursorOverrideLock *lock) {
+            if (QThread::currentThread() == qApp->thread()) {
+                delete lock;
+            } else {
+                QMetaObject::invokeMethod(qApp, [lock]() {
+                    delete lock;
+                });
+            }
+        });
+
     KisProcessingApplicator applicator(input.image,
                                        input.node,
                                        KisProcessingApplicator::NO_IMAGE_UPDATES, // XXX
@@ -230,55 +300,104 @@ void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
 
     KisPaintDeviceSP inputImage = selectPaintDevice(input, applicator);
     if (!inputImage) {
-        applicator.end();
+        applicator.cancel();
         return;
     }
 
-    QRect bounds = inputImage->exactBounds();
-    QRect region = polygon.boundingRect()
-                       .toAlignedRect()
+    // C1: In SampleColorLabeledLayers mode, the merge command is queued asynchronously,
+    // so exactBounds() on the unrendered device is empty on the GUI thread.
+    // Use image bounds (or node bounds) on the GUI thread, and perform exactBounds clipping inside the stroke lambda.
+    const bool isColorLabeledMode = (input.sampleLayersMode == KisToolSelect::SampleColorLabeledLayers);
+    const QRect bounds = isColorLabeledMode
+        ? (input.image ? input.image->bounds() : (input.node ? input.node->exactBounds() : QRect()))
+        : inputImage->exactBounds();
+
+    // C4: Enforce minimum layer bounds of 64x64. If smaller, report error and return without touching undo.
+    if (bounds.width() < 64 || bounds.height() < 64) {
+        Q_EMIT m_errorReporter.errorOccurred(i18n("Image or layer is too small for smart matting (minimum 64x64 pixels)."));
+        applicator.cancel();
+        return;
+    }
+
+    QRect region = unpaddedBBox.toAlignedRect()
                        .adjusted(-mattingPadding, -mattingPadding, mattingPadding, mattingPadding)
                        .intersected(bounds);
 
-    KisSelectionToolHelper helper(kisCanvas, kundo2_i18n("Smart Matting Selection"));
-    bool noWork = region.isEmpty();
-    noWork |= helper.tryDeselectCurrentSelection(QRectF(region), options.action);
-    noWork |= helper.canShortcutToNoop(region, options.action);
-    if (noWork) {
-        applicator.end();
+    if (region.isEmpty() || helper.canShortcutToNoop(region, options.action)) {
+        applicator.cancel();
         return;
     }
 
+    // C4: Enforce min 64x64 by expanding region within bounds.
+    VisionMLMatte::expandRegionToMin(region, bounds, 64);
+
+    // C4: Cap crop size to 3072 clamped around the center, emitting a warning if clamped.
+    const bool clamped = VisionMLMatte::clampRegionToMax(region, bounds, 3072);
+    if (clamped) {
+        Q_EMIT m_errorReporter.errorOccurred(i18n("Selection region exceeds 3072 pixels and was clamped to 3072 pixels around the selection center."));
+    }
+
     KisPixelSelectionSP selection = new KisPixelSelection(new KisSelectionDefaultBounds(inputImage));
+    const KisStrokeId strokeId = applicator.getStroke();
+    KisImageSP image = input.image;
 
     KUndo2Command *cmd = new KisCommandUtils::LambdaCommand([shared = m_shared.get(),
                                                            report = &m_errorReporter,
                                                            inputImage,
+                                                           image,
+                                                           strokeId,
                                                            region,
                                                            polygon,
                                                            selection,
-                                                           options]() mutable -> KUndo2Command * {
+                                                           options,
+                                                           isColorLabeledMode,
+                                                           cursorLock]() mutable -> KUndo2Command * {
         try {
-            VisionMLImage image = VisionMLImage::prepare(*inputImage, region);
-            if (!image) {
+            QRect effectiveRegion = region;
+            // C1: In SampleColorLabeledLayers mode, lazily clip to rendered exactBounds
+            if (isColorLabeledMode) {
+                const QRect mergedBounds = inputImage->exactBounds();
+                if (mergedBounds.width() < 64 || mergedBounds.height() < 64) {
+                    Q_EMIT report->errorOccurred(i18n("Merged color-labeled layers are too small for smart matting (minimum 64x64 pixels)."));
+                    if (image) {
+                        image->cancelStroke(strokeId);
+                    }
+                    return nullptr;
+                }
+                effectiveRegion = effectiveRegion.intersected(mergedBounds);
+                if (effectiveRegion.isEmpty()) {
+                    if (image) {
+                        image->cancelStroke(strokeId);
+                    }
+                    return nullptr;
+                }
+                VisionMLMatte::expandRegionToMin(effectiveRegion, mergedBounds, 64);
+            }
+
+            VisionMLImage inputImg = VisionMLImage::prepare(*inputImage, effectiveRegion);
+            if (!inputImg) {
+                // C5: Avoid committing empty undo step on failure
+                if (image) {
+                    image->cancelStroke(strokeId);
+                }
                 return nullptr;
             }
-            visp::image_data matte = shared->removeBackground(image.view);
+            visp::image_data matte = shared->removeBackground(inputImg.view);
 
             // Rasterize the lasso outline: the matte is clipped to the drawn
             // region and to non-transparent pixels of the source image.
-            QImage regionMask(region.size(), QImage::Format_Grayscale8);
+            QImage regionMask(effectiveRegion.size(), QImage::Format_Grayscale8);
             regionMask.fill(0);
             {
                 QPainter painter(&regionMask);
                 painter.setRenderHint(QPainter::Antialiasing);
                 painter.setPen(Qt::NoPen);
                 painter.setBrush(Qt::white);
-                painter.drawPolygon(polygon.translated(-QPointF(region.topLeft())));
+                painter.drawPolygon(polygon.translated(-QPointF(effectiveRegion.topLeft())));
             }
 
-            QRect maskRect(region.topLeft(), QSize(matte.extent[0], matte.extent[1]));
-            if (matte.extent[0] != region.width() || matte.extent[1] != region.height()) {
+            QRect maskRect(effectiveRegion.topLeft(), QSize(matte.extent[0], matte.extent[1]));
+            if (matte.extent[0] != effectiveRegion.width() || matte.extent[1] != effectiveRegion.height()) {
                 // Unexpected output size: fall back to the raw matte.
                 selection->writeBytes(matte.data.get(), maskRect);
             } else {
@@ -286,11 +405,14 @@ void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
                 const uchar *matteData = matte.data.get();
                 for (int y = 0; y < maskRect.height(); ++y) {
                     const uchar *maskRow = regionMask.constScanLine(y);
-                    const uchar *srcRow = image.data.constScanLine(y);
+                    const uchar *srcRow = inputImg.data.constScanLine(y);
                     uchar *outRow = reinterpret_cast<uchar *>(bytes.data()) + y * maskRect.width();
                     for (int x = 0; x < maskRect.width(); ++x) {
-                        quint8 sourceAlpha = srcRow[x * 4 + 3]; // ARGB32 stores BGRA bytes
-                        outRow[x] = maskRow[x] && sourceAlpha ? matteData[y * maskRect.width() + x] : 0;
+                        const quint8 sourceAlpha = srcRow[x * 4 + 3]; // ARGB32 stores BGRA bytes
+                        const quint8 maskVal = maskRow[x];
+                        const quint8 matteVal = matteData[y * maskRect.width() + x];
+                        // C2: Multiply matte * mask * alpha / 255^2 with proper rounding
+                        outRow[x] = VisionMLMatte::modulateMatteAlpha(matteVal, maskVal, sourceAlpha);
                     }
                 }
                 selection->writeBytes(reinterpret_cast<const quint8 *>(bytes.constData()), maskRect);
@@ -298,13 +420,24 @@ void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
             adjustSelection(selection, options);
             selection->invalidateOutlineCache();
         } catch (const std::exception &e) {
+            // C5: Report error and cancel stroke to avoid committing empty undo step
             Q_EMIT report->errorOccurred(QString(e.what()));
+            if (image) {
+                image->cancelStroke(strokeId);
+            }
         }
         return nullptr;
     });
     applicator.applyCommand(cmd, KisStrokeJobData::SEQUENTIAL);
 
     helper.selectPixelSelection(applicator, selection, options.action);
+
+    // C3: Finalizing command holds cursorLock alive until all previous commands finish
+    applicator.applyCommand(new KisCommandUtils::LambdaCommand([cursorLock]() mutable -> KUndo2Command * {
+        cursorLock.reset();
+        return nullptr;
+    }), KisStrokeJobData::SEQUENTIAL);
+
     applicator.end();
 }
 
