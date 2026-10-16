@@ -84,7 +84,13 @@ KisQPainterCanvas::~KisQPainterCanvas()
 
 void KisQPainterCanvas::setPrescaledProjection(KisPrescaledProjectionSP prescaledProjection)
 {
+    if (m_d->prescaledProjection) {
+        m_d->prescaledProjection->disconnect(this);
+    }
     m_d->prescaledProjection = prescaledProjection;
+    if (m_d->prescaledProjection) {
+        connect(m_d->prescaledProjection.data(), SIGNAL(sigSettingsChanged()), this, SLOT(update()));
+    }
 }
 
 void KisQPainterCanvas::paintEvent(QPaintEvent * ev)
@@ -272,6 +278,10 @@ void KisQPainterCanvas::slotConfigChanged()
     m_d->checkBrush = QBrush(createCheckersImage());
     m_d->scrollCheckers = cfg.scrollCheckers();
     notifyConfigChanged();
+    if (m_d->prescaledProjection) {
+        m_d->prescaledProjection->updateSettings();
+    }
+    update();
 }
 
 bool KisQPainterCanvas::callFocusNextPrevChild(bool next)

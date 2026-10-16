@@ -50,6 +50,8 @@ public:
      */
     QImage prescaledQImage() const;
 
+    bool smoothHighZoom() const;
+
     void setCoordinatesConverter(KisCoordinatesConverter *coordinatesConverter);
 
 public Q_SLOTS:
@@ -106,8 +108,12 @@ public Q_SLOTS:
      */
     void preScale();
 
-private:
+    void setSmoothHighZoom(bool value);
 
+Q_SIGNALS:
+    void sigSettingsChanged();
+
+private:
     friend class KisPrescaledProjectionTest;
 
     KisPrescaledProjection(const KisPrescaledProjection &);

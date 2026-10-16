@@ -100,7 +100,9 @@ void copyQImage(qint32 deltaX, qint32 deltaY, QImage* dstImage, const QImage& sr
 struct KisPrescaledProjection::Private {
     Private()
         : viewportSize(0, 0)
-        , projectionBackend(0) {
+        , projectionBackend(0)
+        , smoothHighZoom(KisConfig(true).smoothHighZoom())
+    {
     }
 
     QImage prescaledQImage;
@@ -111,7 +113,8 @@ struct KisPrescaledProjection::Private {
     QSize viewportSize;
     KisImageWSP image;
     KisCoordinatesConverter *coordinatesConverter {0};
-    KisProjectionBackend *projectionBackend {0};
+    KisProjectionBackend *projectionBackend{0};
+    bool smoothHighZoom{true};
 };
 
 KisPrescaledProjection::KisPrescaledProjection()
@@ -146,6 +149,20 @@ QImage KisPrescaledProjection::prescaledQImage() const
     return m_d->prescaledQImage;
 }
 
+bool KisPrescaledProjection::smoothHighZoom() const
+{
+    return m_d->smoothHighZoom;
+}
+
+void KisPrescaledProjection::setSmoothHighZoom(bool value)
+{
+    if (m_d->smoothHighZoom != value) {
+        m_d->smoothHighZoom = value;
+        preScale();
+        Q_EMIT sigSettingsChanged();
+    }
+}
+
 void KisPrescaledProjection::setCoordinatesConverter(KisCoordinatesConverter *coordinatesConverter)
 {
     m_d->coordinatesConverter = coordinatesConverter;
@@ -157,6 +174,9 @@ void KisPrescaledProjection::updateSettings()
     KisImageConfig imageConfig(false);
     m_d->updatePatchSize.setWidth(imageConfig.updatePatchWidth());
     m_d->updatePatchSize.setHeight(imageConfig.updatePatchHeight());
+
+    KisConfig cfg(true);
+    setSmoothHighZoom(cfg.smoothHighZoom());
 }
 
 void KisPrescaledProjection::notifyCanvasStateChanged(const KisCanvasState &state)
@@ -393,8 +413,10 @@ void KisPrescaledProjection::fillInUpdateInformation(const QRect &viewportRect,
 
     info->borderWidth = 0;
     if (SCALE_MORE_OR_EQUAL_TO(info->scaleX, info->scaleY, 1.0)) {
-        KisConfig cfg(true);
-        if (SCALE_LESS_THAN(info->scaleX, info->scaleY, 2.0) || cfg.smoothHighZoom()) {
+        // Note: QPainter canvas backend does not have an explicit NearestFilterMode setting
+        // like the OpenGL canvas renderer; it only switches between SmoothPixmapTransform
+        // and nearest (no hint) based on zoom scale and smoothHighZoom.
+        if (SCALE_LESS_THAN(info->scaleX, info->scaleY, 2.0) || m_d->smoothHighZoom) {
             dbgRender << "smoothHighZoom" << Qt::endl;
             info->renderHints = QPainter::SmoothPixmapTransform;
             info->borderWidth = borderSize;

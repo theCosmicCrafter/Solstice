@@ -174,7 +174,7 @@ void OverviewWidget::resizeEvent(QResizeEvent *event)
     if (m_canvas) {
         if (!m_oldPixmap.isNull()) {
             recalculatePreviewDimensions();
-            m_pixmap = m_oldPixmap.scaled(m_previewSize, Qt::KeepAspectRatio, Qt::FastTransformation);
+            m_pixmap = m_oldPixmap.scaled(m_previewSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
         }
         triggerCacheUpdate();
     }

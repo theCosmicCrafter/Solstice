@@ -967,9 +967,12 @@ void KisOpenGLCanvasRenderer::drawImageTiles(int firstCol, int lastCol, int firs
             }
 
             if (currentLodPlane > 0) {
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
             } else if (SCALE_MORE_OR_EQUAL_TO(scaleX, scaleY, 2.0)) {
-                if (d->smoothHighZoom) {
+                // If the user explicitly chose NearestFilterMode, that preference always
+                // wins over smoothHighZoom so pixel-art workflows retain crisp pixels.
+                if (d->filterMode != KisOpenGL::NearestFilterMode && d->smoothHighZoom) {
                     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 } else {
