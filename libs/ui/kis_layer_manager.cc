@@ -938,7 +938,10 @@ void KisLayerManager::traceLayerToVector()
     } else if (m_view->canvasResourceProvider()) {
         fgColor = m_view->canvasResourceProvider()->fgColor();
     }
-    const QColor fillColor = fgColor.isValid() ? fgColor.toQColor() : Qt::black;
+    QColor fillColor = fgColor.toQColor();
+    if (!fillColor.isValid()) {
+        fillColor = Qt::black;
+    }
     shape->setBackground(toQShared(new KoColorBackground(fillColor)));
 
     KisShapeLayerSP layer = new KisShapeLayer(shapeController,
