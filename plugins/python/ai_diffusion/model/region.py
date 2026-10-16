@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QMetaObject, QObject, QUuid, pyqtSignal
 
@@ -13,10 +14,14 @@ from ..image import Bounds, Extent, Image
 from ..settings import settings
 from ..style import Style
 from ..text import expand_snippets, load_snippets
-from . import model
 from .control import ControlLayerList
 from .jobs import JobRegion
 from .properties import ObservableProperties, Property
+
+if TYPE_CHECKING:
+    # Only used for annotations (deferred evaluation); importing .model at
+    # runtime creates a cycle: region -> model -> region.
+    from . import model
 
 
 class RegionLink(Enum):

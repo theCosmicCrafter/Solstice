@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import os
 import time
 from base64 import b64encode
 from collections.abc import Sequence
@@ -243,8 +244,8 @@ class ModelMetadataCache:
         return entry.get("metadata")
 
     @classmethod
-    def set(cls, file_path: Path, metadata: dict):
-        """Cache metadata for a file."""
+    def set(cls, file_path: Path, metadata: dict, save: bool = True):
+        """Cache metadata for a file. Pass save=False in bulk loops, then flush() once."""
         try:
             mtime = file_path.stat().st_mtime
             cls._cache[str(file_path)] = {
@@ -252,9 +253,15 @@ class ModelMetadataCache:
                 "metadata": metadata,
                 "cached_at": time.time(),
             }
-            cls._save()
+            if save:
+                cls._save()
         except (OSError, FileNotFoundError):
             pass
+
+    @classmethod
+    def flush(cls):
+        """Persist pending cache entries after batched set(..., save=False) calls."""
+        cls._save()
 
     @classmethod
     def invalidate(cls, file_path: Path | None = None):
@@ -267,10 +274,13 @@ class ModelMetadataCache:
 
     @classmethod
     def _save(cls):
-        """Save cache to disk."""
+        """Save cache to disk atomically (temp file + rename, so a crash
+        mid-write can't corrupt the cache)."""
         try:
             cls._cache_file.parent.mkdir(parents=True, exist_ok=True)
-            cls._cache_file.write_text(json.dumps(cls._cache, default=str))
+            tmp = cls._cache_file.with_suffix(".tmp")
+            tmp.write_text(json.dumps(cls._cache, default=str))
+            os.replace(tmp, cls._cache_file)
         except Exception as e:
             log.warning(f"Failed to save model metadata cache: {e}")
 

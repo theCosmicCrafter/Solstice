@@ -303,8 +303,9 @@ class ModelLibraryModel(QAbstractListModel):
             mtime, fields = results.get(str(f.path), (0.0, {}))
             self._mtimes[str(f.path)] = mtime
             if fields:
-                ModelMetadataCache.set(f.path, fields)
+                ModelMetadataCache.set(f.path, fields, save=False)
                 f.read_model_metadata()
+        ModelMetadataCache.flush()  # one disk write for the whole batch
         if self.rowCount() > 0:
             self.dataChanged.emit(self.index(0), self.index(self.rowCount() - 1))
             self.architectures_changed.emit()

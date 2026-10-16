@@ -4,7 +4,7 @@ import asyncio
 import json
 import struct
 import uuid
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from itertools import product
@@ -271,7 +271,24 @@ class ComfyClient(Client):
                 yield status
                 diffusion_models.update(result)
 
-        self._refresh_models(nodes, checkpoints, diffusion_models)
+        # Resolve local safetensors metadata for all discovered models in one
+        # executor pass — directory scans and header reads must not block the
+        # event loop (model folders can hold thousands of files).
+        filenames = (
+            set(checkpoints)
+            | set(diffusion_models)
+            | set(nodes.options("CheckpointLoaderSimple", "ckpt_name"))
+        )
+        local_metadata: dict[str, dict] = {}
+        if filenames:
+            try:
+                loop = asyncio.get_running_loop()
+                local_metadata = await loop.run_in_executor(
+                    None, self._resolve_local_metadata, filenames
+                )
+            except Exception as e:
+                log.warning(f"Local model metadata resolution failed: {e}")
+        self._refresh_models(nodes, checkpoints, diffusion_models, local_metadata.get)
 
         # Check supported base models and make sure there is at least one
         self._supported_archs = {ver: self._check_workload(ver) for ver in Arch.list()}
@@ -549,10 +566,13 @@ class ComfyClient(Client):
         return self._active_job is not None
 
     def _refresh_models(
-        self, nodes: ComfyObjectInfo, checkpoints: dict | None, diffusion_models: dict | None
+        self,
+        nodes: ComfyObjectInfo,
+        checkpoints: dict | None,
+        diffusion_models: dict | None,
+        local_metadata: Callable[[str], dict | None] = lambda _: None,
     ):
         models = self.models
-        local_metadata = self._local_metadata_resolver()
 
         def parse_model_info(models: dict, model_format: FileFormat):
             parsed = (
@@ -591,16 +611,16 @@ class ComfyClient(Client):
         models.vae = nodes.options("VAELoader", "vae_name")
         models.loras = nodes.options("LoraLoader", "lora_name")
 
-    def _local_metadata_resolver(self):
-        """Build a filename -> modelspec-metadata resolver for locally reachable
-        model files.
+    def _resolve_local_metadata(self, filenames) -> dict[str, dict]:
+        """Resolve model filenames to modelspec metadata for locally reachable
+        files. Blocking by design — callers must run it in an executor.
 
         When ComfyUI runs on this machine (managed install or a local server
         path) its checkpoint filenames can be resolved to files on disk, letting
         us read safetensors `__metadata__` (architecture, base model, trigger
-        words) that the server's model_info endpoint may not report. Returns a
-        resolver that yields extracted metadata fields or None for files that
-        cannot be resolved/read — never raises, never blocks on remote files.
+        words) that the server's model_info endpoint may not report. Returns
+        ``{filename: fields}`` for resolvable models only — never raises on
+        individual failures.
         """
         roots = []
         # Metadata resolution only makes sense for locally reachable model files,
@@ -624,17 +644,23 @@ class ComfyClient(Client):
                 except OSError:
                     continue
 
-        def resolve(filename: str):
+        resolved: dict[str, dict] = {}
+        for filename in filenames:
             path = index.get(filename) or index.get(Path(filename).name)
             if path is None:
-                return None
-            metadata = ModelMetadataCache.get(path)
-            if metadata is None:
-                metadata = extract_metadata_fields(read_safetensors_metadata(path))
-                ModelMetadataCache.set(path, metadata)
-            return metadata or None
-
-        return resolve
+                continue
+            try:
+                metadata = ModelMetadataCache.get(path)
+                if metadata is None:
+                    metadata = extract_metadata_fields(read_safetensors_metadata(path))
+                    if metadata:
+                        ModelMetadataCache.set(path, metadata, save=False)
+                if metadata:
+                    resolved[filename] = metadata
+            except OSError:
+                continue
+        ModelMetadataCache.flush()  # one disk write for the whole batch
+        return resolved
 
     async def _transfer_result_image(self, id: str):
         try:
