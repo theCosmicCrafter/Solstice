@@ -244,10 +244,16 @@ class DocumentModel(QObject, ObservableProperties):
             axis, values, cleaned = parse_sweep_spec(cond_orig.positive)
             if axis is not None:
                 sweep = (axis, values, cleaned)
-                cond_orig = replace(cond_orig, positive=cleaned)
+                # Strip any spec text from the negative prompt too — a
+                # {{steps:…}} left there would be sent to the model literally.
+                _, _, cleaned_neg = parse_sweep_spec(cond_orig.negative)
+                cond_orig = replace(cond_orig, positive=cleaned, negative=cleaned_neg)
         prompt_lines: list[str] = []
         if self.batch_per_line and cond_orig is not None:
-            prompt_lines = [s for s in (l.strip() for l in cond_orig.positive.splitlines()) if s]
+            # Split the raw root prompt, not the region-merged conditioning —
+            # merged region text must not enqueue as its own jobs.
+            source = self.regions.positive if self.regions is not None else ""
+            prompt_lines = [s for s in (l.strip() for l in source.splitlines()) if s]
         if sweep[0] is not None:
             jobs = self._enqueue_jobs_sweep(input, job_params, cond_orig, sweep, queue_mode)
         elif len(prompt_lines) > 1:
@@ -417,7 +423,9 @@ class DocumentModel(QObject, ObservableProperties):
             )
             line_params = copy(params)
             line_params.metadata = params.metadata | prepared.metadata
-            line_params.name = line_params.metadata.get("prompt_eval", params.name)
+            # Prefer the line's own evaluated prompt; fall back to the raw line,
+            # not the base prompt's stale prompt_eval.
+            line_params.name = prepared.metadata.get("prompt_eval") or trim_text(line, 180)
             await self.enqueue_jobs(
                 line_input, JobKind.diffusion, line_params, None, count=1, queue_mode=queue_mode
             )
@@ -875,7 +883,7 @@ class DocumentModel(QObject, ObservableProperties):
                 pos = self.layers.active if behavior is ApplyBehavior.layer_active else None
                 layer = self.layers.create(name, image, bounds, above=pos)
                 self._record_layer_provenance(layer, params)
-                self._post_process_output_layer(layer)
+                self._post_process_output_layer(layer, params)
         else:  # apply to regions
             with RestoreActiveLayer(self.layers) as restore:
                 active_id = Region.link_target(self.layers.active).id_string
@@ -906,7 +914,7 @@ class DocumentModel(QObject, ObservableProperties):
                 region_layer, image, params.bounds, blend=BlendMode.keep
             )
             self._record_layer_provenance(new_layer, params)
-            self._post_process_output_layer(new_layer)
+            self._post_process_output_layer(new_layer, params)
             if region is not None:
                 region.link(new_layer)
             return new_layer
@@ -953,13 +961,16 @@ class DocumentModel(QObject, ObservableProperties):
             name, region_image, region_bounds, parent=region_layer, above=insert_pos
         )
         self._record_layer_provenance(layer, params)
-        self._post_process_output_layer(layer)
+        self._post_process_output_layer(layer, params)
         return layer
 
-    def _post_process_output_layer(self, layer: Layer):
+    def _post_process_output_layer(self, layer: Layer, params: JobParams):
         """Optional output pipeline applied to each freshly generated layer:
         Cutout (native Smart Matting edge refine) followed by Vectorize
-        (Trace to Vector Layer). Both are off by default."""
+        (Trace to Vector Layer). Both are off by default and only apply to
+        generation output — upscale/refine/custom results are left alone."""
+        if params.workflow_kind is not WorkflowKind.generate:
+            return
         if self.matte_output:
             self._apply_output_matte(layer)
         if self.vectorize_output:
@@ -1007,7 +1018,31 @@ class DocumentModel(QObject, ObservableProperties):
 
     def _apply_output_vectorize(self, layer: Layer):
         """Trace the raster layer's alpha into a vector layer via the native
-        Trace to Vector action (Layer > Convert > Trace to Vector Layer)."""
+        Trace to Vector action (Layer > Convert > Trace to Vector Layer).
+        The action operates on the active view's active node, so it can only
+        run when this document is the focused view."""
+        if not self.document.is_active:
+            self.report_error(
+                Error(
+                    ErrorKind.warning,
+                    _(
+                        "Vectorize skipped: the document is not the active view"
+                        " (Trace to Vector works on the focused document)"
+                    ),
+                )
+            )
+            return
+        bounds = layer.bounds
+        if bounds.width * bounds.height > 64 * 1024 * 1024:
+            # The action shows a modal confirmation above 64 MP, which would
+            # block mid-apply during batch processing.
+            self.report_error(
+                Error(
+                    ErrorKind.warning,
+                    _("Vectorize skipped: layer is larger than 64 megapixels"),
+                )
+            )
+            return
         try:
             from krita import Krita
 

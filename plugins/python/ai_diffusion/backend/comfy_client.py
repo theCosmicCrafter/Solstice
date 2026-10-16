@@ -255,7 +255,10 @@ class ComfyClient(Client):
 
         if parallel and settings.enable_parallel_model_discovery:
             # Parallel model discovery for faster scanning
-            await self._discover_models_parallel(nodes, checkpoints, diffusion_models)
+            async for status in self._discover_models_parallel(
+                nodes, checkpoints, diffusion_models
+            ):
+                yield status
         else:
             # Sequential discovery (original behavior)
             async for status, result in self.try_inspect("checkpoints"):
@@ -299,20 +302,21 @@ class ComfyClient(Client):
                     log.warning(f"Failed to inspect {folder}: {e}")
                     return folder, []
 
-        # Run all inspections in parallel
+        # Run all inspections in parallel, reporting per-folder progress
         tasks = [inspect_with_limit(f) for f in folders]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Aggregate results
-        for result in results:
-            if isinstance(result, Exception):
+        for coro in asyncio.as_completed(tasks):
+            try:
+                folder, data_list = await coro
+            except Exception:
                 continue
-            folder, data_list = result
+            count = 0
             for data in data_list:
                 if folder == "checkpoints":
                     checkpoints.update(data)
                 elif folder in ("diffusion_models", "unet_gguf"):
                     diffusion_models.update(data)
+                count += 1
+            yield Client.DiscoverStatus(folder, count, max(count, 1))
 
     async def refresh(self):
         async for __ in self.discover_models(refresh=True):

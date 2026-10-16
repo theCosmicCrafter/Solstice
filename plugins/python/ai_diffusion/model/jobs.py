@@ -12,7 +12,7 @@ from ..backend.api import InpaintMode, WorkflowKind
 from ..image import Bounds, ImageCollection
 from ..settings import settings
 from ..style import Style
-from ..util import ensure
+from ..util import ensure, parse_enum
 
 if TYPE_CHECKING:
     from . import control
@@ -68,6 +68,12 @@ class JobParams:
     def from_dict(data: dict[str, Any]):
         data["bounds"] = Bounds(*data["bounds"])
         data["regions"] = [JobRegion.from_dict(r) for r in data.get("regions", [])]
+        if isinstance(data.get("workflow_kind"), str):
+            data["workflow_kind"] = parse_enum(WorkflowKind, data["workflow_kind"])
+        if isinstance(data.get("inpaint_mode"), str):
+            data["inpaint_mode"] = parse_enum(InpaintMode, data["inpaint_mode"])
+        if isinstance(data.get("frame"), list):
+            data["frame"] = tuple(data["frame"])
         if "metadata" not in data:  # older documents before version 1.26.0
             data["name"] = data.get("prompt", "")
             data["metadata"] = {}

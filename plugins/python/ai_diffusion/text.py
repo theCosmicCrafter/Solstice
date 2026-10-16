@@ -52,6 +52,7 @@ pattern_layer = re.compile(r"<layer:([^>]+)>", re.IGNORECASE)
 pattern_weight_expr = re.compile(r"\([^:()]+:(-?[\d.]+)\)")
 pattern_wildcard = re.compile(r"(\{[^{}]+\|[^{}]+\})")
 pattern_snippet = re.compile(r"(?<![\w@])@(\w+)")
+_escape_sentinel = "\ue000"  # private-use char standing in for "@@" during expansion
 
 
 def strip_prompt_comments(prompt: str):
@@ -164,14 +165,16 @@ def save_snippets(snippets: dict[str, str]):
 
 def expand_snippets(text: str, snippets: dict[str, str] | None = None) -> str:
     """Expand @name tokens in a prompt using the saved snippets. Unknown @tokens
-    are passed through untouched."""
+    are passed through untouched; @@name escapes to a literal @name."""
     if "@" not in text:
         return text
     if snippets is None:
         snippets = load_snippets()
     if not snippets:
-        return text
-    return pattern_snippet.sub(lambda m: snippets.get(m[1], m[0]), text)
+        return text.replace("@@", "@") if "@@" in text else text
+    protected = text.replace("@@", _escape_sentinel)
+    expanded = pattern_snippet.sub(lambda m: snippets.get(m[1], m[0]), protected)
+    return expanded.replace(_escape_sentinel, "@")
 
 
 def eval_wildcards(text: str, seed: int):

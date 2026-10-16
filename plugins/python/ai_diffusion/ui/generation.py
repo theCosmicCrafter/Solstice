@@ -545,7 +545,9 @@ class HistoryWidget(QListWidget):
         name = ""
         if len(items) == 1:  # single selection: grid all results of that job
             job_id, _ = self.item_info(items[0])
-            job = ensure(self._model.jobs.find(job_id))
+            job = self._model.jobs.find(job_id)
+            if job is None:
+                return  # job was cleared between menu-open and action
             images = list(job.results)
             labels = [f"{i + 1}" for i in range(len(images))]
             name = job.params.name
@@ -663,6 +665,7 @@ class _CompareView(QWidget):
     def __init__(self, image_a: Image, image_b: Image, parent: QWidget | None = None):
         super().__init__(parent)
         self._pixmaps = (image_a.to_pixmap(), image_b.to_pixmap())
+        self._scaled: tuple[QPixmap, QPixmap] | None = None
         self._split = 0.5
         self.setMinimumSize(320, 240)
 
@@ -670,16 +673,38 @@ class _CompareView(QWidget):
         self._split = value / 100
         self.update()
 
+    def resizeEvent(self, e):
+        self._scaled = None
+        super().resizeEvent(e)
+
+    def _ensure_scaled(self):
+        """Rescale both pixmaps at the *same* factor (the smaller of the two
+        fits) so differently-sized images compare at equal magnification.
+        Cached — rescaling on every repaint during a slider drag is wasteful."""
+        if self._scaled is None:
+            pa, pb = self._pixmaps
+            scale = min(
+                self.width() / max(pa.width(), 1),
+                self.height() / max(pa.height(), 1),
+                self.width() / max(pb.width(), 1),
+                self.height() / max(pb.height(), 1),
+            )
+            self._scaled = tuple(
+                p.scaled(
+                    int(p.width() * scale),
+                    int(p.height() * scale),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                for p in self._pixmaps
+            )
+        return self._scaled
+
     def paintEvent(self, e: QPaintEvent | None):
         painter = QPainter(self)
         painter.fillRect(self.rect(), self.palette().color(QPalette.ColorRole.Window))
         split_x = int(self.width() * self._split)
-        for i, pixmap in enumerate(self._pixmaps):
-            scaled = pixmap.scaled(
-                self.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
+        for i, scaled in enumerate(self._ensure_scaled()):
             x = (self.width() - scaled.width()) // 2
             y = (self.height() - scaled.height()) // 2
             painter.save()

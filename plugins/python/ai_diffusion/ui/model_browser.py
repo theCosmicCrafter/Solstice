@@ -120,12 +120,12 @@ def _load_preview_image(path: Path) -> QImage | None:
         return None
 
 
-def _scan_files_metadata(files: list[tuple[int, Path]]) -> dict[int, tuple[float, dict]]:
+def _scan_files_metadata(files: list[tuple[str, Path]]) -> dict[str, tuple[float, dict]]:
     """Worker: read safetensors model headers + file mtimes. Runs in the
     executor so large model folders never block the UI. Returns
-    ``{id(file): (mtime, extracted_fields)}`` — all merging into `File`
+    ``{str(path): (mtime, extracted_fields)}`` — all merging into `File`
     objects and the metadata cache happens on the UI thread."""
-    results: dict[int, tuple[float, dict]] = {}
+    results: dict[str, tuple[float, dict]] = {}
     for file_id, path in files:
         try:
             mtime = path.stat().st_mtime
@@ -237,8 +237,8 @@ class ModelLibraryModel(QAbstractListModel):
         self._preview_cache: dict[str, QIcon] = {}
         self._pending: set[str] = set()
         self._missing: set[str] = set()  # paths known to have no preview image
-        self._mtimes: dict[int, float] = {}
-        self._scanned_ids: set[int] = set()
+        self._mtimes: dict[str, float] = {}
+        self._scanned_ids: set[str] = set()
         self._closed = False
 
         self.rebuild()
@@ -278,17 +278,17 @@ class ModelLibraryModel(QAbstractListModel):
         files = [
             f
             for f, _ in self._entries
-            if f.path is not None and id(f) not in self._scanned_ids
+            if f.path is not None and str(f.path) not in self._scanned_ids
         ]
         if not files:
             return
-        self._scanned_ids.update(id(f) for f in files)
+        self._scanned_ids.update(str(f.path) for f in files)
         eventloop.run(self._scan_metadata(files))
 
     async def _scan_metadata(self, files: list[File]):
         try:
             loop = asyncio.get_running_loop()
-            jobs = [(id(f), f.path) for f in files if f.path is not None]
+            jobs = [(str(f.path), f.path) for f in files if f.path is not None]
             results = await loop.run_in_executor(None, _scan_files_metadata, jobs)
         except Exception as e:
             log.warning(f"Model metadata scan failed: {e}")
@@ -298,9 +298,11 @@ class ModelLibraryModel(QAbstractListModel):
         if self._closed:
             return
         for f in files:
-            mtime, fields = results.get(id(f), (0.0, {}))
-            self._mtimes[id(f)] = mtime
-            if fields and f.path is not None:
+            if f.path is None:
+                continue
+            mtime, fields = results.get(str(f.path), (0.0, {}))
+            self._mtimes[str(f.path)] = mtime
+            if fields:
                 ModelMetadataCache.set(f.path, fields)
                 f.read_model_metadata()
         if self.rowCount() > 0:
@@ -344,7 +346,7 @@ class ModelLibraryModel(QAbstractListModel):
             case self.arch_role:
                 return arch_text(file)
             case self.mtime_role:
-                return self._mtimes.get(id(file), 0.0)
+                return self._mtimes.get(str(file.path), 0.0) if file.path else 0.0
             case self.source_role:
                 return file.source.value
             case self.collection_role:
