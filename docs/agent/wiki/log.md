@@ -1469,3 +1469,21 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   verified for every module.
 - Build pipeline: 38877751446 (round-1 fixes) in progress;
   38878632735 (rounds 1-3, 4125bacb) queued as release candidate.
+
+## 2026-10-16 — Packaging blocker resolution + CI build a50aa6f7 + E2E verification
+
+- Packaging fix: CI build 38879481186 compiled and installed cleanly (~1h29m)
+  but failed in `package-complete.py` during `windeployqt.exe` because
+  `-multimedia` was requested while Krita's bundled dependencies (`ext_qt`)
+  do not include `Qt6Multimedia.dll`. Removed `-multimedia` from line 608.
+- Test fixture update: `tests/e2e/conftest.py` default executable path updated
+  to discover `app-307c7e72` instead of stale `43e54bc8` artifact.
+- Verification: ran full E2E suite (`pytest tests/e2e -v -m "not soak"`) with
+  `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` against `app-307c7e72` with synced Python plugins:
+  26 PASSED, 1 SKIPPED (`test_smooth_high_zoom_display` requires interactive GUI viewport),
+  0 FAILED in 59.07s.
+- Live instance launched: `solstice.exe` active (PID 44992), MCP bridge listening
+  on loopback port 5678 (`/health` returns status ok).
+- Committed as `a50aa6f7`, pushed to `main`, and dispatched workflow run
+  `38920280246` on GitHub Actions to generate the release trial build ZIP.
+
