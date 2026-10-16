@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from itertools import chain
 from typing import Any, ClassVar, cast
@@ -29,12 +30,15 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QDoubleSpinBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
     QMenu,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QScrollBar,
@@ -44,6 +48,7 @@ from PyQt6.QtWidgets import (
     QStyle,
     QStyleOption,
     QToolButton,
+    QVBoxLayout,
     QWidget,
     QWidgetAction,
 )
@@ -76,7 +81,9 @@ from ..text import (
     pattern_lora,
     pattern_weight_expr,
     pattern_wildcard,
+    save_snippets,
     select_on_cursor_pos,
+    snippets_file_path,
     str_index_to_char16_index,
 )
 from ..util import ensure

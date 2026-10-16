@@ -12,6 +12,7 @@ from typing import Any, Callable, NamedTuple, cast
 from PyQt6.QtCore import QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt
 from PyQt6.QtGui import QIcon
 
+from .backend.modelspec import extract_metadata_fields, read_safetensors_metadata
 from .util import client_logger as log
 from .util import encode_json, read_json_with_comments, user_data_dir
 
@@ -361,6 +362,8 @@ class FileCollection(QAbstractListModel):
         if not file.metadata:
             file.metadata = {}
         file.metadata[key] = value
+        if (i := self.find_index(file.id)) >= 0:
+            self.dataChanged.emit(self.index(i), self.index(i))
         self.save()
 
     def load(self):
@@ -423,7 +426,7 @@ class FileLibrary(NamedTuple):
         global _instance
         database_dir = database_dir or user_data_dir / "database"
         _instance = FileLibrary(
-            checkpoints=FileCollection(),
+            checkpoints=FileCollection(database_dir / "checkpoints.json"),
             loras=FileCollection(database_dir / "loras.json"),
         )
         return _instance

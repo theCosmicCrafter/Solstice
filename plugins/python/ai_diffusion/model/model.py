@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 import uuid
 import weakref
@@ -987,8 +988,17 @@ class DocumentModel(QObject, ObservableProperties):
             return
         try:
             bounds = layer.bounds
-            filt.apply(layer.node, bounds.x, bounds.y, bounds.width, bounds.height)
+            # startFilter runs the filter as a proper Krita stroke (undoable,
+            # scheduled); plain apply writes in place with no undo entry.
+            ok = filt.startFilter(layer.node, bounds.x, bounds.y, bounds.width, bounds.height)
             self.document.refresh()
+            if not ok:
+                self.report_error(
+                    Error(
+                        ErrorKind.warning,
+                        _("Cutout background removal could not start (layer locked?)"),
+                    )
+                )
         except Exception as e:
             log.warning(f"Cutout background removal failed on layer {layer.name}: {e}")
             self.report_error(
@@ -1039,7 +1049,9 @@ class DocumentModel(QObject, ObservableProperties):
                 "style": params.style,
                 "sampler": meta.get("sampler", ""),
                 "strength": meta.get("strength", 1.0),
-                "workflow_kind": params.workflow_kind.name,
+                "workflow_kind": getattr(
+                    params.workflow_kind, "name", str(params.workflow_kind)
+                ),
             }
             layer.node.setProperty("ai_diffusion_params", json.dumps(data))
         except Exception as e:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import random
 import re
 from pathlib import Path
@@ -9,7 +10,7 @@ from .backend.api import ConditioningInput, LoraInput, RegionInput, WorkflowKind
 from .files import FileCollection, FileSource
 from .localization import translate as _
 from .model.jobs import JobParams
-from .util import PluginError, is_one
+from .util import PluginError, is_one, user_data_dir
 from .util import client_logger as log
 
 # Functions to convert between position in Python str objects (unicode) and

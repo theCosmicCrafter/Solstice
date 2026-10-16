@@ -8,11 +8,12 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from itertools import product
+from pathlib import Path
 from time import time
 from typing import Any
 
 from .. import platform_tools, util
-from ..files import FileFormat
+from ..files import FileFormat, ModelMetadataCache
 from ..image import Image, ImageCollection, Point
 from ..localization import translate as _
 from ..settings import PerformanceSettings, settings
@@ -42,6 +43,7 @@ from .client import (
     loras_to_upload,
 )
 from .comfy_workflow import ComfyObjectInfo
+from .modelspec import extract_metadata_fields, read_safetensors_metadata
 from .network import NetworkError, RequestManager
 from .resources import (
     Arch,
@@ -234,7 +236,7 @@ class ComfyClient(Client):
                 id = resource_id(ResourceKind.upscaler, Arch.all, UpscalerName.fast_x(n))
                 available_resources[id] = models.default_upscaler
 
-        return client
+        return self
 
     async def discover_models(self, refresh: bool, parallel: bool = True):
         """Discover available models from the ComfyUI server.
@@ -287,7 +289,7 @@ class ComfyClient(Client):
         async def inspect_with_limit(folder: str):
             async with semaphore:
                 if folder == "unet_gguf" and not self.features.gguf:
-                    return {}
+                    return folder, []
                 try:
                     results = []
                     async for status, result in self.try_inspect(folder):
@@ -577,6 +579,11 @@ class ComfyClient(Client):
         if diffusion_models:
             models.checkpoints.update(parse_model_info(diffusion_models, FileFormat.diffusion))
 
+        if self.features.gguf:
+            for name in nodes.options("UnetLoaderGGUF", "unet_name"):
+                if name not in models.checkpoints:
+                    models.checkpoints[name] = CheckpointInfo(name, Arch.flux, FileFormat.diffusion)
+
         models.vae = nodes.options("VAELoader", "vae_name")
         models.loras = nodes.options("LoraLoader", "lora_name")
 
@@ -592,7 +599,10 @@ class ComfyClient(Client):
         cannot be resolved/read — never raises, never blocks on remote files.
         """
         roots = []
-        if settings.server_path:
+        # Metadata resolution only makes sense for locally reachable model files,
+        # i.e. a managed or localhost ComfyUI server.
+        is_local_url = any(h in self.url for h in ("127.0.0.1", "localhost", "[::1]"))
+        if settings.server_path and is_local_url:
             base = Path(settings.server_path)
             # Managed layout uses base_path `../models` relative to the ComfyUI
             # install dir; `models` directly under it covers conventional installs.
@@ -621,13 +631,6 @@ class ComfyClient(Client):
             return metadata or None
 
         return resolve
-
-        if "UnetLoaderGGUF" in nodes:
-            for name in nodes.options("UnetLoaderGGUF", "unet_name"):
-                if name not in models.checkpoints:
-                    models.checkpoints[name] = CheckpointInfo(name, Arch.flux, FileFormat.diffusion)
-        else:
-            log.info("GGUF support: node is not installed.")
 
     async def _transfer_result_image(self, id: str):
         try:
@@ -825,14 +828,12 @@ def _find_model(
                 is_match = False
 
             if is_match:
-                # Priority: "krita" in path > exact match > subfolder match
+                # Priority: "krita" in name > earlier search pattern > shorter name;
+                # basename matches lose to full-path matches at the same priority
                 if "krita" in name:
                     prio = 0
-                elif match_source == "path":
-                    prio = 1
                 else:
-                    # Subfolder match: penalize slightly
-                    prio = i * 100 + len(name) + 50
+                    prio = i * 100 + len(name) + (50 if match_source == "basename" else 0)
                 matches.append((filename, prio))
 
     matches = sorted(matches, key=lambda m: m[1])

@@ -12,6 +12,7 @@ from ..document import Layer, LayerType
 from ..image import Bounds, Extent, Image
 from ..settings import settings
 from ..style import Style
+from ..text import expand_snippets, load_snippets
 from . import model
 from .control import ControlLayerList
 from .jobs import JobRegion

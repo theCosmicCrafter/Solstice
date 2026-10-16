@@ -9,7 +9,12 @@ from pathlib import Path
 from typing import NamedTuple
 
 from PyQt6.QtCore import QBuffer, QByteArray, QFile, QUrl
-from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest, QSslError
+from PyQt6.QtNetwork import (
+    QNetworkAccessManager,
+    QNetworkReply,
+    QNetworkRequest,
+    QSslError,
+)
 
 from ..localization import translate as _
 from ..util import client_logger as log
@@ -351,27 +356,38 @@ async def _try_download(network: QNetworkAccessManager, url: str, path: Path):
     reply.downloadProgress.connect(handle_progress)
     reply.finished.connect(handle_finished)
 
-    while not reply.isFinished():
-        await asyncio.wait([progress_future, finished_future], return_when=asyncio.FIRST_COMPLETED)
-        if progress_future.done():
-            progress = progress_future.result()
-            yield progress
-            await asyncio.sleep(0.02)  # don't starve UI
-            progress_future = asyncio.get_running_loop().create_future()
-
-        if progress_helper.seconds_since_last_update() > 30:
-            reply.abort()
-            raise NetworkError(
-                QNetworkReply.NetworkError.TimeoutError,
-                "Connection timed out, the server took too long to respond",
-                url,
+    try:
+        while not reply.isFinished():
+            await asyncio.wait(
+                [progress_future, finished_future], return_when=asyncio.FIRST_COMPLETED
             )
+            if progress_future.done():
+                progress = progress_future.result()
+                yield progress
+                await asyncio.sleep(0.02)  # don't starve UI
+                progress_future = asyncio.get_running_loop().create_future()
 
-    if e := finished_future.exception():
-        raise e
+            if progress_helper.seconds_since_last_update() > 30:
+                reply.abort()
+                raise NetworkError(
+                    QNetworkReply.NetworkError.TimeoutError,
+                    "Connection timed out, the server took too long to respond",
+                    url,
+                )
 
-    out_file.rename(str(path))
-    yield progress_helper.final()
+        if e := finished_future.exception():
+            raise e
+
+        out_file.rename(str(path))
+        yield progress_helper.final()
+    finally:
+        # On cancellation (GeneratorExit/CancelledError propagating through a
+        # yield) the reply would keep streaming into the .part file in the
+        # background — abort it so a restarted download can't interleave
+        # writes into the same file.
+        if not reply.isFinished():
+            reply.abort()
+        out_file.close()
 
 
 async def download(network: QNetworkAccessManager, url: str, path: Path):

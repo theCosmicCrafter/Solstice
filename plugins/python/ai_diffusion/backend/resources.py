@@ -178,34 +178,47 @@ class Arch(Enum):
         path_lower = checkpoint.lower()
         folder_part = path_lower.split("/")[0] if "/" in path_lower else path_lower.split("\\")[0] if "\\" in path_lower else ""
 
-        # Check folder names first (for subfolder organization)
+        # Check folder names first (for subfolder organization).
+        # Order matters: specific/newer architectures before the generic
+        # families they could be filed under (e.g. "flux-krea2" contains
+        # both "flux" and "krea" -> must hit krea2 before flux).
         if folder_part:
-            if "flux" in folder_part:
-                if "kontext" in folder_part or "krea" in folder_part:
+            if "krea" in folder_part:
+                return Arch.krea2
+            elif "anima" in folder_part:
+                return Arch.anima
+            elif "zimage" in folder_part or "z-image" in folder_part:
+                return Arch.zimage
+            elif "ernie" in folder_part:
+                return Arch.ernie
+            elif "qwen" in folder_part:
+                if "layered" in folder_part:
+                    return Arch.qwen_l
+                elif "edit" in folder_part:
+                    if "2509" in folder_part or "2511" in folder_part:
+                        return Arch.qwen_e_p
+                    return Arch.qwen_e
+                elif "qwen2" in folder_part or "qwen-2" in folder_part or "image21" in folder_part:
+                    return Arch.qwen2
+                return Arch.qwen
+            elif "flux" in folder_part:
+                if "kontext" in folder_part:
                     return Arch.flux_k
-                elif "flux2" in folder_part or "flux 2" in folder_part:
-                    if "klein 4b" in folder_part or "4b" in folder_part:
-                        return Arch.flux2_4b
-                    elif "klein 9b" in folder_part or "9b" in folder_part:
+                elif "flux2" in folder_part or "flux 2" in folder_part or "klein" in folder_part:
+                    if "9b" in folder_part:
                         return Arch.flux2_9b
-                    else:
-                        return Arch.flux
-                else:
-                    return Arch.flux
-            elif "sdxl" in folder_part:
-                return Arch.sdxl
-            elif "sd3" in folder_part:
-                return Arch.sd3
+                    return Arch.flux2_4b
+                return Arch.flux
             elif "illustrious" in folder_part or "illu" in folder_part:
                 return Arch.illu
             elif "pony" in folder_part:
                 return Arch.sdxl  # Pony is SDXL-based
             elif "chroma" in folder_part:
                 return Arch.chroma
-            elif "zimage" in folder_part or "z-image" in folder_part:
-                return Arch.zimage
-            elif "qwen" in folder_part:
-                return Arch.qwen
+            elif "sdxl" in folder_part:
+                return Arch.sdxl
+            elif "sd3" in folder_part:
+                return Arch.sd3
 
         # Fall back to filename-based detection
         if Arch.sdxl.matches(checkpoint):

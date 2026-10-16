@@ -125,12 +125,15 @@ class CivitaiClient:
                 f"{API_BASE}/model-versions/by-hash/{sha256}", timeout=REQUEST_TIMEOUT
             )
         except NetworkError as e:
-            if e.status not in (404, 410):  # simply unknown to CivitAI
-                log.warning(f"CivitAI hash lookup failed: {e.message}")
-            return None
+            if e.status in (404, 410):
+                return None  # simply unknown to CivitAI
+            # Propagate real failures (offline, 5xx, timeout) so callers can
+            # distinguish "no match" from "lookup failed".
+            log.warning(f"CivitAI hash lookup failed: {e.message}")
+            raise
         except Exception as e:
             log.warning(f"CivitAI hash lookup failed: {e}")
-            return None
+            raise
         if not isinstance(data, dict):
             return None
         return parse_version_response(data)

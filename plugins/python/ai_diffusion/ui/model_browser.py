@@ -13,6 +13,7 @@ and executor — nothing here performs blocking I/O on the GUI thread.
 from __future__ import annotations
 
 import asyncio
+import html
 import re
 from base64 import b64decode
 from pathlib import Path
@@ -25,6 +26,7 @@ from PyQt6.QtCore import (
     QSize,
     QSortFilterProxyModel,
     Qt,
+    QUrl,
     pyqtSignal,
 )
 from PyQt6.QtGui import (
@@ -36,7 +38,6 @@ from PyQt6.QtGui import (
     QPainter,
     QPalette,
     QPixmap,
-    QUrl,
 )
 from PyQt6.QtNetwork import QNetworkAccessManager
 from PyQt6.QtWidgets import (
@@ -67,10 +68,14 @@ from PyQt6.QtWidgets import (
 from .. import eventloop
 from ..backend import network
 from ..backend.civitai import CivitaiClient, CivitaiModelInfo
-from ..backend.modelspec import arch_keys
+from ..backend.modelspec import (
+    arch_keys,
+    extract_metadata_fields,
+    read_safetensors_metadata,
+)
 from ..backend.network import RequestManager
 from ..backend.resources import Arch
-from ..files import File, FileCollection, FileFormat, FileSource
+from ..files import File, FileCollection, FileFormat, FileSource, ModelMetadataCache
 from ..localization import translate as _
 from ..model.root import root
 from ..settings import settings
@@ -115,21 +120,25 @@ def _load_preview_image(path: Path) -> QImage | None:
         return None
 
 
-def _scan_files_metadata(files: list[File]) -> dict[int, float]:
+def _scan_files_metadata(files: list[tuple[int, Path]]) -> dict[int, tuple[float, dict]]:
     """Worker: read safetensors model headers + file mtimes. Runs in the
-    executor so large model folders never block the UI."""
-    mtimes: dict[int, float] = {}
-    for file in files:
+    executor so large model folders never block the UI. Returns
+    ``{id(file): (mtime, extracted_fields)}`` — all merging into `File`
+    objects and the metadata cache happens on the UI thread."""
+    results: dict[int, tuple[float, dict]] = {}
+    for file_id, path in files:
         try:
-            file.read_model_metadata()
-        except Exception:
-            pass
-        if file.path is not None:
+            mtime = path.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        fields: dict = {}
+        if path.suffix.lower() == ".safetensors":
             try:
-                mtimes[id(file)] = file.path.stat().st_mtime
-            except OSError:
+                fields = extract_metadata_fields(read_safetensors_metadata(path))
+            except Exception:
                 pass
-    return mtimes
+        results[file_id] = (mtime, fields or {})
+    return results
 
 
 def arch_text(file: File) -> str:
@@ -167,7 +176,9 @@ def source_text(file: File) -> str:
 
 def _suggest_filename(info: CivitaiModelInfo) -> str:
     name = Path(QUrl(info.download_url).path()).name if info.download_url else ""
-    if not name:
+    # CivitAI download URLs are /api/download/models/<id> — the basename has no
+    # extension, so only use it when it already looks like a model file.
+    if Path(name).suffix.lower() not in {".safetensors", ".ckpt", ".pt", ".pth"}:
         name = re.sub(r'[\\/:*?"<>|]', "_", info.display_name).strip() or "model"
         name += ".safetensors"
     return name
@@ -228,6 +239,7 @@ class ModelLibraryModel(QAbstractListModel):
         self._missing: set[str] = set()  # paths known to have no preview image
         self._mtimes: dict[int, float] = {}
         self._scanned_ids: set[int] = set()
+        self._closed = False
 
         self.rebuild()
         for collection in self._collections():
@@ -276,11 +288,21 @@ class ModelLibraryModel(QAbstractListModel):
     async def _scan_metadata(self, files: list[File]):
         try:
             loop = asyncio.get_running_loop()
-            mtimes = await loop.run_in_executor(None, _scan_files_metadata, files)
+            jobs = [(id(f), f.path) for f in files if f.path is not None]
+            results = await loop.run_in_executor(None, _scan_files_metadata, jobs)
         except Exception as e:
             log.warning(f"Model metadata scan failed: {e}")
             return
-        self._mtimes.update(mtimes)
+        # Merge on the UI thread: warming the cache makes
+        # File.read_model_metadata cheap (no further header reads).
+        if self._closed:
+            return
+        for f in files:
+            mtime, fields = results.get(id(f), (0.0, {}))
+            self._mtimes[id(f)] = mtime
+            if fields and f.path is not None:
+                ModelMetadataCache.set(f.path, fields)
+                f.read_model_metadata()
         if self.rowCount() > 0:
             self.dataChanged.emit(self.index(0), self.index(self.rowCount() - 1))
             self.architectures_changed.emit()
@@ -298,6 +320,8 @@ class ModelLibraryModel(QAbstractListModel):
         return self._entries
 
     def rowCount(self, parent: QModelIndex | None = None):
+        if parent is not None and parent.isValid():
+            return 0
         return len(self._entries)
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
@@ -351,7 +375,7 @@ class ModelLibraryModel(QAbstractListModel):
         self._pending.discard(key)
         if image is None:
             self._missing.add(key)
-        else:
+        elif not self._closed:
             self._preview_cache[key] = QIcon(QPixmap.fromImage(image))
             if (row := self._row_of(file)) >= 0:
                 idx = self.index(row)
@@ -558,6 +582,7 @@ class ModelBrowserWidget(QWidget):
         self._task: asyncio.Task | None = None
         self._progress: QProgressDialog | None = None
         self._busy = False
+        self._closed = False
         self._suppress_setting_sync = False
 
         layout = QVBoxLayout(self)
@@ -907,13 +932,13 @@ class ModelBrowserWidget(QWidget):
 
     def _identify(self):
         entry = self._selected_entry()
-        if entry is None or not settings.civitai_lookup:
+        if entry is None or not settings.civitai_lookup or self._busy:
             return
         file, collection = entry
         if file.path is None:
             return
         self._set_busy(True)
-        self._identify_status.setText(_("Hashing file..."))
+        self._set_status(_("Hashing file..."))
         self._task = eventloop.run(self._identify_async(file, collection))
 
     async def _identify_async(self, file: File, collection: FileCollection):
@@ -923,27 +948,29 @@ class ModelBrowserWidget(QWidget):
                 def progress(done: int, total: int):
                     if total:
                         pct = int(100 * done / total)
-                        self._identify_status.setText(_("Hashing file... {pct}%", pct=pct))
+                        self._set_status(_("Hashing file... {pct}%", pct=pct))
 
                 await file.compute_hash_async(progress)
             assert file.hash is not None
             sha256_hex = b64decode(file.hash).hex()
-            self._identify_status.setText(_("Looking up on CivitAI..."))
+            self._set_status(_("Looking up on CivitAI..."))
             info = await _civitai_client().lookup_by_hash(sha256_hex)
             self._show_lookup(file, collection, info)
             if info is not None and info.preview_url:
                 await self._fetch_result_preview(info)
         except asyncio.CancelledError:
-            self._identify_status.setText(_("Cancelled"))
+            self._set_status(_("Cancelled"))
         except Exception as e:
             log.warning(f"CivitAI identification failed: {e}")
-            self._identify_status.setText(_("Lookup failed") + f": {e}")
+            self._set_status(_("Lookup failed") + f": {e}")
         finally:
             self._set_busy(False)
 
     def _show_lookup(
         self, file: File, collection: FileCollection, info: CivitaiModelInfo | None
     ):
+        if self._closed:
+            return
         self._lookup = info
         self._lookup_file = file
         self._lookup_collection = collection
@@ -953,7 +980,8 @@ class ModelBrowserWidget(QWidget):
             self._identify_status.setText(_("No match found on CivitAI."))
             return
         self._result_name.setText(
-            f"<b>{info.display_name}</b>" + (f" ({info.model_type})" if info.model_type else "")
+            f"<b>{html.escape(info.display_name)}</b>"
+            + (f" ({html.escape(info.model_type)})" if info.model_type else "")
         )
         meta = []
         if info.base_model:
@@ -970,7 +998,7 @@ class ModelBrowserWidget(QWidget):
 
     async def _fetch_result_preview(self, info: CivitaiModelInfo):
         try:
-            data = await _request_manager().download(info.preview_url)
+            data = await _request_manager().download(info.preview_url, timeout=15)
             pixmap = QPixmap()
             if pixmap.loadFromData(data):
                 self._result_preview.setPixmap(
@@ -998,7 +1026,7 @@ class ModelBrowserWidget(QWidget):
 
     def _download(self):
         info = self._lookup
-        if info is None or not info.download_url:
+        if info is None or not info.download_url or self._busy:
             return
         directory = QFileDialog.getExistingDirectory(self, _("Choose download folder"))
         if not directory:
@@ -1026,6 +1054,8 @@ class ModelBrowserWidget(QWidget):
             async for progress in network.download(
                 _download_manager(), info.download_url, path
             ):
+                if self._closed or self._progress is None:
+                    return
                 if progress.value >= 0:
                     self._progress.setMaximum(100)
                     self._progress.setValue(int(progress.value * 100))
@@ -1039,27 +1069,40 @@ class ModelBrowserWidget(QWidget):
                 if progress.speed > 0:
                     label += f" ({progress.speed:.1f} MB/s)"
                 self._progress.setLabelText(label)
+            if self._closed:
+                return
             self._progress.setValue(self._progress.maximum())
             self._register_download(path, info)
-            self._identify_status.setText(
+            self._set_status(
                 _("Downloaded to {path}", path=str(path))
             )
         except asyncio.CancelledError:
-            self._identify_status.setText(
+            self._set_status(
                 _("Download cancelled (partial file kept for resume)")
             )
         except Exception as e:
             log.warning(f"Model download failed: {e}")
-            QMessageBox.warning(
-                self, _("Download failed"), _("Failed to download model") + f":\n{e}"
-            )
+            if not self._closed:
+                QMessageBox.warning(
+                    self, _("Download failed"), _("Failed to download model") + f":\n{e}"
+                )
         finally:
             self._set_busy(False)
 
     def _register_download(self, path: Path, info: CivitaiModelInfo):
         """Add the freshly downloaded file to the matching file collection."""
         try:
-            is_lora = "lora" in info.model_type.lower()
+            # CivitAI uses several LoRA-family type names; all belong in the
+            # LoRA collection (they load through LoraLoader/LoraLoaderModelOnly).
+            is_lora = info.model_type.lower() in {
+                "lora",
+                "locon",
+                "lycoris",
+                "dora",
+                "loha",
+                "lokr",
+                "hypernetwork",
+            }
             fmt = FileFormat.lora if is_lora else FileFormat.checkpoint
             collection = root.files.loras if is_lora else root.files.checkpoints
             file = File.local(path, fmt)
@@ -1069,7 +1112,21 @@ class ModelBrowserWidget(QWidget):
         except Exception as e:
             log.warning(f"Failed to register downloaded model {path}: {e}")
 
+    def _on_closed(self):
+        """Dialog closing: cancel in-flight work and stop all further UI
+        updates — the widgets get deleted while coroutines may still be
+        scheduled on the event loop."""
+        self._closed = True
+        self._model._closed = True
+        self._cancel_task()
+
+    def _set_status(self, text: str):
+        if not self._closed:
+            self._identify_status.setText(text)
+
     def _set_busy(self, busy: bool):
+        if self._closed:
+            return
         self._busy = busy
         if not busy:
             self._task = None
@@ -1099,7 +1156,9 @@ def show_model_browser(parent: QWidget | None = None) -> QDialog:
         _browser_dialog.destroyed.connect(_clear_dialog)
         layout = QVBoxLayout(_browser_dialog)
         layout.setContentsMargins(4, 4, 4, 4)
-        layout.addWidget(ModelBrowserWidget(_browser_dialog))
+        widget = ModelBrowserWidget(_browser_dialog)
+        _browser_dialog.finished.connect(widget._on_closed)
+        layout.addWidget(widget)
         _browser_dialog.resize(920, 560)
     _browser_dialog.show()
     _browser_dialog.raise_()
