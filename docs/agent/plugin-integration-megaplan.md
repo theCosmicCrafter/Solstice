@@ -188,31 +188,141 @@ Audit findings (vendored tree, 2026-10-16):
   output images into N separate Krita layers named `[Layer N]`
   (`model/model.py:851-855`). What is missing is verification and polish,
   not the feature.
-- **Model discovery is already organic-ish:** live ComfyUI model lists +
+- **RGBA survives the whole path.** `image.py` is `Format_RGBA8888`
+  end-to-end; `supports_alpha` (currently `Arch.qwen2` only,
+  `resources.py:241`) feeds input alpha into conditioning. LayerDiffuse-
+  style SDXL transparency is absent upstream.
+- **Model discovery is organic-ish already:** live ComfyUI model lists +
   folder/filename arch and quantization deduction (`client.py:230-248`,
-  `resources.py:from_checkpoint_name`). Hard limit: workflow support is
-  per-`Arch` enum — a new architecture detects but gets no workflows until
-  code is added. Latent bug fixed 2026-10-16: `Arch.sd35` (nonexistent
-  member) crashed discovery for `sd3.5/` folders → now maps to `Arch.sd3`.
+  `resources.py:from_checkpoint_name`), plus a persistent
+  `ModelMetadataCache` with mtime/TTL (`files.py:171`) from the local
+  enhancement set. Hard limit: workflow support is per-`Arch` enum — a
+  new architecture detects but gets no workflows until code is added.
+  No safetensors header (`modelspec`) parsing exists. Latent bug fixed
+  2026-10-16: `Arch.sd35` (nonexistent member) crashed discovery for
+  `sd3.5/` folders → now maps to `Arch.sd3`.
+- **Vector precedent exists inside the plugin:** `create_vector` lands
+  pose control layers as real vector layers (`model/model.py:890`) —
+  the same "result → typed layer" pattern the pipeline chain extends.
+- **Catalog is SOTA-current:** 20 builtin styles cover Flux 2 Klein
+  (nvfp4/fp8/Q6_K), Krea 2 Turbo, Z-Image Turbo, Anima, ERNIE, Chroma,
+  Qwen/Edit/Layered; default style is Anima (alphabetical first,
+  `style.py:278-279`). Legacy drag: `models.json.required` pulls ~8
+  SD1.5/SDXL ancillaries + 6/11 legacy checkpoints into every managed
+  install.
 
-Planned items:
+#### 7.1 Safetensors arch detection — cheap, do first
 
-| Item                                    | Scope                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 7.1 Safetensors arch detection          | Parse `modelspec.architecture`/`title` header JSON for files ComfyUI/filename heuristics can't place; stdlib-only, cheap                                                                                                                                                                                                                                                                                                                                                                             |
-| 7.2 Generic fallback arch               | Unknown checkpoints get basic txt2img/img2img instead of "unsupported"                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 7.3 CivitAI model lookup/browser        | Hash-based identification of unknown checkpoints; optional download-into-ComfyUI docker. Network-gated, opt-in                                                                                                                                                                                                                                                                                                                                                                                       |
-| 7.4 Layered-generation polish           | Runtime-verify `[Layer N]` decomposition; semantic layer naming (background/elements) where model ordering permits; prompt/seed/model into layer props for reproducibility                                                                                                                                                                                                                                                                                                                           |
-| 7.4a Alpha-layer generation             | Widen `supports_alpha` beyond `Arch.qwen2` as new RGBA archs land (Qwen 2.1 variants, Z-Image); LayerDiffuse-style transparent generation is absent upstream — candidate local workflow. Asset UX: "generate cutout" lands an RGBA layer ready to composite, chains into Smart Matting refine + alpha-aware Trace                                                                                                                                                                                    |
-| 7.5 Solstice pipeline chain             | Generated layer → Smart Matting → Trace to Vector: AI asset → decomposed layers → vector. Unique integration no upstream has                                                                                                                                                                                                                                                                                                                                                                         |
-| 7.6 ComfyUI first-run installer         | Optional managed-server app install on first use (app only — never model weights, per Phase 6 rule)                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 7.7 Perf/defaults                       | Curated style presets (steps/CFG/sampler per arch); model-metadata cache to avoid re-hashing on connect                                                                                                                                                                                                                                                                                                                                                                                              |
-| 7.7a SOTA-first curation                | Audit (2026-10-16): builtin styles already cover all current archs (Flux 2 Klein, Krea 2, Z-Image, Anima, ERNIE, Chroma, Qwen) with quant variants; default style is already Anima (alphabetical). Remaining legacy drag: `models.json.required` pulls ~8 SD1.5/SDXL ancillaries + 6/11 legacy checkpoints into every managed install. Plan: install "profile" choice (SOTA-only vs full), move legacy ancillaries to `optional`, optional `show_legacy_styles` filter for builtin SD1.5/SDXL styles |
-| 7.8 Re-vendor at upstream v1.54.0 final | Tracked in `plugin-intake.md` (~end of Oct 2026)                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+- Safetensors headers are length-prefixed JSON; read first 8 bytes +
+  header, parse `__metadata__.modelspec.architecture`/`title` —
+  stdlib-only, no deps, no GB-scale reads.
+- Where: populate `File.metadata` inside `compute_hash_async`
+  (`files.py:79`, already async + progress-callbacked) and consume in
+  `deduce_from_filename` (`client.py:230`) as a higher-priority source
+  than folder/filename heuristics.
+- Exit: a checkpoint in an unlabeled folder with a garbage filename is
+  still arch-detected correctly; heuristics remain as fallback.
+
+#### 7.2 Generic fallback arch
+
+- Unknown `Arch.from_string` results currently mean "unsupported". Add
+  `Arch.generic` mapped to a minimal workflow (txt2img + img2img, no
+  controlnet/inpaint/regions) so newly released models are usable day
+  one instead of dead.
+- Where: `Arch` enum + `from_string` fallback (`resources.py:101-144`),
+  `is_compatible`, and the style-checkpoint matcher.
+- Exit: unknown checkpoint selectable and generates a plain image;
+  no control/region UI offered for `generic`.
+
+#### 7.3 CivitAI lookup + model browser — optional, network-gated
+
+- Hash-prefix query against CivitAI's model-version API for files that
+  survive 7.1+7.2 unidentified → name/arch/cover preview. Download
+  writes into ComfyUI's model folders, never Solstice's.
+- Opt-in setting, offline by default; reuse `ModelMetadataCache` for
+  lookup results.
+- Exit: identify an unknown checkpoint by hash with UI showing the
+  resolved card; nothing happens without the toggle.
+
+#### 7.4 Layered-generation polish
+
+- Runtime-verify `[Layer N]` decomposition lands correctly (manual GUI
+  matrix item — needs the Qwen-Image-Layered VAE + checkpoint in
+  ComfyUI).
+- Semantic naming: Qwen-Layered emits background + ordered elements —
+  name `Background`, `Element N` instead of `[Layer N]`
+  (`model.py:853-855`, where `prefix=` is built).
+- Reproducibility: write prompt/seed/model/checkpoint into layer props
+  (Krita layer names are long-lived; use `setProperty`/name suffix
+  consistent with how `create_result_layer` already names results).
+- Exit: a 4-layer generation produces 4 named layers carrying their
+  provenance.
+
+#### 7.4a Alpha-layer generation
+
+- Widen `supports_alpha` (`resources.py:241`) as RGBA archs land
+  (Qwen 2.1 variants, Z-Image alpha) — small enum/property edit per
+  upstream release.
+- LayerDiffuse-class transparent generation is absent upstream —
+  candidate local workflow on top of the existing SDXL graph.
+- Asset UX: a "cutout" generation mode that lands an RGBA layer ready
+  to composite — chains into Smart Matting (edge refine) and
+  alpha-aware Trace to Vector.
+- Exit: RGBA layer with real transparency lands from a supported arch;
+  checkerboard shows through.
+
+#### 7.5 Solstice pipeline chain — the differentiator
+
+- Generated layer → Smart Matting refine → Trace to Vector. AI asset →
+  decomposed layers → vector paths: the workflow no upstream has.
+- Mechanically: the kritamcp `trigger_action` bridge already drives
+  `layer_to_vector` and Smart Matting is a native tool — the chain is
+  scriptable today; productize as a docker shortcut or menu macro
+  rather than new engine code.
+- Prerequisite: Smart Matting GUI verification (Phase 5 remaining item).
+- Exit: one-click (or one-command) path from a generated layer to a
+  vector layer, verified on a real build.
+
+#### 7.6 ComfyUI first-run installer
+
+- Optional managed-server _application_ install on first use (detect
+  missing server → offer download). Application only — model weights
+  stay user-managed per the Phase 6 no-bundled-weights rule.
+- Exit: fresh profile with no ComfyUI gets a guided path to a running
+  server; skip is frictionless.
+
+#### 7.7 Perf/defaults + 7.7a SOTA-first curation
+
+- Curated style presets: steps/CFG/sampler tuned per SOTA arch (the
+  style files already isolate sampler choice per arch — adjust values,
+  not structure).
+- `ModelMetadataCache` exists — extend entries with the 7.1 modelspec
+  fields so connect-time stays O(headers) not O(file sizes).
+- SOTA-first install profile: move the ~8 SD1.5/SDXL `required`
+  ancillaries + legacy checkpoints in `presets/models.json` to
+  `optional` under a "full/legacy" profile; default managed install
+  pulls only current-arch weights. Add a `show_legacy_styles` filter
+  for builtin SD1.5/SDXL styles (mirroring `show_builtin_styles`,
+  `style.py:319-322`).
+- Exit: fresh managed install downloads no SD1.5/SDXL weight by
+  default; legacy remains opt-in, not deleted.
+
+#### 7.8 Re-vendor at upstream v1.54.0 final
+
+- Tracked in `plugin-intake.md` (~end of Oct 2026): fast-forward
+  `_vendor_src/ai_diffusion_upstream`, re-apply `enhancements` branch
+  (merge `f628900` is the template), keep the `:8189` patch, re-run
+  connect + one generation.
+- Order matters: land 7.1–7.4 as _local_ commits in the enhancements
+  branch so the re-vendor merge keeps them.
 
 Deferred/not pursued: backend swap off ComfyUI (forfeits the workflow
-ecosystem; perf lives server-side anyway), C++ port of the plugin (Python
-client + websockets is the right weight for a remote renderer).
+ecosystem; perf lives server-side anyway), C++ port of the plugin
+(Python client + websockets is the right weight for a remote renderer).
+
+Suggested order: 7.1 → 7.2 (cheap, unblocks unknown models) → 7.4/7.4a
+(verification + polish) → 7.7/7.7a (defaults) → 7.5 (needs Phase 5 GUI
+sign-off) → 7.3, 7.6 (optional UX) → 7.8 (on upstream release).
 
 ## Risks
 
