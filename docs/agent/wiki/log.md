@@ -1337,3 +1337,14 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - README highlights now list Trace to Vector, Smooth Rendering at High
   Zoom and the sharper output defaults; `docs/trace-to-vector.md` is the
   new user guide, indexed from `docs/README.md`.
+
+## 2026-10-15 — Stabilization lanes landed; trace verified on real build
+
+- Four-lane audit output committed in lane groups (`fdcdf212` A bridge+
+  shim, `976404` B canvas, `4ac8e998` D trace + `e2e`/docs). Missed
+  registration: `KisLayerManagerTest` was never added to
+  `libs/ui/tests/CMakeLists.txt` — added on merge.
+- Artifact `307c7e72` E2E: 23 pass / 1 skip — trace-to-vector works
+  end-to-end (vectorlayer node created). Smooth-zoom screenshot test
+  skipped once with empty canvas grab — timing flake to watch.
+- Unified stabilization build dispatched: run `38866036586` (`4ac8e998`).

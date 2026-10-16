@@ -26,9 +26,13 @@ See also: `stabilization-plan.md` (2026-10-15 audit - defect list and revised op
 
 **In flight / next**
 
-- CI build `38677471608` (head `307c7e72`) carries Trace to Vector +
-  all bridge/plugin fixes. On completion: deploy artifact, run
-  `pytest tests/e2e` — trace and smooth-zoom tests must PASS, not skip.
+- Stabilization lanes A–F merged (`4ac8e998`, see
+  `stabilization-plan.md`); unified CI build `38866036586` in flight.
+  On completion: deploy artifact, run `pytest tests/e2e` — all tests
+  including the new lane-E additions must PASS.
+- Artifact `307c7e72` verified 2026-10-15: 23 pass, trace test green.
+  One flake: `test_smooth_high_zoom_display` skipped once with "grab
+  gave no image" (canvas framebuffer timing) — watch on next run.
 - Manual GUI pass still owed: View-menu/prefs toggle on both canvas
   backends (E2E covered whichever backend was active on the test box;
   parity needs the manual matrix), vendored-plugin dockers, Smart
