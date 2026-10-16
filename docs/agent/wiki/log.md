@@ -1458,3 +1458,14 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   system Python; venv has PyQt6 but no pytest — documented).
 - Pending: build artifact → deploy → full E2E → manual GUI matrix
   (model browser runtime behavior is the biggest unverified surface).
+- Adversarial review rounds 2+3 (d478ce60, 4125bacb): post-processing
+  gated to WorkflowKind.generate + active-view check for vectorize;
+  executor pass for local metadata resolution (was blocking the event
+  loop during discovery); ModelMetadataCache batched+atomic writes;
+  model_browser id()-reuse hazard keyed by path; region->model import
+  cycle removed via TYPE_CHECKING (region now imports standalone);
+  sweep-spec stripped from negative prompt; @@ unescape fixed; per-line
+  batch splits raw root prompt. 35 pass/7 skip; standalone PyQt6 import
+  verified for every module.
+- Build pipeline: 38877751446 (round-1 fixes) in progress;
+  38878632735 (rounds 1-3, 4125bacb) queued as release candidate.
