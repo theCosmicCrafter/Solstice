@@ -1,7 +1,8 @@
 # Stabilization and release action plan — agent reference
 
-Status: implemented in tree (2026-10-15); lanes A, B, C, D, E, F code changes
-applied and verified cleanly; pending commit and GitHub Actions trial build.
+Status: **merged** (`fdcdf212`..`df89b79d`, 2026-10-16); unified trial
+build `38866815881` on `b6dff5c8` in flight — `pytest tests/e2e` on the
+packaged artifact and the manual GUI pass remain.
 Derived from a four-lane code audit of `plugin-integration-megaplan.md`
 (phases 5–6) and `vector-quality-megaplan.md` (open items V2.3–V6).
 
@@ -84,10 +85,11 @@ Still to correct (assigned in Lane F): tool counts in
 - E2 `windeployqt` lacks `-multimedia` (`packaging/windows/package-complete.py`
   ~584): the shim exposes `QtMultimedia`. **Resolved:** `-multimedia`
   added to the windeployqt invocation (`b6dff5c8`).
-- E3 CI never runs `pytest tests/e2e` (`BUILD_TESTING=OFF`). Add an optional
-  `workflow_dispatch` input that launches the packaged ZIP and runs the suite.
-  Needs a feasibility check: whether `solstice.exe` can start on a hosted
-  runner (no GPU; Vulkan engine must degrade to CPU).
+- E3 CI never runs `pytest tests/e2e` (`BUILD_TESTING=OFF`). **Resolved:**
+  `run_e2e` `workflow_dispatch` input added (`df89b79d`) — extracts the
+  packaged ZIP and runs the suite in launch mode. Feasibility caveat
+  stands (hosted runner has no GPU); first run will tell whether
+  `solstice.exe` degrades far enough to answer the bridge.
 - E4 E2E coverage gaps: ten bridge actions have no test (`clear`,
   `create_from_template`, `draw_shape`, `export_layers`, `get_canvas`,
   `get_layer_presets`, `list_templates`, `move_layer`, `save_as_template`,
