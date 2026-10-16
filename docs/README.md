@@ -35,6 +35,8 @@ Technical notes for developers are in [`agent`](agent/).
   into a crisp vector shape.
 - [Vision ML](vision-ml.md): AI-assisted selection, Smart Fill and
   background removal, run on your computer.
+- [Smart Matting Selection](smart-matting.md): soft-edged lasso selections
+  using the BiRefNet matting model.
 
 ## Workflow and interface
 

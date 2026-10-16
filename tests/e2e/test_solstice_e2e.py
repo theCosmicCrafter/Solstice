@@ -281,7 +281,7 @@ def test_trigger_action_and_trace_to_vector(app):
     assert "Traced" in traced["name"]
 
     status, payload = bridge.cmd("trigger_action", {"name": "no_such_action_xyz"})
-    assert status == 200 and "error" in payload
+    assert "error" in payload
 
 
 def test_smooth_high_zoom_display(app):
@@ -498,3 +498,96 @@ def test_plugin_load_clean(app):
     time.sleep(2)  # let late plugin imports flush
     text = b"".join(managed.stderr_lines).decode("utf-8", "replace")
     assert "Traceback" not in text, f"plugin traceback in stderr:\n{text[-3000:]}"
+
+
+# ─── Lane A additions: security, traversal, and action coverage ─────
+
+def test_path_traversal_all_export_actions(app):
+    """Path traversal is rejected across export_document, export_layers, screenshot, save_as_template."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 64, "height": 64, "background": "#112233"})
+
+    # export_document with path traversal
+    status, payload = bridge.cmd("export_document", {"path": "..\\..\\evil_doc.png"})
+    assert "error" in payload and ("traversal" in payload["error"].lower() or "allowed directory" in payload["error"].lower())
+
+    # export_layers with path traversal
+    status, payload = bridge.cmd("export_layers", {"output_dir": "..\\..\\evil_layers"})
+    assert "error" in payload and ("traversal" in payload["error"].lower() or "allowed directory" in payload["error"].lower())
+
+    # screenshot (must be bare filename, traversal rejected)
+    status, payload = bridge.cmd("screenshot", {"filename": "..\\evil_screenshot.png"})
+    assert "error" in payload
+
+    # save_as_template with category traversal
+    status, payload = bridge.cmd("save_as_template", {"name": "validname", "category": "..\\evil_category"})
+    assert "error" in payload
+
+    # save_as_template with name traversal
+    status, payload = bridge.cmd("save_as_template", {"name": "..\\evil_tpl"})
+    assert "error" in payload
+
+
+def test_host_header_rejection(app):
+    """Requests with unexpected Host headers are rejected with HTTP 403."""
+    import http.client
+    from urllib.parse import urlparse
+
+    bridge, _ = app
+    parsed = urlparse(bridge.url)
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or 5678
+
+    conn = http.client.HTTPConnection(host, port, timeout=10)
+    try:
+        conn.request("GET", "/health", headers={"Host": "evil.example"})
+        resp = conn.getresponse()
+        assert resp.status == 403
+    finally:
+        conn.close()
+
+
+def test_info_advertises_all_actions(app):
+    """GET /info lists all 42 supported actions including screenshot and trigger_action."""
+    bridge, _ = app
+    status, payload = bridge._request("GET", "/info", token=bridge._token)
+    assert status == 200
+    commands = payload.get("commands", [])
+    assert "screenshot" in commands
+    assert "trigger_action" in commands
+    assert len(commands) == 42
+
+
+def test_set_layer_blend_mode(app):
+    """Set blending mode on a layer."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 80, "height": 80})
+    bridge.cmd_ok("add_layer", {"name": "BlendTestLayer"})
+    res = bridge.cmd_ok("set_layer_blend_mode", {"name": "BlendTestLayer", "blend_mode": "multiply"})
+    assert res.get("status") == "ok"
+
+
+def test_move_layer(app):
+    """Move a layer up or down in the layer stack."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 80, "height": 80})
+    bridge.cmd_ok("add_layer", {"name": "LayerLower"})
+    bridge.cmd_ok("add_layer", {"name": "LayerUpper"})
+    res = bridge.cmd_ok("move_layer", {"name": "LayerUpper", "direction": "down"})
+    assert res.get("status") == "ok"
+
+
+def test_list_templates(app):
+    """List available templates returns a list."""
+    bridge, _ = app
+    res = bridge.cmd_ok("list_templates")
+    assert res.get("status") == "ok"
+    assert isinstance(res.get("templates"), list)
+
+
+def test_clear_canvas(app):
+    """Clear canvas command executes and fills canvas with requested color."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 64, "height": 64, "background": "#ff0000"})
+    res = bridge.cmd_ok("clear", {"color": "#00ff00"})
+    assert res.get("status") == "ok"

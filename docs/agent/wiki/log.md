@@ -1251,7 +1251,7 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   and fixed the bugs above. Run: `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python
   -m pytest tests/e2e -v -p pytest_timeout --timeout 600`.
 ---
-## 2026-10-18 — vector-quality megaplan
+## 2026-10-15 — vector-quality megaplan
 
 - `docs/agent/vector-quality-megaplan.md` approved and written: six
   phases (V1 smooth-zoom display, V2 vector hardening + Trace-to-Vector,
@@ -1266,7 +1266,7 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   `KisBrushStrokeLayer` re-render engine + 19 tests already exist;
   Lanczos3/Bicubic already registered.
 
-## 2026-10-18 — smooth high-zoom option (V1)
+## 2026-10-15 — smooth high-zoom option (V1)
 
 - Phase V1 of the vector-quality megaplan implemented (`f2e920ad`):
   new `smoothHighZoom` kritarc key (default ON). QPainter canvas now
@@ -1281,7 +1281,7 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - New user doc `docs/canvas-display.md` covers backends, zoom behavior,
   the toggle, and max-quality tips.
 
-## 2026-10-18 — vector-quality audits (V2/V4/V5) + quality defaults
+## 2026-10-15 — vector-quality audits (V2/V4/V5) + quality defaults
 
 - V2.1 confirmed by inspection: `KisShapeLayerCanvas::repaint()` paints
   shapes via `documentToView()` into view-resolution patches — vector
@@ -1295,7 +1295,7 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   checkpoint (fine); Smart Matting defaults to BiRefNet-dynamic, HR
   selectable in tool options.
 
-## 2026-10-18 — Trace to Vector Layer (V2.5)
+## 2026-10-15 — Trace to Vector Layer (V2.5)
 
 - New `layer_to_vector` action (Layer > Convert > Trace to Vector Layer):
   `KisLayerManager::traceLayerToVector()` binarizes the node's projection
@@ -1310,7 +1310,7 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   includes; whole-file format on this repo (clang-format 21) produces
   huge unrelated churn — always scope to changed lines.
 
-## 2026-10-18 — E2E run vs real V1 artifact + plugin PyQt6 fixes
+## 2026-10-15 — E2E run vs real V1 artifact + plugin PyQt6 fixes
 
 - Full suite vs `f0f5bae0` artifact: 18 pass, trace test skipped (feature
   absent from that build). Smooth-zoom screenshot test PASSED against
@@ -1328,7 +1328,7 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   `BARRIER` is a Sequentiality; passing it as the second arg fails to
   compile.
 
-## 2026-10-18 — Documentation refresh for handoff
+## 2026-10-15 — Documentation refresh for handoff
 
 - `vector-quality-megaplan.md` gained a handoff snapshot (done/verified
   vs in-flight vs open scope) and V1/V2.5/V6 status updates;

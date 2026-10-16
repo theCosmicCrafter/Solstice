@@ -210,7 +210,10 @@ Current coverage:
 | `QRegExpValidator`                                                                                           | Alias to `QRegularExpressionValidator`                                                                                                                               |
 | `QMediaPlayer.setMedia`/`setVolume`/`media`, `QMediaContent`                                                 | Wrapper classes; volume bridged through an owned `QAudioOutput`, `setMedia` maps to `setSource`                                                                      |
 | `QDesktopWidget` / `QApplication.desktop()`                                                                  | Minimal QWidget stand-in backed by `QGuiApplication` screens (`screenGeometry`, `availableGeometry`, `screenCount`)                                                  |
-| `QFontMetrics.width()`                                                                                       | Alias to `horizontalAdvance()`                                                                                                                                       |
+| `QFontMetrics.width()`                                                                                       | Wrapped callable forwarding to `horizontalAdvance()` (avoids SIP unbound descriptor TypeError)                                      |
+| `Qt.MidButton` / `Qt.MouseButton.MidButton`                                                                 | Aliased to `Qt.MouseButton.MiddleButton` in `QtCore.py`                                                                              |
+| `QSortFilterProxyModel.setFilterRegExp()`                                                                    | Subclass method mapping string/QRegExp/QRegularExpression to `setFilterRegularExpression`                                            |
+| `QLayout.setMargin(m)`                                                                                       | Wrapper calling `setContentsMargins(m, m, m, m)` in `QtWidgets.py`                                                                   |
 | `QMouseEvent`/`QWheelEvent` `pos()`, `globalPos()`, `x()`, `y()`, `localPos()`, `windowPos()`, `screenPos()` | QPoint/QPointF bridges over `position()`/`globalPosition()`/`scenePosition()`                                                                                        |
 | `PyQt5.uic`                                                                                                  | `PyQt6.uic` re-export (`loadUi`, `loadUiType`, `compileUi` verified)                                                                                                 |
 | `PyQt5.sip`, `import sip`                                                                                    | `PyQt6.sip` re-export                                                                                                                                                |
@@ -283,7 +286,7 @@ Apply at vendor time; prefer the shared shim over per-plugin rewrites:
 - `sip` module: `PyQt6.sip` re-exported
 - High-DPI: `AA_EnableHighDpiScaling` removed (default in Qt6) — flag is a
   no-op if referenced; prefer deleting the call
-- `QLayout.setMargin` -> `setContentsMargins` (NOT shimmed; patch vendor)
+- `QLayout.setMargin` -> `setContentsMargins` (shimmed in QtWidgets.py)
 - `QMediaPlayer`/`QMediaContent` -> shim wrapper over `setSource`/`QAudioOutput`
 - `QtXml`/`QDom*` -> requires Qt5Compat; otherwise patch to `QXmlStreamReader`
 - Verify: signal names (`valueChanged(int)` overloads), `QProcess` start/finish

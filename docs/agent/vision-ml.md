@@ -79,6 +79,8 @@ cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P <krita-dev-root>\_build\plugins\visionml\c
   external worker; BiRefNet-HR-matting GGUF variants load through the existing
   `vision.cpp` birefnet path — drop them in the `visionml/models` folder to
   upgrade matte quality.
-- Model dropdown in the tool options is the shared backend widget only
-  (`addOptions(selectionWidget, false)`); the model used is whatever is
-  selected for the background removal task.
+- Tool options include both the shared backend widget (`addOptions(selectionWidget, false)`)
+  and the `VisionMLModelSelect` model dropdown (`SmartMattingTool.cpp:75`, inserted at
+  index 4 for `VisionMLTask::background_removal`). Users can select between bundled
+  BiRefNet Lite and user-supplied Dynamic or HR-matting GGUF variants directly from
+  the tool options.

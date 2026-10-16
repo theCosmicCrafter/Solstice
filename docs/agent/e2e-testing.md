@@ -11,7 +11,7 @@ bytes, PNG dimensions), HTTP status codes, and process liveness.
 | --- | --- |
 | `tests/e2e/solstice_bridge.py` | Minimal urllib client; token resolution mirrors `server.py` (`KRITAMCP_TOKEN` → `kritamcp.token` sidecar → kritarc `[kritamcp] token`; kritarc is parsed manually — KDE configs have keys before any `[section]`) |
 | `tests/e2e/conftest.py` | `ManagedApp` launch/teardown fixture, `/health` wait loop, merged stdout+stderr capture to `tests/e2e/_last_run_stderr.log` (gitignored) |
-| `tests/e2e/test_solstice_e2e.py` | 18 tests; see markers below |
+| `tests/e2e/test_solstice_e2e.py` | 20 tests; see markers below |
 
 ## Running
 
@@ -33,15 +33,27 @@ python -m pytest tests/e2e -v -p pytest_timeout --timeout 600
 ## Coverage map
 
 - **Connectivity/auth**: `/health`, missing/wrong/correct bearer token,
-  unknown action, `/info` surface
+  unknown action, `/info` surface; `Host` header enforcement tests are
+  **PENDING** (Lane A is adding validation and tests).
 - **Documents**: create → info → `.kra` save (PK zip check) → reopen
 - **Pixels**: fill/stroke writes verified via `get_color_at` projection
   readback (inside vs. outside the shape)
 - **Layers**: add/opacity/visibility/duplicate/remove, merge, flatten;
   undo/redo on node ops (pixel writes are not undoable in Krita)
+- **Actions and vector conversion**: `trigger_action` action invocation and
+  Trace to Vector Layer (`test_trigger_action_and_trace_to_vector`: raster
+  alpha traced into a filled `KoPathShape` on a new `KisShapeLayer`).
+- **Display and screenshots**: canvas-scoped screenshot capture with zoom
+  levels (`screenshot` action, `zoom` and `scope="canvas"` parameters) and
+  Smooth Rendering at High Zoom verification (`test_smooth_high_zoom_display`:
+  pixel edge blending analysis at 400 % zoom).
 - **Selections/filters**: rect/all/deselect, blur apply
-- **Files**: PNG export (IHDR dims), `.kra` ZIP magic; path traversal
-  rejected (`..` checked on the raw path — `abspath` resolves it away)
+- **Files & security**: PNG export (IHDR dims), `.kra` ZIP magic; basic path
+  traversal rejected (`..` checked on the raw path — `abspath` resolves it away).
+  Comprehensive traversal rejection across all file-writing actions
+  (`export_document`, `export_layers`, `screenshot`, `save_as_template`) with a
+  shared `_resolve_allowed_path()` resolver is **PENDING** (Lane A is adding
+  them).
 - **Stability**: `repeated_ops` rapid-fire loop, `soak` (create → paint →
   save → reopen ×N with process-liveness checks), stderr `Traceback` scan
 - **Error paths**: bad params return clean errors; bridge stays responsive

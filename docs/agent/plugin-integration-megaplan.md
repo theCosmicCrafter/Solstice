@@ -1,6 +1,7 @@
 # Plugin integration megaplan — agent reference
 
-Status: approved (2026-10-14), **phases 0–5 complete** (2026-10-18).
+Status: approved (2026-10-14), **phases 0–4 complete; phase 5 built, GUI
+check pending; phase 6 pending** (audit 2026-10-15).
 Roadmap for shipping a custom Solstice build with selected third-party
 Krita plugins integrated — vendored Python plugins, a bundled MCP agent
 bridge, and one native port (Smart Select) into `plugins/visionml`.
@@ -11,13 +12,14 @@ gets a full native port, builds run via GitHub Actions on this repository,
 this document is the canonical plan.
 
 **Where this plan stands:** every plugin is vendored and loading clean on
-a real build (2026-10-18 verification — zero startup tracebacks, incl.
+a real build (2026-10-15 verification — zero startup tracebacks, incl.
 the two PyQt6 fixes recorded in `plugin-intake.md`); the kritamcp bridge
 is hardened and covered by `tests/e2e/` (18 tests, all green);
 Smart Matting ships native in `plugins/visionml`. Remaining: Phase 6
 packaging/release and the GUI verification pass. Follow-on work moved to
 `vector-quality-megaplan.md`.
 
+See also: `stabilization-plan.md` (2026-10-15 audit - defect list and revised open items; wins on conflicts until merged back).
 ## Anchor: what Solstice already provides
 
 - `plugins/visionml` — native vision.cpp runtime (CPU or Vulkan) with
@@ -38,7 +40,7 @@ packaging/release and the GUI verification pass. Follow-on work moved to
 | Plugin                              | Verdict                                                         | Notes                                                                                                                                                                                                                                                      |
 | ----------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Krita AI Diffusion (Acly)           | Integrate — vendor latest upstream, re-apply local enhancements | Flagship. Upstream is already PyQt6. Local enhanced copy is PyQt5-era; extract still-missing enhancements (subfolder model detection, quantization display, metadata cache) onto upstream >= 1.52. Connect to existing ComfyUI at 127.0.0.1:8189. GPL-3.0. |
-| MCP bridge                          | Integrate — `krita-cli` base + codex-mcp hardening              | Bundle edithatogo/krita-cli `krita-plugin/` (54 tools, CLI, typed client, MIT). Graft cyyprezz/krita-codex-mcp patterns: bearer token, capability probing, main-thread dispatcher. codex-mcp stays a documented minimal alternative.                       |
+| MCP bridge                          | Integrate — nanayax3/krita-mcp base + bearer auth               | nanayax3/krita-mcp based in-app HTTP bridge (42 POST actions + GET /health, /info, bearer token, MIT). krita-cli remains a compatible external client; codex-mcp stays a documented minimal alternative.                                                 |
 | Krita Smart Select (Windows port)   | Integrate — native port into `plugins/visionml`                 | Own project; lasso -> BiRefNet soft-alpha matting is the one capability native visionml lacks. Native tool + GGUF inference removes the PyTorch worker.                                                                                                    |
 | Shortcut Composer                   | Integrate — vendor + PyQt6 patch                                | Own pie-menu/cursor-tracker widgets; unaffected by removed popup palette. GPL-3.0.                                                                                                                                                                         |
 | Pigment.O                           | Integrate — vendor + PyQt6 patch                                | Largest PyQt surface; stress test for the compat layer. `mask_set` kritarc key already handled by the settings-import rewrite list. GPL-3.0.                                                                                                               |
@@ -115,7 +117,7 @@ Repeatable recipe per plugin; order by risk:
 6. Optional cherry-picked Rebecca's tools scripts
 
 Exit: all chosen plugins appear in the Plugin Manager and load without
-console errors. Verified on a real build 2026-10-18 — zero plugin
+console errors. Verified on a real build 2026-10-15 — zero plugin
 tracebacks at startup after the `wseparator` + `QSignalMapper` fixes.
 
 ### Phase 3 — AI Diffusion — done

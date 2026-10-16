@@ -39,10 +39,11 @@ difference) and the grow, feather and anti-alias options apply, like every
 selection tool. The result is clipped to the drawn outline and to the
 pixels that actually exist, so the lasso itself can be sloppy.
 
-In Tool Options, **Backend** and **Model** are shared with the other Vision
-ML tools (see [Models and backend](#models-and-backend)); the tool uses the
-BiRefNet model chosen for background removal. Drop a BiRefNet HR-matting
-GGUF into the `birefnet` models folder for finer edge detail.
+In Tool Options, **Backend** selects CPU or GPU execution, and **Model** chooses
+the active matting model (BiRefNet Lite included with Solstice, or user-installed
+BiRefNet Dynamic / HR-matting variants; see [Models and backend](#models-and-backend)).
+Drop a BiRefNet HR-matting GGUF into the `birefnet` models folder for finer edge detail.
+See also the dedicated [Smart Matting Selection guide](smart-matting.md).
 
 ## Smart Fill Tool
 

@@ -113,6 +113,12 @@ vector-grade sharpness — configurable smooth high-zoom display,
 true-vector workflow hardening (incl. Trace-to-Vector), productizing the
 brush-stroke layer, quality defaults/export, and AI/ML output quality.
 
+### Stabilization plan
+
+`docs/agent/stabilization-plan.md`: audit-derived defect list and revised
+Phase 6 / vector-quality open items (2026-10-15); where it conflicts with the
+two megaplans on an open item, it wins until merged back.
+
 ### General development guides
 
 Read these before adding or updating any feature:
@@ -130,7 +136,7 @@ Read these before adding or updating any feature:
 - Quick Access: `docs/agent/quick-access.md`
 - Rest Note: `docs/agent/rest-note.md`
 - Asset Library: `docs/agent/asset-library.md`
-- Vision ML: `docs/agent/vision-ml.md`
+- Vision ML: `docs/agent/vision-ml.md` (includes Smart Matting user guide: `docs/smart-matting.md`)
 - Lazy Tools: `docs/agent/lazy-tools.md`
 - Puppet Warp: `docs/agent/puppet-warp.md`
 - Docker locks: `docs/agent/docker-locks.md`

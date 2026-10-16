@@ -1,17 +1,18 @@
 # Vector-quality megaplan — agent reference
 
-Status: approved (2026-10-18), in execution. Roadmap for making Solstice
+Status: approved (2026-10-15), in execution. Roadmap for making Solstice
 deliver "vector quality" — artwork that stays crisp at every zoom level
 and at every output size — across the display pipeline, authoring
 workflows, document output, and AI/ML output.
 
-Decisions (user, 2026-10-18): full scope — display quality, true-vector
+Decisions (user, 2026-10-15): full scope — display quality, true-vector
 workflows, stroke-recorded "vector brush" layers, and quality defaults;
 high-zoom smoothing is a **configurable** option (default ON), not a
 forced behavior; output/defaults **and** AI/ML image quality are in
 scope. This document is the canonical plan.
 
-## Handoff snapshot (updated 2026-10-18)
+See also: `stabilization-plan.md` (2026-10-15 audit - defect list and revised open items; wins on conflicts until merged back).
+## Handoff snapshot (updated 2026-10-15)
 
 **Done and verified on a real build**
 
@@ -32,9 +33,9 @@ scope. This document is the canonical plan.
   backends (E2E covered whichever backend was active on the test box;
   parity needs the manual matrix), vendored-plugin dockers, Smart
   Matting lasso, Trace to Vector UX.
-- Open scope: V2.3 vector-tool QA, V2.4 SVG/PDF export fidelity, V3.1
-  "lineart = stroke layer" option, V4.4 supersampled export, V5.2 HR
-  matting default audit, V6 manual zoom matrix.
+- Open scope: V2.3 vector-tool QA, V2.4 SVG/PDF export decision (import-only verified; export filter needed or drop), V3.1
+  "lineart = stroke layer" option, V4.4 supersampled export, V5.2 dynamic/HR
+  matting weights & first-run download decision, V6 manual zoom matrix.
 
 **Cross-references:** plugin bundling roadmap —
 `plugin-integration-megaplan.md`; per-plugin pins/patches —
@@ -93,14 +94,14 @@ imagery produced below print resolution.
 | Vector (shape) layers        | `libs/ui/flake/kis_shape_layer.cc`                                                 | Present — verify crispness                                |
 | Vector tools                 | `plugins/tools/{defaulttool,karbonplugins,svgtexttool,tool_polyline,tool_polygon}` | Present — QA needed                                       |
 | Stroke-recorded layers       | `libs/ui/KisBrushStrokeLayer.*`                                                    | Implemented + tested (stages through 2c + transform/move) |
-| SVG / PDF impex              | `plugins/impex/{svg,pdf}`                                                          | Present — audit round-trip                                |
+| SVG / PDF impex              | `plugins/impex/{svg,pdf}`                                                          | Import-only (no SVG/PDF export filter exists; exports flatten) |
 | Bicubic / Lanczos3           | `libs/image/kis_filter_strategy.cc`                                                | Present — audit defaults                                  |
 | Vulkan compute engine        | `libs/gpu/`                                                                        | Brush/paint compositing only (not display)                |
 | AI output                    | `plugins/python/ai_diffusion/`, `plugins/visionml/`                                | Vendored + native — audit res/edge defaults               |
 
 ## Phase V1 — Display quality: "smooth zoom" everywhere
 
-Status: implemented (2026-10-18, `f2e920ad`) and **E2E-verified on a
+Status: implemented (2026-10-15, `f2e920ad`) and **E2E-verified on a
 real build** (`f0f5bae0` artifact, `test_smooth_high_zoom_display` —
 canvas-scoped screenshot pixel analysis shows the toggle changing edge
 blending at 400 %). GL-vs-QPainter parity confirmation remains part of
@@ -156,12 +157,12 @@ Most of this already exists; the work is verify + productize + one new
 feature.
 
 1. ~~**Vector-layer crispness verification.**~~ Confirmed by inspection
-   (2026-10-18): `KisShapeLayerCanvas::repaint()`
+   (2026-10-15): `KisShapeLayerCanvas::repaint()`
    (`libs/ui/flake/kis_shape_layer_canvas.cpp:403+`) paints shapes with
    a `documentToView()` transform into view-resolution patches — vector
    layers re-rasterize at canvas resolution and stay sharp at any zoom.
    Remaining: GUI confirmation + regression coverage.
-2. ~~**Discoverability.**~~ Mostly done (audit 2026-10-18):
+2. ~~**Discoverability.**~~ Mostly done (audit 2026-10-15):
    `add_new_shape_layer` sits in the layer docker's new-layer menu
    (`LayerBox.cpp:661`), and node-type badges already exist —
    `KisShapeLayer::icon()` renders `vectorLayer` in the thumbnail
@@ -171,15 +172,19 @@ feature.
 3. **Vector tool QA pass.** Exercise `defaulttool` shape editing,
    `svgtexttool`, `karbonplugins` path tools on this fork — no known
    regressions, but unverified since the Solstice divergence.
-4. **SVG/PDF round-trip audit.** `plugins/impex/{svg,pdf}`: vector
-   layers must export as real vectors, not flattened raster. Done
-   (audit): SVG _import_ asks for a resolution
-   (`plugins/impex/svg/kis_svg_import.cc:50`) — default PPI raised
-   100 → 300 (`preferredVectorImportResolution`); PDF import already
-   defaults to 300 dpi (`pdfimportwidgetbase.ui`). Export fidelity
-   still needs the GUI pass.
+4. **SVG/PDF round-trip audit.** Verified finding: `plugins/impex/svg`
+   and `plugins/impex/pdf` are **import-only** — no SVG or PDF export
+   filter exists in Krita/Solstice, and every export flattens vector
+   layers to raster. SVG import asks for a resolution
+   (`plugins/impex/svg/kis_svg_import.cc:50`) — default PPI was raised
+   from 100 to 300 (`preferredVectorImportResolution`); PDF import already
+   defaults to 300 dpi (`pdfimportwidgetbase.ui`). Real vector export is
+   an open scope **DECISION**: build a new `KisSVGExport` based on
+   `libs/flake/svg/SvgWriter` (medium effort), or drop the vector export
+   claim. Neither README nor docs should promise vector export until
+   decided.
 5. **New feature — Trace to Vector.** Raster/alpha → `KoPathShape`
-   on a new vector layer. **Implemented 2026-10-18** as
+   on a new vector layer. **Implemented 2026-10-15** as
    **Layer > Convert > Trace to Vector Layer** — no potrace
    dependency needed: the existing selection-outline pipeline
    (`KisSelection::outlineCache` → `KoPathShape::createShapeFromPainterPath`)
@@ -205,9 +210,9 @@ The engine is built and tested; the work is productizing it.
    with the "drawn again, except about N%" notice).
 2. **Productize.**
    - ~~Layers docker badge/icon for stroke layers~~ — exists via
-     `KisBrushStrokeLayer::icon()` (audit 2026-10-18).
+     `KisBrushStrokeLayer::icon()` (audit 2026-10-15).
    - ~~Resolution-independent export~~ — already works (audit
-     2026-10-18): advanced export's Resize tab calls
+     2026-10-15): advanced export's Resize tab calls
      `savingImage()->scaleImage()` (`KisImportExportManager.cpp:726`),
      which routes through `kis_transform_processing_visitor` →
      `KisRedrawableLayerInterface::createTransformRedrawCommand` —
@@ -254,11 +259,17 @@ The engine is built and tested; the work is productizing it.
    (auto — resolved per checkpoint, correct). Upscale quality is
    ComfyUI-workflow dependent; remaining work is documenting a
    hires-fix/upscale recipe through the existing 127.0.0.1:8189 wiring.
-2. **Smart Matting.** Audited: default is BiRefNet-dynamic-F16 with
-   lite fallback (`VisionML.cpp:157-160`); HR-matting variant selectable
-   via the tool-options model selector (`8cdeebdc`). Kept dynamic as
-   default (quality/speed balance); document HR for maximum edge
-   detail. Remaining: default feather/refine audit (GUI pass).
+2. **Smart Matting.** Corrected finding: a clean install ships only
+   `BiRefNet-lite-F16` (`plugins/visionml/CMakeLists.txt` downloads
+   `sam/MobileSAM-F16`, `birefnet/BiRefNet-lite-F16`, and
+   `migan/MIGAN-512-places2-F16`). `BiRefNet-dynamic` and HR-matting GGUFs
+   are user-supplied into `resources/visionml/models/birefnet`; the code
+   prefers dynamic if present (`VisionML.cpp:157-160`). An optional
+   first-run download of dynamic weights is an open **DECISION** (plan
+   forbids bundling GB-scale weights). Tool options DO include the
+   `VisionMLModelSelect` model dropdown (`SmartMattingTool.cpp:75`),
+   allowing selection of HR-matting and dynamic variants when present.
+   Remaining: default feather/refine audit (GUI pass).
 3. **Stretch / research only:** native VisionML upscale pass (a
    Real-ESRGAN-class model through `plugins/visionml` infra). Listed
    for evaluation, not committed scope.

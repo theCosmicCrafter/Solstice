@@ -51,11 +51,13 @@ features Solstice adds are described in its [user guides](docs/README.md).
   [Asset Library](docs/asset-library.md), [Rest Note](docs/rest-note.md) and
   [Lazy Tools](docs/lazy-tools.md).
 - **[Vision ML](docs/vision-ml.md)**: native tools for AI-assisted selection,
-  background removal, Smart Fill and Smart Matting lasso selection.
+  background removal, Smart Fill and [Smart Matting](docs/smart-matting.md)
+  lasso selection.
 - **Bundled extensions**: AI Diffusion (ComfyUI), Pigment.O, Imagine Board,
   Shortcut Composer, BuliNotes, BuliBrushSwitch, Timer Watch and the local
   MCP agent bridge ship enabled on first run; Blender Layer is bundled but
-  off by default.
+  off by default. These are in addition to Krita's standard bundled Python
+  plugins.
 - **[Trace to Vector Layer](docs/trace-to-vector.md)**: turn a paint layer's
   alpha into a crisp vector shape with Layer > Convert, part of the
   vector-quality roadmap.
