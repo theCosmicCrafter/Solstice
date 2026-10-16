@@ -17,6 +17,7 @@ private Q_SLOTS:
     void testDonutKeepsHole();
     void testEmptyLayerAddsNothing();
     void testThreshold50Percent();
+    void testTraceSimplification();
 };
 
 #endif // KISLAYERMANAGERTEST_H

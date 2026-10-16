@@ -49,6 +49,7 @@
 #include <flake/kis_shape_layer.h>
 #include <generator/kis_generator_layer.h>
 #include <kis_adjustment_layer.h>
+#include <kis_algebra_2d.h>
 #include <kis_assert.h>
 #include <kis_clipboard.h>
 #include <kis_clone_layer.h>
@@ -819,7 +820,15 @@ KoPathShape *KisLayerManager::traceDeviceToPathShape(KisPaintDeviceSP device,
     const qreal resY = yRes > 0.0 ? yRes : 1.0;
     const QTransform transform = QTransform::fromScale(1.0 / resX, 1.0 / resY);
 
-    KoPathShape *shape = KoPathShape::createShapeFromPainterPath(transform.map(outline));
+    // Simplify outline to eliminate 1-pixel staircase jitter and merge collinear micro-segments (V2.5 refinement)
+    QPainterPath simplified = KisAlgebra2D::trySimplifyPath(outline, 1.0);
+    if (simplified.isEmpty()) {
+        simplified = outline;
+    } else {
+        simplified.setFillRule(outline.fillRule());
+    }
+
+    KoPathShape *shape = KoPathShape::createShapeFromPainterPath(transform.map(simplified));
     if (!shape) {
         return nullptr;
     }

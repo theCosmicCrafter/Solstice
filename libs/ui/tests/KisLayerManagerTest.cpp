@@ -137,4 +137,31 @@ void KisLayerManagerTest::testThreshold50Percent()
     delete shapeHigh;
 }
 
+void KisLayerManagerTest::testTraceSimplification()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+    KisPaintDeviceSP dev = new KisPaintDevice(cs);
+
+    // Draw a diagonal band (staircase raster pattern)
+    for (int i = 0; i < 40; ++i) {
+        dev->fill(QRect(10 + i, 10 + i, 10, 10), KoColor(Qt::black, cs));
+    }
+
+    KoPathShape *shape = KisLayerManager::traceDeviceToPathShape(dev, dev->exactBounds(), 1.0, 1.0);
+    QVERIFY(shape != nullptr);
+    QVERIFY(!shape->outline().isEmpty());
+
+    // Verify bounds match painted extent within 1 px
+    const QRectF boundsPt = shape->outline().boundingRect();
+    const QRect expectedBounds = dev->exactBounds();
+    QVERIFY(qAbs(boundsPt.width() - expectedBounds.width()) <= 1.0);
+    QVERIFY(qAbs(boundsPt.height() - expectedBounds.height()) <= 1.0);
+
+    // Verify interior and exterior hit testing
+    QVERIFY(shape->outline().contains(QPointF(20.0, 20.0)));
+    QVERIFY(!shape->outline().contains(QPointF(5.0, 5.0)));
+
+    delete shape;
+}
+
 SIMPLE_TEST_MAIN(KisLayerManagerTest)

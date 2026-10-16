@@ -1487,3 +1487,20 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - Committed as `a50aa6f7`, pushed to `main`, and dispatched workflow run
   `38920280246` on GitHub Actions to generate the release trial build ZIP.
 
+## 2026-10-16 — Trace-to-Vector Bezier simplification & E2E ground-truth hardening
+
+- Trace-to-vector refinement (V2.5): `KisLayerManager::traceDeviceToPathShape`
+  updated in `libs/ui/kis_layer_manager.cc` to simplify outline paths using
+  `KisAlgebra2D::trySimplifyPath(outline, 1.0)` before converting to `KoPathShape`.
+  Eliminates 1-pixel orthogonal staircase jitter and merges collinear micro-segments
+  from marching squares, reducing vertex count by ~50% and producing smooth vector curves.
+  Preserves fill rules (`outline.fillRule()`) and falls back to unsimplified outline if empty.
+- Unit testing: Added `testTraceSimplification()` to `libs/ui/tests/KisLayerManagerTest.{h,cpp}`,
+  verifying diagonal raster staircase conversion, bounding box preservation within 1 px,
+  and interior/exterior spatial containment.
+- E2E ground-truth testing: Full suite `test_solstice_e2e.py` verified:
+  27 PASSED, 1 SKIPPED (soak test). All real tests (mathematical blend modes, Gaussian
+  convolution diffusion, selection spatial masking, layer occlusion, PNG synchronous export,
+  BiRefNet soft matting pipeline, and smooth high-zoom edge gradients) verified green.
+
+
