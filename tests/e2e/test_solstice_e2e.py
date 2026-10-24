@@ -606,14 +606,16 @@ def test_host_header_rejection(app):
 
 
 def test_info_advertises_all_actions(app):
-    """GET /info lists all 42 supported actions including screenshot and trigger_action."""
+    """GET /info lists all 44 supported actions including screenshot, trigger_action, and docker controls."""
     bridge, _ = app
     status, payload = bridge._request("GET", "/info", token=bridge._token)
     assert status == 200
     commands = payload.get("commands", [])
     assert "screenshot" in commands
     assert "trigger_action" in commands
-    assert len(commands) == 42
+    assert "show_docker" in commands
+    assert "list_dockers" in commands
+    assert len(commands) == 44
 
 
 def test_set_layer_blend_mode(app):
