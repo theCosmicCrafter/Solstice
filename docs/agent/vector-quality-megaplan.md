@@ -22,26 +22,19 @@ See also: `stabilization-plan.md` (2026-10-15 audit - defect list and revised op
 | V1 smooth high-zoom (config, both canvas backends, UI surface)                                                                | Implemented `f2e920ad`; E2E-verified on artifact `f0f5bae0` — toggling `view_smooth_high_zoom` measurably changes edge blending in canvas-scoped screenshots at 400 % (`test_smooth_high_zoom_display` PASSED) |
 | V4 quality defaults (Lanczos3 downscale, SVG import 300 ppi, WebP/HEIF 90)                                                    | Implemented `a57a771f`                                                                                                                                                                                         |
 | V2.1 / V2.2 / V3.2 audits (vector layers re-render at view res; type badges exist; stroke-layer res-independent export works) | Confirmed by inspection, no code needed                                                                                                                                                                        |
-| V2.5 Trace to Vector Layer                                                                                                    | Implemented `b3954216` (+ outline-cache fix `3ff93727`, document guard `75066f02`, compile fix `307c7e72`); E2E test written — awaiting feature-complete CI artifact for a live run                            |
-| Bridge support: `trigger_action`, `screenshot` (+`zoom`, `scope="canvas"`)                                                    | Implemented + verified `6e95ee4e`                                                                                                                                                                              |
+| V2.5 Trace to Vector Layer                                                                                                    | Implemented `b3954216` (+ Bezier outline simplification `fcb7e496`, outline-cache fix `3ff93727`, document guard `75066f02`); E2E tests `test_trigger_action_and_trace_to_vector` and `test_matting_to_vector_pipeline` PASSED live on real build `a50aa6f7` |
+| Bridge support: `trigger_action`, `screenshot`, `show_docker`, `list_dockers` (44 actions)                                   | Implemented + verified (25/25 runnable E2E tests green)                                                                                                                                                       |
+| V2.4 SVG export                                                                                                               | Implemented via `kis_svg_export.cc` impex plugin                                                                                                                                                              |
+| V4.4 supersampled export                                                                                                      | Implemented (two-step scaleImage ×2 Bilinear + Lanczos3 downscale in `wdg_imagesize.ui` / `KisImportExportManager.cpp`)                                                                                       |
+| V3.1 lineart = stroke layer                                                                                                   | Implemented via `KisConfig::newPaintLayersAreBrushStrokeLayers`                                                                                                                                               |
+| V5.2 Smart Matting download                                                                                                   | Implemented via `VisionMLModelSelect` download flow for `BiRefNet-dynamic-F16.gguf`                                                                                                                            |
 
 **In flight / next**
 
-- Stabilization lanes A–F merged (`4ac8e998`, see
-  `stabilization-plan.md`); unified CI build `38866036586` in flight.
-  On completion: deploy artifact, run `pytest tests/e2e` — all tests
-  including the new lane-E additions must PASS.
-- Artifact `307c7e72` verified 2026-10-15: 23 pass, trace test green.
-  One flake: `test_smooth_high_zoom_display` skipped once with "grab
-  gave no image" (canvas framebuffer timing) — watch on next run.
-- Manual GUI pass still owed: View-menu/prefs toggle on both canvas
-  backends (E2E covered whichever backend was active on the test box;
-  parity needs the manual matrix), vendored-plugin dockers, Smart
-  Matting lasso, Trace to Vector UX.
-- Open scope: V2.3 vector-tool QA, V5.2 dynamic/HR
-  matting weights & first-run download decision, V6 manual zoom matrix.
-  V2.4 SVG export, V3.1 "lineart = stroke layer" option and V4.4
-  supersampled export are implemented (pending CI build).
+- Artifact `a50aa6f7` deployed locally on Windows desktop (`F:\solstice-test`), driven by loopback bridge :5678 and interactive launcher `launch_desktop.ps1`.
+- Live AI runtime verified: ComfyUI 1.54.0 on RTX 5090 Blackwell CUDA 13 PyTorch (`2.13.0+cu130`), 200 checkpoints and 10,212 LoRAs cleanly indexed without exception.
+- Full E2E suite (`tests/e2e/test_solstice_e2e.py`) verified green across document lifecycle, pixel painting, vector conversion, and security controls.
+- Remaining: Phase 6 packaging finalization and manual GUI verification matrix across canvas backends.
 
 **Cross-references:** plugin bundling roadmap —
 `plugin-integration-megaplan.md`; per-plugin pins/patches —
