@@ -21,6 +21,7 @@ from ..util import PluginError, ensure
 from ..util import client_logger as log
 from .api import WorkflowInput
 from .comfy_workflow import ComfyObjectInfo
+from .modelspec import arch_strings_from_metadata
 from .resources import (
     Arch,
     ControlMode,

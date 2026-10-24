@@ -88,6 +88,8 @@ SUPPORTED_ACTIONS = [
     "apply_filter", "list_filters",
     # Export
     "export_layers", "export_document",
+    # Dockers
+    "show_docker", "list_dockers",
 ]
 
 
@@ -1081,6 +1083,27 @@ class KritaMCPExtension(Extension):
             return {"error": f"Unknown action: {name}"}
         action.trigger()
         return {"status": "ok", "action": name}
+
+    def cmd_show_docker(self, params):
+        """Show and raise a docker by name or title."""
+        name = params.get("name", "")
+        if not name:
+            return {"error": "Missing 'name' parameter"}
+        for d in Krita.instance().dockers():
+            title = d.windowTitle()
+            obj_name = d.objectName()
+            if name.lower() in obj_name.lower() or name.lower() in title.lower():
+                d.setVisible(True)
+                d.raise_()
+                return {"status": "ok", "docker": obj_name, "title": title}
+        return {"error": f"Docker '{name}' not found"}
+
+    def cmd_list_dockers(self, params):
+        """List all registered dockers and their visibility."""
+        res = []
+        for d in Krita.instance().dockers():
+            res.append({"objectName": d.objectName(), "title": d.windowTitle(), "visible": d.isVisible()})
+        return {"status": "ok", "dockers": res}
 
     def cmd_clear(self, params):
         """Clear the canvas."""
