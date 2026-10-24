@@ -5,7 +5,7 @@ import os
 import time
 from base64 import b64encode
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, fields
 from enum import Enum, Flag
 from pathlib import Path
 from typing import Any, Callable, NamedTuple, cast
@@ -65,7 +65,11 @@ class File:
         return File(**data)
 
     def to_dict(self):
-        return {k: v for k, v in asdict(self).items() if k != "icon" and v is not None}
+        return {
+            f.name: getattr(self, f.name)
+            for f in fields(self)
+            if f.name != "icon" and getattr(self, f.name) is not None
+        }
 
     def update(self, other: "File"):
         assert self.id == other.id, "Cannot update file with different id"
