@@ -80,6 +80,10 @@ public class DesktopLauncher {
 }
 "@
 
-$exe = "F:\solstice-test\app-a50aa6f7\Solstice-0.2.0-beta.4-windows-x64-a50aa6f7ca63\bin\solstice.exe"
-$dir = "F:\solstice-test\app-a50aa6f7\Solstice-0.2.0-beta.4-windows-x64-a50aa6f7ca63\bin"
+$exe = "F:\solstice-test\app-49697aad\Solstice-0.5.0-windows-x64-49697aadce6c\bin\solstice.exe"
+$dir = "F:\solstice-test\app-49697aad\Solstice-0.5.0-windows-x64-49697aadce6c\bin"
+if (-not (Test-Path $exe)) {
+    $exe = "F:\solstice-test\app-a50aa6f7\Solstice-0.2.0-beta.4-windows-x64-a50aa6f7ca63\bin\solstice.exe"
+    $dir = "F:\solstice-test\app-a50aa6f7\Solstice-0.2.0-beta.4-windows-x64-a50aa6f7ca63\bin"
+}
 [DesktopLauncher]::LaunchOnDefaultDesktop($exe, $dir)

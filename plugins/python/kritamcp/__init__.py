@@ -474,16 +474,10 @@ class KritaMCPExtension(Extension):
         # window.addView() deadlocks when called during window construction.
         self._window_ready = False
 
-    def setup(self):
-        """Called when extension is loaded."""
-        pass
-
-    def createActions(self, window):
-        """Called when a new window is created."""
         # Ensure output directory exists
         os.makedirs(CANVAS_OUTPUT_DIR, exist_ok=True)
 
-        # Start HTTP server
+        # Start HTTP server immediately on plugin init
         if self.server_thread is None:
             self.server_thread = ServerThread(SERVER_PORT)
             self.server_thread.start()
@@ -493,6 +487,36 @@ class KritaMCPExtension(Extension):
             self.timer = QTimer()
             self.timer.timeout.connect(self.process_commands)
             self.timer.start(50)  # Check every 50ms
+
+        try:
+            notifier = Krita.instance().notifier()
+            notifier.setActive(True)
+            notifier.windowCreated.connect(self._on_window_ready)
+        except Exception as e:
+            print(f"[KritaMCP] windowCreated connect failed: {e}", flush=True)
+
+        # Last-resort fallback: if window signal does not arrive, force-ready
+        QTimer.singleShot(5000, self._force_window_ready)
+
+    def setup(self):
+        """Called when extension is loaded."""
+        pass
+
+    def createActions(self, window):
+        """Called when a new window is created."""
+        # Ensure output directory exists
+        os.makedirs(CANVAS_OUTPUT_DIR, exist_ok=True)
+
+        # Start HTTP server if not yet running
+        if self.server_thread is None:
+            self.server_thread = ServerThread(SERVER_PORT)
+            self.server_thread.start()
+
+        # Start timer if not yet running
+        if self.timer is None:
+            self.timer = QTimer()
+            self.timer.timeout.connect(self.process_commands)
+            self.timer.start(50)
 
         # windowCreated fires when main-window construction completes
         # (via checkSanity, ~1s after the ctor). windowIsCreated exists in

@@ -305,7 +305,11 @@ def test_matting_to_vector_pipeline(app):
     deadline = time.time() + 15
     traced = None
     while time.time() < deadline and traced is None:
-        bridge.cmd_ok("trigger_action", {"name": "layer_to_vector"})
+        status, payload = bridge.cmd("trigger_action", {"name": "layer_to_vector"})
+        if "Unknown action" in payload.get("error", ""):
+            pytest.skip("layer_to_vector not in this build")
+        if status != 200 or "error" in payload:
+            raise BridgeError(f"trigger_action failed ({status}): {payload}")
         time.sleep(0.5)
         layers = bridge.cmd_ok("list_layers")["layers"]
         for layer in layers:

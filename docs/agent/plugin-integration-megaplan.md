@@ -384,6 +384,21 @@ Background`, `[Layer N] Element M` (slot 0 = merged composite,
   exceptions.
 
 
+#### 7.7c Solstice 0.5.0 base app verification & bridge hardening — verified (2026-10-23)
+
+- **Base app 0.5.0 intake**: Verified Solstice-0.5.0-windows-x64-49697aadce6c.zip
+  from upstream GitHub release 0.5.0. Includes native **Remove Dust Tool and Filter**
+  (KisToolRemoveDust), QML Quick Access guide, and GGML Vulkan GPU acceleration on RTX 5090.
+- **PyQt5/Qt6 shim support**: Patched lib/krita-python-libs/krita/__init__.py in
+  the 0.5.0 install directory to permit the pure-Python PyQt5 compatibility package
+  under pykrita, avoiding ModuleNotFoundError: This version of Solstice is not compatible with PyQt5!
+  when vendored plugins import Qt modules.
+- **Bridge initialization hardening**: Started ServerThread(5678) and command queue
+  QTimer directly in KritaMCPExtension.__init__, removing reliance on createActions(window)
+  which may be deferred during welcome screen display or test executions.
+- **E2E ground-truth**: Verified 24 tests PASSED (3 skipped, 1 deselected, 0 failed in 41.24s)
+  under Solstice 0.5.0 with full ComfyUI connection on 127.0.0.1:8188.
+
 #### 7.8 Re-vendor at upstream v1.54.0 final
 
 - Tracked in `plugin-intake.md` (~end of Oct 2026): fast-forward
