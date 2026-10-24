@@ -1503,4 +1503,14 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
   convolution diffusion, selection spatial masking, layer occlusion, PNG synchronous export,
   BiRefNet soft matting pipeline, and smooth high-zoom edge gradients) verified green.
 
+## 2026-10-23 — AI Diffusion runtime fixes, QIcon serialization, and Bridge Docker controls
+
+- Dynamic modelspec deduction: In `plugins/python/ai_diffusion/backend/client.py`, imported `arch_strings_from_metadata` from `.modelspec` to fix `NameError` during model filename deduction.
+- QIcon serialization bug: In `plugins/python/ai_diffusion/files.py`, replaced `dataclasses.asdict(self)` in `File.to_dict()` with field-level comprehension using `fields(self)` skipping `icon`. Fixes `TypeError: cannot pickle 'QIcon' object` triggered by stdlib `copy.deepcopy` when persisting `database/checkpoints.json` and `database/loras.json`.
+- Auto-update protection: Configured `auto_update = False` default in `ai_diffusion/settings.py` to prevent auto-downgrade overwriting Solstice Krita 6 code with upstream Krita 5 release zips.
+- Bridge docker automation: Added `cmd_show_docker` and `cmd_list_dockers` to `plugins/python/kritamcp/__init__.py`, expanding the bridge to 44 commands; updated `test_info_advertises_all_actions` in `tests/e2e/test_solstice_e2e.py` to assert 44 actions.
+- Interactive launcher: Created `launch_desktop.ps1` utilizing Win32 `CreateProcess` targeting `winsta0\default` for persistent non-freezing desktop execution.
+- Verification: Full E2E suite (`pytest tests/e2e -v -m "not soak"`) verified green (25 passed, 2 skipped, 0 failed in 27.91s). Validated live indexing of 200 checkpoints and 10,212 LoRAs on NVIDIA RTX 5090 Blackwell CUDA 13 PyTorch with ComfyUI.
+
+
 

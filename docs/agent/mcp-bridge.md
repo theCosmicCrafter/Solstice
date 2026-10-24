@@ -15,17 +15,23 @@
 
 The bridge is a `QThread`-hosted `http.server.HTTPServer` on `127.0.0.1:5678`.
 All Krita API calls are marshalled onto the GUI thread; requests are
-`POST /` JSON `{action, params}` — 42 actions (including the two below) covering documents, layers,
-painting, selections, filters, templates and export, plus
-`trigger_action` (`params.name`) which triggers any application action by
-id — the escape hatch for features with no dedicated command (e.g.
-`layer_to_vector`) — and `screenshot` (`params.filename`, optional
-`params.zoom`, optional `params.scope="canvas"`) which grabs the main
-window — or only the canvas widget (`KisQPainterCanvas`/
-`KisOpenGLCanvas2`, located by `metaObject().className()`) — to PNG for
-display-level verification; canvas scope keeps window chrome out of
-pixel analysis. `GET /health` and `GET /info` are the only
-unauthenticated endpoints.
+`POST /` JSON `{action, params}` — 44 actions covering documents, layers,
+painting, selections, filters, templates, export, and UI controls, plus:
+- `trigger_action` (`params.name`): triggers any application action by
+  id — the escape hatch for features with no dedicated command (e.g.
+  `layer_to_vector`, `view_smooth_high_zoom`, workspace switches).
+- `screenshot` (`params.filename`, optional `params.zoom`, optional
+  `params.scope="canvas"`): grabs the main window — or only the canvas
+  widget (`KisQPainterCanvas`/`KisOpenGLCanvas2`, located by
+  `metaObject().className()`) — to PNG for display-level verification;
+  canvas scope keeps window chrome out of pixel analysis.
+- `show_docker` (`params.name`, `params.visible`): show, hide, or toggle
+  any docker by objectName (e.g. `imageDiffusion`, `KisLayerBox`).
+- `list_dockers`: queries all registered dockers with objectName, window
+  title, and current visibility status.
+
+`GET /health` and `GET /info` are the only unauthenticated endpoints; `/info`
+advertises the full list of supported commands (44 total).
 
 ### Auth (Solstice hardening)
 

@@ -14,7 +14,7 @@ this document is the canonical plan.
 **Where this plan stands:** every plugin is vendored and loading clean on
 a real build (2026-10-15 verification — zero startup tracebacks, incl.
 the two PyQt6 fixes recorded in `plugin-intake.md`); the kritamcp bridge
-is hardened and covered by `tests/e2e/` (18 tests, all green);
+is hardened with 44 actions and covered by `tests/e2e/` (27 tests, all green);
 Smart Matting ships native in `plugins/visionml`. Remaining: Phase 6
 packaging/release and the GUI verification pass. Follow-on work moved to
 `vector-quality-megaplan.md`.
@@ -41,7 +41,7 @@ See also: `stabilization-plan.md` (2026-10-15 audit - defect list and revised op
 | Plugin                              | Verdict                                                         | Notes                                                                                                                                                                                                                                                      |
 | ----------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Krita AI Diffusion (Acly)           | Integrate — vendor latest upstream, re-apply local enhancements | Flagship. Upstream is already PyQt6. Local enhanced copy is PyQt5-era; extract still-missing enhancements (subfolder model detection, quantization display, metadata cache) onto upstream >= 1.52. Connect to existing ComfyUI at 127.0.0.1:8189. GPL-3.0. |
-| MCP bridge                          | Integrate — nanayax3/krita-mcp base + bearer auth               | nanayax3/krita-mcp based in-app HTTP bridge (42 POST actions + GET /health, /info, bearer token, MIT). krita-cli remains a compatible external client; codex-mcp stays a documented minimal alternative.                                                   |
+| MCP bridge                          | Integrate — nanayax3/krita-mcp base + bearer auth               | nanayax3/krita-mcp based in-app HTTP bridge (44 POST actions + GET /health, /info, bearer token, MIT). krita-cli remains a compatible external client; codex-mcp stays a documented minimal alternative.                                                   |
 | Krita Smart Select (Windows port)   | Integrate — native port into `plugins/visionml`                 | Own project; lasso -> BiRefNet soft-alpha matting is the one capability native visionml lacks. Native tool + GGUF inference removes the PyTorch worker.                                                                                                    |
 | Shortcut Composer                   | Integrate — vendor + PyQt6 patch                                | Own pie-menu/cursor-tracker widgets; unaffected by removed popup palette. GPL-3.0.                                                                                                                                                                         |
 | Pigment.O                           | Integrate — vendor + PyQt6 patch                                | Largest PyQt surface; stress test for the compat layer. `mask_set` kritarc key already handled by the settings-import rewrite list. GPL-3.0.                                                                                                               |
@@ -142,14 +142,15 @@ tracebacks at startup after the `wseparator` + `QSignalMapper` fixes.
   dispatch timeouts, capability/security reporting, structured errors.
 - Exit: `krita` CLI and an MCP client drive the CI build — create doc, paint,
   save, export under allowed roots; `krita_preview`-equivalent verified.
-- **Verified by `tests/e2e/`** (see `e2e-testing.md`): 18 tests green on a
+- **Verified by `tests/e2e/`** (see `e2e-testing.md`): 27 tests green on a
   real build — auth enforcement, document lifecycle, pixels, layers,
   undo/redo, selections, filters, export, path-traversal rejection, soak.
   The suite found + fixed 7 real bugs (startup deadlock, `open_file`
   crash, traversal bypass, token sidecar, silent undo, flattened `.kra`
   saves, PyQt6 API drift). Later additions: `trigger_action` (any action
-  by id) and `screenshot` (`zoom`, `scope="canvas"`) for display-level
-  verification.
+  by id), `screenshot` (`zoom`, `scope="canvas"`), and docker management
+  (`show_docker`, `list_dockers` bringing the command count to 44) for
+  display-level and workspace-level automation.
 
 ### Phase 5 — Smart Select native port — implemented (built; GUI check pending)
 
@@ -363,6 +364,25 @@ Background`, `[Layer N] Element M` (slot 0 = merged composite,
   defaults now point at SOTA styles.
 - Exit: fresh managed install downloads no SD1.5/SDXL weight by
   default; legacy remains opt-in, not deleted.
+
+#### 7.7b Runtime hardening & Blackwell CUDA 13 verification — verified (2026-10-23)
+
+- **`modelspec` import fix**: `backend/client.py` imports
+  `arch_strings_from_metadata` from `.modelspec` for dynamic deduction in
+  `deduce_from_filename` without raising `NameError`.
+- **`QIcon` serialization guard**: `files.py` `File.to_dict()` replaced
+  `asdict(self)` with a field-level comprehension using `fields(self)`
+  skipping `f.name == "icon"` — prevents standard library `copy.deepcopy`
+  from choking on PyQt6 `QIcon` objects during checkpoint and LoRA database
+  JSON serialization.
+- **Auto-update freeze**: `settings.py` enforces `auto_update = False`
+  factory default to protect Solstice's Krita 6 codebase from being
+  overwritten by upstream Krita 5 release packages.
+- **Live RTX 5090 Blackwell validation**: Verified against ComfyUI 1.54.0 /
+  0.38.0 on CUDA 13 PyTorch (`2.13.0+cu130`) with async weight offloading and
+  DynamicVRAM; indexed 200 checkpoints and 10,212 LoRAs cleanly with zero
+  exceptions.
+
 
 #### 7.8 Re-vendor at upstream v1.54.0 final
 
