@@ -278,6 +278,7 @@ class ComfyClient(Client):
             set(checkpoints)
             | set(diffusion_models)
             | set(nodes.options("CheckpointLoaderSimple", "ckpt_name"))
+            | set(nodes.options("LoraLoader", "lora_name"))
         )
         local_metadata: dict[str, dict] = {}
         if filenames:
@@ -633,7 +634,7 @@ class ComfyClient(Client):
             roots += [base.parent / "models", base / "models"]
         index: dict[str, Path] = {}
         for root in roots:
-            for sub in ("checkpoints", "diffusion_models", "unet"):
+            for sub in ("checkpoints", "diffusion_models", "unet", "loras", "lora"):
                 folder = root / sub
                 if not folder.is_dir():
                     continue

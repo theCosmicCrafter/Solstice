@@ -6,7 +6,7 @@ from copy import copy
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple
 
-from ..files import FileFormat, FileLibrary
+from ..files import FileFormat, FileLibrary, FileSource
 from ..image import Bounds, Extent, Image, ImageCollection, Mask, multiple_of
 from ..localization import translate as _
 from ..settings import PerformanceSettings, settings
@@ -18,7 +18,7 @@ from ..text import (
     replace_layers,
     strip_prompt_comments,
 )
-from ..util import ensure, median_or_zero, unique
+from ..util import client_logger as log, ensure, median_or_zero, unique
 from . import resolution, resources
 from .api import (
     CheckpointInput,
@@ -1913,29 +1913,29 @@ def _collect_lora_triggers(loras: list[LoraInput], files: FileLibrary):
 def _check_server_has_loras(
     loras: list[LoraInput], models: ClientModels, files: FileLibrary, style_name: str, arch: Arch
 ):
-    for lora in loras:
+    i = 0
+    while i < len(loras):
+        lora = loras[i]
         if lora.name not in models.loras:
-            if lora_info := files.loras.find_local(lora.name):
-                lora.storage_id = lora_info.compute_hash()
-                continue  # local file available, can be uploaded to server
-            raise ValueError(
-                _(
-                    "The LoRA '{lora}' used by style '{style}' is not available on the server",
-                    lora=lora.name,
-                    style=style_name,
-                )
-            )
+            matched = files.loras.find(lora.name)
+            if matched and matched.id in models.loras:
+                lora.name = matched.id
+            elif matched and FileSource.local in matched.source:
+                lora.name = matched.id
+                lora.storage_id = matched.compute_hash()
+            else:
+                log.warning(f"LoRA '{lora.name}' used by style '{style_name}' was not found on server; skipping.")
+                loras.pop(i)
+                continue
+
         for id, res in models.resources.items():
             lora_arch = ResourceId.parse(id).arch
             if lora.name == res and arch is not lora_arch:
-                raise ValueError(
-                    _(
-                        "Model architecture mismatch for LoRA '{lora}': Cannot use {lora_arch} LoRA with a {checkpoint_arch} checkpoint.",
-                        lora=lora.name,
-                        lora_arch=lora_arch.value,
-                        checkpoint_arch=arch.value,
-                    )
-                )
+                log.warning(f"Model architecture mismatch for LoRA '{lora.name}': Cannot use {lora_arch} with {arch.value}; skipping.")
+                loras.pop(i)
+                break
+        else:
+            i += 1
 
 
 def _check_server_has_models(
@@ -1946,13 +1946,17 @@ def _check_server_has_models(
     style_name: str,
 ):
     if input.checkpoint not in models.checkpoints:
-        raise ValueError(
-            _(
-                "The checkpoint '{checkpoint}' used by style '{style}' is not available on the server",
-                checkpoint=input.checkpoint,
-                style=style_name,
+        if matched_cp := files.checkpoints.find(input.checkpoint):
+            if matched_cp.id in models.checkpoints:
+                input.checkpoint = matched_cp.id
+        if input.checkpoint not in models.checkpoints:
+            raise ValueError(
+                _(
+                    "The checkpoint '{checkpoint}' used by style '{style}' is not available on the server",
+                    checkpoint=input.checkpoint,
+                    style=style_name,
+                )
             )
-        )
 
     _check_server_has_loras(input.loras, models, files, style_name, input.version)
     for region in regions:

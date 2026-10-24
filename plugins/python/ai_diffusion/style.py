@@ -217,10 +217,35 @@ class Style(QObject):
         def sanitize(p):
             return p.replace("\\", "/").lower()
 
-        available = {sanitize(cp): cp for cp in available_checkpoints}
+        available_list = list(available_checkpoints)
+        available = {sanitize(cp): cp for cp in available_list}
+
+        # 1. Exact / normalized match
         for cp in self.checkpoints:
             if found := available.get(sanitize(cp)):
                 return found
+
+        # 2. Filename match (ignoring parent subfolder)
+        by_name = {Path(sanitize(cp)).name: cp for cp in available_list}
+        for cp in self.checkpoints:
+            target_name = Path(sanitize(cp)).name
+            if found := by_name.get(target_name):
+                return found
+
+        # 3. Stem match (ignoring extension)
+        by_stem = {Path(sanitize(cp)).stem: cp for cp in available_list}
+        for cp in self.checkpoints:
+            target_stem = Path(sanitize(cp)).stem
+            if found := by_stem.get(target_stem):
+                return found
+
+        # 4. Substring / keyword match (e.g. "Anima" matches "anima_baseV10.safetensors")
+        for cp in self.checkpoints:
+            target = sanitize(cp)
+            for scp, real_cp in available.items():
+                if target in scp or target in Path(scp).stem:
+                    return real_cp
+
         return "not-found"
 
     def get_models(self, available_checkpoints: Iterable[str]):

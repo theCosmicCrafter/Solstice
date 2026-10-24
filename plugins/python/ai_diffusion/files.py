@@ -3,7 +3,7 @@ import hashlib
 import json
 import os
 import time
-from base64 import b64encode
+from base64 import b64decode, b64encode
 from collections.abc import Sequence
 from dataclasses import dataclass, fields
 from enum import Enum, Flag
@@ -293,6 +293,16 @@ class ModelMetadataCache:
 ModelMetadataCache.load()
 
 
+def _normalize_model_query(query: str) -> str:
+    """Strip LoRA tag wrapper <lora:...> and weight suffixes :1.0."""
+    q = query.strip()
+    if q.startswith("<lora:") and q.endswith(">"):
+        q = q[6:-1].strip()
+    if ":" in q:
+        q = q.split(":", 1)[0].strip()
+    return q
+
+
 class FileCollection(QAbstractListModel):
     source_role = Qt.ItemDataRole.UserRole + 1
 
@@ -363,14 +373,92 @@ class FileCollection(QAbstractListModel):
         self.extend([file])
         return file
 
-    def find(self, id: str):
-        return next((f for f in self if f.id == id), None)
+    def find(self, query: str) -> File | None:
+        """Find a model file by exact ID, path, filename, stem, hash, or title."""
+        return self._find_matching(query, local_only=False)
 
-    def find_local(self, id: str):
-        return next((f for f in self if f.id == id and FileSource.local in f.source), None)
+    def find_local(self, query: str) -> File | None:
+        """Find a locally available model file by exact ID, path, filename, stem, hash, or title."""
+        return self._find_matching(query, local_only=True)
+
+    def _find_matching(self, query: str, local_only: bool = False) -> File | None:
+        if not query:
+            return None
+        candidates = [f for f in self._files if (not local_only or FileSource.local in f.source)]
+        if not candidates:
+            return None
+
+        # 1. Exact match
+        for f in candidates:
+            if f.id == query:
+                return f
+
+        # Clean query (strip <lora:...>, weights)
+        clean_q = _normalize_model_query(query)
+        if clean_q != query:
+            for f in candidates:
+                if f.id == clean_q:
+                    return f
+
+        clean_norm = clean_q.replace("\\", "/").lower()
+        clean_name = Path(clean_norm).name.lower()
+        clean_stem = Path(clean_norm).stem.lower()
+
+        # 2. Normalized path match (case-insensitive, slash-insensitive)
+        for f in candidates:
+            if f.id.replace("\\", "/").lower() == clean_norm:
+                return f
+
+        # 3. Filename match (ignoring parent subfolder)
+        for f in candidates:
+            if Path(f.id.replace("\\", "/")).name.lower() == clean_name:
+                return f
+
+        # 4. Stem match (ignoring extension like .safetensors, .ckpt, .pt)
+        for f in candidates:
+            f_stem = Path(f.id.replace("\\", "/")).stem.lower()
+            if f_stem == clean_stem or (f.name and f.name.lower() == clean_stem):
+                return f
+
+        # 5. Hash lookup (exact b64, hex sha256, autov2/autov3 prefix)
+        q_hex = clean_q.lower()
+        is_hex = len(q_hex) >= 8 and all(c in "0123456789abcdef" for c in q_hex)
+        for f in candidates:
+            if f.hash and f.hash == clean_q:
+                return f
+            if is_hex and f.hash:
+                try:
+                    f_hex = b64decode(f.hash).hex().lower()
+                    if f_hex == q_hex or f_hex.startswith(q_hex) or q_hex in f_hex:
+                        return f
+                except Exception:
+                    pass
+            if f.metadata:
+                for h_key in ("hash", "sha256", "autov2", "autov1"):
+                    val = str(f.metadata.get(h_key, "")).lower()
+                    if val and (val == q_hex or val.startswith(q_hex)):
+                        return f
+
+        # 6. Metadata Title / ss_sd_model_name match
+        for f in candidates:
+            if f.metadata:
+                title = str(f.metadata.get("modelspec.title", "")).strip().lower()
+                if title and (title == clean_stem or title == clean_norm):
+                    return f
+                sd_name = str(f.metadata.get("ss_sd_model_name", "")).strip()
+                if sd_name and Path(sd_name).stem.lower() == clean_stem:
+                    return f
+
+        return None
 
     def find_index(self, id: str):
-        return next((i for i, f in enumerate(self) if f.id == id), -1)
+        idx = next((i for i, f in enumerate(self._files) if f.id == id), -1)
+        if idx >= 0:
+            return idx
+        match = self.find(id)
+        if match:
+            return next((i for i, f in enumerate(self._files) if f is match), -1)
+        return -1
 
     def set_meta(self, file: File, key: str, value: Any):
         if not file.metadata:

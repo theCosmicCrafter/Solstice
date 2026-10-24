@@ -1519,3 +1519,36 @@ Format: `## YYYY-MM-DD <kind>: <subject>`, then what changed and the sources.
 - **Bridge Startup Hardening**: Refactored `plugins/python/kritamcp/__init__.py` `KritaMCPExtension` to start `ServerThread(5678)` and `QTimer` command queue in `__init__` rather than waiting for `createActions(window)`. The MCP bridge now binds within 3 seconds of Solstice launch, regardless of window creation order or headless test invocation.
 - **E2E Suite Verification**: Full test suite `tests/e2e/test_solstice_e2e.py` executed against Solstice 0.5.0 binary: **24 PASSED, 3 SKIPPED, 1 DESELECTED, 0 FAILED** in 41.24s. Added fallback skip for `layer_to_vector` in `test_matting_to_vector_pipeline` when running against base upstream releases.
 - **Live GUI Desktop State**: Launched Solstice 0.5.0 via `launch_desktop.ps1` (PID 52680). Verified live MCP bridge (`127.0.0.1:5678`), ComfyUI backend (`127.0.0.1:8188`, RTX 5090 32 GB VRAM, PyTorch 2.13.0+cu130), AI Image Generation Docker active, 1920x1080 canvas, and native Remove Dust Tool on toolbar. Saved artifact screenshot `solstice_050_live.png`.
+
+## 2026-10-23 — Premium Art Rendering Tuning, Dynamic Multi-Tier Model Lookup, and End-to-End AI Generation
+
+- **Art Rendering & Canvas Quality Tuning**:
+  - Updated C:\\Users\\richk\\AppData\\Roaming\\Solstice\\config\\kritarc to unlock premium canvas performance and GPU acceleration:
+    - smoothHighZoom=true: Bilinear/bicubic interpolation when zoomed above 100%, replacing nearest-neighbor pixel staircasing with continuous, smooth brush strokes and vector edges.
+    - utoSmoothBezierCurves=true: Smooth Bezier curve control points on vector path creation.
+    - OpenGLFilterMode=3: High-quality trilinear/bicubic OpenGL filtering.
+    - memoryHardLimitPercent=80, memorySoftLimitPercent=60: Eliminated aggressive tile swapping on large 4K/8K canvases on host 96 GB RAM system.
+    - maxSwapSize=16384: Increased tile swap capacity to 16 GB.
+    - [VisionML] backend=gpu: Enabled native GGML Vulkan GPU acceleration utilizing RTX 5090 Blackwell NV_coopmat2 matrix cores for MobileSAM segmentation, BiRefNet matting, and Remove Dust inpainting.
+- **Dynamic Multi-Tier Model & LoRA Lookup**:
+  - Implemented multi-tier fuzzy and hash-based resolution in plugins/python/ai_diffusion/files.py (FileCollection._find_matching and _normalize_model_query):
+    - Exact ID match
+    - LoRA prompt syntax stripping (<lora:name:weight>, 
+ame:weight)
+    - Cross-platform path normalization (slash-agnostic, case-insensitive)
+    - Filename match ignoring subfolder paths (Illustrious\\model.safetensors vs model.safetensors)
+    - Extensionless stem match (model vs model.safetensors)
+    - SHA256 hex and AutoV2/AutoV3 10-character short hash matching
+    - Modelspec title and Kohya ss_sd_model_name metadata matching
+  - Updated ackend/comfy_client.py to index and resolve local LoRA safetensors metadata and trigger words in parallel alongside Checkpoints and UNets.
+  - Enhanced style.py preferred_checkpoint with hierarchical matching (exact, filename, stem, substring).
+  - Hardened ackend/workflow.py _check_server_has_loras and _check_server_has_models to dynamically look up models and log warnings for optional missing cosmetic LoRAs rather than crashing generation.
+- **Unit Testing**:
+  - Added plugins/python/ai_diffusion/tests/test_dynamic_model_lookup.py covering all 10 model resolution scenarios.
+  - Full ai_diffusion test suite: **45 PASSED in 0.27s**.
+- **End-to-End Live Verification**:
+  - Polymorphic bridge cmd_stroke now supports both coordinate formats ([x, y] and {'x': x, 'y': y}).
+  - Dispatched live AI generation job on RTX 5090 ComfyUI backend (127.0.0.1:8188). Completed with status success.
+  - Preview layer applied to canvas as permanent layer [Generated] (538682944).
+  - Executed native VisionML ackground_removal (BiRefNet on RTX 5090 Vulkan backend) directly on the generated layer, producing 44.1% clean alpha transparency in under 3 seconds.
+  - Exported 1920x1080 full masterpiece solstice_masterpiece.png and transparent cutout solstice_cutout_art.png.

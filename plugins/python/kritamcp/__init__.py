@@ -699,7 +699,14 @@ class KritaMCPExtension(Extension):
 
     def cmd_stroke(self, params):
         """Paint a stroke along points using pixel-level drawing with soft edges."""
-        points = params.get("points", [])
+        raw_points = params.get("points", [])
+        points = []
+        for p_item in raw_points:
+            if isinstance(p_item, dict):
+                points.append((float(p_item.get("x", 0)), float(p_item.get("y", 0))))
+            elif isinstance(p_item, (list, tuple)) and len(p_item) >= 2:
+                points.append((float(p_item[0]), float(p_item[1])))
+
         brush_size = params.get("size", self.current_brush_size)
         hardness = params.get("hardness", 0.5)  # 0.0 = very soft, 1.0 = hard edge
         opacity = params.get("opacity", 1.0)
