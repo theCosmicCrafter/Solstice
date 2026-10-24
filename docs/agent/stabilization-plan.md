@@ -21,10 +21,10 @@ fixes were verified in `_vendor_src/qt6venv` with 100% test pass.
   header (phases 0–4 complete, 5 built / GUI pending, 6 pending).
 - `e2e-testing.md`: 18 → 20 tests. `mcp-bridge.md`: 43 → 42 actions.
 
-Still to correct (assigned in Lane F): tool counts in
-`plugin-integration-megaplan.md:41` ("54 tools") and `plugin-intake.md:161`
-("41-tool"); `GET /info` advertises 40 actions but the dispatcher has 42
-(missing `screenshot`, `trigger_action`).
+Resolved (Lane F / Bridge hardening): `GET /info` advertises all 44 actions
+supported by the dispatcher (including `screenshot`, `trigger_action`,
+`show_docker`, `list_dockers`), and `test_info_advertises_all_actions` in
+`tests/e2e/test_solstice_e2e.py` validates all 44 actions against the running app.
 
 ## P0 — defects in shipped or just-built features
 
