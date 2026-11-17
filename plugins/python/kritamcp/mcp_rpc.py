@@ -14,6 +14,7 @@ _command_processing re-entrancy guard for free.
 """
 import json
 import os
+import sys
 import urllib.request
 import urllib.error
 
@@ -45,14 +46,16 @@ def _native_rpc(payload, timeout=PROXY_TIMEOUT_S):
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json",
-                 "Authorization": f"Bearer {token}",
-                 "Host": url.split("//", 1)[1]},
+                 "Authorization": f"Bearer {token}"},
         method="POST",
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
-    except Exception:
+    except Exception as exc:
+        # urllib computes Host: 127.0.0.1:<port> itself — never set it to a
+        # URL-with-path, the native Host check would 403 it.
+        print(f"[KritaMCP] native proxy failed: {exc}", file=sys.stderr, flush=True)
         return None
 
 
@@ -121,7 +124,9 @@ def handle(body, *, run_command, supported_actions):
 
     mid = msg.get("id")
     method = msg.get("method")
-    params = msg.get("params") or {}
+    params = msg.get("params")
+    if not isinstance(params, dict):
+        params = {}
 
     if mid is None:
         # notification (initialized, cancelled, ...) -> accept, no reply
