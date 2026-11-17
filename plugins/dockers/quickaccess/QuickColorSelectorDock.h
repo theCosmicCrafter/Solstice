@@ -18,6 +18,7 @@ class KisCanvas2;
 class KisCanvasResourceProvider;
 class KisColorSelectorConfiguration;
 class KisVisualColorSelector;
+class KoColorSpace;
 class QButtonGroup;
 class QColor;
 class QSlider;
@@ -49,8 +50,10 @@ private Q_SLOTS:
     void slotHsvChanged();
     void slotSwapColors();
     void slotShapeChanged();
+    void slotUpdateColorSpace();
 
 private:
+    const KoColorSpace *selectorColorSpace() const;
     void updateSwatches();
     void setShape(Shape shape);
     void updateShapeIcons();
@@ -60,6 +63,10 @@ private:
     QPointer<KisCanvas2> m_canvas;
     KisCanvasResourceProvider *m_resourceProvider{nullptr};
     KisVisualColorSelector *m_selector{nullptr};
+    /// The selector's color space, picked by selectorColorSpace() and kept
+    /// current while the active node or the image color space changes.
+    const KoColorSpace *m_colorSpace{nullptr};
+    QList<QMetaObject::Connection> m_colorSpaceConnections;
     QToolButton *m_foreground{nullptr};
     QToolButton *m_background{nullptr};
     QToolButton *m_shapeButton{nullptr};

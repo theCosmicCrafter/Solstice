@@ -20,6 +20,8 @@
 
 class CompositionModel;
 class KisAction;
+class CompositionDocumentState;
+class QCheckBox;
 
 class CompositionDockerDock : public QDockWidget, public KoCanvasObserverBase, public Ui_WdgCompositionDocker {
     Q_OBJECT
@@ -51,8 +53,12 @@ private Q_SLOTS:
     void moveCompositionDown();
 
 private:
+    QList<KisLayerCompositionSP> selectedCompositions() const;
+    void applyAdjacent(int direction);
     QPointer<KisCanvas2> m_canvas;
     CompositionModel *m_model;
+    QPointer<CompositionDocumentState> m_state;
+    QCheckBox *m_newLayersVisible;
 
     QVector<KisAction*> m_actions;
 };

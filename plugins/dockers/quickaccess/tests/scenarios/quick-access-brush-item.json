@@ -1,0 +1,82 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "quick-access-brush-item",
+  "description": "Add Current Brush puts the brush on the Quick Access palette, and clicking that item selects the brush again (in a scratch profile; the item stays in its Quick Access profile).",
+  "covers": "Quick Access Palette header Add Current Brush, brush item activation (KisPaintopBox::resourceSelected)",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "QuickAccessPalette"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "preset": "b) Basic-5 Size Opacity"
+      },
+      "expect": {
+        "preset": "b) Basic-5 Size Opacity"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "within": "QuickAccessPalette",
+        "toolTip": "Add Current Brush"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "preset": "a) Eraser Circle"
+      },
+      "expect": {
+        "preset": "a) Eraser Circle",
+        "eraser": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "within": "QuickAccessPalette",
+        "className": "QPushButton",
+        "toolTip": "b) Basic-5 Size Opacity",
+        "index": 0
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "preset": "b) Basic-5 Size Opacity",
+        "eraser": false
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    }
+  ]
+}

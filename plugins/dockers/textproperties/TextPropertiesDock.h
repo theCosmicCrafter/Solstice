@@ -32,11 +32,17 @@ public:
 public Q_SLOTS:
     QColor modalColorDialog(QColor oldColor);
 
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
+private:
+    /// Solstice: loads the QML, once, when the contents are first shown
+    void loadContents();
 
 private:
     QPointer<KisCanvas2> m_canvas;
     KisQQuickWidget *m_quickWidget {0};
+    bool m_contentsLoaded{false};
 
     struct Private;
     const QScopedPointer<Private> d;

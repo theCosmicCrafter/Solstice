@@ -4,20 +4,12 @@
  */
 
 #include "AssetLibraryDock.h"
+#include <assetlibrary/KisAssetLibraryOperations.h>
+#include <utils/KisShowInFileExplorer.h>
 
 #include <KisMainWindow.h>
 #include <KisViewManager.h>
-#include <KoResourcePaths.h>
-#include <KoStore.h>
-#include <kconfiggroup.h>
-#include <kis_file_layer.h>
-#include <kis_group_layer.h>
-#include <kis_image.h>
-#include <kis_import_catcher.h>
-#include <kis_node_commands_adapter.h>
-#include <kis_node_manager.h>
 #include <klocalizedstring.h>
-#include <ksharedconfig.h>
 
 #include <QAbstractItemView>
 #include <QCheckBox>
@@ -26,7 +18,6 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
-#include <QDirIterator>
 #include <QEvent>
 #include <QFile>
 #include <QFileDialog>
@@ -35,10 +26,7 @@
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QHeaderView>
-#include <QImageReader>
 #include <QInputDialog>
-#include <QJsonArray>
-#include <QJsonDocument>
 #include <QLabel>
 #include <QListWidget>
 #include <QMenu>
@@ -60,12 +48,6 @@
 namespace
 {
 constexpr auto defaultExtensions = "kra,jpg,jpeg,png,svg";
-
-int boundedInt(const QJsonObject &object, const char *key, int fallback, int minimum, int maximum)
-{
-    const int value = object.value(QLatin1String(key)).toInt(fallback);
-    return value >= minimum && value <= maximum ? value : fallback;
-}
 
 class AssetTile : public QFrame
 {
@@ -123,6 +105,7 @@ protected:
     {
         QMenu menu(this);
         QAction *open = menu.addAction(i18n("Open"));
+        QAction *showInExplorer = menu.addAction(KisShowInFileExplorer::actionText());
         QAction *insertLayer = menu.addAction(i18n("Insert as New Layer"));
         QAction *insertFileLayer = menu.addAction(i18n("Insert as New File Layer"));
         QAction *duplicate = menu.addAction(i18n("Duplicate"));
@@ -131,6 +114,8 @@ protected:
         QAction *selected = menu.exec(event->globalPos());
         if (selected == open && m_open)
             m_open(m_path);
+        else if (selected == showInExplorer)
+            KisShowInFileExplorer::showFile(m_path, this);
         else if (selected == insertLayer && m_insertLayer)
             m_insertLayer(m_path);
         else if (selected == insertFileLayer && m_insertFileLayer)
@@ -173,87 +158,8 @@ QTableWidgetItem *checkedItem(bool checked)
 }
 } // namespace
 
-QString AssetLibrarySettings::filePath()
-{
-    return QDir(KoResourcePaths::saveLocation("data", "krita_asset_library/", true))
-        .filePath(QStringLiteral("config.json"));
-}
-
-void AssetLibrarySettings::load()
-{
-    QByteArray bytes;
-    QFile file(filePath());
-    if (file.open(QIODevice::ReadOnly)) {
-        bytes = file.readAll();
-    } else {
-        const QString legacy = KSharedConfig::openConfig()
-                                   ->group(QStringLiteral("asset_library"))
-                                   .readEntry(QStringLiteral("settings_json"), QString());
-        bytes = legacy.toUtf8();
-    }
-    const QJsonObject object = QJsonDocument::fromJson(bytes).object();
-    paths.clear();
-    for (const QJsonValue &value : object.value(QStringLiteral("paths")).toArray()) {
-        const QJsonObject item = value.toObject();
-        AssetPathEntry entry;
-        entry.alias = item.value(QStringLiteral("alias")).toString();
-        entry.path = item.value(QStringLiteral("path")).toString();
-        entry.includeSubfolders =
-            item.value(QStringLiteral("include_subfolders")).toBool(item.value(QStringLiteral("nested")).toBool(false));
-        entry.extensions = item.value(QStringLiteral("extensions")).toString(QString::fromLatin1(defaultExtensions));
-        if (!entry.path.isEmpty())
-            paths.append(entry);
-    }
-    windowWidth = std::max(80, object.value(QStringLiteral("window_width")).toInt(windowWidth));
-    windowHeight = std::max(80, object.value(QStringLiteral("window_height")).toInt(windowHeight));
-    const QJsonArray sizes = object.value(QStringLiteral("splitter_sizes")).toArray();
-    if (sizes.size() == 2)
-        splitterSizes = {std::max(80, sizes.at(0).toInt(150)), std::max(0, sizes.at(1).toInt(570))};
-    rightPanelHidden = object.value(QStringLiteral("right_panel_hidden")).toBool(rightPanelHidden);
-    expandedWindowWidth = std::max(80, object.value(QStringLiteral("expanded_window_width")).toInt(windowWidth));
-    collapsedWindowWidth =
-        std::max(80, object.value(QStringLiteral("collapsed_window_width")).toInt(collapsedWindowWidth));
-    autoColumns = object.value(QStringLiteral("auto_columns")).toBool(autoColumns);
-    columns = boundedInt(object, "columns", columns, 1, 12);
-    thumbnailSize = std::clamp(object.value(QStringLiteral("thumbnail_size")).toInt(thumbnailSize), 48, 512);
-    const int legacyFont = object.value(QStringLiteral("font_size")).toInt(10);
-    uiFontSize = boundedInt(object, "ui_font_size", legacyFont, 7, 32);
-    headerFontSize = boundedInt(object, "header_font_size", uiFontSize, 7, 32);
-    assetNameFontSize = boundedInt(object, "asset_name_font_size", legacyFont, 7, 32);
-}
-
-bool AssetLibrarySettings::save() const
-{
-    QJsonArray pathArray;
-    for (const AssetPathEntry &entry : paths) {
-        pathArray.append(QJsonObject{{QStringLiteral("alias"), entry.alias},
-                                     {QStringLiteral("path"), entry.path},
-                                     {QStringLiteral("include_subfolders"), entry.includeSubfolders},
-                                     {QStringLiteral("extensions"), entry.extensions}});
-    }
-    QJsonArray sizes;
-    for (int value : splitterSizes)
-        sizes.append(value);
-    const QJsonObject object{{QStringLiteral("paths"), pathArray},
-                             {QStringLiteral("window_width"), windowWidth},
-                             {QStringLiteral("window_height"), windowHeight},
-                             {QStringLiteral("splitter_sizes"), sizes},
-                             {QStringLiteral("right_panel_hidden"), rightPanelHidden},
-                             {QStringLiteral("expanded_window_width"), expandedWindowWidth},
-                             {QStringLiteral("collapsed_window_width"), collapsedWindowWidth},
-                             {QStringLiteral("auto_columns"), autoColumns},
-                             {QStringLiteral("columns"), columns},
-                             {QStringLiteral("thumbnail_size"), thumbnailSize},
-                             {QStringLiteral("ui_font_size"), uiFontSize},
-                             {QStringLiteral("header_font_size"), headerFontSize},
-                             {QStringLiteral("asset_name_font_size"), assetNameFontSize}};
-    QFile file(filePath());
-    return file.open(QIODevice::WriteOnly | QIODevice::Truncate) && file.write(QJsonDocument(object).toJson()) >= 0;
-}
-
 AssetLibraryDock::AssetLibraryDock(QWidget *parent)
     : QDockWidget(parent)
-    , m_thumbnailCache(64 * 1024)
 {
     setWindowTitle(i18n("Asset Library"));
     m_settings.load();
@@ -337,6 +243,12 @@ void AssetLibraryDock::buildUi()
     });
     connect(refresh, &QPushButton::clicked, this, &AssetLibraryDock::refreshAssets);
     connect(settings, &QPushButton::clicked, this, &AssetLibraryDock::showSettings);
+    // Queued, so that a save never reloads views inside the saving view's handler.
+    connect(KisAssetLibrarySettingsNotifier::instance(),
+            &KisAssetLibrarySettingsNotifier::sigSaved,
+            this,
+            &AssetLibraryDock::reloadSharedSettings,
+            Qt::QueuedConnection);
     connect(m_hideButton, &QPushButton::clicked, this, [this]() {
         setAssetPanelHidden(!m_assetPanel->isHidden(), true);
     });
@@ -363,6 +275,8 @@ void AssetLibraryDock::applySettings()
 
 void AssetLibraryDock::loadFolders()
 {
+    const QString preferredPath = m_currentPath;
+    int preferredRow = 0;
     m_folderList->clear();
     for (int index = 0; index < m_settings.paths.size(); ++index) {
         const AssetPathEntry &entry = m_settings.paths.at(index);
@@ -371,9 +285,11 @@ void AssetLibraryDock::loadFolders()
         auto *item = new QListWidgetItem(label.isEmpty() ? entry.path : label, m_folderList);
         item->setToolTip(entry.path);
         item->setData(Qt::UserRole, index);
+        if (!preferredPath.isEmpty() && entry.path == preferredPath)
+            preferredRow = index;
     }
     if (m_folderList->count())
-        m_folderList->setCurrentRow(0);
+        m_folderList->setCurrentRow(preferredRow);
     else
         clearAssets(i18n("Add asset paths from Settings."));
 
@@ -398,47 +314,6 @@ void AssetLibraryDock::folderChanged(QListWidgetItem *current)
     refreshAssets();
 }
 
-QStringList AssetLibraryDock::extensions() const
-{
-    QStringList result;
-    for (QString extension : m_extensionText.split(QLatin1Char(','), Qt::SkipEmptyParts)) {
-        extension = extension.trimmed().toLower();
-        if (extension.startsWith(QLatin1Char('.')))
-            extension.remove(0, 1);
-        if (!extension.isEmpty())
-            result.append(extension);
-    }
-    if (result.isEmpty())
-        result = {QStringLiteral("kra"), QStringLiteral("png"), QStringLiteral("jpg"), QStringLiteral("jpeg")};
-    return result;
-}
-
-QVector<AssetLibraryDock::Section> AssetLibraryDock::collectSections() const
-{
-    QVector<Section> sections;
-    QMap<QString, QStringList> byFolder;
-    const QStringList suffixes = extensions();
-    const auto matches = [&suffixes](const QString &path) {
-        return suffixes.contains(QFileInfo(path).suffix().toLower());
-    };
-    QDirIterator iterator(m_currentPath,
-                          QDir::Files | QDir::NoDotAndDotDot,
-                          m_includeSubfolders ? QDirIterator::Subdirectories : QDirIterator::NoIteratorFlags);
-    while (iterator.hasNext()) {
-        const QString path = iterator.next();
-        if (matches(path))
-            byFolder[QFileInfo(path).absolutePath()].append(path);
-    }
-    for (auto it = byFolder.begin(); it != byFolder.end(); ++it) {
-        QStringList files = it.value();
-        std::sort(files.begin(), files.end(), [](const QString &a, const QString &b) {
-            return QString::localeAwareCompare(QFileInfo(a).fileName(), QFileInfo(b).fileName()) < 0;
-        });
-        sections.append({QFileInfo(it.key()).fileName().isEmpty() ? it.key() : QFileInfo(it.key()).fileName(), files});
-    }
-    return sections;
-}
-
 void AssetLibraryDock::refreshAssets()
 {
     m_layoutTimer->stop();
@@ -450,7 +325,7 @@ void AssetLibraryDock::refreshAssets()
         clearAssets(i18n("Folder not found: %1", m_currentPath));
         return;
     }
-    m_sections = collectSections();
+    m_sections = KisAssetLibrary::collectSections(m_currentPath, m_includeSubfolders, m_extensionText);
     populateSections();
 }
 
@@ -463,73 +338,15 @@ void AssetLibraryDock::clearAssets(const QString &message)
 
 int AssetLibraryDock::thumbnailColumns() const
 {
-    if (!m_settings.autoColumns)
-        return std::max(1, m_settings.columns);
-    const int tileWidth = m_settings.thumbnailSize + 24;
-    return std::max(1, (std::max(1, m_scroll->viewport()->width() - 8) + 10) / (tileWidth + 10));
+    return KisAssetLibrary::thumbnailColumns(m_settings.autoColumns,
+                                             m_settings.columns,
+                                             m_settings.thumbnailSize,
+                                             m_scroll->viewport()->width());
 }
 
 QPixmap AssetLibraryDock::thumbnailForPath(const QString &path)
 {
-    const QFileInfo info(path);
-    const qreal pixelRatio = devicePixelRatioF();
-    const int pixelSize = std::max(1, qRound(m_settings.thumbnailSize * pixelRatio));
-    const QString cacheKey = QStringLiteral("%1|%2|%3|%4|%5")
-                                 .arg(info.absoluteFilePath())
-                                 .arg(info.size())
-                                 .arg(info.lastModified().toMSecsSinceEpoch())
-                                 .arg(pixelSize)
-                                 .arg(pixelRatio);
-    if (const QPixmap *cached = m_thumbnailCache.object(cacheKey))
-        return *cached;
-
-    QImage source;
-    if (info.suffix().compare(QStringLiteral("kra"), Qt::CaseInsensitive) == 0) {
-        QScopedPointer<KoStore> store(KoStore::createStore(path, KoStore::Read));
-        if (store) {
-            const QStringList candidates{QStringLiteral("preview.png"),
-                                         QStringLiteral("Thumbnails/thumbnail.png"),
-                                         QStringLiteral("mergedimage.png")};
-            for (const QString &candidate : candidates) {
-                if (!store->hasFile(candidate) || !store->open(candidate))
-                    continue;
-                const QByteArray bytes = store->read(store->size());
-                store->close();
-                if (source.loadFromData(bytes))
-                    break;
-            }
-        }
-    } else {
-        QImageReader reader(path);
-        reader.setAutoTransform(true);
-        const QSize originalSize = reader.size();
-        if (originalSize.isValid())
-            reader.setScaledSize(originalSize.scaled(pixelSize, pixelSize, Qt::KeepAspectRatio));
-        source = reader.read();
-    }
-
-    QPixmap thumbnail;
-    if (!source.isNull()) {
-        thumbnail =
-            QPixmap::fromImage(source.scaled(pixelSize, pixelSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        thumbnail.setDevicePixelRatio(pixelRatio);
-    } else {
-        thumbnail = QPixmap(pixelSize, pixelSize);
-        thumbnail.setDevicePixelRatio(pixelRatio);
-        thumbnail.fill(QColor(245, 245, 245));
-        QPainter painter(&thumbnail);
-        painter.setPen(QColor(75, 75, 75));
-        painter.drawRect(thumbnail.rect().adjusted(0, 0, -1, -1));
-        QFont font;
-        font.setPointSize(std::max(10, m_settings.thumbnailSize / 7));
-        font.setBold(true);
-        painter.setFont(font);
-        painter.drawText(thumbnail.rect(), Qt::AlignCenter, info.suffix().toUpper());
-    }
-
-    const int costKiB = std::max(1, thumbnail.width() * thumbnail.height() * 4 / 1024);
-    m_thumbnailCache.insert(cacheKey, new QPixmap(thumbnail), costKiB);
-    return thumbnail;
+    return m_thumbnailCache.thumbnail(path, m_settings.thumbnailSize, devicePixelRatioF());
 }
 
 void AssetLibraryDock::populateSections()
@@ -599,64 +416,17 @@ void AssetLibraryDock::openAsset(const QString &path)
 
 void AssetLibraryDock::insertAsLayer(const QString &path)
 {
-    if (!m_viewManager || !m_viewManager->image()) {
-        QMessageBox::warning(this, i18n("Insert as New Layer"), i18n("No active document."));
-        return;
-    }
-    new KisImportCatcher(path,
-                         m_viewManager,
-                         QFileInfo(path).suffix().compare(QStringLiteral("svg"), Qt::CaseInsensitive) == 0
-                             ? QStringLiteral("KisShapeLayer")
-                             : QStringLiteral("KisPaintLayer"));
+    KisAssetLibrary::insertAsLayer(path, m_viewManager, this);
 }
 
 void AssetLibraryDock::insertAsFileLayer(const QString &path)
 {
-    if (!m_viewManager || !m_viewManager->image()) {
-        QMessageBox::warning(this, i18n("Insert as New File Layer"), i18n("No active document."));
-        return;
-    }
-    const QFileInfo info(path);
-    KisLayerSP layer = new KisFileLayer(m_viewManager->image(),
-                                        info.absolutePath(),
-                                        info.fileName(),
-                                        KisFileLayer::None,
-                                        QStringLiteral("Bicubic"),
-                                        info.completeBaseName(),
-                                        255);
-    KisNodeSP active = m_viewManager->activeNode();
-    KisNodeSP parent;
-    if (active && active->parent())
-        parent = active->parent();
-    else
-        parent = m_viewManager->image()->rootLayer();
-    KisNodeCommandsAdapter adapter(m_viewManager);
-    adapter.addNode(layer, parent, active);
-    m_viewManager->nodeManager()->slotNonUiActivatedNode(layer);
+    KisAssetLibrary::insertAsFileLayer(path, m_viewManager, this);
 }
 
 QString AssetLibraryDock::requestAssetPath(const QString &path, const QString &title, bool allowCurrent)
 {
-    bool ok = false;
-    QString name =
-        QInputDialog::getText(this, title, i18n("New file name"), QLineEdit::Normal, QFileInfo(path).fileName(), &ok)
-            .trimmed();
-    if (!ok || name.isEmpty())
-        return {};
-    if (QFileInfo(name).fileName() != name) {
-        QMessageBox::warning(this, title, i18n("File name cannot contain a path."));
-        return {};
-    }
-    if (QFileInfo(name).suffix().isEmpty())
-        name += QLatin1Char('.') + QFileInfo(path).suffix();
-    const QString target = QDir(QFileInfo(path).absolutePath()).filePath(name);
-    if (allowCurrent && QFileInfo(target) == QFileInfo(path))
-        return target;
-    if (QFileInfo::exists(target)) {
-        QMessageBox::warning(this, title, i18n("A file with that name already exists."));
-        return {};
-    }
-    return target;
+    return KisAssetLibrary::requestAssetPath(path, title, this, allowCurrent);
 }
 
 void AssetLibraryDock::duplicateAsset(const QString &path)
@@ -870,7 +640,22 @@ void AssetLibraryDock::saveRuntimeSettings()
             m_settings.splitterSizes = sizes;
     }
     m_settings.rightPanelHidden = m_assetPanel->isHidden();
-    m_settings.save();
+    m_settings.saveLayout();
+}
+
+void AssetLibraryDock::reloadSharedSettings()
+{
+    // The welcome page or a docker in another window saved: adopt its folders
+    // and display settings, but keep this docker's own layout.
+    AssetLibrarySettings latest;
+    latest.load();
+    if (latest.hasSameSharedValues(m_settings))
+        return;
+    m_settings.copySharedValues(latest);
+    QFont f = font();
+    f.setPointSize(m_settings.uiFontSize);
+    setFont(f);
+    loadFolders();
 }
 
 bool AssetLibraryDock::eventFilter(QObject *watched, QEvent *event)

@@ -6,6 +6,7 @@
 #include "QuickAccessModel.h"
 
 #include <QHash>
+#include <klocalizedstring.h>
 
 namespace QuickAccess
 {
@@ -107,7 +108,7 @@ bool Item::fromJson(const QJsonObject &object, Item *item, QString *error)
 {
     if (!item || object.value(QStringLiteral("id")).toString().isEmpty()) {
         if (error)
-            *error = QStringLiteral("A quick-access item has no id.");
+            *error = i18n("A Quick Access item has no id.");
         return false;
     }
 
@@ -115,7 +116,7 @@ bool Item::fromJson(const QJsonObject &object, Item *item, QString *error)
     parsed.id = object.value(QStringLiteral("id")).toString();
     if (!itemTypeFromString(object.value(QStringLiteral("type")).toString(), &parsed.type)) {
         if (error)
-            *error = QStringLiteral("Item '%1' has an unsupported type.").arg(parsed.id);
+            *error = i18n("Item '%1' has an unsupported type.", parsed.id);
         return false;
     }
     parsed.row = object.value(QStringLiteral("row")).toInt();
@@ -161,7 +162,7 @@ bool Grid::fromJson(const QJsonObject &object, Grid *grid, QString *error)
 {
     if (!grid || object.value(QStringLiteral("id")).toString().isEmpty()) {
         if (error)
-            *error = QStringLiteral("A quick-access grid has no id.");
+            *error = i18n("A Quick Access grid has no id.");
         return false;
     }
     Grid parsed;
@@ -196,7 +197,7 @@ bool Tab::fromJson(const QJsonObject &object, Tab *tab, QString *error)
 {
     if (!tab || object.value(QStringLiteral("id")).toString().isEmpty()) {
         if (error)
-            *error = QStringLiteral("A quick-access tab has no id.");
+            *error = i18n("A Quick Access tab has no id.");
         return false;
     }
     Tab parsed;
@@ -255,7 +256,7 @@ bool Document::fromJson(const QJsonObject &object, Document *document, QString *
         : object.value(QStringLiteral("version")).toInt(1);
     if (version < 1 || version > CurrentFormatVersion) {
         if (error)
-            *error = QStringLiteral("Unsupported quick-access format version %1.").arg(version);
+            *error = i18n("Unsupported Quick Access format version %1.", version);
         return false;
     }
 
@@ -274,7 +275,7 @@ bool Document::fromJson(const QJsonObject &object, Document *document, QString *
     }
     if (parsed.tabs.isEmpty()) {
         if (error)
-            *error = QStringLiteral("A quick-access profile must contain at least one tab.");
+            *error = i18n("A Quick Access profile must contain at least one tab.");
         return false;
     }
     if (parsed.activeTabId.isEmpty())

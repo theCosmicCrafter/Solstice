@@ -1,0 +1,201 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "color-label-controls",
+  "description": "The Layers docker's color label control labels exactly the selected layers (a group, not its children; two selected layers together), and the visibility control toggles every layer with that label, also inside groups, each time it is chosen.",
+  "covers": "Lazy Tools color label and label visibility controls (LayerBox::slotColorLabelChanged, slotColorVisibilityChanged)",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "KisLayerBox"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "add_new_paint_layer"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "add_new_paint_layer"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.name": "Paint Layer 2",
+        "layers.0.active": true,
+        "layers.1.name": "Paint Layer 1",
+        "layers.2.name": "Background"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "KisLayerBox",
+        "objectName": "cmbColorLabel",
+        "value": 2
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.colorLabel": 2,
+        "layers.1.colorLabel": 0,
+        "layers.2.colorLabel": 0
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "create_quick_group"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.class": "KisGroupLayer",
+        "layers.0.children.0.name": "Paint Layer 2",
+        "layers.0.children.0.colorLabel": 2
+      },
+      "save": {
+        "group": "layers.0.name"
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$group"
+      },
+      "expect": {
+        "active": {
+          "equals": "$group"
+        }
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "KisLayerBox",
+        "objectName": "cmbColorLabel",
+        "value": 5
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.colorLabel": 5,
+        "layers.0.children.0.colorLabel": 2,
+        "layers.1.colorLabel": 0
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "Paint Layer 1",
+        "select": [
+          "Paint Layer 1",
+          "Background"
+        ]
+      },
+      "expect": {
+        "selected.0": "Paint Layer 1",
+        "selected.1": "Background"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "KisLayerBox",
+        "objectName": "cmbColorLabel",
+        "value": 2
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.colorLabel": 5,
+        "layers.0.children.0.colorLabel": 2,
+        "layers.1.colorLabel": 2,
+        "layers.2.colorLabel": 2
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "KisLayerBox",
+        "objectName": "cmbColorVisibility",
+        "value": 1
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.visible": true,
+        "layers.0.children.0.visible": false,
+        "layers.1.visible": false,
+        "layers.2.visible": false
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "KisLayerBox",
+        "objectName": "cmbColorVisibility",
+        "value": 1
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.visible": true,
+        "layers.0.children.0.visible": true,
+        "layers.1.visible": true,
+        "layers.2.visible": true
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    }
+  ]
+}

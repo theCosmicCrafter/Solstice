@@ -207,8 +207,8 @@ void KisColorPatchesTableView::wheelEvent(QWheelEvent *event)
         if (!horizontal) {
             // HACK: here we make our normal vertical scroller, also do a horizontal scroll
             QPoint modifiedAngleDelta = {event->angleDelta().y(), event->angleDelta().x()};
-            QWheelEvent modifiedEvent(event->position(),
-                                      event->globalPosition(),
+            QWheelEvent modifiedEvent(event->posF(),
+                                      event->globalPosF(),
                                       event->pixelDelta(),
                                       modifiedAngleDelta,
                                       event->buttons(),

@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
+#include <klocalizedstring.h>
 
 namespace QuickAccess
 {
@@ -73,14 +74,14 @@ bool LegacyImporter::readObject(const QString &path, QJsonObject *object, QStrin
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
         if (error)
-            *error = QStringLiteral("Could not read '%1': %2").arg(path, file.errorString());
+            *error = i18n("Could not read '%1': %2", path, file.errorString());
         return false;
     }
     QJsonParseError parseError;
     const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
     if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
         if (error)
-            *error = QStringLiteral("Could not parse '%1': %2").arg(path, parseError.errorString());
+            *error = i18n("Could not parse '%1': %2", path, parseError.errorString());
         return false;
     }
     *object = document.object();

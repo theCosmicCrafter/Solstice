@@ -6,6 +6,7 @@
 #include "QuickAdjustDock.h"
 
 #include "QuickAdjustKeyController.h"
+#include "QuickAdjustToolOptionsPad.h"
 
 #include <KisAngleSelector.h>
 #include <KisMainWindow.h>
@@ -30,19 +31,12 @@
 #include <ksharedconfig.h>
 
 #include <QComboBox>
-#include <QFormLayout>
+#include <QFrame>
 #include <QGridLayout>
-#include <QGroupBox>
-#include <QGuiApplication>
 #include <QHBoxLayout>
-#include <QLabel>
-#include <QPixmap>
 #include <QPushButton>
-#include <QScreen>
-#include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSizePolicy>
-#include <QStyle>
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -230,9 +224,18 @@ QuickAdjustDock::QuickAdjustDock(QWidget *parent, bool compactPopup)
                                        .toInt(&fontOk);
     if (fontOk)
         content->setStyleSheet(QStringLiteral("font-size: %1px;").arg(qBound(6, configuredFontSize, 36)));
+    m_toolOptions = new QuickAdjustToolOptionsPad(this, m_toolOptionsToggle, compactPopup, [this] {
+        QuickAdjustToolOptionsPad::Context context;
+        context.canvasAvailable = m_canvas && m_canvas->viewManager();
+        if (context.canvasAvailable) {
+            context.mainWindow = m_canvas->viewManager()->mainWindow();
+            context.toolOptionsInDocker = KisConfig(true).toolOptionsInDocker();
+        }
+        return context;
+    });
     m_toolOptionsToggle->setChecked(adjustConfig.readEntry("ToolOptionsStartVisible", false));
-    connect(m_toolOptionsToggle, &QToolButton::toggled, this, &QuickAdjustDock::setToolOptionsPadVisible);
-    setToolOptionsPadVisible(m_toolOptionsToggle->isChecked());
+    connect(m_toolOptionsToggle, &QToolButton::toggled, m_toolOptions, &QuickAdjustToolOptionsPad::setVisible);
+    m_toolOptions->setVisible(m_toolOptionsToggle->isChecked());
     connect(m_eraseToggle, &QToolButton::clicked, this, [this] {
         if (m_resourceProvider)
             m_resourceProvider->setEraserMode(!m_resourceProvider->eraserMode());
@@ -270,16 +273,20 @@ QuickAdjustDock::QuickAdjustDock(QWidget *parent, bool compactPopup)
             &QuickAdjustDock::slotLayerBlendChanged);
     connect(reset, &QPushButton::clicked, this, &QuickAdjustDock::slotResetBrush);
 
+    // The controls follow the canvas by polling. The timer runs only while
+    // the dock is shown (showEvent()/hideEvent()): every main window has
+    // this dock, and it used to poll for the whole session, hidden or not.
     m_syncTimer = new QTimer(this);
+    m_syncTimer->setObjectName(QStringLiteral("quickAdjustSyncTimer"));
     m_syncTimer->setInterval(200);
     connect(m_syncTimer, &QTimer::timeout, this, &QuickAdjustDock::syncFromCanvas);
-    m_syncTimer->start();
     setControlsEnabled(false);
 }
 
 QuickAdjustDock::~QuickAdjustDock()
 {
-    returnToolOptionsDocker();
+    delete m_toolOptions;
+    m_toolOptions = nullptr;
 }
 
 QString QuickAdjustDock::observerName()
@@ -295,7 +302,7 @@ void QuickAdjustDock::setCanvas(KoCanvasBase *canvas)
     m_resourceProvider =
         m_canvas && m_canvas->viewManager() ? m_canvas->viewManager()->canvasResourceProvider() : nullptr;
     if (m_resourceProvider) {
-        ensureToolOptionsPad();
+        m_toolOptions->ensure();
         if (!colorHistoryResetForSession) {
             m_resourceProvider->setColorHistory({});
             colorHistoryResetForSession = true;
@@ -354,256 +361,36 @@ void QuickAdjustDock::populateBlendModes(QComboBox *combo)
     combo->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
 }
 
-void QuickAdjustDock::ensureToolOptionsPad()
-{
-    if (m_compactPopup || m_toolOptionsPad || !m_canvas || !m_canvas->viewManager()
-        || !m_toolOptionsToggle->isVisible())
-        return;
-    if (!KisConfig(true).toolOptionsInDocker()) {
-        m_toolOptionsToggle->hide();
-        return;
-    }
-
-    QWidget *mainWindow = m_canvas->viewManager()->mainWindow();
-    QDockWidget *docker =
-        mainWindow ? mainWindow->findChild<QDockWidget *>(QStringLiteral("sharedtooldocker")) : nullptr;
-    if (!docker || !docker->widget()) {
-        m_toolOptionsToggle->hide();
-        return;
-    }
-
-    m_toolOptionsDocker = docker;
-    m_toolOptionsDockerWasVisible = docker->isVisible();
-    m_borrowedToolOptions = docker->widget();
-    m_toolOptionsPlaceholder = new QLabel(i18nc("@info", "Tool Options are open beside Quick Brush Adjustments."));
-    m_toolOptionsPlaceholder->hide();
-
-    m_toolOptionsPad = new QWidget(mainWindow, Qt::Tool | Qt::FramelessWindowHint);
-    m_toolOptionsPad->setObjectName(QStringLiteral("quickAccessToolOptionsPad"));
-    m_toolOptionsPad->setAutoFillBackground(true);
-    auto *padLayout = new QVBoxLayout(m_toolOptionsPad);
-    padLayout->setContentsMargins(4, 4, 4, 4);
-    padLayout->addWidget(m_borrowedToolOptions);
-    docker->setWidget(m_toolOptionsPlaceholder);
-    docker->hide();
-    docker->toggleViewAction()->setEnabled(false);
-
-    padLayout->invalidate();
-    padLayout->activate();
-    resizeToolOptionsPad();
-    setToolOptionsPadVisible(m_toolOptionsToggle->isChecked());
-
-    connect(qGuiApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
-        if (!m_toolOptionsPad)
-            return;
-        if (state != Qt::ApplicationActive) {
-            m_toolOptionsPad->hide();
-        } else if (m_toolOptionsToggle && m_toolOptionsToggle->isChecked() && isVisible()) {
-            resizeToolOptionsPad();
-            m_toolOptionsPad->show();
-            positionToolOptionsPad();
-        }
-    });
-}
-
-void QuickAdjustDock::setToolOptionsPadVisible(bool visible)
-{
-    if (!m_compactPopup && visible && !m_toolOptionsPad)
-        ensureToolOptionsPad();
-    if (m_toolOptionsPad) {
-        resizeToolOptionsPad();
-        m_toolOptionsPad->setVisible(visible && isVisible()
-                                     && QGuiApplication::applicationState() == Qt::ApplicationActive);
-        if (visible) {
-            positionToolOptionsPad();
-            QTimer::singleShot(0, this, [this] {
-                resizeToolOptionsPad();
-                positionToolOptionsPad();
-            });
-        }
-    }
-    if (m_toolOptionsToggle) {
-        m_toolOptionsToggle->setIcon(QIcon(QStringLiteral(":/quickaccess/quick_adjust/tool_options_%1.png")
-                                               .arg(visible ? QStringLiteral("on") : QStringLiteral("off"))));
-    }
-    KConfigGroup config = KSharedConfig::openConfig()->group(QStringLiteral("QuickAccessAdjust"));
-    config.writeEntry("ToolOptionsStartVisible", visible);
-    config.sync();
-}
-
-void QuickAdjustDock::resizeToolOptionsPad()
-{
-    if (!m_toolOptionsPad || !m_borrowedToolOptions)
-        return;
-
-    QSize contentSize = m_borrowedToolOptions->sizeHint();
-    QScrollArea *scrollArea = qobject_cast<QScrollArea *>(m_borrowedToolOptions.data());
-    if (scrollArea && scrollArea->widget()) {
-        QWidget *contents = scrollArea->widget();
-        contents->ensurePolished();
-        if (contents->layout()) {
-            contents->layout()->invalidate();
-            contents->layout()->activate();
-        }
-        contentSize = contents->sizeHint();
-        const int frame = scrollArea->frameWidth() * 2;
-        contentSize += QSize(frame, frame);
-    }
-    if (!contentSize.isValid() || contentSize.isEmpty())
-        contentSize = m_borrowedToolOptions->minimumSizeHint();
-    contentSize = contentSize.expandedTo(QSize(1, 1));
-
-    QSize maximumSize;
-    if (m_canvas && m_canvas->viewManager() && m_canvas->viewManager()->mainWindow())
-        maximumSize = m_canvas->viewManager()->mainWindow()->centralWidget()->size();
-    if ((!maximumSize.isValid() || maximumSize.isEmpty()) && m_toolOptionsPad->screen())
-        maximumSize = m_toolOptionsPad->screen()->availableGeometry().size();
-
-    const QMargins margins = m_toolOptionsPad->layout()->contentsMargins();
-    const QSize marginSize(margins.left() + margins.right(), margins.top() + margins.bottom());
-    if (maximumSize.isValid() && !maximumSize.isEmpty()) {
-        const QSize maximumContent = (maximumSize - marginSize - QSize(8, 8)).expandedTo(QSize(1, 1));
-        if (scrollArea) {
-            const int scrollBarExtent = style()->pixelMetric(QStyle::PM_ScrollBarExtent);
-            if (contentSize.height() > maximumContent.height())
-                contentSize.rwidth() += scrollBarExtent;
-            if (contentSize.width() > maximumContent.width())
-                contentSize.rheight() += scrollBarExtent;
-        }
-        contentSize = contentSize.boundedTo(maximumContent);
-    }
-
-    const QSize wanted = contentSize + marginSize;
-    if (wanted != m_toolOptionsPad->size()) {
-        m_toolOptionsPad->resize(wanted);
-        positionToolOptionsPad();
-    }
-}
-
-void QuickAdjustDock::positionToolOptionsPad()
-{
-    if (!m_toolOptionsPad)
-        return;
-    const KConfigGroup config = KSharedConfig::openConfig()->group(QStringLiteral("QuickAccessAdjust"));
-    const QString position = config.readEntry("ToolOptionsPosition", QStringLiteral("left_align_top"));
-    const QPoint dockTopLeft = mapToGlobal(QPoint(0, 0));
-    QPoint target;
-    if (position == QStringLiteral("right_align_top")) {
-        target = QPoint(dockTopLeft.x() + width() + 5, dockTopLeft.y());
-    } else if (position == QStringLiteral("bottom_left")) {
-        target = QPoint(dockTopLeft.x(), dockTopLeft.y() + height() + 5);
-    } else {
-        target = QPoint(dockTopLeft.x() - m_toolOptionsPad->width() - 5, dockTopLeft.y());
-    }
-
-    if (QScreen *screen = QGuiApplication::screenAt(dockTopLeft)) {
-        const QRect bounds = screen->availableGeometry();
-        target.setX(qBound(bounds.left(), target.x(), bounds.right() - m_toolOptionsPad->width() + 1));
-        target.setY(qBound(bounds.top(), target.y(), bounds.bottom() - m_toolOptionsPad->height() + 1));
-    }
-    m_toolOptionsPad->move(target);
-}
-
-void QuickAdjustDock::returnToolOptionsDocker()
-{
-    if (m_toolOptionsDocker && m_borrowedToolOptions) {
-        if (m_toolOptionsPad && m_toolOptionsPad->layout())
-            m_toolOptionsPad->layout()->removeWidget(m_borrowedToolOptions);
-        m_toolOptionsDocker->setWidget(m_borrowedToolOptions);
-        m_borrowedToolOptions->setParent(m_toolOptionsDocker);
-        m_toolOptionsDocker->toggleViewAction()->setEnabled(true);
-        m_toolOptionsDocker->setVisible(m_toolOptionsDockerWasVisible);
-    }
-    if (m_toolOptionsPlaceholder)
-        m_toolOptionsPlaceholder->deleteLater();
-    if (m_toolOptionsPad)
-        m_toolOptionsPad->deleteLater();
-    m_toolOptionsDocker.clear();
-    m_borrowedToolOptions.clear();
-    m_toolOptionsPlaceholder.clear();
-    m_toolOptionsPad.clear();
-}
-
 void QuickAdjustDock::moveEvent(QMoveEvent *event)
 {
     QDockWidget::moveEvent(event);
-    positionToolOptionsPad();
+    if (m_toolOptions)
+        m_toolOptions->position();
 }
 
 void QuickAdjustDock::resizeEvent(QResizeEvent *event)
 {
     QDockWidget::resizeEvent(event);
-    positionToolOptionsPad();
+    if (m_toolOptions)
+        m_toolOptions->position();
 }
 
 void QuickAdjustDock::showEvent(QShowEvent *event)
 {
     QDockWidget::showEvent(event);
     if (m_toolOptionsToggle && m_toolOptionsToggle->isChecked())
-        setToolOptionsPadVisible(true);
+        m_toolOptions->setVisible(true);
+    // catch up with what changed while the dock was hidden, then follow
+    syncFromCanvas();
+    m_syncTimer->start();
 }
 
 void QuickAdjustDock::hideEvent(QHideEvent *event)
 {
-    if (m_toolOptionsPad)
-        m_toolOptionsPad->hide();
+    m_syncTimer->stop();
+    if (m_toolOptions)
+        m_toolOptions->hide();
     QDockWidget::hideEvent(event);
-}
-
-QWidget *QuickAdjustDock::createColorHistoryWidget()
-{
-    const KConfigGroup config = KSharedConfig::openConfig()->group(QStringLiteral("QuickAccessAdjust"));
-    const int colorCount = qBound(2, config.readEntry("ColorHistoryTotal", 14), 40);
-    const int columns = (colorCount + 1) / 2;
-    const int buttonSize = qBound(16, config.readEntry("ColorHistoryIconSize", 30), 64);
-
-    auto *group = new QWidget(this);
-    auto *grid = new QGridLayout(group);
-    grid->setContentsMargins(4, 4, 4, 4);
-    grid->setHorizontalSpacing(1);
-    grid->setVerticalSpacing(1);
-    for (int i = 0; i < colorCount; ++i) {
-        auto *button = new QToolButton(group);
-        button->setFixedSize(buttonSize, buttonSize);
-        button->setAutoRaise(false);
-        connect(button, &QToolButton::clicked, this, [this, i] {
-            selectHistoryColor(i);
-        });
-        grid->addWidget(button, i / columns, i % columns);
-        m_colorButtons.append(button);
-    }
-    grid->setColumnStretch(columns, 1);
-    updateColorHistoryButtons();
-    return group;
-}
-
-QWidget *QuickAdjustDock::createBrushHistoryWidget()
-{
-    const KConfigGroup config = KSharedConfig::openConfig()->group(QStringLiteral("QuickAccessAdjust"));
-    const int brushCount = qBound(2, config.readEntry("BrushHistoryTotal", 14), 40);
-    const int columns = (brushCount + 1) / 2;
-    const int buttonSize = qBound(16, config.readEntry("BrushHistoryIconSize", 34), 64);
-
-    auto *group = new QWidget(this);
-    auto *grid = new QGridLayout(group);
-    grid->setContentsMargins(4, 4, 4, 4);
-    grid->setHorizontalSpacing(1);
-    grid->setVerticalSpacing(1);
-    for (int i = 0; i < brushCount; ++i) {
-        auto *button = new QToolButton(group);
-        button->setFixedSize(buttonSize, buttonSize);
-        button->setIconSize(QSize(buttonSize - 4, buttonSize - 4));
-        button->setStyleSheet(
-            QStringLiteral("QToolButton { background-color: #b0b0b0; border: 1px solid #888; border-radius: 4px; }"));
-        connect(button, &QToolButton::clicked, this, [this, i] {
-            selectHistoryBrush(i);
-        });
-        grid->addWidget(button, i / columns, i % columns);
-        m_brushButtons.append(button);
-    }
-    grid->setColumnStretch(columns, 1);
-    updateBrushHistoryButtons();
-    return group;
 }
 
 QWidget *QuickAdjustDock::createBrushToggleWidget()
@@ -647,63 +434,6 @@ QWidget *QuickAdjustDock::createBrushToggleWidget()
     return widget;
 }
 
-void QuickAdjustDock::loadColorHistory()
-{
-    m_colorHistory = m_resourceProvider ? m_resourceProvider->colorHistory() : QList<KoColor>();
-    while (m_colorHistory.size() > m_colorButtons.size())
-        m_colorHistory.removeLast();
-    updateColorHistoryButtons();
-}
-
-void QuickAdjustDock::updateColorHistoryButtons()
-{
-    for (int i = 0; i < m_colorButtons.size(); ++i) {
-        QToolButton *button = m_colorButtons.at(i);
-        if (i < m_colorHistory.size()) {
-            const QColor color = m_colorHistory.at(i).toQColor();
-            button->setEnabled(true);
-            button->setToolTip(i18nc("@info:tooltip", "RGB: %1, %2, %3", color.red(), color.green(), color.blue()));
-            button->setStyleSheet(
-                QStringLiteral("QToolButton { background-color: %1; border: 1px solid #888; border-radius: 4px; }")
-                    .arg(color.name(QColor::HexArgb)));
-        } else {
-            button->setEnabled(false);
-            button->setToolTip(QString());
-            button->setStyleSheet(QStringLiteral(
-                "QToolButton { background-color: #b0b0b0; border: 1px solid #888; border-radius: 4px; }"));
-        }
-    }
-}
-
-void QuickAdjustDock::selectHistoryColor(int index)
-{
-    if (m_resourceProvider && index >= 0 && index < m_colorHistory.size())
-        m_resourceProvider->setFGColor(m_colorHistory.at(index));
-}
-
-void QuickAdjustDock::updateBrushHistoryButtons()
-{
-    for (int i = 0; i < m_brushButtons.size(); ++i) {
-        QToolButton *button = m_brushButtons.at(i);
-        if (i < m_brushHistory.size() && m_brushHistory.at(i)) {
-            const KisPaintOpPresetSP preset = m_brushHistory.at(i);
-            button->setEnabled(true);
-            button->setIcon(QIcon(QPixmap::fromImage(preset->image())));
-            button->setToolTip(i18nc("@info:tooltip", "Brush: %1", preset->name()));
-        } else {
-            button->setEnabled(false);
-            button->setIcon(QIcon());
-            button->setToolTip(QString());
-        }
-    }
-}
-
-void QuickAdjustDock::selectHistoryBrush(int index)
-{
-    if (m_resourceProvider && index >= 0 && index < m_brushHistory.size())
-        m_resourceProvider->setPaintOpPreset(m_brushHistory.at(index));
-}
-
 QToolButton *QuickAdjustDock::createStatusButton(const QString &toolTip, const QString &iconName)
 {
     auto *button = new QToolButton(this);
@@ -719,6 +449,13 @@ QToolButton *QuickAdjustDock::createStatusButton(const QString &toolTip, const Q
 void QuickAdjustDock::updateStatusButtons()
 {
     auto setStateIcon = [](QToolButton *button, bool active) {
+        // This runs on every tick of the sync timer: build and set the icon
+        // only when the state it shows changes. A click may have toggled a
+        // checkable button already, so the checked state is compared too.
+        const QVariant shown = button->property("quickAccessShownState");
+        if (shown.isValid() && shown.toBool() == active && (!button->isCheckable() || button->isChecked() == active))
+            return;
+        button->setProperty("quickAccessShownState", active);
         const QString name = button->property("quickAccessIconName").toString();
         const QString separator = name == QStringLiteral("rotate") ? QStringLiteral("-") : QStringLiteral("_");
         button->setIcon(QIcon(QStringLiteral(":/quickaccess/quick_adjust/%1%2%3.png")
@@ -794,7 +531,7 @@ void QuickAdjustDock::syncFromCanvas()
         selectBlendMode(m_layerBlend, node->compositeOpId());
     }
     updateStatusButtons();
-    resizeToolOptionsPad();
+    m_toolOptions->resizeToContent();
     m_syncing = false;
 }
 
@@ -859,43 +596,6 @@ void QuickAdjustDock::slotResetBrush()
         action->trigger();
         QTimer::singleShot(150, this, &QuickAdjustDock::syncFromCanvas);
     }
-}
-
-void QuickAdjustDock::slotForegroundColorChanged(const KoColor &color)
-{
-    if (!m_resourceProvider || m_resourceProvider->eraserMode())
-        return;
-    m_colorHistory.removeAll(color);
-    m_colorHistory.prepend(color);
-    while (m_colorHistory.size() > m_colorButtons.size())
-        m_colorHistory.removeLast();
-    m_resourceProvider->setColorHistory(m_colorHistory);
-    updateColorHistoryButtons();
-}
-
-void QuickAdjustDock::slotBrushPresetChanged(const KisPaintOpPresetSP preset)
-{
-    if (!preset)
-        return;
-    if (!m_brushToggleButtons.isEmpty()) {
-        const KisPaintOpSettingsSP settings = preset->settings();
-        for (auto it = m_brushToggleButtons.begin(); it != m_brushToggleButtons.end(); ++it) {
-            const QSignalBlocker blocker(it.value());
-            const bool supported = settings && settings->hasProperty(it.key());
-            it.value()->setEnabled(supported);
-            it.value()->setChecked(supported && settings->getBool(it.key()));
-        }
-    }
-    for (auto it = m_brushHistory.begin(); it != m_brushHistory.end();) {
-        if (*it && (*it)->name() == preset->name())
-            it = m_brushHistory.erase(it);
-        else
-            ++it;
-    }
-    m_brushHistory.prepend(preset);
-    while (m_brushHistory.size() > m_brushButtons.size())
-        m_brushHistory.removeLast();
-    updateBrushHistoryButtons();
 }
 
 QString QuickAdjustDockFactory::id() const

@@ -9,9 +9,9 @@
 #include <KoDockFactoryBase.h>
 #include <kis_mainwindow_observer.h>
 
-#include <QCache>
+#include <assetlibrary/KisAssetLibraryBrowser.h>
+#include <assetlibrary/KisAssetLibrarySettings.h>
 #include <QDockWidget>
-#include <QJsonObject>
 #include <QPixmap>
 #include <QPointer>
 #include <QStringList>
@@ -28,32 +28,8 @@ class QTimer;
 class QVBoxLayout;
 class QWidget;
 
-struct AssetPathEntry {
-    QString alias;
-    QString path;
-    bool includeSubfolders{false};
-    QString extensions{QStringLiteral("kra,jpg,jpeg,png,svg")};
-};
-
-struct AssetLibrarySettings {
-    QVector<AssetPathEntry> paths;
-    int windowWidth{720};
-    int windowHeight{520};
-    QList<int> splitterSizes{150, 570};
-    bool rightPanelHidden{false};
-    int expandedWindowWidth{720};
-    int collapsedWindowWidth{170};
-    bool autoColumns{true};
-    int columns{3};
-    int thumbnailSize{140};
-    int uiFontSize{10};
-    int headerFontSize{10};
-    int assetNameFontSize{10};
-
-    static QString filePath();
-    void load();
-    bool save() const;
-};
+using AssetPathEntry = KisAssetLibraryPathEntry;
+using AssetLibrarySettings = KisAssetLibrarySettings;
 
 class AssetLibraryDock : public QDockWidget, public KisMainwindowObserver
 {
@@ -73,18 +49,13 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private:
-    struct Section {
-        QString title;
-        QStringList files;
-    };
+    using Section = KisAssetLibrarySection;
 
     void buildUi();
     void applySettings();
     void loadFolders();
     void folderChanged(QListWidgetItem *current);
     void refreshAssets();
-    QVector<Section> collectSections() const;
-    QStringList extensions() const;
     void clearAssets(const QString &message = {});
     void populateSections();
     int thumbnailColumns() const;
@@ -99,6 +70,7 @@ private:
     void showSettings();
     void setAssetPanelHidden(bool hidden, bool save);
     void saveRuntimeSettings();
+    void reloadSharedSettings();
 
     AssetLibrarySettings m_settings;
     QPointer<KisViewManager> m_viewManager;
@@ -119,7 +91,7 @@ private:
     QVBoxLayout *m_assetLayout{nullptr};
     QTimer *m_saveTimer{nullptr};
     QTimer *m_layoutTimer{nullptr};
-    QCache<QString, QPixmap> m_thumbnailCache;
+    KisAssetLibraryThumbnailCache m_thumbnailCache;
     int m_currentColumns{0};
 };
 

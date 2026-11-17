@@ -37,6 +37,7 @@ namespace
         "KisToolSelectOutline",
         "KisToolSelectPolygonal",
         "KisToolEncloseAndFill",
+        "KisToolRemoveDust",
         "KisToolPath",
         "KisToolCrop",
         "KisToolSelectPath",

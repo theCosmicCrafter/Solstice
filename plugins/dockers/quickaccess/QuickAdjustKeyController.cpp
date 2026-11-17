@@ -36,12 +36,17 @@ QuickAdjustKeyController::QuickAdjustKeyController(QObject *parent)
 
 QuickAdjustKeyController::~QuickAdjustKeyController()
 {
+    deactivate();
     if (qApp)
         qApp->removeEventFilter(this);
 }
 
-bool QuickAdjustKeyController::eventFilter(QObject *, QEvent *event)
+bool QuickAdjustKeyController::eventFilter(QObject *watched, QEvent *event)
 {
+    if (event->type() == QEvent::ApplicationDeactivate
+        || (event->type() == QEvent::WindowDeactivate && watched == m_activeWindow)) {
+        deactivate();
+    }
     if (event->type() != QEvent::KeyPress && event->type() != QEvent::KeyRelease)
         return false;
     auto *keyEvent = static_cast<QKeyEvent *>(event);
@@ -49,32 +54,47 @@ bool QuickAdjustKeyController::eventFilter(QObject *, QEvent *event)
         return false;
 
     if (event->type() == QEvent::KeyPress) {
-        if (m_mode == Mode::None && !textEditorHasFocus())
+        if (m_mode == Mode::None && ownerWindow() && ownerWindow() == KisPart::instance()->currentMainwindow()
+            && !textEditorHasFocus()) {
+            m_activeWindow = ownerWindow();
+            m_activeViewManager = m_activeWindow->viewManager();
             activateForKey(keyEvent);
+            if (m_mode == Mode::None) {
+                m_activeWindow.clear();
+                m_activeViewManager.clear();
+            }
+        }
     } else if (m_mode != Mode::None && keyEvent->key() == m_activeKey) {
         deactivate();
     }
     return false;
 }
 
+KisMainWindow *QuickAdjustKeyController::ownerWindow() const
+{
+    for (QObject *object = parent(); object; object = object->parent()) {
+        if (auto *window = qobject_cast<KisMainWindow *>(object))
+            return window;
+    }
+    return nullptr;
+}
+
 KisCanvasResourceProvider *QuickAdjustKeyController::resourceProvider() const
 {
-    KisMainWindow *window = KisPart::instance()->currentMainwindow();
-    return window && window->viewManager() ? window->viewManager()->canvasResourceProvider() : nullptr;
+    return m_activeViewManager ? m_activeViewManager->canvasResourceProvider() : nullptr;
 }
 
 bool QuickAdjustKeyController::selectPreset(const KisPaintOpPresetSP &preset) const
 {
     if (!preset)
         return false;
-    KisMainWindow *window = KisPart::instance()->currentMainwindow();
-    if (!window || !window->viewManager())
+    if (!m_activeViewManager)
         return false;
-    if (KisPaintopBox *paintOpBox = window->viewManager()->paintOpBox()) {
+    if (KisPaintopBox *paintOpBox = m_activeViewManager->paintOpBox()) {
         paintOpBox->resourceSelected(preset);
         return true;
     }
-    if (KisCanvasResourceProvider *provider = window->viewManager()->canvasResourceProvider()) {
+    if (KisCanvasResourceProvider *provider = m_activeViewManager->canvasResourceProvider()) {
         provider->setPaintOpPreset(preset);
         return true;
     }
@@ -98,9 +118,9 @@ bool QuickAdjustKeyController::activateForKey(QKeyEvent *event)
         provider->setGlobalAlphaLock(true);
     } else if (matches(event, config.readEntry("SelectOutlineKey", QString()))) {
         m_mode = Mode::FreehandSelection;
-        if (KisMainWindow *window = KisPart::instance()->currentMainwindow()) {
+        if (m_activeViewManager) {
             if (KisAction *action =
-                    window->viewManager()->actionManager()->actionByName(QStringLiteral("KisToolSelectOutline")))
+                    m_activeViewManager->actionManager()->actionByName(QStringLiteral("KisToolSelectOutline")))
                 action->trigger();
         }
     } else {
@@ -149,9 +169,9 @@ void QuickAdjustKeyController::deactivate()
         } else if (m_mode == Mode::PreserveAlpha) {
             provider->setGlobalAlphaLock(m_originalToggleState);
         } else if (m_mode == Mode::FreehandSelection) {
-            if (KisMainWindow *window = KisPart::instance()->currentMainwindow()) {
+            if (m_activeViewManager) {
                 if (KisAction *action =
-                        window->viewManager()->actionManager()->actionByName(QStringLiteral("KritaShape/KisToolBrush")))
+                        m_activeViewManager->actionManager()->actionByName(QStringLiteral("KritaShape/KisToolBrush")))
                     action->trigger();
             }
         } else if (m_mode == Mode::BrushPreset && m_originalPreset) {
@@ -161,6 +181,8 @@ void QuickAdjustKeyController::deactivate()
         }
     }
     m_mode = Mode::None;
+    m_activeWindow.clear();
+    m_activeViewManager.clear();
     m_activeKey = 0;
     m_originalPreset.clear();
     m_sizeScale = 0.0;
@@ -175,10 +197,20 @@ bool QuickAdjustKeyController::matches(QKeyEvent *event, const QString &sequence
     const QKeySequence parsed = QKeySequence::fromString(normalized, QKeySequence::PortableText);
     if (parsed.isEmpty())
         return false;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     const QKeyCombination configured = parsed[0];
+    const int configuredKey = configured.key();
+    const Qt::KeyboardModifiers configuredModifiers = configured.keyboardModifiers();
+#else
+    // In Qt5, QKeySequence::operator[] returns the combined key + modifier int.
+    const int configured = parsed[0];
+    const int configuredKey = configured & ~Qt::KeyboardModifierMask;
+    const Qt::KeyboardModifiers configuredModifiers =
+        Qt::KeyboardModifiers(static_cast<Qt::KeyboardModifier>(configured & Qt::KeyboardModifierMask));
+#endif
     const Qt::KeyboardModifiers relevant =
         event->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
-    return event->key() == configured.key() && relevant == configured.keyboardModifiers();
+    return event->key() == configuredKey && relevant == configuredModifiers;
 }
 
 bool QuickAdjustKeyController::textEditorHasFocus()

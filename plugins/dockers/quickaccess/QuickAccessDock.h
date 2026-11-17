@@ -23,7 +23,7 @@ class QWidget;
 class QuickAccessGestureController;
 class QuickAccessStrokePreviews;
 class QPushButton;
-class QRubberBand;
+class QuickAccessItemDragController;
 
 namespace QuickAccess
 {
@@ -44,10 +44,6 @@ public:
     KisCanvas2 *canvas() const;
     void reloadGestureSettings();
 
-protected:
-    /// Ctrl + left-drag on an item moves it in its grid (see attachItemDrag()).
-    bool eventFilter(QObject *watched, QEvent *event) override;
-
 private Q_SLOTS:
     void slotCurrentTabChanged(int index);
 
@@ -61,11 +57,7 @@ private:
     QWidget *createTabPage(const QuickAccess::Tab &tab);
     QWidget *createItemWidget(const QuickAccess::Item &item);
     void attachItemMenu(QWidget *widget, const QuickAccess::Item &item);
-    /// Ctrl + left-drag moves the item without the Grid Edit dialog.
-    void attachItemDrag(QWidget *widget, const QuickAccess::Item &item);
-    /// The active grid cell (row, column) a Ctrl-drag of @p item points at.
-    QPoint dragTarget(const QuickAccess::Item &item, const QPoint &globalPosition) const;
-    void cancelItemDrag();
+    void moveItem(const QString &itemId, const QPoint &target);
     int cellSize() const;
     QString itemText(const QuickAccess::Item &item) const;
     void activateItem(const QuickAccess::Item &item);
@@ -118,10 +110,7 @@ private:
         bool shown{false};
     };
     QuickAccessStrokePreviews *m_strokePreviews{nullptr};
-    // Ctrl + left-drag of an item: its id, the press position, the target frame.
-    QString m_dragItemId;
-    QPoint m_dragStart;
-    QPointer<QRubberBand> m_dragHighlight;
+    QuickAccessItemDragController *m_itemDrag{nullptr};
     // While the Resources dialog is open, added items fill the grid's last
     // empty row from the left and wrap (as the original plugin does).
     bool m_sequentialPlacement{false};

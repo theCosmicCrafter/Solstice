@@ -8,12 +8,14 @@
 #include <KisColorSelectorConfiguration.h>
 #include <KisViewManager.h>
 #include <KisVisualColorSelector.h>
+#include <KoColorModelStandardIds.h>
 #include <KoColorSpaceRegistry.h>
 #include <kconfiggroup.h>
 #include <kis_canvas2.h>
 #include <kis_canvas_resource_provider.h>
 #include <kis_display_color_converter.h>
 #include <kis_icon_utils.h>
+#include <kis_image.h>
 #include <klocalizedstring.h>
 #include <ksharedconfig.h>
 
@@ -195,6 +197,9 @@ void QuickColorSelectorWidget::setCanvas(KisCanvas2 *canvas)
 {
     if (m_resourceProvider)
         disconnect(m_resourceProvider, nullptr, this, nullptr);
+    for (const QMetaObject::Connection &connection : std::as_const(m_colorSpaceConnections))
+        disconnect(connection);
+    m_colorSpaceConnections.clear();
     m_canvas = canvas;
     m_resourceProvider =
         m_canvas && m_canvas->viewManager() ? m_canvas->viewManager()->canvasResourceProvider() : nullptr;
@@ -203,9 +208,22 @@ void QuickColorSelectorWidget::setCanvas(KisCanvas2 *canvas)
         m_selector->setDisplayRenderer(nullptr);
         return;
     }
-
     m_selector->setDisplayRenderer(m_canvas->displayColorConverter()->displayRendererInterface());
-    m_selector->slotSetColorSpace(m_canvas->displayColorConverter()->nodeColorSpace());
+    // The converter reports current-node and node color space changes; the
+    // image's own signal covers the fallback of selectorColorSpace().
+    m_colorSpaceConnections.append(connect(m_canvas->displayColorConverter(),
+                                           &KisDisplayColorConverter::displayConfigurationChanged,
+                                           this,
+                                           &QuickColorSelectorWidget::slotUpdateColorSpace));
+    if (KisImageSP image = m_canvas->image()) {
+        m_colorSpaceConnections.append(connect(image.data(),
+                                               &KisImage::sigColorSpaceChanged,
+                                               this,
+                                               &QuickColorSelectorWidget::slotUpdateColorSpace));
+        m_colorSpaceConnections.append(
+            connect(image.data(), &KisImage::sigProfileChanged, this, &QuickColorSelectorWidget::slotUpdateColorSpace));
+    }
+    slotUpdateColorSpace();
     connect(m_resourceProvider,
             &KisCanvasResourceProvider::sigFGColorChanged,
             this,
@@ -213,6 +231,33 @@ void QuickColorSelectorWidget::setCanvas(KisCanvas2 *canvas)
     connect(m_resourceProvider, &KisCanvasResourceProvider::sigBGColorChanged, this, [this](const KoColor &) {
         updateSwatches();
     });
+    slotCanvasColorChanged(m_resourceProvider->fgColor());
+}
+
+const KoColorSpace *QuickColorSelectorWidget::selectorColorSpace() const
+{
+    // HueSVC picks hue, saturation and value. A non-RGB node, such as a filter
+    // or fill layer or a mask (their devices are GrayA selections) or a gray
+    // layer, would reduce KisVisualColorSelector to a single lightness bar.
+    const KoColorSpace *node = m_canvas->displayColorConverter()->nodeColorSpace();
+    if (node && node->colorModelId() == RGBAColorModelID)
+        return node;
+    const KisImageSP image = m_canvas->image();
+    if (image && image->colorSpace()->colorModelId() == RGBAColorModelID)
+        return image->colorSpace();
+    return KoColorSpaceRegistry::instance()->rgb8();
+}
+
+void QuickColorSelectorWidget::slotUpdateColorSpace()
+{
+    if (!m_canvas || !m_resourceProvider)
+        return;
+    const KoColorSpace *colorSpace = selectorColorSpace();
+    if (colorSpace == m_colorSpace)
+        return;
+    m_colorSpace = colorSpace;
+    m_selector->slotSetColorSpace(colorSpace);
+    // A new color space resets the selector's color to black.
     slotCanvasColorChanged(m_resourceProvider->fgColor());
 }
 
@@ -366,7 +411,7 @@ void QuickColorSelectorWidget::updateChannelGradients(const QColor &color)
     const QString handle = QStringLiteral(
         " QSlider::handle:horizontal { width: 9px; margin: -3px 0; background: palette(button-text); "
         "border: 1px solid palette(base); }");
-    const auto style = [&handle](const QString &gradient) {
+    const auto style = [&handle](const QString &gradient) -> QString {
         return QStringLiteral(
                    "QSlider::groove:horizontal { height: 9px; border: 1px solid palette(mid); "
                    "background: %1; }")

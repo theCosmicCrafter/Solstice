@@ -1,0 +1,253 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "quick-adjust-controls",
+  "description": "Quick Brush Adjustments sets brush size, opacity, flow and blending mode, reloads the preset, toggles eraser mode and preserve alpha, and sets the layer's opacity and blending mode as undoable steps.",
+  "covers": "Quick Brush Adjustments docker (brush_adjust_docker): Tool Options sliders, blend mode lists, reload button, status buttons, layer controls",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "brush_adjust_docker"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "preset": "b) Basic-5 Size Opacity"
+      },
+      "expect": {
+        "preset": "b) Basic-5 Size Opacity"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "within": "brush_adjust_docker",
+        "toolTip": "Reload the current brush preset"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "preset": "b) Basic-5 Size Opacity",
+        "size": 40,
+        "opacity": 1,
+        "flow": 1,
+        "compositeOp": "normal"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "brush_adjust_docker",
+        "className": "KisDoubleSliderSpinBox",
+        "value": 75
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "brush_adjust_docker",
+        "className": "KisSliderSpinBox",
+        "index": 0,
+        "value": 50
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "brush_adjust_docker",
+        "className": "KisSliderSpinBox",
+        "index": 1,
+        "value": 40
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "brush_adjust_docker",
+        "className": "QComboBox",
+        "index": 0,
+        "value": "Multiply"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "size": 75,
+        "opacity": 0.5,
+        "flow": 0.4,
+        "compositeOp": "multiply"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "within": "brush_adjust_docker",
+        "toolTip": "Reload the current brush preset"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "preset": "b) Basic-5 Size Opacity",
+        "size": 40,
+        "opacity": 1,
+        "flow": 1,
+        "compositeOp": "normal"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "within": "brush_adjust_docker",
+        "toolTip": "Toggle eraser mode"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "eraser": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "within": "brush_adjust_docker",
+        "toolTip": "Toggle eraser mode"
+      },
+      "expect": {
+        "widget.checked": false
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "eraser": false
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "within": "brush_adjust_docker",
+        "toolTip": "Toggle preserve alpha"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "preserveAlpha": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "within": "brush_adjust_docker",
+        "toolTip": "Toggle preserve alpha"
+      },
+      "expect": {
+        "widget.checked": false
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "preserveAlpha": false
+      }
+    },
+    {
+      "call": "query_state",
+      "save": {
+        "commands": "undo.count"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "brush_adjust_docker",
+        "className": "KisSliderSpinBox",
+        "index": 2,
+        "value": 30
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "brush_adjust_docker",
+        "className": "QComboBox",
+        "index": 1,
+        "value": "Screen"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.opacity": 77,
+        "layers.0.compositeOp": "screen"
+      }
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": {
+          "min": 2
+        },
+        "undo.lastCommand": "Composition Mode Change"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.opacity": 255,
+        "layers.0.compositeOp": "normal"
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    }
+  ]
+}

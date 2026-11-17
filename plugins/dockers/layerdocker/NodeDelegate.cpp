@@ -109,6 +109,17 @@ QSize NodeDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelInd
     return QSize(option.rect.width(), d->rowHeight);
 }
 
+namespace
+{
+bool hasTrueProperty(const QModelIndex &index, const KoID &id)
+{
+    const KisBaseNode::PropertyList props = index.data(KisNodeModel::PropertiesRole).value<KisBaseNode::PropertyList>();
+    return std::any_of(props.begin(), props.end(), [&id](const KisBaseNode::Property &prop) {
+        return prop.id == id.id() && prop.state.toBool();
+    });
+}
+} // namespace
+
 void NodeDelegate::paint(QPainter *p, const QStyleOptionViewItem &o, const QModelIndex &index) const
 {
     p->save();
@@ -310,6 +321,14 @@ void NodeDelegate::drawThumbnail(QPainter *p, const QStyleOptionViewItem &option
 
     QRect borderRect = kisGrowRect(imageRectLowRes, 1).translated(offset);
     KritaUtils::renderExactRect(p, borderRect, scm.gridColor(option, d->view));
+
+    // Solstice: a bar beside the thumbnail marks a clipped layer; it uses the
+    // clipping icon's accent, which stays visible on a selected row
+    if (hasTrueProperty(index, KisLayerPropertiesIcons::clipping)) {
+        const int barWidth = 2;
+        const int x = option.direction == Qt::RightToLeft ? borderRect.right() + 2 : borderRect.left() - 2 - barWidth;
+        p->fillRect(QRect(x, borderRect.top(), barWidth, borderRect.height()), QColor(0xf6, 0x74, 0x00));
+    }
 }
 
 QRect NodeDelegate::iconsRect(const QStyleOptionViewItem &option, const QModelIndex &index) const
@@ -445,7 +464,14 @@ QList<OptionalProperty> NodeDelegate::Private::rightmostProperties(const KisBase
         } else if (it->id == KisLayerPropertiesIcons::locked.id()) {
             list[0] = OptionalProperty(&(*it));
         } else if (it->id == KisLayerPropertiesIcons::inheritAlpha.id()) {
-            list[1] = OptionalProperty(&(*it));
+            if (!list[1]) {
+                list[1] = OptionalProperty(&(*it));
+            }
+        } else if (it->id == KisLayerPropertiesIcons::clipping.id()) {
+            // Solstice: clipping excludes inherit alpha and takes its slot when on
+            if (it->state.toBool()) {
+                list[1] = OptionalProperty(&(*it));
+            }
         } else if (it->id == KisLayerPropertiesIcons::alphaLocked.id()) {
             list[2] = OptionalProperty(&(*it));
         } else {
@@ -1143,6 +1169,22 @@ bool NodeDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, const Q
                 }
 
                 KisBaseNode::PropertyList props = index.data(KisNodeModel::PropertiesRole).value<KisBaseNode::PropertyList>();
+
+                // Solstice: Alt+click on the inherit alpha slot toggles clipping
+                if (mouseEvent->modifiers() == Qt::AltModifier
+                    && (clickedProperty->id == KisLayerPropertiesIcons::inheritAlpha.id()
+                        || clickedProperty->id == KisLayerPropertiesIcons::clipping.id())) {
+                    auto clipping = std::find_if(
+                        props.begin(),
+                        props.end(),
+                        kismpl::mem_equal_to(&KisBaseNode::Property::id, KisLayerPropertiesIcons::clipping.id()));
+                    if (clipping != props.end()) {
+                        KisBaseNode::Property clippingProperty = *clipping;
+                        d->toggleProperty(props, &clippingProperty, Qt::NoModifier, index);
+                    }
+                    return true;
+                }
+
                 d->toggleProperty(props, &(*clickedProperty), mouseEvent->modifiers(), index);
                 return true;
             }

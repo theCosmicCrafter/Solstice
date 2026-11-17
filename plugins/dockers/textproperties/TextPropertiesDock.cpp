@@ -15,6 +15,7 @@
 #include <QColorDialog>
 
 #include <KisQQuickWidget.h>
+#include <KisScopedPerformanceLogger.h>
 
 #include <KisViewManager.h>
 #include <kis_canvas_resource_provider.h>
@@ -43,13 +44,9 @@ TextPropertiesDock::TextPropertiesDock()
 
     m_quickWidget->setMinimumHeight(100);
 
-    m_quickWidget->setSource(QUrl("qrc:/TextProperties.qml"));
-
-    if (!m_quickWidget->errors().empty()) {
-        qWarning() << "Errors in " << windowTitle() << ":" << m_quickWidget->errors();
-    } else {
-        m_quickWidget->rootObject()->setProperty("canvasObserver", QVariant::fromValue(d->canvasObserver));
-    }
+    // Solstice: the QML is loaded when the docker's contents are first
+    // shown, see loadContents().
+    m_quickWidget->installEventFilter(this);
 
     m_quickWidget->setPalette(this->palette());
 }
@@ -57,6 +54,39 @@ TextPropertiesDock::TextPropertiesDock()
 TextPropertiesDock::~TextPropertiesDock()
 {
     delete m_quickWidget;
+}
+
+bool TextPropertiesDock::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_quickWidget && event->type() == QEvent::Show) {
+        loadContents();
+    }
+    return QDockWidget::eventFilter(watched, event);
+}
+
+void TextPropertiesDock::loadContents()
+{
+    /**
+     * Solstice: every main window creates all dockers at start, hidden ones
+     * too. Loading this docker's QML (an engine and about 44 files) took
+     * about one second of each start, so it waits until the contents are
+     * shown for the first time. The canvas observer does not depend on the
+     * QML: it follows the canvas from the start, and the QML reads its
+     * current state when it is created.
+     */
+    if (m_contentsLoaded)
+        return;
+    m_contentsLoaded = true;
+
+    KisScopedPerformanceLogger logger(QStringLiteral("TextPropertiesDock::loadContents"));
+
+    m_quickWidget->setSource(QUrl("qrc:/TextProperties.qml"));
+
+    if (!m_quickWidget->errors().empty()) {
+        qWarning() << "Errors in " << windowTitle() << ":" << m_quickWidget->errors();
+    } else {
+        m_quickWidget->rootObject()->setProperty("canvasObserver", QVariant::fromValue(d->canvasObserver));
+    }
 }
 
 QString TextPropertiesDock::observerName()

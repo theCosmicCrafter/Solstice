@@ -10,6 +10,7 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QSaveFile>
+#include <klocalizedstring.h>
 
 namespace QuickAccess
 {
@@ -51,7 +52,7 @@ bool ProfileRepository::save(const Document &document, QString *error) const
     const QFileInfo info(m_path);
     if (!QDir().mkpath(info.absolutePath())) {
         if (error)
-            *error = QStringLiteral("Could not create profile directory '%1'.").arg(info.absolutePath());
+            *error = i18n("Could not create the profile folder '%1'.", info.absolutePath());
         return false;
     }
     QSaveFile file(m_path);

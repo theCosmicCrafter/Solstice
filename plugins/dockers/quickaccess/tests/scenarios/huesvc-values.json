@@ -1,0 +1,151 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "huesvc-values",
+  "description": "The HueSVC docker's H, S, V and R, G, B rows set the foreground color.",
+  "covers": "HueSVC (QuickColorSelectorWidget) value rows and the canvas foreground color",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "HueSVC"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#000000"
+      },
+      "expect": {
+        "color": "#000000"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "HueSVC",
+        "className": "QSpinBox",
+        "index": 2,
+        "value": 100
+      },
+      "expect": {
+        "widget.value": 100
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "color": "#ffffff"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "HueSVC",
+        "className": "QSpinBox",
+        "index": 1,
+        "value": 100
+      },
+      "expect": {
+        "widget.value": 100
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "color": "#ff0000"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "HueSVC",
+        "className": "QSpinBox",
+        "index": 0,
+        "value": 120
+      },
+      "expect": {
+        "widget.value": 120
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "color": "#00ff00"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "HueSVC",
+        "className": "QSpinBox",
+        "index": 5,
+        "value": 100
+      },
+      "expect": {
+        "widget.value": 100
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "color": "#00ffff"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "HueSVC",
+        "className": "QSpinBox",
+        "index": 3,
+        "value": 50
+      },
+      "expect": {
+        "widget.value": 50
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "color": "#80ffff"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "within": "HueSVC",
+        "className": "QSpinBox",
+        "index": 4,
+        "value": 0
+      },
+      "expect": {
+        "widget.value": 0
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "color": "#8000ff"
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    }
+  ]
+}

@@ -108,6 +108,9 @@ PaletteDockerDock::PaletteDockerDock( )
     connect(m_model, SIGNAL(sigPaletteModified()), SLOT(slotUpdateLblPaletteName()));
     connect(m_ui->cmbNameList, SIGNAL(sigColorSelected(const KoColor&)), SLOT(slotNameListSelection(const KoColor&)));
     connect(m_ui->bnLock, SIGNAL(toggled(bool)), SLOT(slotLockPalette(bool)));
+    // Connected once: slotSetColorSet() runs on every palette switch.
+    connect(m_ui->bnUndo, SIGNAL(clicked()), this, SLOT(undo()));
+    connect(m_ui->bnRedo, SIGNAL(clicked()), this, SLOT(redo()));
 
     m_viewContextMenu.addAction(m_actModify.data());
     m_viewContextMenu.addAction(m_actRemove.data());
@@ -141,6 +144,9 @@ PaletteDockerDock::PaletteDockerDock( )
 
         m_ui->paletteView->setAllowModification(false);
     }
+
+    m_ui->bnUndo->setIcon(KisIconUtils::loadIcon("edit-undo"));
+    m_ui->bnRedo->setIcon(KisIconUtils::loadIcon("edit-redo"));
 
     //m_ui->bnUndo->setVisible(false);
     //m_ui->bnRedo->setVisible(false);
@@ -220,6 +226,8 @@ void PaletteDockerDock::slotImportPalette()
 
 void PaletteDockerDock::slotExportPalette(KoColorSetSP palette)
 {
+    KIS_SAFE_ASSERT_RECOVER_RETURN(palette);
+
     KoFileDialog dialog(this, KoFileDialog::SaveFile, "Save Palette");
     dialog.setCaption(i18n("Export Palette"));
     dialog.setDefaultDir(palette->filename());
@@ -290,27 +298,27 @@ void PaletteDockerDock::slotSetColorSet(KoColorSetSP colorSet)
         m_model->setColorSet(colorSet);
 
         m_ui->bnUndo->setEnabled(colorSet->undoStack()->canUndo() && !colorSet->isLocked());
-        connect(colorSet->undoStack(), SIGNAL(canUndoChanged(bool)), m_ui->bnUndo, SLOT(setEnabled(bool)));
+        connect(colorSet->undoStack(),
+                &KUndo2Stack::canUndoChanged,
+                this,
+                [bnUndo = m_ui->bnUndo, colorSet = colorSet](bool canUndo) {
+                    bnUndo->setEnabled(!colorSet->isLocked() && canUndo);
+                });
         connect(colorSet->undoStack(), SIGNAL(undoTextChanged(QString)), this, SLOT(setUndoToolTip(QString)));
 
         m_ui->bnRedo->setEnabled(colorSet->undoStack()->canRedo() && colorSet->isLocked());
-        connect(colorSet->undoStack(), SIGNAL(canRedoChanged(bool)), m_ui->bnRedo, SLOT(setEnabled(bool)));
+        connect(colorSet->undoStack(),
+                &KUndo2Stack::canRedoChanged,
+                this,
+                [bnRedo = m_ui->bnRedo, colorSet = colorSet](bool canRedo) {
+                    bnRedo->setEnabled(!colorSet->isLocked() && canRedo);
+                });
         connect(colorSet->undoStack(), SIGNAL(redoTextChanged(QString)), this, SLOT(setRedoToolTip(QString)));
 
-        connect(m_ui->bnUndo, SIGNAL(clicked()), this, SLOT(undo()));
-        connect(m_ui->bnRedo, SIGNAL(clicked()), this, SLOT(redo()));
-
+        // m_currentColorSet is still the previous palette here, so toggled()
+        // must not reach slotLockPalette(); the call below updates the UI.
+        QSignalBlocker lockBlocker(m_ui->bnLock);
         m_ui->bnLock->setChecked(colorSet->isLocked());
-    }
-    bool state = (bool)colorSet;
-    if (state != (bool)m_currentColorSet) {
-        m_ui->bnAdd->setEnabled(state);
-        m_ui->bnRename->setEnabled(state);
-        m_ui->bnRemove->setEnabled(state);
-        m_ui->bnEditPalette->setEnabled(state);
-        m_ui->bnSavePalette->setEnabled(state);
-        m_ui->paletteView->setAllowModification(state);
-        m_ui->bnLock->setEnabled(state);
     }
 
     m_currentColorSet = colorSet;
@@ -325,6 +333,7 @@ void PaletteDockerDock::slotSetColorSet(KoColorSetSP colorSet)
         m_ui->lblPaletteName->setText("");
     }
     slotUpdateLblPaletteName();
+    slotLockPalette(!colorSet || colorSet->isLocked());
 }
 
 void PaletteDockerDock::slotEditPalette()
@@ -423,16 +432,20 @@ void PaletteDockerDock::slotUpdateLblPaletteName()
 
 void PaletteDockerDock::slotLockPalette(bool locked)
 {
-    m_currentColorSet->setLocked(locked);
+    if (m_currentColorSet && m_currentColorSet->isLocked() != locked) {
+        m_currentColorSet->setLocked(locked);
+    }
     QIcon icon = locked ? KisIconUtils::loadIcon(koIconName("object-locked"))
                         : KisIconUtils::loadIcon(koIconName("object-unlocked"));
     m_ui->bnLock->setIcon(icon);
-    m_ui->bnAdd->setEnabled(!locked);
-    m_ui->bnRename->setEnabled(!locked);
-    m_ui->bnRemove->setEnabled(!locked);
-    m_ui->bnEditPalette->setEnabled(!locked);
-    m_ui->bnSavePalette->setEnabled(!locked);
-    m_ui->paletteView->setAllowModification(!locked);
+    m_ui->bnUndo->setEnabled(!locked && m_currentColorSet && m_currentColorSet->undoStack()->canUndo());
+    m_ui->bnRedo->setEnabled(!locked && m_currentColorSet && m_currentColorSet->undoStack()->canRedo());
+    m_ui->bnAdd->setEnabled(!locked && m_currentColorSet);
+    m_ui->bnRename->setEnabled(!locked && m_currentColorSet);
+    m_ui->bnRemove->setEnabled(!locked && m_currentColorSet);
+    m_ui->bnEditPalette->setEnabled(!locked && m_currentColorSet);
+    m_ui->bnSavePalette->setEnabled(!locked && m_currentColorSet);
+    m_ui->paletteView->setAllowModification(!locked && m_currentColorSet);
 }
 
 void PaletteDockerDock::setUndoToolTip(const QString &text)
@@ -447,12 +460,14 @@ void PaletteDockerDock::setRedoToolTip(const QString &text)
 
 void PaletteDockerDock::undo()
 {
+    if (!m_currentColorSet) return;
     m_currentColorSet->undoStack()->undo();
     slotUpdateLblPaletteName();
 }
 
 void PaletteDockerDock::redo()
 {
+    if (!m_currentColorSet) return;
     m_currentColorSet->undoStack()->redo();
     slotUpdateLblPaletteName();
 }

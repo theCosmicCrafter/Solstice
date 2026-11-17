@@ -1,4 +1,4 @@
-set(KRITA_COMPOSITIONDOCKER_SOURCES compositionmodel.cpp compositiondocker.cpp compositiondocker_dock.cpp )
+set(KRITA_COMPOSITIONDOCKER_SOURCES compositionmodel.cpp compositiondocker.cpp compositiondocker_dock.cpp CompositionDocumentState.cpp)
 
 ki18n_wrap_ui(KRITA_COMPOSITIONDOCKER_SOURCES
     wdgcompositiondocker.ui
@@ -7,3 +7,7 @@ ki18n_wrap_ui(KRITA_COMPOSITIONDOCKER_SOURCES
 kis_add_library(kritacompositiondocker MODULE ${KRITA_COMPOSITIONDOCKER_SOURCES})
 target_link_libraries(kritacompositiondocker kritaui)
 install(TARGETS kritacompositiondocker DESTINATION ${KRITA_PLUGIN_INSTALL_DIR})
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

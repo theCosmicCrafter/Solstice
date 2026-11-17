@@ -6,43 +6,18 @@
 #ifndef RESTNOTEDOCK_H
 #define RESTNOTEDOCK_H
 
+#include "RestNoteConfig.h"
+#include "RestNoteTimer.h"
+
 #include <KoDockFactoryBase.h>
 
-#include <QDateTime>
 #include <QDockWidget>
-#include <QJsonObject>
 #include <QPointer>
 
 class QLabel;
 class QPushButton;
 class QTimer;
 class QWidget;
-
-struct RestNoteConfig {
-    int workMinutes{50};
-    int breakMinutes{10};
-    bool microEnabled{true};
-    int microIntervalMinutes{20};
-    int microDurationSeconds{20};
-    int microSkipThresholdSeconds{180};
-    bool idleEnabled{true};
-    int idleThresholdSeconds{45};
-    int toastMargin{128};
-    int toastWidth{480};
-    int toastHeight{220};
-    int toastTitleFontSize{28};
-    int toastMessageFontSize{24};
-    int overlayTitleFontSize{50};
-    int overlayMessageFontSize{32};
-    int overlaySkipFontSize{18};
-
-    int workSeconds() const;
-    int breakSeconds() const;
-    int microIntervalSeconds() const;
-    static QString filePath();
-    void load();
-    bool save() const;
-};
 
 class RestNoteDock : public QDockWidget
 {
@@ -60,13 +35,7 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
 private:
-    enum class State {
-        Running,
-        Paused,
-        Break,
-        MicroBreak,
-        Idle
-    };
+    using State = RestNoteTimer::State;
 
     void buildUi();
     void updateSizing();
@@ -74,7 +43,8 @@ private:
     void refreshDisplay();
     void startBigBreak();
     void endBigBreak();
-    void maybeStartMicroBreak();
+    void showBigBreak();
+    void showMicroBreak();
     void endMicroBreak();
     void cancelTransientWindows();
     void showSettings();
@@ -83,10 +53,7 @@ private:
     QScreen *currentScreen() const;
 
     RestNoteConfig m_config;
-    State m_state{State::Running};
-    int m_remaining{0};
-    int m_microRemaining{0};
-    QDateTime m_lastActivity;
+    RestNoteTimer m_timer;
     QTimer *m_tickTimer{nullptr};
     bool m_active{false};
     QWidget *m_root{nullptr};
