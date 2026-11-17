@@ -10,6 +10,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
+#include <QSaveFile>
 #include <QTextStream>
 
 int KisLazyToolsRenamePresets::colorLabelIndex(const QString &name)
@@ -83,13 +84,13 @@ QString KisLazyToolsRenamePresets::readText(const QString &path, bool *opened)
 bool KisLazyToolsRenamePresets::writeText(const QString &path, const QString &text)
 {
     QDir().mkpath(QFileInfo(path).absolutePath());
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate))
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
         return false;
     QTextStream stream(&file);
     stream << text;
     stream.flush();
-    return stream.status() == QTextStream::Ok;
+    return stream.status() == QTextStream::Ok && file.commit();
 }
 
 void KisLazyToolsRenamePresets::append(const QString &path, const QString &name, int label)
@@ -107,10 +108,14 @@ void KisLazyToolsRenamePresets::append(const QString &path, const QString &name,
     const QString newLine = label > 0 ? QStringLiteral("%1, %2").arg(name, colorLabelName(label)) : name;
     if (!lines.contains(newLine)) {
         lines << newLine;
-        QFile output(path);
-        if (output.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        QSaveFile output(path);
+        if (output.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QTextStream stream(&output);
             stream << lines.join(QLatin1Char('\n'));
+            stream.flush();
+            if (stream.status() != QTextStream::Ok || !output.commit()) {
+                output.cancelWriting();
+            }
         }
     }
 }

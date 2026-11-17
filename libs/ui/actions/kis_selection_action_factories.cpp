@@ -280,6 +280,7 @@ void KisCutCopyActionFactory::run(Flags flags, KisViewManager *view)
                 KisPaintDeviceSP dev = new KisPaintDevice(*node->projection());
                 // might have to change node's name (vector to paint layer)
                 dupNode = new KisPaintLayer(image, node->name(), node->opacity(), dev);
+                dupNode->setCompositeOpId(node->compositeOpId());
             } else {
                 dupNode = node->clone();
             }

@@ -215,7 +215,7 @@ void KisViewResVectorDecoration::drawDecoration(QPainter &gc,
             cache.vectorPatches.clear();
             cache.vectorComplete = devicePixels <= maxJobDevicePixels && numShapes <= maxShapesPerJob;
             if (cache.vectorComplete) {
-                const QPointF anchor = converter->imageToWidget(QPointF(job.docRect.topLeft()));
+                const QPointF anchor = converter->imageToWidget(QRectF(job.docRect)).topLeft();
                 const QTransform patchTransform = QTransform::fromTranslate(-anchor.x(), -anchor.y()) * dtw;
 
                 for (int i = 0; i < job.units.size(); i++) {
@@ -289,7 +289,7 @@ void KisViewResVectorDecoration::drawDecoration(QPainter &gc,
         if (clip.isEmpty())
             continue;
 
-        const QPointF anchor = converter->imageToWidget(QPointF(job.docRect.topLeft()));
+        const QPointF anchor = converter->imageToWidget(QRectF(job.docRect)).topLeft();
 
         // backdrop: peeled composite of everything outside the job
         gc.save();

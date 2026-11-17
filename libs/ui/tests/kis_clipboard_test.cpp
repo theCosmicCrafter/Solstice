@@ -331,7 +331,7 @@ void KisClipboardTest::testLoadFromKraUrl()
     QFETCH(bool, expectedSameDstDefaultPixel);
     QFETCH(QRect, expectedDstExactBounds);
 
-    const QString outputFilePath = QString("%1/test-load-from-kra-url-%2-%3.png").arg(FILES_OUTPUT_DIR).arg(defaultPixelName).arg(testMode);
+    const QString outputFilePath = QString("%1/test-load-from-kra-url-%2-%3.kra").arg(FILES_OUTPUT_DIR).arg(defaultPixelName).arg(testMode);
 
     const QSize imageSize(100,100);
     const QRect fillRect(20,20,40,40);

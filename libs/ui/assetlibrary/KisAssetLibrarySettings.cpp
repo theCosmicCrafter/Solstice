@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QSaveFile>
 #include <algorithm>
 #include <kconfiggroup.h>
 #include <ksharedconfig.h>
@@ -182,10 +183,11 @@ bool KisAssetLibrarySettings::saveLayout(const QString &path) const
 
 bool KisAssetLibrarySettings::write(const QString &path, const QJsonObject &object) const
 {
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate) || file.write(QJsonDocument(object).toJson()) < 0)
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(QJsonDocument(object).toJson()) < 0)
         return false;
-    file.close();
+    if (!file.commit())
+        return false;
     Q_EMIT KisAssetLibrarySettingsNotifier::instance()->sigSaved();
     return true;
 }

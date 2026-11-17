@@ -237,7 +237,7 @@ KisPaintDeviceSP KisMimeData::clipFromKritaLayersImpl(const KoColorSpace *cs, co
 
         // returns a device without default bounds set!
         return tempImage->projection();
-    } else if (!nodes.isEmpty()) {
+    } else if (!nodes.isEmpty() && nodes.first()->projection()) {
 
         KisPaintDeviceSP dev = new KisPaintDevice(*nodes.first()->projection());
         if (!referenceImageRect.topLeft().isNull()) {
@@ -649,7 +649,7 @@ bool KisMimeData::insertMimeLayers(const QMimeData *data,
     const QRect clipVisualBounds = std::accumulate(nodes.begin(), nodes.end(), QRect(), [](QRect rect, KisNodeSP node) {
         // we don't use exactBounds() here, because the nodes are
         // not connected to any image and may be infinite
-        return rect | node->projection()->nonDefaultPixelArea();
+        return node->projection() ? rect | node->projection()->nonDefaultPixelArea() : rect;
     });
 
     QRect clipBounds;
@@ -664,7 +664,7 @@ bool KisMimeData::insertMimeLayers(const QMimeData *data,
 
     if (preferredClipCenter) {
         offset = *preferredClipCenter - clipBounds.center();
-    } else if (!image->bounds().intersects(clipVisualBounds)) {
+    } else if (copyNode && !image->bounds().intersects(clipVisualBounds)) {
         offset = image->bounds().center() - clipVisualBounds.center();
     }
 
