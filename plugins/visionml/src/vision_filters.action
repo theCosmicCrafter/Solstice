@@ -26,7 +26,7 @@
       <isCheckable>false</isCheckable>
       <statusTip/>
     </Action>
-    <Action name="krita_filter_esrgan">
+    <Action name="krita_filter_esrgan_restoration">
       <icon/>
       <text>ESRGAN Super-Resolution...</text>
       <whatsThis/>

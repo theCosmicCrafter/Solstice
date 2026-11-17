@@ -147,6 +147,20 @@ void DepthMapFilter::processImpl(KisPaintDeviceSP device,
         invert = configValue.toBool();
     }
 
+    if (QVariant configValue; config->getProperty("backend", configValue)) {
+        const auto backend =
+            configValue.toString() == "gpu" ? visp::backend_type::gpu : visp::backend_type::cpu;
+        if (backend != m_vision->backend()) {
+            m_vision->setBackend(backend);
+        }
+    }
+    if (QVariant configValue; config->getProperty("model", configValue)) {
+        const QString model = configValue.toString();
+        if (!model.isEmpty() && model != m_vision->modelName(VisionMLTask::depth_estimation)) {
+            m_vision->setModelName(VisionMLTask::depth_estimation, model);
+        }
+    }
+
     try {
         visp::image_data depth = m_vision->estimateDepth(image.view);
         if (progressUpdater)

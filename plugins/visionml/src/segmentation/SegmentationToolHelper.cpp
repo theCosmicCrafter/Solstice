@@ -380,6 +380,7 @@ void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
                                                              image,
                                                              strokeId,
                                                              region,
+                                                             bounds,
                                                              polygon,
                                                              selection,
                                                              options,
@@ -405,6 +406,8 @@ void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
                     return nullptr;
                 }
                 VisionMLMatte::expandRegionToMin(effectiveRegion, mergedBounds, 64);
+            } else {
+                VisionMLMatte::expandRegionToMin(effectiveRegion, bounds, 64);
             }
 
             VisionMLImage inputImg = VisionMLImage::prepare(*inputImage, effectiveRegion);
@@ -457,7 +460,8 @@ void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
             // upsampled. An empty matte means inference failed — cancel.
             QImage matteImg;
             if (matte.data && matte.extent[0] > 0 && matte.extent[1] > 0) {
-                matteImg = QImage(matte.data.get(), matte.extent[0], matte.extent[1], QImage::Format_Grayscale8);
+                matteImg = QImage(matte.data.get(), matte.extent[0], matte.extent[1],
+                                  matte.extent[0], QImage::Format_Grayscale8);
                 if (matteImg.size() != effectiveRegion.size()) {
                     matteImg = matteImg.scaled(effectiveRegion.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
                 }
