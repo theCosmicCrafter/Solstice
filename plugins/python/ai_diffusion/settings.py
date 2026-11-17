@@ -215,6 +215,29 @@ class Settings(QObject):
     check_server_resources: bool
     _check_server_resources = Setting("Refuse connection if nodes or models are missing", True)
 
+    server_auto_update: bool
+    _server_auto_update = Setting(
+        "Keep AI Backend Up to Date",
+        True,
+        _(
+            "Automatically apply AI backend upgrades shipped with Solstice "
+            "and repair missing server files on startup and while running"
+        ),
+    )
+
+    server_update_channel: str
+    _server_update_channel = Setting(
+        "AI Backend Update Channel",
+        "managed",
+        _(
+            "'managed' tracks the ComfyUI versions shipped and tested with "
+            "Solstice. 'latest' tracks the newest upstream ComfyUI release."
+        ),
+    )
+
+    server_update_checked: str
+    _server_update_checked = Setting("Last Backend Update Check", "")
+
     selection_feather: int
     _selection_feather = Setting(
         _("Selection Feather"),

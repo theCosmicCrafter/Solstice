@@ -298,10 +298,14 @@ void PythonPluginManager::scanPlugins()
 
             verifyDependenciesSetStatus(plugin);
 
-            // Vendored Solstice plugins may opt into being enabled on first
-            // run; an explicit user choice in the config always wins.
-            plugin.m_enabled = pluginSettings.readEntry(QString("enable_") + plugin.moduleName(),
-                                                      dg.readEntry("X-Solstice-EnabledByDefault", false));
+            // Integrated Solstice components are always enabled; vendored
+            // plugins may otherwise opt into being enabled on first run.
+            // An explicit user choice in the config wins for non-system
+            // plugins only.
+            plugin.m_system = dg.readEntry("X-Solstice-System", false);
+            plugin.m_enabled = plugin.m_system
+                || pluginSettings.readEntry(QString("enable_") + plugin.moduleName(),
+                                            dg.readEntry("X-Solstice-EnabledByDefault", false));
 
             m_plugins.append(plugin);
         }
@@ -399,6 +403,11 @@ void PythonPluginManager::unloadModule(PythonPlugin &plugin)
 
 void PythonPluginManager::setPluginEnabled(PythonPlugin &plugin, bool enabled)
 {
+    if (plugin.isSystem() && !enabled) {
+        dbgScript << "Refusing to disable integrated plugin" << plugin.moduleName();
+        return;
+    }
+
     bool wasEnabled = plugin.isEnabled();
 
     if (wasEnabled && !enabled) {

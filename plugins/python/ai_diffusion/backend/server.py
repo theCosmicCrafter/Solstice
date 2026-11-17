@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from PyQt6.QtCore import QUrl
-from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest
+from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 from .. import eventloop
 from ..localization import translate as _
@@ -175,7 +175,7 @@ class Server:
         self.missing_resources += find_missing(model_folders, resources.upscale_models)
         self.missing_resources += find_missing(model_folders, resources.optional_models)
 
-    async def _install(self, cb: InternalCB):
+    async def _install(self, cb: InternalCB, comfy_ref: str | None = None):
         self.state = ServerState.installing
         cb("Installing", f"Installation started in {self.path}")
         if self.backend is ServerBackend.directml:
@@ -199,7 +199,9 @@ class Server:
 
         comfy_dir = self.comfy_dir or self.path / "ComfyUI"
         if not self.has_comfy:
-            await try_install(comfy_dir, self._install_comfy, comfy_dir, network, cb)
+            await try_install(
+                comfy_dir, self._install_comfy, comfy_dir, network, cb, comfy_ref
+            )
 
         for pkg in chain(resources.required_custom_nodes, resources.optional_custom_nodes):
             dir = comfy_dir / "custom_nodes" / pkg.folder
@@ -270,12 +272,28 @@ class Server:
         else:
             self._python_cmd = self.path / "venv" / "bin" / "python3"
 
-    async def _install_comfy(self, comfy_dir: Path, network: QNetworkAccessManager, cb: InternalCB):
-        url = f"{resources.comfy_url}/archive/{resources.comfy_version}.zip"
-        archive_path = self._cache_dir / f"ComfyUI-{resources.comfy_version}.zip"
+    async def _install_comfy(
+        self,
+        comfy_dir: Path,
+        network: QNetworkAccessManager,
+        cb: InternalCB,
+        comfy_ref: str | None = None,
+    ):
+        ref = comfy_ref or resources.comfy_version
+        url = f"{resources.comfy_url}/archive/{ref}.zip"
+        archive_path = self._cache_dir / f"ComfyUI-{ref}.zip"
         await _download_cached("ComfyUI", network, url, archive_path, cb)
         await _extract_archive("ComfyUI", archive_path, comfy_dir.parent, cb)
-        temp_comfy_dir = comfy_dir.parent / f"ComfyUI-{resources.comfy_version}"
+        # GitHub archive folders are named ComfyUI-<ref>, with the leading "v"
+        # stripped for release tags.
+        temp_comfy_dir = next(
+            (
+                comfy_dir.parent / f"ComfyUI-{suffix}"
+                for suffix in (ref, ref.lstrip("v"))
+                if (comfy_dir.parent / f"ComfyUI-{suffix}").exists()
+            ),
+            comfy_dir.parent / f"ComfyUI-{ref}",
+        )
 
         req_dir = Path(__file__).parent / "requirements"
         backend_id = self.backend.name
@@ -293,7 +311,9 @@ class Server:
 
         _configure_extra_model_paths(temp_comfy_dir)
         _create_extra_model_dirs(self.path / "models")
-        await rename_extracted_folder("ComfyUI", comfy_dir, resources.comfy_version)
+        await rename_extracted_folder(
+            "ComfyUI", comfy_dir, temp_comfy_dir.name.split("ComfyUI-", 1)[1]
+        )
         self.comfy_dir = comfy_dir
         cb("Installing ComfyUI", "Finished installing ComfyUI")
 
@@ -315,7 +335,7 @@ class Server:
             await self._pip_install(pkg.name, ["-r", str(requirements_txt)], cb)
         cb(f"Installing {pkg.name}", f"Finished installing {pkg.name}")
 
-    async def install(self, callback: Callback):
+    async def install(self, callback: Callback, comfy_ref: str | None = None):
         def cb(stage: str, message: str | DownloadProgress):
             out_message = ""
             progress = None
@@ -335,7 +355,7 @@ class Server:
                 ServerState.update_required,
             )
 
-            await self._install(cb)
+            await self._install(cb, comfy_ref)
         except Exception as e:
             log.exception(f"Installation failed: {e}")
             self.state = ServerState.stopped
@@ -412,17 +432,24 @@ class Server:
 
     download_models = download
 
-    async def upgrade(self, callback: Callback):
-        assert self.state is ServerState.update_required and self.comfy_dir is not None
+    async def upgrade(self, callback: Callback, comfy_ref: str | None = None):
+        assert self.comfy_dir is not None
+        if comfy_ref is None:
+            assert self.state is ServerState.update_required
+        else:
+            # Tracking an explicit ComfyUI ref (latest channel) is allowed
+            # from a stopped, otherwise up-to-date installation.
+            assert self.state is ServerState.stopped
 
         def info(message: str):
             log.info(message)
             callback(InstallationProgress("Upgrading", message=message))
 
         old_version = self.version
-        info(f"Starting upgrade from {old_version} to {resources.version}")
+        target = comfy_ref or resources.version
+        info(f"Starting upgrade from {old_version} to {target}")
         comfy_dir = self.comfy_dir
-        upgrade_dir = self.path / f"upgrade-{resources.version}"
+        upgrade_dir = self.path / f"upgrade-{target}"
         upgrade_comfy_dir = upgrade_dir / "ComfyUI"
         keep_paths = [
             Path("models"),
@@ -443,7 +470,7 @@ class Server:
         try:
             _clean_embedded_python(self.path, callback)
             _clean_system_venv(self.path, self._uv_cmd, callback)
-            await self.install(callback)
+            await self.install(callback, comfy_ref)
         except Exception as e:
             if upgrade_comfy_dir.exists():
                 log.warning(f"Error during upgrade: {e!s} - Restoring {upgrade_comfy_dir}")
@@ -467,7 +494,7 @@ class Server:
 
             # Clean up temporary directory
             safe_remove_dir(upgrade_dir)
-            info(message=f"Finished upgrade to {resources.version}")
+            info(message=f"Finished upgrade to {target}")
         except Exception as e:
             log.error(f"Error during upgrade: {e!s}")
             raise RuntimeError(
@@ -476,6 +503,50 @@ class Server:
                 + _("Some models remain in")
                 + f" {upgrade_comfy_dir}"
             )
+
+    def installed_comfy_version(self) -> str | None:
+        """Version of the installed ComfyUI checkout (e.g. '0.3.57')."""
+        if self.comfy_dir is None:
+            return None
+        version_py = self.comfy_dir / "comfyui_version.py"
+        if not version_py.is_file():
+            return None
+        match = re.search(
+            r'__version__\s*=\s*["\']([^"\']+)', version_py.read_text(errors="replace")
+        )
+        return match.group(1) if match else None
+
+    async def latest_comfy_release(self, network: QNetworkAccessManager) -> str | None:
+        """Newest upstream ComfyUI release tag (e.g. 'v0.3.57'), None on failure."""
+        reply = None
+        try:
+            request = QNetworkRequest(
+                QUrl("https://api.github.com/repos/comfyanonymous/ComfyUI/releases/latest")
+            )
+            request.setRawHeader(b"User-Agent", b"solstice")
+            request.setAttribute(
+                QNetworkRequest.Attribute.RedirectPolicyAttribute,
+                QNetworkRequest.RedirectPolicy.NoLessSafeRedirectPolicy,
+            )
+            reply = network.get(request)
+            loop = asyncio.get_running_loop()
+            future: asyncio.Future = loop.create_future()
+            reply.finished.connect(
+                lambda: None if future.done() else future.set_result(None)
+            )
+            await asyncio.wait_for(future, timeout=15)
+            if reply.error() != QNetworkReply.NetworkError.NoError:
+                log.warning(f"ComfyUI release check failed: {reply.errorString()}")
+                return None
+            data = json.loads(bytes(reply.readAll()).decode("utf-8"))
+            tag = data.get("tag_name")
+            return str(tag) if tag else None
+        except Exception as e:
+            log.warning(f"ComfyUI release check failed: {e}")
+            return None
+        finally:
+            if reply is not None:
+                reply.deleteLater()
 
     async def start(self, port: int | None = None):
         last_line = ""

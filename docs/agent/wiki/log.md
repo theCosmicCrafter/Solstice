@@ -2019,3 +2019,19 @@ ame:weight)
   bearer, Origin guard/202/400/405 semantics per unified-mcp-design.
   plugins/extensions/testcontrol was already byte-identical to
   upstream; dev-tools/test-control runner copied verbatim.
+- Integrated AI auto-update + system-plugin enforcement (2026-11-17):
+  `Root.maintain_server()` runs inside `autostart` (single connect
+  funnel) plus an hourly QTimer — managed channel applies shipped
+  ComfyUI upgrades (`Server.upgrade`) and repairs missing required
+  models/nodes; `latest` channel resolves the newest upstream release
+  via `Server.latest_comfy_release` (GitHub API) and upgrades with an
+  explicit `comfy_ref` (threaded through install/upgrade, `stopped`
+  state allowed). Settings `server_auto_update`/`server_update_channel`/
+  `server_update_checked` + server-page UI controls and Manage→Update
+  Now. MCP: `ai_update`, `ai_update_status` (90 actions total) incl.
+  native-engine bundle health. `X-Solstice-System=true` desktop key:
+  PythonPluginManager force-enables + refuses disable; plugins show
+  "(built-in)" — ai_diffusion and kritamcp are integrated components,
+  not optional plugins. In-flight server states (starting/running/
+  installing) skip maintenance. Comfy Desktop precedent confirmed:
+  manifest-pinned versions (comfyui_commit/torch/uv) — same pin model.

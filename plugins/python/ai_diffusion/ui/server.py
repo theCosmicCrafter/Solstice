@@ -1053,6 +1053,25 @@ class ServerWidget(QWidget):
         self._backend_select.addItems([b.value[0] for b in ServerBackend.supported()])
         self._backend_select.currentIndexChanged.connect(self._change_backend)
 
+        self._auto_update_checkbox = QCheckBox(_("Keep the AI backend up to date"), self)
+        self._auto_update_checkbox.setChecked(settings.server_auto_update)
+        self._auto_update_checkbox.stateChanged.connect(self._change_auto_update)
+
+        self._update_channel = QComboBox(self)
+        self._update_channel.addItems(
+            [_("managed (ship-tested versions)"), _("latest ComfyUI release")]
+        )
+        self._update_channel.setCurrentIndex(
+            0 if settings.server_update_channel == "managed" else 1
+        )
+        self._update_channel.currentIndexChanged.connect(self._change_update_channel)
+        self._update_channel.setToolTip(
+            _(
+                "managed: track the ComfyUI versions shipped and tested with Solstice."
+                " latest: track the newest upstream ComfyUI release."
+            )
+        )
+
         self._launch_button = QPushButton("Launch", self)
         self._launch_button.setMinimumWidth(150)
         self._launch_button.setMinimumHeight(35)
@@ -1064,6 +1083,8 @@ class ServerWidget(QWidget):
         self._manage_button.setMinimumWidth(150)
 
         menu = QMenu(self)
+        update_action = menu.addAction(_("Update Now"))
+        ensure(update_action).triggered.connect(self.update_now)
         verify_action = menu.addAction(_("Verify"))
         ensure(verify_action).triggered.connect(self.verify_models)
         reinstall_action = menu.addAction(_("Re-install"))
@@ -1080,6 +1101,8 @@ class ServerWidget(QWidget):
         status_layout = QVBoxLayout()
         status_layout.addWidget(self._status_label)
         status_layout.addWidget(self._backend_select, 0, Qt.AlignmentFlag.AlignLeft)
+        status_layout.addWidget(self._auto_update_checkbox)
+        status_layout.addWidget(self._update_channel, 0, Qt.AlignmentFlag.AlignLeft)
         status_layout.addWidget(self._progress_bar)
         status_layout.addWidget(self._progress_info)
         status_layout.addStretch()
@@ -1113,6 +1136,17 @@ class ServerWidget(QWidget):
 
         root.connection.state_changed.connect(self.update_ui)
         self.update_ui()
+
+    def _change_auto_update(self):
+        settings.server_auto_update = self._auto_update_checkbox.isChecked()
+
+    def _change_update_channel(self):
+        settings.server_update_channel = (
+            "managed" if self._update_channel.currentIndex() == 0 else "latest"
+        )
+
+    def update_now(self):
+        eventloop.run(root.maintain_server(self.update_ui, force=True))
 
     def _change_location(self):
         if settings.server_path != self._location_edit.text():

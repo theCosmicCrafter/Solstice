@@ -39,6 +39,16 @@ public:
         return m_enabled;
     }
 
+    /**
+     * A system plugin is an integrated Solstice component: it is always
+     * enabled, cannot be disabled by the user, and is marked as built-in
+     * in the plugin manager. Opt in via X-Solstice-System in the .desktop file.
+     */
+    inline bool isSystem() const
+    {
+        return m_system;
+    }
+
     inline bool isBroken() const
     {
         return m_broken;
@@ -86,6 +96,7 @@ private:
     bool m_broken{false};
     bool m_unstable{false};
     bool m_loaded{false};
+    bool m_system{false};
 
     QString m_name;
     QString m_moduleName;

@@ -4,5 +4,6 @@ ServiceTypes=Krita/PythonPlugin
 X-KDE-Library=kritamcp
 X-Python-2-Compatible=false
 X-Solstice-EnabledByDefault=true
+X-Solstice-System=true
 Name=Krita MCP Bridge
 Comment=HTTP server bridge for external paint commands via MCP (loopback + bearer token)

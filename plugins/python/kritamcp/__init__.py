@@ -93,7 +93,8 @@ SUPPORTED_ACTIONS = [
     # AI generation (vendored ai_diffusion bridge)
     "ai_status", "ai_styles", "ai_generate", "ai_expand",
     "ai_jobs", "ai_apply", "ai_discard", "ai_cancel", "ai_catalog",
-    "ai_connect", "ai_install", "ai_workflows", "ai_workflow",
+    "ai_connect", "ai_install", "ai_update", "ai_update_status",
+    "ai_workflows", "ai_workflow",
     "ai_upscale", "ai_remove_distraction", "ai_live",
     "ai_inbetween", "ai_inbetween_status",
     "ai_interpolate", "ai_interpolate_status", "ai_anim",
@@ -2292,6 +2293,63 @@ class KritaMCPExtension(Extension):
             return {"error": f"install failed: {e}"}
         return {"status": "ok", "started": True,
                 "missing": list(server.missing_resources)}
+
+    def cmd_ai_update(self, params):
+        """Run AI backend maintenance now: apply pending ComfyUI upgrades,
+        repair missing custom nodes and required models, and honor the
+        configured update channel (managed pins or latest upstream release).
+        Returns immediately — poll ai_update_status for state transitions."""
+        import sys
+        if "ai_diffusion" not in sys.modules:
+            return {"status": "ok", "enabled": False,
+                    "error": "ai_diffusion plugin is not enabled"}
+        try:
+            from ai_diffusion import eventloop
+            from ai_diffusion.model.root import root
+        except Exception as e:
+            return {"status": "ok", "enabled": True, "error": str(e)}
+        try:
+            eventloop.run(root.maintain_server(force=True))
+        except Exception as e:
+            return {"error": f"update failed: {e}"}
+        return {"status": "ok", "maintenance": "started"}
+
+    def cmd_ai_update_status(self, params):
+        """Report managed-backend update status: auto-update/channel
+        settings, server state + shipped version, installed ComfyUI release,
+        last upstream check, missing resources, and native engine health."""
+        import sys
+        if "ai_diffusion" not in sys.modules:
+            return {"status": "ok", "enabled": False,
+                    "error": "ai_diffusion plugin is not enabled"}
+        try:
+            from ai_diffusion.model.root import root
+            from ai_diffusion.settings import settings as ai_settings
+        except Exception as e:
+            return {"status": "ok", "enabled": True, "error": str(e)}
+        server = root.server
+        out = {"status": "ok", "enabled": True,
+               "auto_update": ai_settings.server_auto_update,
+               "update_channel": ai_settings.server_update_channel,
+               "last_update_check": ai_settings.server_update_checked or None,
+               "server_state": server.state.name,
+               "server_version": server.version,
+               "comfy_version": server.installed_comfy_version(),
+               "missing_resources": list(server.missing_resources)}
+        try:
+            from ai_diffusion.native_engine import find_engine_bundle
+            bundle = find_engine_bundle()
+            if bundle is None:
+                out["native_engine"] = {"bundle": None, "status": "not found"}
+            else:
+                missing = bundle.check()
+                out["native_engine"] = {
+                    "bundle": str(bundle.root),
+                    "precision": ai_settings.native_precision,
+                    "status": "ok" if missing is None else missing}
+        except Exception as e:
+            out["native_engine"] = {"status": f"check failed: {e}"}
+        return out
 
     def cmd_ai_catalog(self, params):
         """List the managed model catalog: per-resource id/name/arch,

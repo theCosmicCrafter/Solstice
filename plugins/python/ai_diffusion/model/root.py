@@ -6,11 +6,14 @@ import re
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal
+from PyQt6.QtNetwork import QNetworkAccessManager
 
-from .. import platform_tools, util
+from .. import eventloop, platform_tools, util
+from ..backend import resources
 from ..backend.client import ClientMessage
 from ..backend.comfy_client import ComfyClient
 from ..backend.server import Server, ServerState
@@ -51,8 +54,81 @@ class Root(QObject):
         self._auto_update = AutoUpdate()
         if settings.auto_update:
             self._auto_update.check()
+        self._maintenance_timer = QTimer(self)
+        self._maintenance_timer.setInterval(3600 * 1000)
+        self._maintenance_timer.timeout.connect(self._on_maintenance_timer)
+        self._maintenance_timer.start()
         self._connection.message_received.connect(self._handle_message)
         self._connection.models_changed.connect(self._update_files)
+
+    def _on_maintenance_timer(self):
+        if settings.server_mode is ServerMode.managed and settings.server_auto_update:
+            eventloop.run(self.maintain_server())
+
+    async def maintain_server(self, signal_server_change: Callable = lambda: None, force=False):
+        """Integrated backend maintenance: apply shipped server upgrades,
+        repair missing nodes and required models, and (channel 'latest')
+        track the newest upstream ComfyUI release. Idle for a healthy server.
+        """
+        from ..backend.server import InstallationProgress
+
+        server = self._server
+        if server.state in (
+            ServerState.installing,
+            ServerState.starting,
+            ServerState.running,
+            ServerState.verifying,
+            ServerState.uninstalling,
+        ):
+            return
+
+        def cb(progress: InstallationProgress):
+            if progress.message:
+                log.info(f"[update] {progress.stage}: {progress.message}")
+
+        if server.state is ServerState.update_required:
+            await server.upgrade(cb)
+        elif server.state is ServerState.missing_resources:
+            await server.install(cb)
+            required = {m.id.string for m in resources.required_models}
+            missing = [r for r in server.missing_resources if r in required]
+            if missing:
+                await server.download(missing, cb)
+
+        if force or self._comfy_check_due():
+            latest = await server.latest_comfy_release(QNetworkAccessManager())
+            settings.server_update_checked = datetime.now(timezone.utc).isoformat()
+            if latest and self._comfy_update_available(latest):
+                log.info(
+                    f"[update] ComfyUI {latest} available"
+                    f" (installed {server.installed_comfy_version()})"
+                )
+                if server.state is ServerState.stopped:
+                    await server.upgrade(cb, comfy_ref=latest)
+
+        signal_server_change()
+
+    def _comfy_check_due(self) -> bool:
+        if settings.server_update_channel != "latest":
+            return False
+        try:
+            last = datetime.fromisoformat(settings.server_update_checked)
+            return (datetime.now(timezone.utc) - last) > timedelta(hours=24)
+        except Exception:
+            return True
+
+    def _comfy_update_available(self, latest: str) -> bool:
+        installed = self._server.installed_comfy_version()
+        if installed is None:
+            return False
+
+        def parse(tag: str):
+            try:
+                return tuple(int(p) for p in tag.lstrip("v").split("."))
+            except ValueError:
+                return (0,)
+
+        return parse(latest) > parse(installed)
 
     def prune_models(self):
         # Remove models for documents that have been closed
@@ -112,6 +188,13 @@ class Root(QObject):
     async def autostart(self, signal_server_change: Callable):
         connection = self._connection
         try:
+            if settings.server_mode is ServerMode.managed and settings.server_auto_update:
+                try:
+                    await self.maintain_server(signal_server_change)
+                except Exception as e:
+                    log.warning(
+                        f"Backend maintenance failed (continuing with existing install): {e}"
+                    )
             if (
                 settings.server_mode is ServerMode.managed
                 and self._server.state is ServerState.stopped

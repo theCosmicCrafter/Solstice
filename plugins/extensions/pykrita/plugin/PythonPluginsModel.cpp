@@ -68,6 +68,10 @@ QVariant PythonPluginsModel::data(const QModelIndex& index, const int role) cons
             case Qt::DisplayRole:
                 switch (index.column()) {
                     case COl_NAME:
+                        if (plugin->isSystem()) {
+                            return i18nc("@item:inlistbox %1 is the plugin name",
+                                         "%1 (built-in)", plugin->name());
+                        }
                         return plugin->name();
                     case COL_COMMENT:
                         return plugin->comment();
@@ -83,6 +87,10 @@ QVariant PythonPluginsModel::data(const QModelIndex& index, const int role) cons
                 break;
             case Qt::ToolTipRole:
                 {
+                    if (plugin->isSystem()) {
+                        return i18nc("@info:tooltip",
+                                     "Integrated Solstice component — always enabled");
+                    }
                     auto error = plugin->errorReason();
                     if (!error.isEmpty()) {
                         return error;
@@ -109,7 +117,7 @@ Qt::ItemFlags PythonPluginsModel::flags(const QModelIndex& index) const
     KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(plugin, Qt::ItemIsSelectable);
 
     int result = Qt::ItemIsSelectable;
-    if (index.column() == COl_NAME) {
+    if (index.column() == COl_NAME && !plugin->isSystem()) {
         result |= Qt::ItemIsUserCheckable;
     }
 
@@ -127,7 +135,8 @@ bool PythonPluginsModel::setData(const QModelIndex& index, const QVariant& value
     KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(plugin, false);
 
     if (role == Qt::CheckStateRole) {
-        KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(!plugin->isBroken(), false);
+        KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(!plugin->isBroken() && !plugin->isSystem(),
+                                           false);
 
         const bool enabled = value.toBool();
         m_pluginManager->setPluginEnabled(*plugin, enabled);

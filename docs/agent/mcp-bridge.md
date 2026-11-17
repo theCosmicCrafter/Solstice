@@ -2,10 +2,12 @@
 
 ## Status and locations
 
-- In-app bridge (vendored, enabled by default):
+- In-app bridge (integrated component, always on):
   `plugins/python/kritamcp/__init__.py`,
   desktop file `kritapykrita_kritamcp.desktop`
-  (`X-Solstice-EnabledByDefault=true`).
+  (`X-Solstice-EnabledByDefault=true`, `X-Solstice-System=true` — the
+  pykrita manager force-enables system plugins and refuses to disable
+  them; they show as "(built-in)" in the plugin manager).
 - External MCP server (not vendored, lives outside the repo):
   `C:\Users\richk\CascadeProjects\krita-mcp\server.py`
   (nanayax3/krita-mcp, MIT, local clone at `83fec0e`).
@@ -15,7 +17,7 @@
 
 The bridge is a `QThread`-hosted `http.server.HTTPServer` on `127.0.0.1:5678`.
 All Krita API calls are marshalled onto the GUI thread; requests are
-`POST /` JSON `{action, params}` — 88 actions covering documents, layers,
+`POST /` JSON `{action, params}` — 90 actions covering documents, layers,
 painting, selections, filters, templates, export, UI controls, viewport/canvas
 navigation, and the vendored ai_diffusion generation engine, plus:
 - `trigger_action` (`params.name`): triggers any application action by
@@ -97,6 +99,14 @@ job queue the AI Diffusion docker uses. No second backend is started.
   outpaints the new band — Photoshop Generative Expand in one call.
 - `ai_jobs {limit, state}`: job history for the active document, newest
   first — `{index, id, kind, state, name, seed, results, used}`.
+- `ai_update`: runs integrated backend maintenance now — applies pending
+  managed-server upgrades, repairs missing custom nodes and required
+  models, and honors the configured update channel. Returns immediately;
+  poll `ai_update_status`. No-op while the server is starting/running.
+- `ai_update_status`: `{auto_update, update_channel, last_update_check,
+  server_state, server_version, comfy_version, missing_resources,
+  native_engine}` — `comfy_version` is the installed ComfyUI release,
+  `native_engine` reports the TensorRT bundle path/precision/health.
 - `ai_apply {job_id|index, result}`: applies one result of a finished job
   as a new layer (defaults: latest finished job, result 0) — the
   variations-keeper step.

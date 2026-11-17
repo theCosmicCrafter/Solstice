@@ -5,5 +5,6 @@ X-KDE-Library=ai_diffusion
 X-Python-2-Compatible=false
 X-Krita-Manual=manual.html
 X-Solstice-EnabledByDefault=true
+X-Solstice-System=true
 Name=AI Image Diffusion
 Comment=Workflows supported by generative AI (Stable Diffusion)
