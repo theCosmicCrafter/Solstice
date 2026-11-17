@@ -2035,3 +2035,16 @@ ame:weight)
   not optional plugins. In-flight server states (starting/running/
   installing) skip maintenance. Comfy Desktop precedent confirmed:
   manifest-pinned versions (comfyui_commit/torch/uv) — same pin model.
+- AI action burn-in over /mcp (2026-11-17): 22 ai_* + canvas actions
+  exercised live. Verified end-to-end with real Comfy jobs: ai_expand
+  (canvas 2048x1536 -> 2176x1536, applied), ai_upscale (SeedVR2 x2,
+  doc resized + [Upscale] layer), ai_remove_distraction (padded
+  selection + mode:remove fill), ai_live native toggle on/off
+  (workspace switches), ai_reference (layer attach, controls=1),
+  ai_region (region on layer), canvas_grab (allowlisted path),
+  translate_layer (undoable). Contract-verified: ai_inbetween,
+  ai_interpolate, ai_animate, ai_xsheet, ai_lipsync, ai_propagate,
+  ai_drag, ai_pigment, ai_workflow, ai_discard — all return
+  descriptive param/setup errors. Env-blocked (sidecars not running):
+  ai_h3, ai_drag (own ports refuse). ai_remove_distraction hardened
+  to accept rect {x,y,w,h} dicts as well as [x,y,w,h] lists.

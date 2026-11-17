@@ -2538,7 +2538,14 @@ class KritaMCPExtension(Extension):
             return {"error": "No active document"}
         grow = max(0, int(params.get("grow", 8)))
         if rect := params.get("rect"):
-            x, y, w, h = (int(v) for v in rect)
+            try:
+                if isinstance(rect, dict):
+                    x, y, w, h = (int(rect[k]) for k in ("x", "y", "w", "h"))
+                else:
+                    x, y, w, h = (int(v) for v in rect)
+            except (KeyError, TypeError, ValueError):
+                return {"error": "bad 'rect': expected [x,y,w,h] or "
+                        "{x,y,w,h}"}
         elif point := params.get("point"):
             radius = int(params.get("radius", 64))
             x, y, w, h = int(point[0]) - radius, int(point[1]) - radius, radius * 2, radius * 2
