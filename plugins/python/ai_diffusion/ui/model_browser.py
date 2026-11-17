@@ -13,7 +13,9 @@ and executor — nothing here performs blocking I/O on the GUI thread.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import html
+import json
 import re
 from base64 import b64decode
 from pathlib import Path
@@ -71,6 +73,7 @@ from ..backend.civitai import CivitaiClient, CivitaiModelInfo
 from ..backend.modelspec import (
     arch_keys,
     extract_metadata_fields,
+    extract_sidecar_metadata,
     read_safetensors_metadata,
 )
 from ..backend.network import RequestManager
@@ -120,6 +123,45 @@ def _load_preview_image(path: Path) -> QImage | None:
         return None
 
 
+def _write_civitai_sidecar(path: Path | None, info: CivitaiModelInfo, sha256: str = ""):
+    """When a CivitAI identify/download completes, write <stem>.metadata.json
+    next to the file ONLY if none exists (never overwrite)."""
+    if path is None:
+        return
+    try:
+        sidecar_path = path.with_name(path.stem + ".metadata.json")
+        if sidecar_path.exists():
+            return
+        if not sha256 and path.is_file():
+            h = hashlib.sha256()
+            with open(path, "rb") as f:
+                while chunk := f.read(1024 * 1024):
+                    h.update(chunk)
+            sha256 = h.hexdigest()
+        sidecar_data = {
+            "model_name": info.display_name or info.model_name,
+            "sha256": sha256,
+            "base_model": info.base_model,
+            "trainedWords": list(info.trigger_words),
+            "from_civitai": True,
+            "civitai": {
+                "id": info.version_id,
+                "modelId": info.model_id,
+                "name": info.version_name,
+                "trainedWords": list(info.trigger_words),
+                "baseModel": info.base_model,
+                "nsfwLevel": info.nsfw_level,
+                "pageUrl": info.page_url,
+                "downloadUrl": info.download_url,
+                "previewUrl": info.preview_url,
+            },
+            "solstice_managed": True,
+        }
+        sidecar_path.write_text(json.dumps(sidecar_data, indent=2), encoding="utf-8")
+    except Exception as e:
+        log.warning(f"Failed to write CivitAI sidecar metadata for {path}: {e}")
+
+
 def _scan_files_metadata(files: list[tuple[str, Path]]) -> dict[str, tuple[float, dict]]:
     """Worker: read safetensors model headers + file mtimes. Runs in the
     executor so large model folders never block the UI. Returns
@@ -137,6 +179,12 @@ def _scan_files_metadata(files: list[tuple[str, Path]]) -> dict[str, tuple[float
                 fields = extract_metadata_fields(read_safetensors_metadata(path))
             except Exception:
                 pass
+        try:
+            sidecar_fields = extract_sidecar_metadata(path)
+            for k, v in sidecar_fields.items():
+                fields.setdefault(k, v)
+        except Exception:
+            pass
         results[file_id] = (mtime, fields or {})
     return results
 
@@ -182,6 +230,17 @@ def _suggest_filename(info: CivitaiModelInfo) -> str:
         name = re.sub(r'[\\/:*?"<>|]', "_", info.display_name).strip() or "model"
         name += ".safetensors"
     return name
+
+
+def _find_civitai_download(info: CivitaiModelInfo) -> File | None:
+    """Find a local file already identified as this exact CivitAI model version
+    (matched via the ``civitai.id`` key written by `_write_civitai_sidecar`)."""
+    for collection in (root.files.loras, root.files.checkpoints):
+        for file in collection:
+            civitai = file.meta("civitai")
+            if isinstance(civitai, dict) and civitai.get("id") == info.version_id:
+                return file
+    return None
 
 
 # --- Shared network resources -------------------------------------------------
@@ -304,7 +363,7 @@ class ModelLibraryModel(QAbstractListModel):
             self._mtimes[str(f.path)] = mtime
             if fields:
                 ModelMetadataCache.set(f.path, fields, save=False)
-                f.read_model_metadata()
+            f.read_model_metadata()
         ModelMetadataCache.flush()  # one disk write for the whole batch
         if self.rowCount() > 0:
             self.dataChanged.emit(self.index(0), self.index(self.rowCount() - 1))
@@ -386,13 +445,14 @@ class ModelLibraryModel(QAbstractListModel):
 
 
 class ModelBrowserFilter(QSortFilterProxyModel):
-    """Substring name filter + kind and architecture dropdown filters."""
+    """Substring name filter + kind, architecture and folder dropdown filters."""
 
     def __init__(self, source: QAbstractListModel, parent=None):
         super().__init__(parent)
         self._text = ""
         self._kind = "all"
         self._arch = ""
+        self._folder = ""
         self._sort_recent = False
         self.setSourceModel(source)
         self.setSortCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
@@ -426,6 +486,15 @@ class ModelBrowserFilter(QSortFilterProxyModel):
         self.invalidateFilter()
 
     @property
+    def folder(self):
+        return self._folder
+
+    @folder.setter
+    def folder(self, value):
+        self._folder = value
+        self.invalidateFilter()
+
+    @property
     def sort_recent(self):
         return self._sort_recent
 
@@ -440,6 +509,10 @@ class ModelBrowserFilter(QSortFilterProxyModel):
             return False
         if self._arch and index.data(ModelLibraryModel.arch_role) != self._arch:
             return False
+        if self._folder:
+            parent = str(Path(index.data(Qt.ItemDataRole.UserRole) or "").parent)
+            if parent.replace("\\", "/") != self._folder:
+                return False
         if self._text:
             name = (index.data(Qt.ItemDataRole.DisplayRole) or "").lower()
             file_id = (index.data(Qt.ItemDataRole.UserRole) or "").lower()
@@ -449,13 +522,23 @@ class ModelBrowserFilter(QSortFilterProxyModel):
 
     def lessThan(self, left: QModelIndex, right: QModelIndex):
         if self._sort_recent:
-            lm = left.data(ModelLibraryModel.mtime_role) or 0.0
-            rm = right.data(ModelLibraryModel.mtime_role) or 0.0
+            lm, rm = self._recent_key(left), self._recent_key(right)
             if lm != rm:
-                return lm > rm  # most recently modified first
+                return lm > rm  # most recently used/modified first
         left_name = (left.data(Qt.ItemDataRole.DisplayRole) or "").lower()
         right_name = (right.data(Qt.ItemDataRole.DisplayRole) or "").lower()
         return left_name < right_name
+
+    @staticmethod
+    def _recent_key(index: QModelIndex):
+        # prefer the tracked "last used in a style" timestamp over file mtime
+        file = index.data(ModelLibraryModel.file_role)
+        if isinstance(file, File) and (ts := file.meta("last_used")):
+            try:
+                return float(ts)
+            except (TypeError, ValueError):
+                pass
+        return index.data(ModelLibraryModel.mtime_role) or 0.0
 
 
 class ModelCardDelegate(QStyledItemDelegate):
@@ -610,6 +693,10 @@ class ModelBrowserWidget(QWidget):
         self._arch_combo.currentIndexChanged.connect(self._apply_filters)
         toolbar.addWidget(self._arch_combo, 1)
 
+        self._folder_combo = QComboBox(self)
+        self._folder_combo.currentIndexChanged.connect(self._apply_filters)
+        toolbar.addWidget(self._folder_combo, 1)
+
         self._sort_combo = QComboBox(self)
         self._sort_combo.addItem(_("Sort by name"), False)
         self._sort_combo.addItem(_("Recently modified"), True)
@@ -621,6 +708,11 @@ class ModelBrowserWidget(QWidget):
         self._refresh_button.setToolTip(_("Reload model metadata and previews"))
         self._refresh_button.clicked.connect(self._model.refresh)
         toolbar.addWidget(self._refresh_button)
+
+        self._lora_manager_button = QPushButton(_("Open LoRA Manager"), self)
+        self._lora_manager_button.setToolTip(_("Open ComfyUI LoRA Manager in web browser"))
+        self._lora_manager_button.clicked.connect(self._open_lora_manager)
+        toolbar.addWidget(self._lora_manager_button)
         layout.addLayout(toolbar)
 
         # Card grid + details
@@ -649,8 +741,10 @@ class ModelBrowserWidget(QWidget):
         if selection := self._view.selectionModel():
             selection.currentChanged.connect(self._update_details)
         self._model.architectures_changed.connect(self._update_arch_filter)
+        self._model.architectures_changed.connect(self._update_folder_filter)
         settings.changed.connect(self._on_setting_changed)
         self._update_arch_filter()
+        self._update_folder_filter()
         self._update_details()
 
     # -- filters --
@@ -661,6 +755,7 @@ class ModelBrowserWidget(QWidget):
     def _apply_filters(self):
         self._filter.kind = self._kind_combo.currentData()
         self._filter.arch = self._arch_combo.currentData() or ""
+        self._filter.folder = self._folder_combo.currentData() or ""
         self._filter.sort_recent = bool(self._sort_combo.currentData())
 
     def _update_arch_filter(self):
@@ -676,6 +771,27 @@ class ModelBrowserWidget(QWidget):
         index = self._arch_combo.findData(current)
         self._arch_combo.setCurrentIndex(max(0, index))
         self._arch_combo.blockSignals(False)
+        self._apply_filters()
+
+    def _update_folder_filter(self):
+        current = self._folder_combo.currentData()
+        self._folder_combo.blockSignals(True)
+        self._folder_combo.clear()
+        self._folder_combo.addItem(_("All folders"), "")
+        folders = sorted(
+            {
+                str(Path(f.id).parent).replace("\\", "/")
+                for f, _ in self._model.entries
+                if str(Path(f.id).parent) != "."
+            }
+            - {""},
+            key=str.lower,
+        )
+        for folder in folders:
+            self._folder_combo.addItem(folder, folder)
+        index = self._folder_combo.findData(current)
+        self._folder_combo.setCurrentIndex(max(0, index))
+        self._folder_combo.blockSignals(False)
         self._apply_filters()
 
     # -- selection + details --
@@ -783,6 +899,13 @@ class ModelBrowserWidget(QWidget):
         self._result_meta.setFont(small)
         self._result_meta.setWordWrap(True)
         result_layout.addWidget(self._result_meta)
+
+        self._update_label = QLabel(self._result_group)
+        self._update_label.setFont(small)
+        self._update_label.setStyleSheet(f"color: {theme.highlight};")
+        self._update_label.setWordWrap(True)
+        self._update_label.setVisible(False)
+        result_layout.addWidget(self._update_label)
 
         self._result_triggers = QLabel(self._result_group)
         self._result_triggers.setFont(small)
@@ -959,8 +1082,12 @@ class ModelBrowserWidget(QWidget):
             self._set_status(_("Looking up on CivitAI..."))
             info = await _civitai_client().lookup_by_hash(sha256_hex)
             self._show_lookup(file, collection, info)
+            if info is not None and file.path is not None:
+                _write_civitai_sidecar(file.path, info, sha256=sha256_hex)
             if info is not None and info.preview_url:
                 await self._fetch_result_preview(info)
+            if info is not None:
+                await self._check_model_update(info)
         except asyncio.CancelledError:
             self._set_status(_("Cancelled"))
         except Exception as e:
@@ -978,6 +1105,8 @@ class ModelBrowserWidget(QWidget):
         self._lookup_file = file
         self._lookup_collection = collection
         self._result_preview.setPixmap(QPixmap())
+        self._update_label.setText("")
+        self._update_label.setVisible(False)
         if info is None:
             self._result_group.setVisible(False)
             self._identify_status.setText(_("No match found on CivitAI."))
@@ -998,6 +1127,14 @@ class ModelBrowserWidget(QWidget):
         self._download_button.setVisible(bool(info.download_url))
         self._result_group.setVisible(True)
         self._identify_status.setText(_("Identified on CivitAI."))
+
+    async def _check_model_update(self, info: CivitaiModelInfo):
+        update = await _civitai_client().check_for_updates(info.model_id, info.version_id)
+        if self._closed or update is None or self._lookup is not info:
+            return
+        name = str(update.get("name") or "").strip() or _("new version")
+        self._update_label.setText(_("Update available on CivitAI: {name}", name=name))
+        self._update_label.setVisible(True)
 
     async def _fetch_result_preview(self, info: CivitaiModelInfo):
         try:
@@ -1021,6 +1158,21 @@ class ModelBrowserWidget(QWidget):
         self._update_details()
         self._identify_status.setText(_("Trigger words saved to model metadata."))
 
+    def _open_lora_manager(self):
+        url = ""
+        try:
+            client = root.connection.client_if_connected
+            if client is not None and getattr(client, "url", None):
+                url = str(client.url)
+        except Exception:
+            pass
+        if not url:
+            url = settings.server_url or "http://127.0.0.1:8189"
+        if not url.startswith("http://") and not url.startswith("https://"):
+            url = "http://" + url
+        loras_url = url.rstrip("/") + "/loras"
+        QDesktopServices.openUrl(QUrl(loras_url))
+
     def _open_civitai_page(self):
         if self._lookup is not None and self._lookup.page_url:
             QDesktopServices.openUrl(QUrl(self._lookup.page_url))
@@ -1030,6 +1182,18 @@ class ModelBrowserWidget(QWidget):
     def _download(self):
         info = self._lookup
         if info is None or not info.download_url or self._busy:
+            return
+        if existing := _find_civitai_download(info):
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Icon.Information)
+            box.setWindowTitle(_("Already downloaded"))
+            box.setText(_("You already have this model: {name}", name=existing.name))
+            show_button = box.addButton(_("Show in Folder"), QMessageBox.ButtonRole.AcceptRole)
+            box.addButton(QMessageBox.StandardButton.Cancel)
+            box.setDefaultButton(show_button)
+            box.exec()
+            if box.clickedButton() is show_button:
+                self._show_in_folder(existing)
             return
         directory = QFileDialog.getExistingDirectory(self, _("Choose download folder"))
         if not directory:
@@ -1075,6 +1239,8 @@ class ModelBrowserWidget(QWidget):
             if self._closed:
                 return
             self._progress.setValue(self._progress.maximum())
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _write_civitai_sidecar, path, info)
             self._register_download(path, info)
             self._set_status(
                 _("Downloaded to {path}", path=str(path))

@@ -342,6 +342,30 @@ class Settings(QObject):
         _("Enable text completion for tags from the selected files"),
     )
 
+    # Local asset roots (Solstice: see local_assets.py / docs/agent/local-assets.md).
+    # Each can also be set per-machine via the corresponding
+    # KRITA_AI_DIFFUSION_*_FOLDER environment variable.
+    wildcards_folder: str
+    _wildcards_folder = Setting(
+        _("Wildcard Folder"),
+        "",
+        _("Folder with .txt/.yaml wildcard files, expanded as __name__ tokens in prompts"),
+    )
+
+    poses_folder: str
+    _poses_folder = Setting(
+        _("Pose Library Folder"),
+        "",
+        _("Folder with pose reference images for ControlNet pose control layers"),
+    )
+
+    luts_folder: str
+    _luts_folder = Setting(
+        _("LUT Folder"),
+        "",
+        _("Folder with color lookup (.cube) files"),
+    )
+
     apply_behavior: ApplyBehavior
     _apply_behavior = Setting(
         _("Apply Behavior"),
@@ -362,6 +386,58 @@ class Settings(QObject):
     apply_region_behavior_live: ApplyRegionBehavior
     _apply_region_behavior_live = Setting(
         "Apply Region Behavior (Live)", ApplyRegionBehavior.replace
+    )
+
+    live_engine: str
+    _live_engine = Setting(
+        _("Live Engine"),
+        "comfyui",
+        _(
+            "Engine for Live mode: the managed ComfyUI server, or the native "
+            "TensorRT engine (librediffusion) when its DLL and trained engines are "
+            "installed. Falls back to ComfyUI if the native engine is unavailable."
+        ),
+        items=[(_("ComfyUI server"), "comfyui"), (_("Native TRT (librediffusion)"), "native")],
+    )
+
+    native_rife_exp: int
+    _native_rife_exp = Setting(
+        _("Native Live Interpolation"),
+        0,
+        _(
+            "RIFE frame interpolation between native live frames: multiplies "
+            "displayed fps (2x/4x/8x intermediates). Intermediates are preview-"
+            "only; the applied result is always the real generated frame."
+        ),
+        items=[(_("Off"), 0), (_("2x"), 1), (_("4x"), 2), (_("8x"), 3)],
+    )
+
+    native_engine_dir: str
+    _native_engine_dir = Setting(
+        _("Native Engine Directory"),
+        "",
+        _(
+            "Directory containing the trained librediffusion engine bundle "
+            "(transformer/qwen/vae .plan files, tokenizer.json, bn_mean/std.bin). "
+            "Leave empty to use auto-discovery."
+        ),
+    )
+
+    native_precision: str
+    _native_precision = Setting(
+        _("Native Engine Precision"),
+        "bf16",
+        _(
+            "Transformer precision for the native TensorRT engine: bf16 is the "
+            "full-quality path; fp8 renders ~35% faster at ~half the engine size "
+            "with a modest detail drift (fast preview/draft iterations). Needs "
+            "transformer_fp8.plan in the engine bundle; falls back to bf16 when "
+            "the fp8 engine is absent."
+        ),
+        items=[
+            (_("bf16 (full quality)"), "bf16"),
+            (_("fp8 (fast preview)"), "fp8"),
+        ],
     )
 
     show_builtin_styles: bool

@@ -62,7 +62,7 @@ from ..model.region import RootRegion
 from ..model.root import root
 from ..settings import settings
 from ..style import Styles
-from ..util import ensure, flatten, is_one, sequence_equal, trim_text
+from ..util import client_logger as log, ensure, flatten, is_one, sequence_equal, trim_text
 from . import theme
 from .region import RegionPromptWidget
 from .widget import (
@@ -129,6 +129,7 @@ class HistoryWidget(QListWidget):
         self._context_button.setStyleSheet(self._button_css)
         self._context_button.setVisible(False)
         self._context_button.clicked.connect(self._show_context_menu_dropdown)
+        self._context_item: QListWidgetItem | None = None
 
         f = self.fontMetrics()
         self._apply_button.setFixedHeight(f.height() + 8)
@@ -436,6 +437,7 @@ class HistoryWidget(QListWidget):
 
     def _show_context_menu(self, pos: QPoint):
         item = self.itemAt(pos)
+        self._context_item = item
         if item is not None:
             job = self._model.jobs.find(self._item_data(item).job)
             menu = QMenu(self)
@@ -453,6 +455,18 @@ class HistoryWidget(QListWidget):
             compare_action.setEnabled(len(image_items) == 2)
             grid_action = ensure(menu.addAction(_("Save Grid as Layer"), self._save_grid_layer))
             grid_action.setEnabled(len(image_items) > 0)
+            apply_all_action = ensure(
+                menu.addAction(_("Apply All Variations as Layers"), self._apply_all_variations)
+            )
+            apply_all_action.setEnabled(job is not None and len(job.results) > 0)
+            gen_similar_action = ensure(
+                menu.addAction(_("Generate Similar (4x)"), self._generate_similar)
+            )
+            gen_similar_action.setEnabled(job is not None)
+            gmic_action = ensure(
+                menu.addAction(_("Open Applied Layer in G'MIC-Qt"), self._open_in_gmic)
+            )
+            gmic_action.setEnabled(job is not None and len(job.results) > 0)
             menu.addSeparator()
             save_action = ensure(menu.addAction(_("Save Image"), self._save_image))
             if self._model.document.filename == "":
@@ -466,6 +480,68 @@ class HistoryWidget(QListWidget):
             menu.addSeparator()
             menu.addAction(_("Clear History"), self._clear_all)
             menu.exec(self.mapToGlobal(pos))
+
+    def _context_job_and_index(self) -> tuple[Job | None, int]:
+        item = self._context_item
+        if item is None and len(self.selectedItems()) > 0:
+            item = self.selectedItems()[0]
+        if item is not None:
+            job_id, idx = self.item_info(item)
+            job = self._model.jobs.find(job_id) if job_id else None
+            return job, (idx if idx is not None else 0)
+        return self.selected_job, 0
+
+    def _apply_all_variations(self):
+        job, _ = self._context_job_and_index()
+        if job and job.id:
+            # animation and layered jobs apply all their results in one call
+            if job.kind is JobKind.animation or job.params.is_layered:
+                self._model.apply_generated_result(job.id, 0)
+            else:
+                for idx in range(len(job.results)):
+                    self._model.apply_generated_result(job.id, idx)
+
+    def _generate_similar(self):
+        job, _ = self._context_job_and_index()
+        if not job:
+            return
+        prompt = job.params.metadata.get("prompt", job.params.prompt)
+        active = getattr(self._model.active_regions, "active_or_root", self._model.active_regions)
+        active.positive = prompt
+        if hasattr(active, "negative"):
+            active.negative = job.params.metadata.get(
+                "negative_prompt", job.params.metadata.get("negative_prompt_eval", "")
+            )
+        if style := Styles.list().find(job.params.style):
+            self._model.style = style
+        self._model.strength = job.params.strength
+        if self._model.workspace is Workspace.custom and self._model.document.is_active:
+            self._model.custom.try_set_params(job.params.metadata)
+
+        self._model.fixed_seed = False
+        self._model.batch_count = 4
+        if self._model.workspace is Workspace.custom:
+            self._model.custom.generate()
+        else:
+            self._model.generate()
+
+    def _open_in_gmic(self):
+        job, index = self._context_job_and_index()
+        if not job or not job.id or index >= len(job.results):
+            return
+        if not job.result_was_used(index):
+            self._model.apply_generated_result(job.id, index)
+
+        try:
+            from krita import Krita
+
+            action = Krita.instance().action("gmic_qt") or Krita.instance().action("QMic")
+            if action:
+                action.trigger()
+            else:
+                log.warning("G'MIC-Qt action not found in Krita")
+        except Exception as e:
+            log.warning(f"Failed to trigger G'MIC-Qt action: {e}")
 
     def _show_context_menu_dropdown(self):
         pos = self._context_button.pos()
@@ -815,6 +891,8 @@ class CustomInpaintWidget(QWidget):
         layout.addWidget(self.context_combo, 1)
         self.setLayout(layout)
 
+        root.connection.models_changed.connect(self.update_widgets_enabled)
+
     @property
     def model(self):
         return self._model
@@ -843,6 +921,7 @@ class CustomInpaintWidget(QWidget):
         self.fill_mode_combo.setEnabled(is_one(self.model.strength) and not self.model.is_editing)
         self.use_inpaint_button.setEnabled(arch.is_sdxl_like or arch.has_controlnet_inpaint)
         self.use_prompt_focus_button.setVisible(arch is Arch.sd15 or arch.is_sdxl_like)
+        self.edit_mode_switch.setVisible(self.model.can_edit)
         self.edit_mode_switch.setEnabled(self.model.can_toggle_edit)
 
     def update_context_layers(self):
@@ -1058,6 +1137,7 @@ class GenerationWidget(QWidget):
         action = QAction(text, self)
         action.setIcon(theme.icon(icon))
         action.setIconVisibleInMenu(True)
+        action.setProperty("is_edit_action", is_edit is True)
         action.triggered.connect(lambda: self.change_inpaint_mode(mode, is_edit))
         return action
 
@@ -1139,7 +1219,6 @@ class GenerationWidget(QWidget):
                 menu = self.generate_region_menu
             elif self.model.document.selection_bounds:
                 menu = self.inpaint_menu
-                menu.actions()[-2].setEnabled(self.model.can_edit)
             else:
                 menu = self.generate_menu
         else:
@@ -1147,10 +1226,12 @@ class GenerationWidget(QWidget):
                 menu = self.refine_region_menu
             elif self.model.document.selection_bounds:
                 menu = self.refine_selection_menu
-                menu.actions()[1].setEnabled(self.model.can_edit)
             else:
                 menu = self.refine_menu
-                menu.actions()[1].setEnabled(self.model.can_edit)
+
+        for action in menu.actions():
+            if action.property("is_edit_action"):
+                action.setVisible(self.model.can_edit)
 
         menu.setFixedWidth(width)
         menu.exec(self.generate_button.mapToGlobal(pos))

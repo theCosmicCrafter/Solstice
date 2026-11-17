@@ -223,3 +223,27 @@ def acquire_elements(l: list[QOBJECT]) -> list[QOBJECT]:
         if obj is not None:
             sip.transferback(obj)
     return l
+
+
+_poll_tick_active = False
+
+
+def exclusive_poll_tick(callback: Callable[[], Any]):
+    """Run a per-document poll timer callback unless another one is running.
+
+    Solstice local patch. Pykrita's Document.activeNode() delivers pending
+    events (KisSynchronizedConnectionBase::forceDeliverAllSynchronizedEvents
+    calls processEvents), so a poll tick can fire the poll timers of every
+    other open document inside itself. Qt does not re-enter the same timer,
+    but each document adds one nested level, and with a few dozen documents
+    open the GUI thread's stack overflows. Skipping a nested tick only delays
+    that poll until its next interval.
+    """
+    global _poll_tick_active
+    if _poll_tick_active:
+        return
+    _poll_tick_active = True
+    try:
+        callback()
+    finally:
+        _poll_tick_active = False

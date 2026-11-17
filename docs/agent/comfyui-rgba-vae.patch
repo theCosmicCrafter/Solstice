@@ -1,0 +1,40 @@
+# Patch: 4-channel RGBA AutoencoderKL support for ComfyUI (comfy/sd.py)
+#
+# Application note
+# ----------------
+# Target: D:/krita/ComfyUI/comfy/sd.py (the VAE.__init__ "default SD1.x/SD2.x"
+# AutoencoderKL branch). That tree is not a git checkout, so apply manually:
+#     cd D:/krita/ComfyUI && patch -p1 < comfyui-rgba-vae.patch
+# or apply the hunk by hand: inside VAE.__init__, in the generic
+# 'decoder.conv_in.weight' else-branch, right after the hardcoded `ddconfig`
+# line, add the six lines that infer `in_channels`/`out_ch` from the state
+# dict, set `self.output_channels` from the decoder output width, and set
+# `pad_channel_value = 1.0` when the encoder expects 4 channels. Verified
+# against D:/models/vae/flux2_3_rgba_vae.safetensors (diffusers layout,
+# auto-converted by diffusers_convert.convert_vae_state_dict):
+# encoder.conv_in.weight [128,4,3,3], decoder.conv_out.weight [4,128,3,3],
+# decoder.conv_in.weight [512,32,3,3], top-level quant_conv/post_quant_conv
+# and bn.* (batch_norm_latent 2x2 packing -> 128ch Flux2 latents, downscale
+# 16x). Effect: ddconfig gets in_channels=4/out_ch=4 so Encoder.conv_in and
+# Decoder.conv_out build 4-channel convs; output_channels=4 makes decode
+# emit [B,H,W,4] RGBA and tiled decode allocate 4-channel buffers;
+# pad_channel_value=1.0 pads RGB input to RGBA with opaque alpha on encode.
+# Stock VAEs (out_ch=3) are unaffected - inference yields the same values
+# that were hardcoded. Restart ComfyUI after applying.
+#
+--- a/comfy/sd.py
++++ b/comfy/sd.py
+@@ -675,6 +675,13 @@
+                 else:
+                     #default SD1.x/SD2.x VAE parameters
+                     ddconfig = {'double_z': True, 'z_channels': 4, 'resolution': 256, 'in_channels': 3, 'out_ch': 3, 'ch': 128, 'ch_mult': [1, 2, 4, 4], 'num_res_blocks': 2, 'attn_resolutions': [], 'dropout': 0.0}
++                    if "encoder.conv_in.weight" in sd:
++                        ddconfig["in_channels"] = sd["encoder.conv_in.weight"].shape[1]
++                    if "decoder.conv_out.weight" in sd:
++                        ddconfig["out_ch"] = sd["decoder.conv_out.weight"].shape[0]
++                        self.output_channels = ddconfig["out_ch"]
++                    if ddconfig["in_channels"] == 4:  # RGBA VAE (e.g. flux2_3_rgba_vae)
++                        self.pad_channel_value = 1.0  # opaque alpha for RGB input
+ 
+                     if 'encoder.down.2.downsample.conv.weight' not in sd and 'decoder.up.3.upsample.conv.weight' not in sd: #Stable diffusion x4 upscaler VAE
+                         ddconfig['ch_mult'] = [1, 2, 4]

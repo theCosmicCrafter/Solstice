@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import cast
 
@@ -219,6 +220,7 @@ class LoraItem(QWidget):
         file = root.files.loras.find(id)
         if file and file != self._current:
             self._current = file
+            root.files.loras.set_meta(file, "last_used", int(time.time()))
             default_strength = int(file.meta("lora_strength", 1.0) * 100)
             if default_strength != self._strength.value():
                 self._strength.setValue(default_strength)
@@ -956,7 +958,7 @@ class StylePresets(SettingsTab):
         elif arch.is_qwen_like:
             valid_archs = (Arch.auto, Arch.qwen, Arch.qwen_e, Arch.qwen_e_p, Arch.qwen_l)
         elif arch.is_flux2:
-            valid_archs = (Arch.auto, Arch.flux2_4b, Arch.flux2_9b)
+            valid_archs = (Arch.auto, Arch.flux2_4b, Arch.flux2_9b, Arch.flux3)
         else:
             valid_archs = (Arch.auto, arch)
         with SignalBlocker(self._arch_select):

@@ -1,3 +1,5 @@
+from enum import Enum
+
 from PyQt6.QtCore import QEvent, QMetaObject, Qt, pyqtSignal
 from PyQt6.QtGui import QCursor, QEnterEvent
 from PyQt6.QtWidgets import (
@@ -13,6 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ..backend import workflow
 from ..backend.resources import ControlMode, UpscalerName
 from ..localization import translate as _
 from ..model.jobs import JobKind
@@ -31,6 +34,16 @@ from .widget import (
     StyleSelectWidget,
     WorkspaceSelectWidget,
 )
+
+
+class UpscaleMode(Enum):
+    standard = "standard"
+    tiled_diffusion = "tiled_diffusion"
+    seedvr2 = "SeedVR2 (1-Step Restoration)"
+
+
+SEEDVR2_DIT = workflow.SEEDVR2_DIT
+SEEDVR2_VAE = workflow.SEEDVR2_VAE
 
 
 class FactorWidget(QWidget):
@@ -124,8 +137,21 @@ class UpscaleWidget(QWidget):
         layout.setContentsMargins(0, 2, 4, 0)
         self.setLayout(layout)
 
+        # Mode selection combobox
+        self.mode_combo = QComboBox(self)
+        self.mode_combo.addItem(_("Standard (Model)"), UpscaleMode.standard.value)
+        self.mode_combo.addItem(_("Tiled Diffusion"), UpscaleMode.tiled_diffusion.value)
+        self.mode_combo.addItem("SeedVR2 (1-Step Restoration)", UpscaleMode.seedvr2.value)
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel(_("Mode") + ":", self))
+        mode_layout.addWidget(self.mode_combo)
+        layout.addLayout(mode_layout)
+
         self.workspace_select = WorkspaceSelectWidget(self)
         self.model_select = QComboBox(self)
+        self.model_select.currentIndexChanged.connect(self._on_model_select_changed)
         model_layout = QHBoxLayout()
         model_layout.addWidget(self.workspace_select)
         model_layout.addWidget(self.model_select)
@@ -134,6 +160,44 @@ class UpscaleWidget(QWidget):
         self.factor_widget = FactorWidget(self)
         self.factor_widget.value_changed.connect(self._update_factor)
         layout.addWidget(self.factor_widget)
+
+        # SeedVR2 Controls & Info
+        self.seedvr2_group = QGroupBox(_("SeedVR2 (1-Step Restoration)"), self)
+        seedvr2_layout = QVBoxLayout(self.seedvr2_group)
+
+        self.seedvr2_info_label = QLabel(
+            _(
+                "1-Step Diffusion Restoration powered by DiT.\n"
+                "Restores high-frequency detail and texture directly with generative priors without multi-step noise scheduling."
+            ),
+            self,
+        )
+        self.seedvr2_info_label.setWordWrap(True)
+        self.seedvr2_info_label.setStyleSheet(f"color: {theme.grey};")
+        seedvr2_layout.addWidget(self.seedvr2_info_label)
+
+        seedvr2_scale_layout = QHBoxLayout()
+        seedvr2_scale_layout.addWidget(QLabel(_("Scale Factor"), self), 1)
+        self.seedvr2_scale_combo = QComboBox(self)
+        self.seedvr2_scale_combo.addItem("2x", 2.0)
+        self.seedvr2_scale_combo.addItem("4x", 4.0)
+        self.seedvr2_scale_combo.currentIndexChanged.connect(self._on_seedvr2_scale_changed)
+        seedvr2_scale_layout.addWidget(self.seedvr2_scale_combo, 2)
+        seedvr2_layout.addLayout(seedvr2_scale_layout)
+
+        seedvr2_color_layout = QHBoxLayout()
+        seedvr2_color_layout.addWidget(QLabel(_("Color Correction"), self), 1)
+        self.seedvr2_color_combo = QComboBox(self)
+        self.seedvr2_color_combo.addItem(_("Wavelet (Recommended)"), "wavelet")
+        self.seedvr2_color_combo.addItem(_("LAB (Most Faithful)"), "lab")
+        self.seedvr2_color_combo.addItem(_("AdAIN (Adaptive Instance)"), "adain")
+        self.seedvr2_color_combo.addItem(_("None"), "none")
+        self.seedvr2_color_combo.setToolTip(_("Color correction method to maintain source tone and palette balance."))
+        seedvr2_color_layout.addWidget(self.seedvr2_color_combo, 2)
+        seedvr2_layout.addLayout(seedvr2_color_layout)
+
+        layout.addWidget(self.seedvr2_group)
+        self.seedvr2_group.setVisible(False)
 
         self.refinement_checkbox = QGroupBox(_("Refine upscaled image"), self)
         self.refinement_checkbox.setCheckable(True)
@@ -185,6 +249,7 @@ class UpscaleWidget(QWidget):
         group_layout.addLayout(prompt_layout)
         self.refinement_checkbox.setLayout(group_layout)
         layout.addWidget(self.refinement_checkbox)
+        self.refinement_checkbox.toggled.connect(self._on_refinement_toggled)
 
         self.upscale_button = GenerateButton(JobKind.upscaling, self)
         self.upscale_button.operation = _("Upscale")
@@ -249,6 +314,8 @@ class UpscaleWidget(QWidget):
 
     def update_models(self):
         if client := root.connection.client_if_connected:
+            if "SeedVR2" not in client.models.upscalers:
+                client.models.upscalers.append("SeedVR2")
             with SignalBlocker(self.model_select):
                 self.model_select.clear()
                 for file in sorted(client.models.upscalers, key=_upscaler_order):
@@ -266,8 +333,12 @@ class UpscaleWidget(QWidget):
                         self.model_select.addItem(name, file)
                     elif file in [UpscalerName.fast_2x.value, UpscalerName.fast_3x.value]:
                         pass
+                    elif file == "SeedVR2":
+                        self.model_select.addItem("SeedVR2 (1-Step Restoration)", file)
                     else:
                         self.model_select.addItem(file, file)
+                if self.model_select.findData("SeedVR2") == -1:
+                    self.model_select.addItem("SeedVR2 (1-Step Restoration)", "SeedVR2")
                 selected = self.model_select.findData(self.model.upscale.upscaler)
                 self.model_select.setCurrentIndex(max(selected, 0))
 
@@ -275,7 +346,74 @@ class UpscaleWidget(QWidget):
         self.progress_bar.setValue(int(self.model.progress * 100))
 
     def upscale(self):
-        self.model.upscale_image()
+        mode_data = self.mode_combo.currentData()
+        selected_model = self.model_select.currentData()
+        if mode_data == UpscaleMode.seedvr2.value or selected_model == "SeedVR2":
+            workflow.seedvr2_color_correction = self.seedvr2_color_combo.currentData()
+            if client := root.connection.client_if_connected:
+                if "SeedVR2" not in client.models.upscalers:
+                    client.models.upscalers.append("SeedVR2")
+            self.model.upscale.upscaler = "SeedVR2"
+            self.model.upscale.use_diffusion = False
+            scale = self.seedvr2_scale_combo.currentData()
+            self.model.upscale.factor = float(scale)
+            self.model.upscale_image()
+        else:
+            self.model.upscale.use_diffusion = (
+                mode_data == UpscaleMode.tiled_diffusion.value
+            )
+            self.model.upscale_image()
+
+    def _on_refinement_toggled(self, checked: bool):
+        # the refinement group check is another handle on tiled-diffusion
+        # mode; keep the mode combo as the single source of truth
+        if self.mode_combo.currentData() == UpscaleMode.seedvr2.value:
+            return
+        target = UpscaleMode.tiled_diffusion if checked else UpscaleMode.standard
+        idx = self.mode_combo.findData(target.value)
+        if idx != -1 and self.mode_combo.currentIndex() != idx:
+            self.mode_combo.setCurrentIndex(idx)
+
+    def _on_mode_changed(self):
+        mode_data = self.mode_combo.currentData()
+        is_seedvr2 = mode_data == UpscaleMode.seedvr2.value
+        self.seedvr2_group.setVisible(is_seedvr2)
+        self.refinement_checkbox.setVisible(not is_seedvr2)
+        self.factor_widget.setVisible(not is_seedvr2)
+        self.model_select.setEnabled(not is_seedvr2)
+
+        if is_seedvr2:
+            scale = self.seedvr2_scale_combo.currentData()
+            self.factor_widget.value = float(scale)
+            self.refinement_checkbox.setChecked(False)
+            self.upscale_button.operation = _("Restore")
+            idx = self.model_select.findData("SeedVR2")
+            if idx != -1:
+                with SignalBlocker(self.model_select):
+                    self.model_select.setCurrentIndex(idx)
+        else:
+            # leaving SeedVR2 mode: restore a real upscaler model so the
+            # sentinel value does not leak into standard/tiled runs
+            if self.model_select.currentData() == "SeedVR2":
+                for i in range(self.model_select.count()):
+                    if self.model_select.itemData(i) != "SeedVR2":
+                        with SignalBlocker(self.model_select):
+                            self.model_select.setCurrentIndex(i)
+                        break
+            self.model.upscale.use_diffusion = (
+                mode_data == UpscaleMode.tiled_diffusion.value
+            )
+            self._update_factor()
+
+    def _on_model_select_changed(self):
+        if self.model_select.currentData() == "SeedVR2":
+            idx = self.mode_combo.findData(UpscaleMode.seedvr2.value)
+            if idx != -1 and self.mode_combo.currentIndex() != idx:
+                self.mode_combo.setCurrentIndex(idx)
+
+    def _on_seedvr2_scale_changed(self):
+        scale = self.seedvr2_scale_combo.currentData()
+        self.factor_widget.value = float(scale)
 
     def _update_overlap(self):
         self.overlap_input.setEnabled(
@@ -324,7 +462,9 @@ class UpscaleWidget(QWidget):
         set_text_clipped(self.prompt_label, text, padding=padding)
 
     def _update_factor(self):
-        if self.factor_widget.value == 1 and self.model.upscale.use_diffusion:
+        if self.mode_combo.currentData() == UpscaleMode.seedvr2.value:
+            self.upscale_button.operation = _("Restore")
+        elif self.factor_widget.value == 1 and self.model.upscale.use_diffusion:
             self.upscale_button.operation = _("Refine")
         else:
             self.upscale_button.operation = _("Upscale")
@@ -336,4 +476,5 @@ def _upscaler_order(filename: str):
         UpscalerName.fast_4x.value: 1,
         UpscalerName.quality.value: 2,
         UpscalerName.sharp.value: 3,
+        "SeedVR2": 4,
     }.get(filename, 99)

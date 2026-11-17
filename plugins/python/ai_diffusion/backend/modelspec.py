@@ -135,6 +135,73 @@ def extract_metadata_fields(meta: dict) -> dict[str, Any]:
     return result
 
 
+def _read_json_sidecar(path: Path) -> dict | None:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def extract_sidecar_metadata(model_path: Path | str) -> dict[str, Any]:
+    """Extract metadata fields from a ``<name>.metadata.json`` sidecar
+    (ComfyUI LoRA Manager convention) into the keys used by `File.metadata`
+    (`modelspec.*`, `trigger_words`, `civitai`). Falls back to a
+    ``<name>.civitai.info`` sidecar (CivitAI browser extension/downloaders)
+    when no LoRA Manager sidecar exists.
+
+    Returns an empty dict when no readable sidecar exists."""
+    model_path = Path(model_path)
+    if data := _read_json_sidecar(model_path.with_name(model_path.stem + ".metadata.json")):
+        return _metadata_from_manager_sidecar(data)
+    if data := _read_json_sidecar(model_path.with_name(model_path.stem + ".civitai.info")):
+        return _metadata_from_civitai_info_sidecar(data)
+    return {}
+
+
+def _metadata_from_manager_sidecar(data: dict) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    if name := str(data.get("model_name") or "").strip():
+        result["modelspec.title"] = name
+    if base := str(data.get("base_model") or "").strip():
+        if base.lower() != "unknown":
+            result["modelspec.base_model"] = base
+    words = data.get("trainedWords")
+    if isinstance(words, list):
+        triggers = [w.strip() for w in words if isinstance(w, str) and w.strip()]
+        if triggers:
+            result["trigger_words"] = triggers
+    civitai = data.get("civitai")
+    if isinstance(civitai, dict):
+        result["civitai"] = civitai
+    return result
+
+
+def _metadata_from_civitai_info_sidecar(data: dict) -> dict[str, Any]:
+    """``.civitai.info`` files store the raw CivitAI model-version payload."""
+    result: dict[str, Any] = {}
+    if name := str(data.get("name") or "").strip():
+        result["modelspec.title"] = name
+    if base := str(data.get("baseModel") or "").strip():
+        if base.lower() != "unknown":
+            result["modelspec.base_model"] = base
+    words = data.get("trainedWords")
+    if not isinstance(words, list):
+        words = data.get("trained words")
+    if isinstance(words, list):
+        triggers = [w.strip() for w in words if isinstance(w, str) and w.strip()]
+        if triggers:
+            result["trigger_words"] = triggers
+    civitai: dict[str, Any] = {}
+    if isinstance(data.get("id"), int):
+        civitai["id"] = data["id"]
+    if isinstance(data.get("modelId"), int):
+        civitai["modelId"] = data["modelId"]
+    if civitai:
+        result["civitai"] = civitai
+    return result
+
+
 def _as_number(value: Any) -> float:
     try:
         return float(value)

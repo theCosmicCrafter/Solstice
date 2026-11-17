@@ -10,7 +10,7 @@ from PyQt6.QtGui import QImage
 
 from . import eventloop
 from .image import BlendMode, Bounds, Extent, Image, ImageCollection
-from .util import acquire_elements, ensure, maybe
+from .util import acquire_elements, ensure, exclusive_poll_tick, maybe
 from .util import client_logger as log
 
 
@@ -365,8 +365,11 @@ class LayerManager(QObject):
             self.update()
             self._timer = QTimer(self)
             self._timer.setInterval(500)
-            self._timer.timeout.connect(self.update)
+            self._timer.timeout.connect(self._update_tick)
             self._timer.start()
+
+    def _update_tick(self):
+        exclusive_poll_tick(self.update)
 
     @contextmanager
     def _update_guard(self):

@@ -345,7 +345,10 @@ class Styles(QObject):
 
     def find_style_files(self):
         for folder in (self.builtin_folder, self.user_folder):
-            yield from folder.rglob("*.json")
+            # Skip hidden folders such as an editor's .vscode/settings.json
+            for file in folder.rglob("*.json"):
+                if not any(part.startswith(".") for part in file.relative_to(folder).parts):
+                    yield file
 
     def reload(self):
         styles = (Style.load(f) for f in self.find_style_files())
@@ -479,6 +482,12 @@ class SamplerPresets:
         if name in legacy_map:
             return self[legacy_map[name]]
         raise KeyError(f"Sampler preset {name} not found")
+
+    def get(self, name: str) -> SamplerPreset | None:
+        try:
+            return self[name]
+        except KeyError:
+            return None
 
     def items(self):
         return self._presets.items()

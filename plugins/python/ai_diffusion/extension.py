@@ -9,7 +9,7 @@ from . import __version__, eventloop
 from .model.model import Workspace
 from .model.root import root
 from .settings import settings
-from .ui import actions
+from .ui import actions, theme
 from .ui.diffusion import ImageDiffusionWidget
 from .ui.settings import SettingsDialog
 from .util import client_logger as log
@@ -57,14 +57,21 @@ class AIToolsExtension(Extension):
         root.server.terminate()
         eventloop.stop()
 
-    def _create_action(self, window: Window, name: str, func: Callable[[], None]):
-        action = window.createAction(f"ai_diffusion_{name}", "", "")
+    def _create_action(
+        self, window: Window, name: str, func: Callable[[], None], menu_location: str = ""
+    ):
+        action = window.createAction(f"ai_diffusion_{name}", "", menu_location)
         action.triggered.connect(func)
         self._actions[name] = action
+        return action
 
     def createActions(self, window):
         self._create_action(window, "settings", self._settings_dialog.show)
         self._create_action(window, "generate", actions.generate)
+        fill_action = self._create_action(
+            window, "generative_fill", actions.generative_fill, "Select"
+        )
+        fill_action.setIcon(theme.icon("inpaint-fill"))
         self._create_action(window, "cancel", actions.cancel_active)
         self._create_action(window, "cancel_queued", actions.cancel_queued)
         self._create_action(window, "cancel_all", actions.cancel_all)

@@ -10,10 +10,10 @@ from typing import Any, NamedTuple
 
 # Version identifier for all the resources defined here. This is used as the server version.
 # It usually follows the plugin version, but not all new plugin versions also require a server update.
-version = "1.54.0"
+version = "1.56.0"
 
 comfy_url = "https://github.com/comfyanonymous/ComfyUI"
-comfy_version = "e9027f2b30f37bb3052714eb08fcf479542f4fc0"
+comfy_version = "b9b290e43f1eb379946dfeb013faf9bbefa1a618"
 
 
 class CustomNode(NamedTuple):
@@ -68,6 +68,21 @@ optional_custom_nodes = [
         "01f8845bf30d89fff293c7bd50187bc59d9d53ea",
         ["UnetLoaderGGUF", "DualCLIPLoaderGGUF"],
     ),
+    # LoRA Manager serves its model-library UI at <server>/loras and writes
+    # .metadata.json sidecars that files.py reads for arch/trigger metadata.
+    # Heavyweight install (~16 pip deps) — drop from this list if that
+    # becomes a problem for managed installs.
+    CustomNode(
+        "Lora Manager",
+        "ComfyUI-Lora-Manager",
+        "https://github.com/willmiao/ComfyUI-Lora-Manager",
+        "1fb1d5bb8908d35748e0f9d8c9ed090e5f2e2a88",
+        [
+            "Lora Loader (LoraManager)",
+            "Prompt (LoraManager)",
+            "Checkpoint Loader (LoraManager)",
+        ],
+    ),
 ]
 
 
@@ -77,6 +92,8 @@ optional_custom_nodes = [
 _arch_string_hints = [
     ("qwenimage21", "qwen-image21"),
     ("qwenimage", "qwen-image"),
+    ("qwen2", "qwen2"),
+    ("qwen", "qwen"),
     ("zimage", "z-image"),
     ("ernieimage", "ernie-image"),
     ("illustrious", "illu"),
@@ -84,6 +101,7 @@ _arch_string_hints = [
     ("krea", "krea2"),
     ("anima", "anima"),
     ("chroma", "chroma"),
+    ("flux3", "flux3"),
     ("flux2", "flux2"),
     ("flux", "flux"),
     ("stablediffusionxl", "sdxl"),
@@ -106,6 +124,7 @@ class Arch(Enum):
     flux_k = "Flux Kontext"
     flux2_4b = "Flux 2 Klein 4B"
     flux2_9b = "Flux 2 Klein 9B"
+    flux3 = "Flux 3"
     illu = "Illustrious"
     illu_v = "Illustrious v-prediction"
     chroma = "Chroma"
@@ -118,6 +137,7 @@ class Arch(Enum):
     zimage = "Z-Image"
     ernie = "ERNIE Image"
     krea2 = "Krea 2"
+    moss = "MOSS Image"
     generic = "Generic"
 
     auto = "Automatic"
@@ -142,22 +162,26 @@ class Arch(Enum):
             return Arch.flux2_4b
         if string == "flux2_9b" or (string == "flux2" and model_type == "klein-9b"):
             return Arch.flux2_9b
+        if string == "flux3" or (string == "unknown" and "flux3" in filename):
+            return Arch.flux3
+        if string == "moss-image" or (string == "unknown" and "moss" in filename):
+            return Arch.moss
         if string == "illu":
             return Arch.illu
         if string == "illu_v":
             return Arch.illu_v
         if string == "chroma":
             return Arch.chroma
-        if string == "qwen-image" and "edit" in filename:
+        if string in {"qwen-image", "qwen"} and "edit" in filename:
             if "2509" in filename or "2511" in filename:
                 return Arch.qwen_e_p
             else:
                 return Arch.qwen_e
-        if string == "qwen-image" and "layered" in filename:
+        if string in {"qwen-image", "qwen"} and "layered" in filename:
             return Arch.qwen_l
-        if string == "qwen-image":
+        if string in {"qwen-image", "qwen"}:
             return Arch.qwen
-        if string == "qwen-image21":
+        if string in {"qwen-image21", "qwen2"}:
             return Arch.qwen2
         if string == "anima" or (string == "unknown" and "anima" in filename):
             return Arch.anima
@@ -176,6 +200,21 @@ class Arch(Enum):
         """Detect architecture from checkpoint name and folder path."""
         # Check folder names in the path for model type indicators
         path_lower = checkpoint.lower()
+        if (
+            "flux3" in path_lower
+            or "flux-3" in path_lower
+            or "flux.3" in path_lower
+        ):
+            return Arch.flux3
+        if "qwen" in path_lower and "layered" in path_lower:
+            return Arch.qwen_l
+        if (
+            "qwen_image_2" in path_lower
+            or "qwen-image-2" in path_lower
+            or "qwen2" in path_lower
+        ):
+            return Arch.qwen2
+
         folder_part = path_lower.split("/")[0] if "/" in path_lower else path_lower.split("\\")[0] if "\\" in path_lower else ""
 
         # Check folder names first (for subfolder organization).
@@ -275,6 +314,11 @@ class Arch(Enum):
         return self
 
     @property
+    def supports_same_model_edit(self):  # can serve edit mode with the same model
+        # requires an edit adapter LoRA, see default_names for ResourceKind.lora
+        return self is Arch.moss
+
+    @property
     def has_controlnet_inpaint(self):
         return self in (Arch.sd15, Arch.flux, Arch.zimage, Arch.qwen, Arch.anima)
 
@@ -300,8 +344,9 @@ class Arch(Enum):
 
     @property
     def supports_alpha(self):
-        # qwen_l produces layered output which is inherently RGBA
-        return self in [Arch.qwen2, Arch.qwen_l]
+        # qwen_l produces layered output which is inherently RGBA;
+        # flux2/flux3 arches support 4-channel VAEs (e.g. flux2_3_rgba_vae)
+        return self.is_flux2 or self in [Arch.qwen2, Arch.qwen_l]
 
     @property
     def is_edit(self):  # edit models make changes to input images
@@ -322,7 +367,7 @@ class Arch(Enum):
 
     @property
     def is_flux2(self):
-        return self in [Arch.flux2_4b, Arch.flux2_9b]
+        return self in [Arch.flux2_4b, Arch.flux2_9b, Arch.flux3]
 
     @property
     def is_qwen_like(self):
@@ -357,6 +402,10 @@ class Arch(Enum):
                 return ["ministral"]
             case Arch.krea2:
                 return ["qwen_3vl_4b"]
+            case Arch.flux3:
+                return ["qwen_3vl_4b"]
+            case Arch.moss:
+                return ["qwen_35_9b"]
             case Arch.generic:
                 return ["clip_l"]
             case _:
@@ -372,6 +421,7 @@ class Arch(Enum):
             Arch.flux_k,
             Arch.flux2_4b,
             Arch.flux2_9b,
+            Arch.flux3,
             Arch.illu,
             Arch.illu_v,
             Arch.chroma,
@@ -384,6 +434,7 @@ class Arch(Enum):
             Arch.zimage,
             Arch.ernie,
             Arch.krea2,
+            Arch.moss,
             Arch.generic,
         ]
 
@@ -411,6 +462,7 @@ class UpscalerName(Enum):
     fast_2x = "OmniSR_X2_DIV2K.safetensors"
     fast_3x = "OmniSR_X3_DIV2K.safetensors"
     fast_4x = "OmniSR_X4_DIV2K.safetensors"
+    seedvr2 = "SeedVR2"  # sentinel — resolved by the SeedVR2 workflow, not an upscale_models file
 
     @staticmethod
     def fast_x(x: int):
@@ -599,6 +651,7 @@ class ModelFile(NamedTuple):
     url: str
     id: ResourceId
     sha256: str | None = None
+    size: int = 0  # expected download size in bytes (0 = unknown)
 
     @property
     def name(self):
@@ -608,7 +661,8 @@ class ModelFile(NamedTuple):
     def parse(data: dict[str, Any], parent_id: ResourceId):
         id = ResourceId.parse(data.get("id", parent_id.string))
         sha256 = data.get("sha256", None)
-        return ModelFile(Path(data["path"]), data["url"], id, sha256)
+        size = data.get("size", 0) or 0
+        return ModelFile(Path(data["path"]), data["url"], id, sha256, int(size))
 
     def as_dict(self, with_id=True):
         result = {
@@ -620,6 +674,8 @@ class ModelFile(NamedTuple):
             del result["id"]
         if self.sha256:
             result["sha256"] = self.sha256
+        if self.size:
+            result["size"] = self.size
         return result
 
     def verify(self, base_dir: Path):
@@ -645,6 +701,8 @@ class ModelResource(NamedTuple):
     files: list[ModelFile]
     alternatives: list[Path] | None = None  # for backwards compatibility
     requirements: ModelRequirements = ModelRequirements.none
+    license: str | None = None  # license id or short label, e.g. "apache-2.0", "non-commercial"
+    min_vram_gb: float | None = None  # minimum recommended GPU VRAM to run the model
 
     @property
     def filename(self):
@@ -696,6 +754,10 @@ class ModelResource(NamedTuple):
             result["alternatives"] = [str(p.as_posix()) for p in self.alternatives]
         if self.requirements is not ModelRequirements.none:
             result["requirements"] = self.requirements.name
+        if self.license is not None:
+            result["license"] = self.license
+        if self.min_vram_gb is not None:
+            result["min_vram_gb"] = self.min_vram_gb
         return result
 
     @staticmethod
@@ -728,7 +790,15 @@ class ModelResource(NamedTuple):
                 if "requirements" in data
                 else ModelRequirements.none
             )
-            yield ModelResource(data["name"], id, files, alternatives, requirements)
+            yield ModelResource(
+                data["name"],
+                id,
+                files,
+                alternatives,
+                requirements,
+                license=data.get("license"),
+                min_vram_gb=data.get("min_vram_gb"),
+            )
 
     @staticmethod
     def from_list(data: list[dict[str, Any]]):
@@ -909,6 +979,11 @@ search_paths: dict[str, list[str]] = {
     resource_id(ResourceKind.lora, Arch.flux, "turbo"): ["flux.1-turbo"],
     resource_id(ResourceKind.lora, Arch.flux_k, "turbo"): ["flux.1-turbo"],
     resource_id(ResourceKind.lora, Arch.anima, "turbo"): ["anima-turbo-lora"],
+    resource_id(ResourceKind.lora, Arch.moss, "edit"): [
+        "Moss-Image-Edit/adapter_model",
+        "moss-image-edit",
+        "moss_image_edit",
+    ],
     resource_id(ResourceKind.lora, Arch.sd15, ControlMode.face): ["ip-adapter-faceid-plusv2_sd15_lora", "ip-adapter-faceid-plus_sd15_lora"],
     resource_id(ResourceKind.lora, Arch.sdxl, ControlMode.face): ["ip-adapter-faceid-plusv2_sdxl_lora", "ip-adapter-faceid_sdxl_lora"],
     resource_id(ResourceKind.lora, Arch.flux, ControlMode.depth): ["flux1-depth"],
@@ -933,6 +1008,7 @@ search_paths: dict[str, list[str]] = {
     resource_id(ResourceKind.text_encoder, Arch.all, "ministral"): ["ministral-3-3b", "ministral"],
     resource_id(ResourceKind.text_encoder, Arch.all, "qwen_3vl_4b"): ["qwen3vl_4b", "qwen_3vl_4b", "qwen3-vl-4b"],
     resource_id(ResourceKind.text_encoder, Arch.all, "qwen_3vl_8b"): ["qwen3vl_8b", "qwen_3vl_8b", "qwen3-vl-8b"],
+    resource_id(ResourceKind.text_encoder, Arch.all, "qwen_35_9b"): ["qwen35_9b", "qwen3.5_9b", "qwen3.5-9b", "qwen35-9b", "qwen35formoss"],
     resource_id(ResourceKind.vae, Arch.sd15, "default"): ["vae-ft-mse-840000-ema"],
     resource_id(ResourceKind.vae, Arch.sdxl, "default"): ["sdxl_vae"],
     resource_id(ResourceKind.vae, Arch.illu, "default"): ["sdxl_vae"],
@@ -942,6 +1018,7 @@ search_paths: dict[str, list[str]] = {
     resource_id(ResourceKind.vae, Arch.flux_k, "default"): ["flux-", "flux_", "flux/", "flux1", "ae.s"],
     resource_id(ResourceKind.vae, Arch.flux2_4b, "default"): ["flux2"],
     resource_id(ResourceKind.vae, Arch.flux2_9b, "default"): ["flux2"],
+    resource_id(ResourceKind.vae, Arch.flux3, "default"): ["flux2"],
     resource_id(ResourceKind.vae, Arch.chroma, "default"): ["flux-", "flux_", "flux/", "flux1", "ae.s"],
     resource_id(ResourceKind.vae, Arch.qwen, "default"): ["qwen"],
     resource_id(ResourceKind.vae, Arch.qwen_e, "default"): ["qwen"],
@@ -952,6 +1029,7 @@ search_paths: dict[str, list[str]] = {
     resource_id(ResourceKind.vae, Arch.zimage, "default"): ["z-image", "flux-", "flux_", "flux/", "flux1", "ae.s"],
     resource_id(ResourceKind.vae, Arch.ernie, "default"): ["flux2"],
     resource_id(ResourceKind.vae, Arch.krea2, "default"): ["qwen_image"],
+    resource_id(ResourceKind.vae, Arch.moss, "default"): ["flux2"],
     resource_id(ResourceKind.vae, Arch.generic, "default"): ["vae"],
 }
 # fmt: on
@@ -962,6 +1040,7 @@ required_resource_ids = {
     ResourceId(ResourceKind.text_encoder, Arch.qwen, "qwen"),
     ResourceId(ResourceKind.text_encoder, Arch.qwen_e, "qwen"),
     ResourceId(ResourceKind.text_encoder, Arch.qwen_e_p, "qwen"),
+    ResourceId(ResourceKind.text_encoder, Arch.qwen_l, "qwen"),
     ResourceId(ResourceKind.text_encoder, Arch.qwen2, "qwen_3vl_8b"),
     ResourceId(ResourceKind.text_encoder, Arch.anima, "qwen_3_06b"),
     ResourceId(ResourceKind.text_encoder, Arch.zimage, "qwen_3_4b"),
@@ -988,10 +1067,15 @@ required_resource_ids = {
     ResourceId(ResourceKind.vae, Arch.zimage, "default"),
     ResourceId(ResourceKind.vae, Arch.flux2_4b, "default"),
     ResourceId(ResourceKind.vae, Arch.flux2_9b, "default"),
+    ResourceId(ResourceKind.text_encoder, Arch.flux3, "qwen_3vl_4b"),
+    ResourceId(ResourceKind.vae, Arch.flux3, "default"),
     ResourceId(ResourceKind.text_encoder, Arch.ernie, "ministral"),
     ResourceId(ResourceKind.vae, Arch.ernie, "default"),
     ResourceId(ResourceKind.text_encoder, Arch.krea2, "qwen_3vl_4b"),
     ResourceId(ResourceKind.vae, Arch.krea2, "default"),
+    ResourceId(ResourceKind.text_encoder, Arch.moss, "qwen_35_9b"),
+    ResourceId(ResourceKind.vae, Arch.moss, "default"),
+    ResourceId(ResourceKind.vae, Arch.qwen_l, "default"),
 }
 
 recommended_resource_ids = [
@@ -1013,6 +1097,7 @@ recommended_resource_ids = [
     ResourceId(ResourceKind.controlnet, Arch.flux, ControlMode.inpaint),
     ResourceId(ResourceKind.controlnet, Arch.flux, ControlMode.universal),
     ResourceId(ResourceKind.lora, Arch.flux, "turbo"),
+    ResourceId(ResourceKind.lora, Arch.moss, "edit"),
     ResourceId(ResourceKind.model_patch, Arch.zimage, ControlMode.universal),
     ResourceId(ResourceKind.model_patch, Arch.zimage, ControlMode.blur),
 ]

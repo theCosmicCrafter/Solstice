@@ -188,3 +188,65 @@ def test_extract_metadata_fields_empty():
 def test_tiny_files(tmp_path, size):
     path = write_blob(tmp_path, b"\x00" * size)
     assert modelspec.read_safetensors_metadata(path) == {}
+
+
+def _write_sidecar(model: Path, data: dict) -> Path:
+    sidecar = model.with_name(model.stem + ".metadata.json")
+    sidecar.write_text(json.dumps(data), encoding="utf-8")
+    return sidecar
+
+
+def test_sidecar_metadata_extract(tmp_path):
+    """ComfyUI LoRA Manager `<name>.metadata.json` sidecars map onto the
+    modelspec/trigger keys the File model and card browser use."""
+    model = tmp_path / "dreambooth-lora.safetensors"
+    model.write_bytes(b"\x00" * 8)
+    _write_sidecar(model, {
+        "model_name": "Dream Booth LoRA",
+        "base_model": "SDXL 1.0",
+        "trainedWords": ["sks person", "studio lighting"],
+        "civitai": {"modelId": 12345},
+    })
+    fields = modelspec.extract_sidecar_metadata(model)
+    assert fields["modelspec.title"] == "Dream Booth LoRA"
+    assert fields["modelspec.base_model"] == "SDXL 1.0"
+    assert fields["trigger_words"] == ["sks person", "studio lighting"]
+    assert fields["civitai"]["modelId"] == 12345
+
+
+def test_sidecar_metadata_missing_or_malformed(tmp_path):
+    model = tmp_path / "plain.safetensors"
+    model.write_bytes(b"\x00" * 8)
+    assert modelspec.extract_sidecar_metadata(model) == {}
+    sidecar = model.with_name(model.stem + ".metadata.json")
+    sidecar.write_text("not json{", encoding="utf-8")
+    assert modelspec.extract_sidecar_metadata(model) == {}
+    sidecar.write_text(json.dumps([1, 2]), encoding="utf-8")
+    assert modelspec.extract_sidecar_metadata(model) == {}
+
+
+def test_sidecar_metadata_skips_empty_and_unknown(tmp_path):
+    model = tmp_path / "m.safetensors"
+    model.write_bytes(b"\x00" * 8)
+    _write_sidecar(model, {
+        "model_name": "",
+        "base_model": "Unknown",
+        "trainedWords": "not-a-list",
+    })
+    assert modelspec.extract_sidecar_metadata(model) == {}
+
+
+def test_arch_detection_flux3_and_qwen2():
+    from ai_diffusion.backend.resources import Arch
+
+    assert (
+        Arch.from_checkpoint_name("flux3-image-klein-int8-convrot.safetensors")
+        == Arch.flux3
+    )
+    assert (
+        Arch.from_checkpoint_name("qwen_image_2.1_int8_convrot.safetensors")
+        == Arch.qwen2
+    )
+    assert Arch.from_metadata_string("flux3") == Arch.flux3
+    assert Arch.from_metadata_string("Flux 3") == Arch.flux3
+    assert Arch.from_metadata_string("qwen2") == Arch.qwen2

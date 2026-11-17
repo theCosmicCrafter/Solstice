@@ -1,6 +1,6 @@
 """Generative AI plugin for Krita"""
 
-__version__ = "1.54.0"
+__version__ = "1.56.0"
 
 import importlib.util
 
@@ -18,8 +18,10 @@ if importlib.util.find_spec("krita"):
 
     if not getattr(krita, "IS_MOCK", False):
         krita_ver = krita.Krita.instance().version()
-        if not krita_ver.startswith("6"):
-            raise ImportError(f"This Plugin is for Krita 6.x, but you are using Krita {krita_ver}.")
+        # Solstice: Krita 5.x hosts are supported via the PyQt6->PyQt5 shim
+        # package (plugins/python/PyQt6); upstream only allows 6.x here.
+        if not krita_ver.startswith(("5", "6")):
+            raise ImportError(f"This Plugin is for Krita 5.x/6.x, but you are using Krita {krita_ver}.")
 
         from .extension import AIToolsExtension as AIToolsExtension
 

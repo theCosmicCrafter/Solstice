@@ -75,6 +75,7 @@ class PackageGroupWidget(QWidget):
         super().__init__(parent)
         self._workloads: list[Arch] = []
         self._backend = settings.server_backend
+        self._vram_gb: float | None = None
         self._is_checkable = False
 
         self._layout = QGridLayout()
@@ -127,14 +128,54 @@ class PackageGroupWidget(QWidget):
         if not self._header.isChecked():
             self._header.setChecked(True)
 
+    @property
+    def effective_vram_gb(self) -> float | None:
+        if self._vram_gb is not None:
+            return self._vram_gb
+        try:
+            client = root.connection.client_if_connected
+            info = client.device_info if client is not None else None
+            if info is not None and info.vram:
+                return float(info.vram)
+        except Exception:
+            pass
+        return None
+
+    def _update_item_label(self, item: PackageItem):
+        text = self._package_name(item.package)
+        tooltip = ""
+        if isinstance(item.package, ModelResource) and item.package.min_vram_gb is not None:
+            req = item.package.min_vram_gb
+            vram = self.effective_vram_gb
+            if vram is not None:
+                if req <= vram:
+                    marker = f"<span style='color:{green}'>✓ fits GPU</span>"
+                    tooltip = _("Requires %1 GB VRAM (fits connected GPU with %2 GB)").replace(
+                        "%1", str(req)
+                    ).replace("%2", f"{vram:.1f}")
+                else:
+                    marker = f"<span style='color:{red}'>⚠ exceeds GPU VRAM</span>"
+                    tooltip = _("Requires %1 GB VRAM (exceeds connected GPU with %2 GB)").replace(
+                        "%1", str(req)
+                    ).replace("%2", f"{vram:.1f}")
+            else:
+                marker = f"<span style='color:{grey}'>({req} GB VRAM)</span>"
+                tooltip = _("Requires %1 GB VRAM").replace("%1", str(req))
+            text = f"{text}  ·  {marker}"
+        item.label.setText(text)
+        if tooltip:
+            item.label.setToolTip(tooltip)
+
     def add_item(self, package: str | ModelResource | CustomNode):
         item = PackageItem(
             package=package,
             state=PackageState.available,
-            label=QLabel(self._package_name(package), self),
+            label=QLabel(self),
             status=QCheckBox(_("Install"), self) if self.is_checkable else QLabel(self),
         )
+        item.label.setTextFormat(Qt.TextFormat.RichText)
         item.label.setContentsMargins(20, 0, 0, 0)
+        self._update_item_label(item)
         if self.is_checkable:
             assert isinstance(item.status, QCheckBox)
             item.status.setChecked(False)
@@ -160,6 +201,7 @@ class PackageGroupWidget(QWidget):
     def _update(self):
         for item in self._items:
             self._update_item_visibility(item)
+            self._update_item_label(item)
             self._update_workload(item)
             if item.state is PackageState.installed:
                 item.status.setText(_("Installed"))
@@ -174,6 +216,11 @@ class PackageGroupWidget(QWidget):
                 elif item.state is PackageState.disabled:
                     if not _backend_supports(self.backend, item):
                         item.status.setText(_("Not supported"))
+                    elif not self._vram_fits(item) and isinstance(item.package, ModelResource):
+                        item.status.setText(
+                            _("Needs %1 GB VRAM").replace(
+                                "%1", str(item.package.min_vram_gb))
+                        )
                     else:
                         item.status.setText(_("Workload not selected"))
                     item.status.setStyleSheet(f"color:{grey}")
@@ -193,6 +240,8 @@ class PackageGroupWidget(QWidget):
             Arch.flux_k,
             Arch.flux2_4b,
             Arch.zimage,
+            Arch.flux3,
+            Arch.qwen2,
         )
         return (
             not isinstance(item.package, ModelResource)
@@ -200,8 +249,21 @@ class PackageGroupWidget(QWidget):
             or item.package.arch not in archs_with_workload
         )
 
+    def _vram_fits(self, item: PackageItem):
+        vram = self.effective_vram_gb
+        return (
+            vram is None
+            or not isinstance(item.package, ModelResource)
+            or item.package.min_vram_gb is None
+            or item.package.min_vram_gb <= vram
+        )
+
     def _update_workload(self, item: PackageItem):
-        enabled = _backend_supports(self.backend, item) and self._workload_matches(item)
+        enabled = (
+            _backend_supports(self.backend, item)
+            and self._workload_matches(item)
+            and self._vram_fits(item)
+        )
         if not enabled and item.state in [PackageState.selected, PackageState.available]:
             item.state = PackageState.disabled
         elif enabled and item.state is PackageState.disabled:
@@ -235,6 +297,15 @@ class PackageGroupWidget(QWidget):
     @backend.setter
     def backend(self, backend: ServerBackend):
         self._backend = backend
+        self._update()
+
+    @property
+    def device_vram(self):
+        return self._vram_gb
+
+    @device_vram.setter
+    def device_vram(self, vram_gb: float | None):
+        self._vram_gb = vram_gb
         self._update()
 
     def set_installed(self, installed: list[bool]):
@@ -276,7 +347,11 @@ class PackageGroupWidget(QWidget):
         self.changed.emit()
 
     def _package_name(self, package: str | ModelResource | CustomNode):
-        return package if isinstance(package, str) else package.name
+        if isinstance(package, str):
+            return package
+        if isinstance(package, ModelResource) and package.license:
+            return f"{package.name}  ·  {package.license}"
+        return package.name
 
     def _package_id(self, package: str | ModelResource | CustomNode):
         if isinstance(package, ModelResource):
@@ -311,7 +386,15 @@ def _enabled_workloads(selected: list[str], required: Iterable[ModelResource], s
 
 class CustomPackageTab(QWidget):
     title = _("Individual Packages")
-    workloads = (Arch.sd15, Arch.sdxl, Arch.flux, Arch.flux2_4b, Arch.zimage)
+    workloads = (
+        Arch.sd15,
+        Arch.sdxl,
+        Arch.flux,
+        Arch.flux2_4b,
+        Arch.zimage,
+        Arch.flux3,
+        Arch.qwen2,
+    )
     workload_models = resources.required_models
 
     selected_models_changed = pyqtSignal()
@@ -333,7 +416,15 @@ class CustomPackageTab(QWidget):
 
         self._workload_group = PackageGroupWidget(
             _("Workloads"),
-            [_("Stable Diffusion 1.5"), _("Stable Diffusion XL"), "Flux", "Flux 2", "Z-Image"],
+            [
+                _("Stable Diffusion 1.5"),
+                _("Stable Diffusion XL"),
+                "Flux",
+                "Flux 2",
+                "Z-Image",
+                "Flux 3",
+                "Qwen 2.1",
+            ],
             description=(
                 _("Choose a Diffusion base model to install its basic requirements.")
                 + " <a href='https://docs.interstice.cloud/base-models'>"
@@ -384,7 +475,7 @@ class CustomPackageTab(QWidget):
             ),
             "flux2": PackageGroupWidget(
                 _("Flux 2 models"),
-                [m for m in optional_models if m.arch.is_flux2],
+                [m for m in optional_models if m.arch in [Arch.flux2_4b, Arch.flux2_9b]],
                 is_checkable=True,
                 is_expanded=False,
                 parent=self,
@@ -396,9 +487,23 @@ class CustomPackageTab(QWidget):
                 is_expanded=False,
                 parent=self,
             ),
+            "flux3": PackageGroupWidget(
+                _("Flux 3 models"),
+                [m for m in optional_models if m.arch is Arch.flux3],
+                is_checkable=True,
+                is_expanded=False,
+                parent=self,
+            ),
+            "qwen2": PackageGroupWidget(
+                _("Qwen 2.1 models"),
+                [m for m in optional_models if m.arch in [Arch.qwen2, Arch.qwen]],
+                is_checkable=True,
+                is_expanded=False,
+                parent=self,
+            ),
         }
 
-        for group in ["upscalers", "sd15", "sdxl", "illu", "flux", "flux2", "zimage"]:
+        for group in ["upscalers", "sd15", "sdxl", "illu", "flux", "flux2", "zimage", "flux3", "qwen2"]:
             self._packages[group].changed.connect(self._change_models)
             layout.addWidget(self._packages[group])
 
@@ -429,10 +534,24 @@ class CustomPackageTab(QWidget):
         ])
 
         installed_workloads = self._selected_workloads(installed=True)
+        vram_gb = self._device_vram_gb()
         for widget in self._packages.values():
             widget.workloads = installed_workloads
             widget.backend = self._server.backend
+            widget.device_vram = vram_gb
             widget.set_installed([self._server.is_installed(p) for p in widget.package_names])
+
+    def _device_vram_gb(self):
+        """VRAM (GB) of the connected server's GPU, or None when unknown —
+        e.g. while the managed server has not been started yet."""
+        try:
+            client = root.connection.client_if_connected
+            info = client.device_info if client is not None else None
+            if info is not None and info.vram:
+                return float(info.vram)
+        except Exception:
+            pass
+        return None
 
     def update_backend(self):
         for widget in self._packages.values():
@@ -595,7 +714,16 @@ class ModelCheckBox:
 
 class WorkloadsTab(QWidget):
     title = _("Workloads")
-    workloads = (Arch.sdxl, Arch.illu, Arch.flux2_4b, Arch.zimage, Arch.flux, Arch.sd15)
+    workloads = (
+        Arch.sdxl,
+        Arch.illu,
+        Arch.flux2_4b,
+        Arch.zimage,
+        Arch.flux,
+        Arch.sd15,
+        Arch.flux3,
+        Arch.qwen2,
+    )
     workload_models = resources.required_models + resources.recommended_models
 
     selected_models_changed = pyqtSignal()
@@ -698,6 +826,66 @@ class WorkloadsTab(QWidget):
                 Arch.zimage,
                 "checkpoint-turbo_fp8-zimage",
                 zimage_layout,
+            ),
+        ]
+
+        self.add_separator(layout)
+
+        self._pkg_flux3 = QWidget(self)
+        layout.addWidget(self._pkg_flux3)
+
+        flux3_layout = QVBoxLayout(self._pkg_flux3)
+        flux3_header = QLabel("<b>FLUX 3</b>", self._pkg_flux3)
+        flux3_layout.addWidget(flux3_header)
+        flux3_props = ModelPropsWidget(
+            size=14, vram=12, speed=1, fidelity=2, understanding=2, parent=self
+        )
+        flux3_layout.addWidget(flux3_props)
+        desc = _(
+            "Next-generation Flux architecture with advanced text comprehension and visual quality."
+        )
+        flux3_desc = QLabel(desc, self._pkg_flux3)
+        flux3_desc.setWordWrap(True)
+        flux3_layout.addWidget(flux3_desc)
+        self._models += [
+            ModelCheckBox(
+                "Flux 3 Base - " + _("Required text encoder and VAE for Flux 3 models"),
+                Arch.flux3,
+                "vae-default-flux3",
+                flux3_layout,
+            ),
+        ]
+
+        self.add_separator(layout)
+
+        self._pkg_qwen2 = QWidget(self)
+        layout.addWidget(self._pkg_qwen2)
+
+        qwen2_layout = QVBoxLayout(self._pkg_qwen2)
+        qwen2_header = QLabel("<b>Qwen 2.1</b>", self._pkg_qwen2)
+        qwen2_layout.addWidget(qwen2_header)
+        qwen2_props = ModelPropsWidget(
+            size=18, vram=12, speed=0, fidelity=2, understanding=2, parent=self
+        )
+        qwen2_layout.addWidget(qwen2_props)
+        desc = _(
+            "Advanced multimodal diffusion model with exceptional prompt adherence and text rendering. Supports detailed photorealism and artwork."
+        )
+        qwen2_desc = QLabel(desc, self._pkg_qwen2)
+        qwen2_desc.setWordWrap(True)
+        qwen2_layout.addWidget(qwen2_desc)
+        self._models += [
+            ModelCheckBox(
+                "Qwen Image 2.1 [int8] - " + _("for Instruction-based generation and editing"),
+                Arch.qwen2,
+                "checkpoint-int8-qwen2",
+                qwen2_layout,
+            ),
+            ModelCheckBox(
+                "Qwen Image 2.1 Turbo [int8] - " + _("Fast turbo variant for rapid generation"),
+                Arch.qwen2,
+                "checkpoint-turbo_int8-qwen2",
+                qwen2_layout,
             ),
         ]
 

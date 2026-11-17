@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, NamedTuple, cast
+from typing import ClassVar, Literal, NamedTuple, cast
 from uuid import uuid4
 from weakref import WeakValueDictionary
 
 import krita
 from krita import Krita
 from PyQt6.QtCore import QByteArray, QObject, QTimer, QUuid, pyqtSignal
+from PyQt6.QtGui import QImage
 
 from .image import Bounds, Extent, Image, Mask
 from .layer import Layer, LayerManager, LayerType
 from .localization import translate as _
 from .pose import Pose
-from .util import acquire_elements
+from .util import acquire_elements, client_logger as log, exclusive_poll_tick
 
 
 class SelectionModifiers(NamedTuple):
@@ -69,6 +70,10 @@ class Document(QObject):
     def refresh(self):
         """Trigger a projection refresh where supported by the implementation."""
 
+    def open_mask_in_gmic(self) -> bool:
+        """Open the active selection/mask in G'MIC-Qt."""
+        return False
+
     def annotate(self, key: str, value: QByteArray):
         pass
 
@@ -118,7 +123,7 @@ class KritaDocument(Document):
     Keeps track of selection and current time changes by polling at a fixed interval.
     """
 
-    _instances: WeakValueDictionary[str, KritaDocument] = WeakValueDictionary()
+    _instances: ClassVar[WeakValueDictionary[str, KritaDocument]] = WeakValueDictionary()
 
     def __init__(self, krita_document: krita.Document, id: str | None):
         super().__init__()
@@ -139,7 +144,7 @@ class KritaDocument(Document):
         self._was_valid = False
         self._poller = QTimer(self)
         self._poller.setInterval(20)
-        self._poller.timeout.connect(self._poll)
+        self._poller.timeout.connect(self._poll_tick)
         self._poller.start()
 
     @staticmethod
@@ -308,6 +313,9 @@ class KritaDocument(Document):
     def is_active(self):
         return self._doc == Krita.instance().activeDocument()
 
+    def _poll_tick(self):
+        exclusive_poll_tick(self._poll)
+
     def _poll(self):
         if self.is_valid:
             self._was_valid = True
@@ -331,6 +339,44 @@ class KritaDocument(Document):
             return self._id == other._id
         return False
 
+    def open_mask_in_gmic(self) -> bool:
+        """Create a temporary paint layer from the active selection, copy the
+        selection's pixel bytes into it, and trigger the G'MIC-Qt action."""
+        sel = self._doc.selection()
+        if sel is None:
+            return False
+        x, y, w, h = sel.x(), sel.y(), sel.width(), sel.height()
+        if w <= 0 or h <= 0:
+            return False
+
+        # Create temporary paint layer
+        layer = self._doc.createNode("[Mask] G'MIC", "paintlayer")
+        root = self._doc.rootNode()
+        root.addChildNode(layer, None)
+        self._doc.setActiveNode(layer)
+
+        # Copy selection's pixel bytes into the new paint layer
+        pixel_data = sel.pixelData(x, y, w, h)
+        if not layer.setPixelData(pixel_data, x, y, w, h):
+            try:
+                img = Image.from_packed_bytes(pixel_data, Extent(w, h), channels=1)
+                qimg = img._qimage.convertToFormat(QImage.Format.Format_ARGB32)
+                ptr = qimg.constBits()
+                rgba_data = QByteArray(ptr.asstring(qimg.sizeInBytes()))
+                layer.setPixelData(rgba_data, x, y, w, h)
+            except Exception as e:
+                log.warning(f"Failed to set expanded mask pixel data: {e}")
+                layer.setPixelData(pixel_data, x, y, w, h)
+
+        self.refresh()
+
+        # Trigger G'MIC-Qt action
+        action = Krita.instance().action("gmic_qt") or Krita.instance().action("QMic")
+        if action:
+            action.trigger()
+            return True
+        return False
+
 
 def _selection_bounds(selection: krita.Selection):
     return Bounds(selection.x(), selection.y(), selection.width(), selection.height())
@@ -351,7 +397,7 @@ class PoseLayers:
         self._layers: dict[QUuid, Pose] = {}
         self._timer = QTimer()
         self._timer.setInterval(500)
-        self._timer.timeout.connect(self.update)
+        self._timer.timeout.connect(lambda: exclusive_poll_tick(self.update))
         self._timer.start()
 
     def update(self):

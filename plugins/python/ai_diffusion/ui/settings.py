@@ -62,6 +62,7 @@ from .settings_widgets import (
     SliderSetting,
     SpinBoxSetting,
     SwitchSetting,
+    TextSetting,
 )
 from .style import StylePresets
 from .theme import add_header, green, grey, logo, prompt_max_line_count, red, yellow
@@ -745,6 +746,12 @@ class InterfaceSettings(SettingsTab):
             self._open_tag_folder,
         )
 
+        # Local asset folders (Solstice): optional machine-local libraries, see
+        # local_assets.py / docs/agent/local-assets.md. Env vars override.
+        self.add("wildcards_folder", TextSetting(S._wildcards_folder, parent=self))
+        self.add("poses_folder", TextSetting(S._poses_folder, parent=self))
+        self.add("luts_folder", TextSetting(S._luts_folder, parent=self))
+
         self.add(
             "generation_finished_action",
             ComboBoxSetting(S._generation_finished_action, parent=self),
@@ -756,6 +763,9 @@ class InterfaceSettings(SettingsTab):
             "apply_region_behavior_live",
             ComboBoxSetting(S._apply_region_behavior_live, parent=self),
         )
+        self.add("live_engine", ComboBoxSetting(S._live_engine, parent=self))
+        self.add("native_rife_exp", ComboBoxSetting(S._native_rife_exp, parent=self))
+        self.add("native_engine_dir", TextSetting(S._native_engine_dir, parent=self))
         self.add("new_seed_after_apply", SwitchSetting(S._new_seed_after_apply, parent=self))
         self.add("save_image_format", ComboBoxSetting(S._save_image_format, parent=self))
         self.add("save_image_metadata", SwitchSetting(S._save_image_metadata, parent=self))

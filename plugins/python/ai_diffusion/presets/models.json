@@ -9,7 +9,9 @@
           "url": "https://huggingface.co/gemasai/4x_NMKD-Superscale-SP_178000_G/resolve/main/4x_NMKD-Superscale-SP_178000_G.pth",
           "sha256": "1d1b0078fe71446e0469d8d4df59e96baa80d83cda600d68237d655830821bcc"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 2
     },
     {
       "id": "upscaler-fast_4x-all",
@@ -33,51 +35,64 @@
           "url": "https://huggingface.co/Acly/Omni-SR/resolve/main/OmniSR_X4_DIV2K.safetensors",
           "sha256": "dff25e4ed392cb5cbe534d920e292063a0555df9281c54c5ec321490a2a59832"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 2
     },
     {
       "id": "inpaint-default-all",
       "name": "MAT Inpaint",
+      "license": "non-commercial",
       "files": [
         {
           "path": "models/inpaint/MAT_Places512_G_fp16.safetensors",
           "url": "https://huggingface.co/Acly/MAT/resolve/main/MAT_Places512_G_fp16.safetensors",
           "sha256": "309dd6ce6e04034dc4b6b15c7bd2a4844d158e03eb2a139e0eca6b366e40c0de"
         }
-      ]
+      ],
+      "min_vram_gb": 2
     },
     {
       "id": "text_encoder-clip_l-flux",
       "name": "Clip-L",
+      "license": "mit",
       "files": [
         {
           "path": "models/text_encoders/clip_l.safetensors",
           "url": "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors",
           "sha256": "660c6f5b1abae9dc498ac2d21e1347d2abdb0cf6c0c0c8576cd796491d9a6cdd"
         }
-      ]
+      ],
+      "min_vram_gb": 2
     },
     {
       "id": "text_encoder-t5-flux",
       "name": "T5-XXL",
+      "license": "apache-2.0",
       "files": [
         {
           "path": "models/text_encoders/t5-v1_1-xxl-encoder-Q5_K_M.gguf",
           "url": "https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf/resolve/main/t5-v1_1-xxl-encoder-Q5_K_M.gguf",
           "sha256": "b51cbb10b1a7aac6dd1c3b62f0ed908bfd06e0b42d2f3577d43e061361f51dae"
         }
-      ]
+      ],
+      "min_vram_gb": 8
     },
     {
-      "id": ["vae-default-flux", "vae-default-zimage"],
+      "id": [
+        "vae-default-flux",
+        "vae-default-zimage"
+      ],
       "name": "VAE (Flux)",
+      "license": "non-commercial",
       "files": [
         {
           "path": "models/vae/flux_vae.safetensors",
           "url": "https://huggingface.co/Comfy-Org/Lumina_Image_2.0_Repackaged/resolve/main/split_files/vae/ae.safetensors",
           "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
         }
-      ]
+      ],
+      "min_vram_gb": 4
     },
     {
       "id": [
@@ -85,24 +100,28 @@
         "text_encoder-qwen_3_4b-zimage"
       ],
       "name": "Qwen 3 4B",
+      "license": "apache-2.0",
       "files": [
         {
           "path": "models/text_encoders/Qwen3-4B-Q4_K_M.gguf",
           "url": "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf",
           "sha256": "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a"
         }
-      ]
+      ],
+      "min_vram_gb": 4
     },
     {
       "id": "vae-default-flux2_4b",
       "name": "VAE (Flux 2)",
+      "license": "apache-2.0",
       "files": [
         {
           "path": "models/vae/flux2-vae.safetensors",
           "url": "https://huggingface.co/Comfy-Org/vae-text-encorder-for-flux-klein-4b/resolve/main/split_files/vae/flux2-vae.safetensors",
           "sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
         }
-      ]
+      ],
+      "min_vram_gb": 2
     },
     {
       "id": "lora-inpaint-flux2_4b",
@@ -113,13 +132,129 @@
           "url": "https://huggingface.co/fal/flux-2-klein-4B-outpaint-lora/resolve/main/LyNiaZ53Tudg0J6sT8Xbx_pytorch_lora_weights_comfy_converted.safetensors",
           "sha256": "b8a5142b40f2e24aa1f5cfd0710323188836f49ea70b15b5f85b1e364316bc5b"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 2
+    },
+    {
+      "id": "text_encoder-qwen_3vl_8b-all",
+      "name": "Qwen3-VL 8B (Qwen Image 2.1)",
+      "license": "apache-2.0",
+      "files": [
+        {
+          "path": "models/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+          "sha256": "8bfd0f6e12abf2d2d697ecc888e5e90b0d6741d6708f05799f53afa560452e8f"
+        }
+      ],
+      "min_vram_gb": 8
+    },
+    {
+      "id": "vae-default-qwen2",
+      "name": "VAE (Qwen Image 2.1)",
+      "license": "apache-2.0",
+      "files": [
+        {
+          "path": "models/vae/qwen_image_2.1_vae_bf16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
+          "sha256": "bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9"
+        }
+      ],
+      "min_vram_gb": 2
+    },
+    {
+      "id": [
+        "text_encoder-qwen_3vl_4b-flux3",
+        "text_encoder-qwen_3vl_4b-krea2"
+      ],
+      "name": "Qwen3-VL 4B (Flux 3 / Krea 2)",
+      "license": "apache-2.0",
+      "files": [
+        {
+          "path": "models/text_encoders/qwen3vl_4b_fp8_scaled.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen3-VL/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors",
+          "sha256": "54bd5144df0bbc25dd6ccadfcb826b521445a1b06ae5a42570bdd2974ca87094"
+        }
+      ],
+      "min_vram_gb": 4
+    },
+    {
+      "id": "vae-default-flux3",
+      "name": "VAE (Flux 2 / Flux 3)",
+      "license": "apache-2.0",
+      "files": [
+        {
+          "path": "models/vae/flux2-vae.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/vae-text-encorder-for-flux-klein-4b/resolve/main/split_files/vae/flux2-vae.safetensors",
+          "sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3",
+          "size": 336211292
+        }
+      ],
+      "min_vram_gb": 2
+    },
+    {
+      "id": "text_encoder-qwen_35_9b-moss",
+      "name": "Qwen 3.5 9B (MOSS Image)",
+      "license": "apache-2.0",
+      "files": [
+        {
+          "path": "models/text_encoders/qwen3.5_9b_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/text_encoders/qwen3.5_9b_int8_convrot.safetensors",
+          "sha256": "32e3787472f708fa5f83624acbf5ef23f7fc89c439e05065ea57cfe5a97f025a",
+          "size": 9748121532
+        }
+      ],
+      "min_vram_gb": 10
+    },
+    {
+      "id": "vae-default-moss",
+      "name": "VAE (MOSS Image)",
+      "license": "apache-2.0",
+      "files": [
+        {
+          "path": "models/vae/flux2-vae.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/vae/flux2-vae.safetensors",
+          "sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3",
+          "size": 336211292
+        }
+      ],
+      "min_vram_gb": 2
+    },
+    {
+      "id": "text_encoder-qwen-qwen_l",
+      "name": "Qwen 2.5 VL 7B (Qwen Image Layered)",
+      "license": "apache-2.0",
+      "files": [
+        {
+          "path": "models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors",
+          "sha256": "cb5636d852a0ea6a9075ab1bef496c0db7aef13c02350571e388aea959c5c0b4",
+          "size": 9384670680
+        }
+      ],
+      "min_vram_gb": 9
+    },
+    {
+      "id": "vae-default-qwen_l",
+      "name": "VAE (Qwen Image Layered)",
+      "license": "apache-2.0",
+      "files": [
+        {
+          "path": "models/vae/qwen_image_layered_vae.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-Layered/resolve/main/split_files/vae/qwen_image_layered_vae.safetensors",
+          "sha256": "c5320595fc61859ccdd0282184208f7b781c983b8ce4c6bc3e7723a807d3d28d",
+          "size": 253816616
+        }
+      ],
+      "min_vram_gb": 2
     }
   ],
   "checkpoints": [
     {
       "id": "checkpoint-serenity-sd15",
       "name": "Serenity (SD1.5 - Photography)",
+      "license": "openrail-m",
+      "min_vram_gb": 4,
       "files": [
         {
           "path": "models/checkpoints/serenity_v21Safetensors.safetensors",
@@ -131,6 +266,8 @@
     {
       "id": "checkpoint-dreamshaper-sd15",
       "name": "DreamShaper (SD1.5 - Artwork)",
+      "license": "openrail-m",
+      "min_vram_gb": 4,
       "files": [
         {
           "path": "models/checkpoints/dreamshaper_8.safetensors",
@@ -142,6 +279,8 @@
     {
       "id": "checkpoint-realvis-sdxl",
       "name": "RealVis (SDXL - Photography)",
+      "license": "openrail++",
+      "min_vram_gb": 6,
       "files": [
         {
           "path": "models/checkpoints/RealVisXL_V5.0_fp16.safetensors",
@@ -153,6 +292,8 @@
     {
       "id": "checkpoint-zavychroma-sdxl",
       "name": "ZavyChroma (SDXL - Artwork)",
+      "license": "openrail++",
+      "min_vram_gb": 6,
       "files": [
         {
           "path": "models/checkpoints/zavychromaxl_v80.safetensors",
@@ -164,28 +305,34 @@
     {
       "id": "checkpoint-nova-illu",
       "name": "Nova Anime XL (Illustrious - Anime)",
+      "min_vram_gb": 6,
       "files": [
         {
           "path": "models/checkpoints/novaAnimeXL_ilV125.safetensors",
           "url": "https://huggingface.co/Acly/SD-Checkpoints/resolve/main/novaAnimeXL_ilV125.safetensors",
           "sha256": "bd157e62de731dbd1b5b00a114f5f5c137814ece4e16281b37148b87de7f4d48"
         }
-      ]
+      ],
+      "license": "openrail++"
     },
     {
       "id": "checkpoint-noobai-illu_v",
       "name": "NoobAI XL (Illustrious - Anime)",
+      "min_vram_gb": 6,
       "files": [
         {
           "path": "models/checkpoints/NoobAI-XL-Vpred-v1.0.safetensors",
           "url": "https://huggingface.co/Laxhar/noobai-XL-Vpred-1.0/resolve/main/NoobAI-XL-Vpred-v1.0.safetensors",
           "sha256": "ea349eeae87ca8d25ba902c93810f7ca83e5c82f920edf12f273af004ae02819"
         }
-      ]
+      ],
+      "license": "openrail++"
     },
     {
       "id": "checkpoint-flux_dev-flux",
       "name": "Flux Krea",
+      "license": "non-commercial",
+      "min_vram_gb": 10,
       "files": [
         {
           "path": "models/diffusion_models/flux1-krea-dev_fp8_scaled.safetensors",
@@ -201,6 +348,8 @@
     {
       "id": "checkpoint-flux_kontext-flux",
       "name": "Flux Kontext",
+      "license": "non-commercial",
+      "min_vram_gb": 10,
       "files": [
         {
           "path": "models/diffusion_models/flux1-dev-kontext_fp8_scaled.safetensors",
@@ -216,6 +365,8 @@
     {
       "id": "checkpoint-q6_k-flux2_4b",
       "name": "Flux 2 Klein 4B [Q6_K]",
+      "license": "apache-2.0",
+      "min_vram_gb": 8,
       "files": [
         {
           "path": "models/diffusion_models/flux-2-klein-4b-Q6_K.gguf",
@@ -228,6 +379,8 @@
     {
       "id": "checkpoint-fp8-flux2_4b",
       "name": "Flux 2 Klein 4B [fp8]",
+      "license": "apache-2.0",
+      "min_vram_gb": 8,
       "files": [
         {
           "path": "models/diffusion_models/flux-2-klein-4b-fp8.safetensors",
@@ -238,8 +391,78 @@
       "requirements": "cuda"
     },
     {
+      "id": "checkpoint-int8-flux3",
+      "name": "Flux 3 Klein [int8]",
+      "license": "non-commercial",
+      "min_vram_gb": 12,
+      "files": [
+        {
+          "path": "models/diffusion_models/flux3-image-klein-int8-convrot.safetensors",
+          "url": "https://huggingface.co/ml-resources/flux-3-image-klein-comfy/resolve/main/diffusion_models/flux3-image-klein-int8-convrot.safetensors",
+          "sha256": "847d8933548afd93df4af2cac2498e70891bf28d9dae06d695f536992e168fe2"
+        }
+      ],
+      "requirements": "cuda"
+    },
+    {
+      "id": "checkpoint-nvfp4-flux3",
+      "name": "Flux 3 Klein [nvfp4]",
+      "license": "non-commercial",
+      "min_vram_gb": 12,
+      "files": [
+        {
+          "path": "models/diffusion_models/flux3-image-klein-nvfp4.safetensors",
+          "url": "https://huggingface.co/ml-resources/flux-3-image-klein-comfy/resolve/main/diffusion_models/flux3-image-klein-nvfp4.safetensors",
+          "sha256": "15d421e2558443fcf83ba46f3cd884d9d181c2c7a0a7bdcd2974af234a2d4f5c"
+        }
+      ],
+      "requirements": "cuda"
+    },
+    {
+      "id": "checkpoint-bf16-flux3",
+      "name": "Flux 3 Klein [bf16]",
+      "license": "non-commercial",
+      "min_vram_gb": 16,
+      "files": [
+        {
+          "path": "models/diffusion_models/flux3-image-klein-bf16.safetensors",
+          "url": "https://huggingface.co/ml-resources/flux-3-image-klein-comfy/resolve/main/diffusion_models/flux3-image-klein-bf16.safetensors",
+          "sha256": "c3e9813cdd049c831c836b2e9db61150e49a93fc1a4c63b256494642fee0bd7c"
+        }
+      ]
+    },
+    {
+      "id": "checkpoint-base_int8-flux3",
+      "name": "Flux 3 Klein Base [int8]",
+      "license": "non-commercial",
+      "min_vram_gb": 12,
+      "files": [
+        {
+          "path": "models/diffusion_models/flux3-image-klein-base-int8-convrot.safetensors",
+          "url": "https://huggingface.co/ml-resources/flux-3-image-klein-comfy/resolve/main/diffusion_models/flux3-image-klein-base-int8-convrot.safetensors",
+          "sha256": "8949ecfc1bf3871b08be02cf43ec7276a4914e1a86eade6b5eb8f4204426bc92"
+        }
+      ],
+      "requirements": "cuda"
+    },
+    {
+      "id": "checkpoint-base_bf16-flux3",
+      "name": "Flux 3 Klein Base [bf16]",
+      "license": "non-commercial",
+      "min_vram_gb": 16,
+      "files": [
+        {
+          "path": "models/diffusion_models/flux3-image-klein-base-bf16.safetensors",
+          "url": "https://huggingface.co/ml-resources/flux-3-image-klein-comfy/resolve/main/diffusion_models/flux3-image-klein-base-bf16.safetensors",
+          "sha256": "5c921759dc03663dbb67df11d8e3d317d2d5b893b31b969c95dc77ebf861b19c"
+        }
+      ]
+    },
+    {
       "id": "checkpoint-turbo_fp8-zimage",
       "name": "Z-Image Turbo [fp8]",
+      "license": "apache-2.0",
+      "min_vram_gb": 12,
       "files": [
         {
           "path": "models/diffusion_models/z_image_turbo_fp8_e4m3fn.safetensors",
@@ -247,12 +470,155 @@
           "sha256": "56c06ad6cb80941e8203d3e248a16ad1263499ba870f2c1931aa724fdc7c25d3"
         }
       ]
+    },
+    {
+      "id": "checkpoint-int8-qwen2",
+      "name": "Qwen Image 2.1 [int8]",
+      "license": "apache-2.0",
+      "min_vram_gb": 12,
+      "files": [
+        {
+          "path": "models/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
+          "sha256": "cb74113cb03faecd79611b01fd7fd642f0aa60d6f0b95086abee214d75eaa57d"
+        }
+      ],
+      "requirements": "cuda"
+    },
+    {
+      "id": "checkpoint-turbo_int8-qwen2",
+      "name": "Qwen Image 2.1 Turbo [int8]",
+      "license": "apache-2.0",
+      "min_vram_gb": 12,
+      "files": [
+        {
+          "path": "models/diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors",
+          "sha256": "8144a0182964aa8403ad6dbc011db837304167d235161b9aabaa8532e967314c"
+        }
+      ],
+      "requirements": "cuda"
+    },
+    {
+      "id": "checkpoint-radiance-chroma",
+      "name": "Chroma Radiance",
+      "license": "apache-2.0",
+      "min_vram_gb": 12,
+      "files": [
+        {
+          "path": "models/diffusion_models/chroma-radiance-x0.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Chroma1-Radiance_Repackaged/resolve/main/split_files/diffusion_models/chroma-radiance-x0.safetensors",
+          "sha256": "086e11d033ccd7470e67fa80e00a29902df2868cc84e16df0b48853be3a8672a"
+        }
+      ]
+    },
+    {
+      "id": "checkpoint-base-ernie",
+      "name": "ERNIE Image",
+      "license": "apache-2.0",
+      "min_vram_gb": 12,
+      "files": [
+        {
+          "path": "models/diffusion_models/ernie-image.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/ERNIE-Image/resolve/main/diffusion_models/ernie-image.safetensors",
+          "sha256": "94a35abaa0899cccc34d2e37310abf74a0a714256526117bba782c7eb4eb91c7"
+        }
+      ]
+    },
+    {
+      "id": "checkpoint-turbo-ernie",
+      "name": "ERNIE Image Turbo",
+      "license": "apache-2.0",
+      "min_vram_gb": 12,
+      "files": [
+        {
+          "path": "models/diffusion_models/ernie-image-turbo.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/ERNIE-Image/resolve/main/diffusion_models/ernie-image-turbo.safetensors",
+          "sha256": "741a4cc0467d4b9f04490d7faa9a5869ff4aa97eb2914927a1df9abb070e8e52"
+        }
+      ]
+    },
+    {
+      "id": "lora-edit-moss",
+      "name": "MOSS Image Edit LoRA",
+      "license": "apache-2.0",
+      "min_vram_gb": 4,
+      "files": [
+        {
+          "path": "models/loras/moss_image_edit_lora_rank_64_bf16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/loras/moss_image_edit_lora_rank_64_bf16.safetensors",
+          "sha256": "17a48b8c605dcffdedb92a2b887d18cf316505be90802717669fb6556098dcdf",
+          "size": 297382216
+        }
+      ]
+    },
+    {
+      "id": "checkpoint-sft_int8-moss",
+      "name": "MOSS Image [int8]",
+      "license": "apache-2.0",
+      "min_vram_gb": 12,
+      "files": [
+        {
+          "path": "models/diffusion_models/moss_image_sft_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/diffusion_models/moss_image_sft_int8_convrot.safetensors",
+          "sha256": "b4d1475bc7eeffd7b809e82ea13a1fba1fb85c4e18365af3813722faa5c0fe4f",
+          "size": 5413698958
+        }
+      ],
+      "requirements": "cuda"
+    },
+    {
+      "id": "checkpoint-sft_bf16-moss",
+      "name": "MOSS Image [bf16]",
+      "license": "apache-2.0",
+      "min_vram_gb": 16,
+      "files": [
+        {
+          "path": "models/diffusion_models/moss_image_sft_bf16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/diffusion_models/moss_image_sft_bf16.safetensors",
+          "sha256": "f96738d8116d78b7316b57c663d8c98591ddafab7488f48e3099b7655e34ab6f",
+          "size": 10164655808
+        }
+      ],
+      "requirements": "cuda"
+    },
+    {
+      "id": "checkpoint-fp8mixed-qwen_l",
+      "name": "Qwen Image Layered [fp8]",
+      "license": "apache-2.0",
+      "min_vram_gb": 16,
+      "files": [
+        {
+          "path": "models/diffusion_models/qwen_image_layered_fp8mixed.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-Layered/resolve/main/split_files/diffusion_models/qwen_image_layered_fp8mixed.safetensors",
+          "sha256": "e68c406b1bc08c97382a46dce6ed46699bc18a0f50422d97952ee4e8b63ad50a",
+          "size": 20533591821
+        }
+      ],
+      "requirements": "cuda"
+    },
+    {
+      "id": "checkpoint-bf16-qwen_l",
+      "name": "Qwen Image Layered [bf16]",
+      "license": "apache-2.0",
+      "min_vram_gb": 24,
+      "files": [
+        {
+          "path": "models/diffusion_models/qwen_image_layered_bf16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/Qwen-Image-Layered/resolve/main/split_files/diffusion_models/qwen_image_layered_bf16.safetensors",
+          "sha256": "736a424a7abe52613b1fb4445cad3cd4603dc00055ad5ec790e3b8b1550290fd",
+          "size": 40861043888
+        }
+      ],
+      "requirements": "cuda"
     }
   ],
   "legacy_checkpoints": [
     {
       "id": "checkpoint-serenity-sd15",
       "name": "Serenity (SD1.5 - Photography)",
+      "license": "openrail-m",
+      "min_vram_gb": 4,
       "files": [
         {
           "path": "models/checkpoints/serenity_v21Safetensors.safetensors",
@@ -264,6 +630,8 @@
     {
       "id": "checkpoint-dreamshaper-sd15",
       "name": "DreamShaper (SD1.5 - Artwork)",
+      "license": "openrail-m",
+      "min_vram_gb": 4,
       "files": [
         {
           "path": "models/checkpoints/dreamshaper_8.safetensors",
@@ -275,6 +643,8 @@
     {
       "id": "checkpoint-realvis-sdxl",
       "name": "RealVis (SDXL - Photography)",
+      "license": "openrail++",
+      "min_vram_gb": 6,
       "files": [
         {
           "path": "models/checkpoints/RealVisXL_V5.0_fp16.safetensors",
@@ -286,6 +656,8 @@
     {
       "id": "checkpoint-zavychroma-sdxl",
       "name": "ZavyChroma (SDXL - Artwork)",
+      "license": "openrail++",
+      "min_vram_gb": 6,
       "files": [
         {
           "path": "models/checkpoints/zavychromaxl_v80.safetensors",
@@ -297,53 +669,84 @@
     {
       "id": "checkpoint-nova-illu",
       "name": "Nova Anime XL (Illustrious - Anime)",
+      "min_vram_gb": 6,
       "files": [
         {
           "path": "models/checkpoints/novaAnimeXL_ilV125.safetensors",
           "url": "https://huggingface.co/Acly/SD-Checkpoints/resolve/main/novaAnimeXL_ilV125.safetensors",
           "sha256": "bd157e62de731dbd1b5b00a114f5f5c137814ece4e16281b37148b87de7f4d48"
         }
-      ]
+      ],
+      "license": "openrail++"
     },
     {
       "id": "checkpoint-noobai-illu_v",
       "name": "NoobAI XL (Illustrious - Anime)",
+      "min_vram_gb": 6,
       "files": [
         {
           "path": "models/checkpoints/NoobAI-XL-Vpred-v1.0.safetensors",
           "url": "https://huggingface.co/Laxhar/noobai-XL-Vpred-1.0/resolve/main/NoobAI-XL-Vpred-v1.0.safetensors",
           "sha256": "ea349eeae87ca8d25ba902c93810f7ca83e5c82f920edf12f273af004ae02819"
         }
-      ]
+      ],
+      "license": "openrail++"
     }
   ],
   "upscale": [
     {
       "id": "upscaler-quality-all",
       "name": "HAT Super-Resolution (quality)",
+      "license": "apache-2.0",
       "files": [
         {
           "path": "models/upscale_models/HAT_SRx4_ImageNet-pretrain.pth",
           "url": "https://huggingface.co/Acly/hat/resolve/main/HAT_SRx4_ImageNet-pretrain.pth",
           "sha256": "4ee053c42461187846dc0e93aa5abd34591c0725a8e044a59000e92ee215e833"
         }
-      ]
+      ],
+      "min_vram_gb": 2
     },
     {
       "id": "upscaler-sharp-all",
       "name": "Real HAT GAN Super-Resolution (sharper)",
+      "license": "apache-2.0",
       "files": [
         {
           "path": "models/upscale_models/Real_HAT_GAN_sharper.pth",
           "url": "https://huggingface.co/Acly/hat/resolve/main/Real_HAT_GAN_sharper.pth",
           "sha256": "5800b67136006eb8cab3b4ed7c8d73b6a195bb18e6cc709b674f9aa069c00271"
         }
-      ]
+      ],
+      "min_vram_gb": 2
+    },
+    {
+      "id": "upscaler-seedvr2-all",
+      "name": "SeedVR2 (1-Step Restoration)",
+      "license": "apache-2.0",
+      "files": [
+        {
+          "path": "models/diffusion_models/seedvr2_7b_int8_convrot.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_7b_int8_convrot.safetensors",
+          "sha256": "5aa0d25fc9d35e449b659d0c9a5dcb22e2a4fa04032101b95a39da42b32c1be6",
+          "size": 8334897976
+        },
+        {
+          "path": "models/vae/seedvr2_ema_vae_fp16.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/vae/seedvr2_ema_vae_fp16.safetensors",
+          "sha256": "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1",
+          "size": 501324814
+        }
+      ],
+      "min_vram_gb": 10
     }
   ],
   "optional": [
     {
-      "id": ["clip_vision-ip_adapter-sd15", "clip_vision-ip_adapter-sdxl"],
+      "id": [
+        "clip_vision-ip_adapter-sd15",
+        "clip_vision-ip_adapter-sdxl"
+      ],
       "name": "CLIP Vision",
       "files": [
         {
@@ -355,7 +758,9 @@
       "alternatives": [
         "models/clip_vision/SD1.5/model.safetensors",
         "models/clip_vision/SD1.5/pytorch_model.bin"
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 2
     },
     {
       "id": "controlnet-inpaint-sd15",
@@ -366,7 +771,9 @@
           "url": "https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_v11p_sd15_inpaint_fp16.safetensors",
           "sha256": "677a4fe351edecd40cd0d7cc210a8686b59d4e55207317f12319ef746a7a5a89"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "controlnet-blur-sd15",
@@ -377,29 +784,35 @@
           "url": "https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_lora_rank128_v11f1e_sd15_tile_fp16.safetensors",
           "sha256": "cec00369e99cfed1cec97e1124cf3220df7a99e45354eaa1e3350c485e65154f"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "ip_adapter-reference-sd15",
       "name": "IP-Adapter (SD1.5)",
+      "license": "apache-2.0",
       "files": [
         {
           "path": "models/ipadapter/ip-adapter_sd15.safetensors",
           "url": "https://huggingface.co/h94/IP-Adapter/resolve/main/models/ip-adapter_sd15.safetensors",
           "sha256": "289b45f16d043d0bf542e45831f971dcdaabe18b656f11e86d9dfba7e9ee3369"
         }
-      ]
+      ],
+      "min_vram_gb": 4
     },
     {
       "id": "ip_adapter-reference-sdxl",
       "name": "IP-Adapter (SDXL)",
+      "license": "apache-2.0",
       "files": [
         {
           "path": "models/ipadapter/ip-adapter_sdxl_vit-h.safetensors",
           "url": "https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter_sdxl_vit-h.safetensors",
           "sha256": "ebf05d918348aec7abb02a5e9ecef77e0aaea6914a5c4ea13f50d45eb1681831"
         }
-      ]
+      ],
+      "min_vram_gb": 6
     },
     {
       "id": "lora-hyper-sd15",
@@ -410,7 +823,9 @@
           "url": "https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-SD15-8steps-CFG-lora.safetensors",
           "sha256": "f6123d5b950d5250ab6c33600e27f4dcf71b3099ebf888685e01e9e8117ce482"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 2
     },
     {
       "id": "lora-hyper-sdxl",
@@ -421,7 +836,9 @@
           "url": "https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-SDXL-8steps-CFG-lora.safetensors",
           "sha256": "55b51334c85061afff5eff7c550b61963c8b8607a5868bbe4f26db49374719b1"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 2
     },
     {
       "id": "inpaint-fooocus-sdxl",
@@ -439,7 +856,9 @@
           "url": "https://huggingface.co/lllyasviel/fooocus_inpaint/resolve/main/inpaint_v26.fooocus.patch",
           "sha256": "f8657a025104e22d70f9c060635d8e8c2196f433871a2f68dc40abd2171f0d59"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 6
     },
     {
       "id": "embedding-easy_negative-sd15",
@@ -450,7 +869,9 @@
           "url": "https://huggingface.co/embed/EasyNegative/resolve/main/EasyNegative.safetensors",
           "sha256": "c74b4e810b030f6b75fde959e2db678c268d07115b85356d3c0138ba5eb42340"
         }
-      ]
+      ],
+      "license": "creativeml-openrail-m",
+      "min_vram_gb": 1
     },
     {
       "id": "controlnet-scribble-sd15",
@@ -461,7 +882,9 @@
           "url": "https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_lora_rank128_v11p_sd15_scribble_fp16.safetensors",
           "sha256": "f1f0288cd6d490d9976a9f4c36282f3d47cb8e02dc6805aa44b38d4404fe008a"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "controlnet-line_art-sd15",
@@ -472,7 +895,9 @@
           "url": "https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_v11p_sd15_lineart_fp16.safetensors",
           "sha256": "10559106d1bb8196298b7a81565ede9279295d2b2df15165b9dbe189994def56"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "controlnet-soft_edge-sd15",
@@ -483,7 +908,9 @@
           "url": "https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_v11p_sd15_softedge_fp16.safetensors",
           "sha256": "e78fea5b4599fec2ecd7e3f14b171feb290b88200c95d569ec0ff59a19bc3478"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "controlnet-canny_edge-sd15",
@@ -494,7 +921,9 @@
           "url": "https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_v11p_sd15_canny_fp16.safetensors",
           "sha256": "8932b66e15aae835b3490dbf989f56c253104cee08a88bf21283762f557c9f10"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "controlnet-depth-sd15",
@@ -505,7 +934,9 @@
           "url": "https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_lora_rank128_v11f1p_sd15_depth_fp16.safetensors",
           "sha256": "7a0480805947f377985a8c2684b8e52cdd265fcb25b6604ea9409ace08db3d34"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "controlnet-normal-sd15",
@@ -516,7 +947,9 @@
           "url": "https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_lora_rank128_v11p_sd15_normalbae_fp16.safetensors",
           "sha256": "ca84010a8e832d3d2e671c7664ff345f645f3ef7e8359cbca3e2b36d86bcff30"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "controlnet-pose-sd15",
@@ -527,7 +960,9 @@
           "url": "https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_lora_rank128_v11p_sd15_openpose_fp16.safetensors",
           "sha256": "6c8edde249e6b96f6c9b0516a243d75eb8adc38624efe171a9c8ab5fb1a69608"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "controlnet-segmentation-sd15",
@@ -538,7 +973,9 @@
           "url": "https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_lora_rank128_v11p_sd15_seg_fp16.safetensors",
           "sha256": "11937941597a67150ef0f74aa30f082b1634431080dee609d0231a9a59b7fa4f"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "controlnet-stencil-sd15",
@@ -549,7 +986,9 @@
           "url": "https://huggingface.co/monster-labs/control_v1p_sd15_qrcode_monster/resolve/main/control_v1p_sd15_qrcode_monster.safetensors",
           "sha256": "c7f43f70e266153d12f5e1bb1c9e7be3f4513cf0eef0432661b1331bfe11cadf"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 4
     },
     {
       "id": "controlnet-universal-sdxl",
@@ -560,7 +999,9 @@
           "url": "https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/resolve/main/diffusion_pytorch_model_promax.safetensors",
           "sha256": "9fae2e50cb431bfcbe05822b59ec2228df545ef27f711dea8949e9f4ed9f7cdc"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 6
     },
     {
       "id": "controlnet-stencil-sdxl",
@@ -571,7 +1012,9 @@
           "url": "https://huggingface.co/monster-labs/control_v1p_sdxl_qrcode_monster/resolve/main/diffusion_pytorch_model.safetensors",
           "sha256": "11e49b4e272fabda60094b35be6fd3e215e551211210938e381d27497fd2215c"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "controlnet-universal-flux",
@@ -582,7 +1025,9 @@
           "url": "https://huggingface.co/ABDALLALSWAITI/FLUX.1-dev-ControlNet-Union-Pro-2.0-fp8/resolve/main/diffusion_pytorch_model.safetensors",
           "sha256": "393fc2a298b93ffe39f2db3f0d2ce11dfba62d44b7aa3c1dd3380d4a1be04deb"
         }
-      ]
+      ],
+      "license": "non-commercial",
+      "min_vram_gb": 10
     },
     {
       "id": "controlnet-inpaint-flux",
@@ -593,7 +1038,9 @@
           "url": "https://huggingface.co/alimama-creative/FLUX.1-dev-Controlnet-Inpainting-Beta/resolve/main/diffusion_pytorch_model.safetensors",
           "sha256": "ca46c5f7b5de02caee7c069f2aedbf628af8def8578319ceae3be1588d448448"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 10
     },
     {
       "id": "ip_adapter-reference-flux",
@@ -611,7 +1058,9 @@
           "url": "https://files.interstice.cloud/models/flux1-redux-dev.safetensors",
           "sha256": "a1b3bdcb4bdc58ce04874b9ca776d61fc3e914bb6beab41efb63e4e2694dca45"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 10
     },
     {
       "id": "lora-turbo-flux",
@@ -622,7 +1071,9 @@
           "url": "https://huggingface.co/alimama-creative/FLUX.1-Turbo-Alpha/resolve/main/diffusion_pytorch_model.safetensors",
           "sha256": "77f7523a5e9c3da6cfc730c6b07461129fa52997ea06168e9ed5312228aa0bff"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 10
     },
     {
       "id": "controlnet-inpaint-illu",
@@ -633,7 +1084,9 @@
           "url": "https://huggingface.co/Acly/NoobAI-Inpainting/resolve/main/noobaiInpainting_v10.fp16.safetensors",
           "sha256": "8b3c2155ec8a49b43a8a32dac39a21b8c09ea60a7afaffe3c7a6fb51313a45d6"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "controlnet-scribble-illu",
@@ -644,7 +1097,9 @@
           "url": "https://huggingface.co/Eugeoter/noob-sdxl-controlnet-scribble_pidinet/resolve/main/diffusion_pytorch_model.fp16.safetensors",
           "sha256": "6ba55d75e34f63d0538c2dc1006415c495f254624c1c826df7dfaf4bc172ee47"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "controlnet-line_art-illu",
@@ -655,7 +1110,9 @@
           "url": "https://huggingface.co/Eugeoter/noob-sdxl-controlnet-lineart_anime/resolve/main/diffusion_pytorch_model.fp16.safetensors",
           "sha256": "44eae6a514a60ae426ff966ecdbb9e170ad63d8889456982bb29037df42b86a8"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "controlnet-soft_edge-illu",
@@ -666,7 +1123,9 @@
           "url": "https://huggingface.co/Eugeoter/noob-sdxl-controlnet-softedge_hed/resolve/main/diffusion_pytorch_model.fp16.safetensors",
           "sha256": "c540e9bb474d7b090cee5f45017ceba2d58775c71bc0f6eafa410b435b1dfd92"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "controlnet-canny_edge-illu",
@@ -677,7 +1136,9 @@
           "url": "https://huggingface.co/Eugeoter/noob-sdxl-controlnet-canny/resolve/main/noob_sdxl_controlnet_canny.fp16.safetensors",
           "sha256": "e37bcdb2f4a6d1782daf6a943a326bee6e6d3027c34f6016460a2c937ba9fba0"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "controlnet-depth-illu",
@@ -688,7 +1149,9 @@
           "url": "https://huggingface.co/Eugeoter/noob-sdxl-controlnet-depth_midas-v1-1/resolve/main/diffusion_pytorch_model.fp16.safetensors",
           "sha256": "678b94ef3260744a1e9e50932ef8895e7f7fabf25eec7fd5cc96298f7220fe50"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "controlnet-normal-illu",
@@ -699,7 +1162,9 @@
           "url": "https://huggingface.co/Eugeoter/noob-sdxl-controlnet-normal/resolve/main/diffusion_pytorch_model.fp16.safetensors",
           "sha256": "bcfc7ea417052dd54125c577d01e9cf7f0e81863ff6a75ce23b44eba1d7fa3d3"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "controlnet-pose-illu",
@@ -710,7 +1175,9 @@
           "url": "https://huggingface.co/Laxhar/noob_openpose/resolve/main/openpose_pre.safetensors",
           "sha256": "918cfc4d7def165ea7a06bee10841fe525332515f8a0486c5cb2a171ec40b873"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "controlnet-blur-illu",
@@ -721,7 +1188,9 @@
           "url": "https://huggingface.co/Eugeoter/noob-sdxl-controlnet-tile/resolve/main/diffusion_pytorch_model.fp16.safetensors",
           "sha256": "d6d676f29153357ac8d57727e35b8edc090aa4de57e861b878872ff45c432615"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "clip_vision-ip_adapter-illu",
@@ -732,7 +1201,9 @@
           "url": "https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/image_encoder/model.safetensors",
           "sha256": "657723e09f46a7c3957df651601029f66b1748afb12b419816330f16ed45d64d"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 2
     },
     {
       "id": "ip_adapter-reference-illu",
@@ -743,7 +1214,9 @@
           "url": "https://huggingface.co/r3gm/noob-ipa/resolve/main/model_G/noobIPAMARK1_mark1.safetensors",
           "sha256": "5cdb6a00be1b12579745b5bed0c7b83f0869073d8a864fa8cd50a9356601919a"
         }
-      ]
+      ],
+      "license": "openrail++",
+      "min_vram_gb": 6
     },
     {
       "id": "model_patch-universal-zimage",
@@ -754,7 +1227,9 @@
           "url": "https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1/resolve/main/Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2601-8steps.safetensors",
           "sha256": "aa428bc857b0095cddb52cd1acd7c0c6ada4c57658ec0ed39cd64280355b39cf"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 12
     },
     {
       "id": "model_patch-blur-zimage",
@@ -765,7 +1240,9 @@
           "url": "https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1/resolve/main/Z-Image-Turbo-Fun-Controlnet-Tile-2.1-lite-2601-8steps.safetensors",
           "sha256": "880bf452b060abfcbccedee56f8d3dbf8aed2cb0311b599210361b414fc8f2fd"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 12
     }
   ],
   "prefetch": [
@@ -778,7 +1255,9 @@
           "url": "https://huggingface.co/lllyasviel/Annotators/resolve/main/table5_pidinet.pth",
           "sha256": "80860ac267258b5f27486e0ef152a211d0b08120f62aeb185a050acc30da486c"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 1
     },
     {
       "id": "preprocessor-line_art-all",
@@ -796,7 +1275,9 @@
           "url": "https://huggingface.co/lllyasviel/Annotators/resolve/main/sk_model2.pth",
           "sha256": "30a534781061f34e83bb9406b4335da4ff2616c95d22a585c1245aa8363e74e0"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 1
     },
     {
       "id": "preprocessor-soft_edge-all",
@@ -807,7 +1288,9 @@
           "url": "https://huggingface.co/TheMistoAI/MistoLine/resolve/main/Anyline/MTEED.pth",
           "sha256": "a3c2d8a8ce9422555c787160bd46362d761325a565333c0e3f6a53e0bae2abdb"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 1
     },
     {
       "id": "preprocessor-depth-all",
@@ -818,7 +1301,9 @@
           "url": "https://huggingface.co/depth-anything/Depth-Anything-V2-Base/resolve/main/depth_anything_v2_vitb.pth",
           "sha256": "0d2b7002e62d39d655571c371333340bd88f67ab95050c03591555aa05645328"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 1
     },
     {
       "id": "preprocessor-pose-all",
@@ -836,7 +1321,9 @@
           "url": "https://huggingface.co/yzd-v/DWPose/resolve/main/dw-ll_ucoco_384.onnx",
           "sha256": "724f4ff2439ed61afb86fb8a1951ec39c6220682803b4a8bd4f598cd913b1843"
         }
-      ]
+      ],
+      "license": "apache-2.0",
+      "min_vram_gb": 1
     },
     {
       "id": "preprocessor-safetychecker-all",
@@ -847,7 +1334,9 @@
           "url": "https://huggingface.co/CompVis/stable-diffusion-safety-checker/resolve/refs%2Fpr%2F41/model.safetensors",
           "sha256": "08902f19b1cfebd7c989f152fc0507bef6898c706a91d666509383122324b511"
         }
-      ]
+      ],
+      "license": "creativeml-openrail-m",
+      "min_vram_gb": 1
     }
   ],
   "deprecated": []

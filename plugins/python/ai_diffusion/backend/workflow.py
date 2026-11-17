@@ -46,6 +46,8 @@ from .comfy_workflow import (
     ConditioningOutput,
     Input,
     Output,
+    format_flux3_layout_prompt,
+    format_moss_layout_prompt,
 )
 from .resolution import ScaledExtent, ScaleMode, TileLayout, get_inpaint_reference
 from .resources import Arch, ControlMode, ResourceId, ResourceKind, UpscalerName
@@ -115,7 +117,9 @@ def _sampler_params(sampling: SamplingInput, extent: Extent, strength: float | N
     return params
 
 
-def load_checkpoint_with_lora(w: ComfyWorkflow, checkpoint: CheckpointInput, models: ClientModels):
+def load_checkpoint_with_lora(
+    w: ComfyWorkflow, checkpoint: CheckpointInput, models: ClientModels, edit_reference=False
+):
     arch = checkpoint.version
     model_info = models.checkpoints.get(checkpoint.checkpoint)
     if model_info is None:
@@ -165,6 +169,10 @@ def load_checkpoint_with_lora(w: ComfyWorkflow, checkpoint: CheckpointInput, mod
                 clip = w.load_clip(te["qwen_3vl_4b"], type="krea2")
             case Arch.qwen2:
                 clip = w.load_clip(te["qwen_3vl_8b"], type="qwen_image")
+            case Arch.flux3:
+                clip = w.load_clip(te["qwen_3vl_4b"], type="flux3")
+            case Arch.moss:
+                clip = w.load_clip(te["qwen_35_9b"], type="moss_image")
             case Arch.generic:
                 clip = w.load_clip(te["clip_l"], "stable_diffusion")
             case _:
@@ -182,8 +190,13 @@ def load_checkpoint_with_lora(w: ComfyWorkflow, checkpoint: CheckpointInput, mod
     if checkpoint.dynamic_caching and support_fbc:
         model = w.easy_cache(model, arch)
 
-    for lora in checkpoint.loras:
-        model, clip = w.load_lora(model, clip, lora.name, lora.strength, lora.strength)
+    if arch is Arch.moss and edit_reference:
+        # edit-adapter LoRAs target only the diffusion model, as in the official recipe
+        for lora in checkpoint.loras:
+            model = w.load_lora_model(model, lora.name, lora.strength)
+    else:
+        for lora in checkpoint.loras:
+            model, clip = w.load_lora(model, clip, lora.name, lora.strength, lora.strength)
 
     if arch is Arch.sd3:
         model = w.model_sampling_sd3(model)
@@ -202,6 +215,10 @@ def load_checkpoint_with_lora(w: ComfyWorkflow, checkpoint: CheckpointInput, mod
 
     if arch.supports_attention_guidance and checkpoint.self_attention_guidance:
         model = w.apply_self_attention_guidance(model)
+
+    if arch is Arch.moss:
+        # official recipe: skip layer 22 in the uncond pass; long text renders as garbage without it
+        model = w.skip_layer_guidance(model, single_layers="22")
 
     return model, Clip(clip, arch), vae
 
@@ -486,6 +503,7 @@ def apply_reference_conditioning(
     vae: Output,
     arch: Arch,
     tiled_vae: bool,
+    model: Output | None = None,
 ):
     if not arch.supports_edit:
         return prompt, None
@@ -508,6 +526,24 @@ def apply_reference_conditioning(
             for extra_image in extra_images:
                 latent = vae_encode(w, vae, extra_image, tiled_vae)
                 prompt = add_ref(prompt, latent)
+        case Arch.flux3:
+            # official recipe: all references in one ReferenceMultiLatent node,
+            # image0 = <ref_image_0>, latents appended to positive and negative
+            images: list[Output] = []
+            if cond.edit_reference and input_image:
+                images.append(input_image)
+            if len(extra_images) > 10 - len(images):
+                log.warning(
+                    f"Model supports up to 10 reference images;"
+                    f" {len(extra_images) + len(images) - 10} ignored"
+                )
+            images += extra_images[: 10 - len(images)]
+            if images:
+                prompt = w.reference_multi_latent(prompt.positive, prompt.negative, vae, images)
+                model_node = model or next((n.output(0) for n in w.find("UNETLoader")), None) or next((n.output(0) for n in w.find("CheckpointLoaderSimple")), None)
+                if model_node is not None and not any(n.type == "FluxKVCache" for n in w):
+                    w.flux_kv_cache(model_node)
+            input_latent = None
         case Arch.flux_k | Arch.qwen_e:
             if len(extra_images) > 0:
                 if cond.edit_reference and input_image:
@@ -522,6 +558,51 @@ def apply_reference_conditioning(
     return prompt, input_latent
 
 
+def _region_layout_boxes(regions, frame: Bounds | None = None) -> list[dict]:
+    """Extract region boxes normalized to the 0-1000 layout grid used by the
+    Flux 3 and MOSS layout-prompt formats.
+
+    Region bounds are document pixel coordinates; they are normalized relative
+    to the region mask's own bounds (the conditioning context). `frame` is an
+    optional fallback context for regions whose mask has no bounds (eg. tile
+    masks extracted in the graph). Without either, values pass through as-is so
+    API callers may still supply already-normalized boxes.
+    """
+    boxes = []
+    for r in regions:
+        b = getattr(r, "bounds", None)
+        if b is None and isinstance(r, dict):
+            b = r.get("bounds") or r.get("bbox") or r
+        if b is None:
+            continue
+        positive = getattr(r, "positive", "")
+        desc = getattr(positive, "text", None) or (positive if isinstance(positive, str) else "")
+        mask = getattr(r, "mask", None)
+        if isinstance(mask, ImageOutput):
+            mask = mask.image  # may be None for a pre-loaded node
+        cb = getattr(mask, "bounds", None) or frame
+        if isinstance(b, dict):
+            ymin = b.get("ymin", b.get("y", 0))
+            xmin = b.get("xmin", b.get("x", 0))
+            ymax = b.get("ymax", ymin + b.get("height", 0))
+            xmax = b.get("xmax", xmin + b.get("width", 0))
+            desc = desc or b.get("desc", "")
+        elif isinstance(b, (list, tuple)) and len(b) == 4:
+            ymin, xmin, ymax, xmax = b
+        else:
+            xmin, ymin = getattr(b, "x", 0), getattr(b, "y", 0)
+            xmax, ymax = xmin + getattr(b, "width", 0), ymin + getattr(b, "height", 0)
+        if cb is not None and getattr(cb, "width", 0) and getattr(cb, "height", 0):
+            sy, sx = 1000.0 / cb.height, 1000.0 / cb.width
+            cbx, cby = getattr(cb, "x", 0), getattr(cb, "y", 0)
+            ymin, ymax = (ymin - cby) * sy, (ymax - cby) * sy
+            xmin, xmax = (xmin - cbx) * sx, (xmax - cbx) * sx
+        if not desc and isinstance(r, dict):
+            desc = r.get("desc") or r.get("positive", "")
+        boxes.append({"ymin": ymin, "xmin": xmin, "ymax": ymax, "xmax": xmax, "desc": desc})
+    return boxes
+
+
 def encode_prompt(
     w: ComfyWorkflow,
     cond: Conditioning,
@@ -530,13 +611,38 @@ def encode_prompt(
     regions: Output | None,
     image: Output | None = None,
     tiled_vae: bool = False,
+    extent: Extent | None = None,
+    frame: Bounds | None = None,
 ):
     """Runs text and image encoder (VLM) to produce embeddings from prompt and reference images.
     Returns positive/negative conditioning, and sometimes the VAE-encoded `image` for reuse.
+    `extent`/`frame` describe the image being sampled: the former to express layout
+    boxes as pixels, the latter to normalize them when a region mask has no bounds.
     """
     arch = clip.arch
     ref_images = [image] if cond.edit_reference and image is not None else []
     ref_images += [c.image.load(w) for c in cond.all_control if c.mode.is_ip_adapter]
+
+    if arch is Arch.flux3:
+        if cond.regions:
+            boxes = _region_layout_boxes(cond.regions, frame)
+            if boxes and not cond.positive.text.rstrip().endswith("]"):
+                cond.positive.text = format_flux3_layout_prompt(cond.positive.text, boxes)
+        positive = cond.positive.encode(w, clip, cond.style_prompt, ref_images)
+        negative = cond.negative.encode(w, clip) if cond.negative else positive
+        prompt = ConditioningOutput(positive, negative)
+        return apply_reference_conditioning(w, prompt, image, cond, vae, arch, tiled_vae)
+
+    if arch is Arch.moss and cond.regions:
+        boxes = _region_layout_boxes(cond.regions, frame)
+        if boxes:
+            cond.positive.text = format_moss_layout_prompt(
+                cond.positive.text, boxes, extent
+            )
+        positive = cond.positive.encode(w, clip, cond.style_prompt, ref_images)
+        negative = cond.negative.encode(w, clip) if cond.negative else positive
+        prompt = ConditioningOutput(positive, negative)
+        return apply_reference_conditioning(w, prompt, image, cond, vae, arch, tiled_vae)
 
     if len(cond.regions) <= 1 or all(len(r.loras) == 0 for r in cond.regions):
         if arch is Arch.qwen2:
@@ -544,6 +650,13 @@ def encode_prompt(
             negative = cond.negative.prepare(w) if cond.negative else ""
             prompt = w.text_encode_qwen2(clip.model, vae, ref_images, positive, negative)
             return prompt, None  # note: latent returned by this node is always noise/empty
+        elif arch is Arch.moss and cond.edit_reference:
+            # core MOSS edit conditioning: references enter the text encoder as VL images
+            # and as reference latents via the VAE; both branches carry the same images
+            positive = cond.positive.prepare(w, cond.style_prompt)
+            negative = cond.negative.prepare(w) if cond.negative else ""
+            prompt = w.text_encode_moss_edit(clip.model, vae, ref_images, positive, negative)
+            return prompt, None  # note: init latent is fully replaced at denoise 1.0
         else:
             positive = cond.positive.encode(w, clip, cond.style_prompt, ref_images)
             negative = cond.negative.encode(w, clip) if cond.negative else positive
@@ -578,7 +691,7 @@ def apply_attention_mask(
     clip: Clip,
     shape: Extent | ImageReshape = no_reshape,
 ):
-    if len(cond.regions) == 0:
+    if len(cond.regions) == 0 or clip.arch is Arch.flux3:
         return model, None
 
     if len(cond.regions) == 1:
@@ -678,6 +791,16 @@ def apply_control(
 
     positive = apply_style_models(w, prompt.positive, control_layers, models)
 
+    if models.arch is Arch.flux3:
+        has_ref = (
+            any(c.mode.is_ip_adapter or c.mode is ControlMode.reference for c in control_layers)
+            or next(w.find("ReferenceMultiLatent"), None) is not None
+        )
+        if has_ref and not any(n.type == "FluxKVCache" for n in w):
+            model = w.flux_kv_cache(model)
+        elif any(n.type == "FluxKVCache" for n in w):
+            model = next(w.find("FluxKVCache")).output(0)
+
     return model, ConditioningOutput(positive, prompt.negative)
 
 
@@ -708,6 +831,13 @@ def apply_ip_adapter(
     models: ModelDict,
     mask: Output | None = None,
 ):
+    if models.arch is Arch.flux3:
+        if any(c.mode.is_ip_adapter for c in control_layers):
+            if not any(n.type == "FluxKVCache" for n in w):
+                return w.flux_kv_cache(model)
+            return next(w.find("FluxKVCache")).output(0)
+        return model
+
     if not (models.arch is Arch.sd15 or models.arch.is_sdxl_like):
         return model
 
@@ -853,7 +983,9 @@ def scale_refine_and_decode(
     upscale = w.scale_image(upscale, extent.desired)
     params = _sampler_params(sampling, extent.desired, strength=0.4)
 
-    prompt, new_latent = encode_prompt(w, cond, clip, vae, regions, upscale, tiled_vae)
+    prompt, new_latent = encode_prompt(
+        w, cond, clip, vae, regions, upscale, tiled_vae, extent=extent.desired
+    )
     new_latent = new_latent or vae_encode(w, vae, upscale, tiled_vae)
     model, prompt = apply_control(w, model, prompt, cond.all_control, extent.desired, vae, models)
     result = w.sampler_custom_advanced(model, prompt, new_latent, arch, **params)
@@ -883,16 +1015,20 @@ def generate(
     misc: MiscParams,
     models: ModelDict,
 ):
-    model, clip, vae = load_checkpoint_with_lora(w, checkpoint, models.all)
+    model, clip, vae = load_checkpoint_with_lora(w, checkpoint, models.all, cond.edit_reference)
     model = apply_ip_adapter(w, model, cond.control, models)
     model_orig = copy(model)
     model, regions = apply_attention_mask(w, model, cond, clip, extent.initial)
     model = apply_regional_ip_adapter(w, model, cond.regions, extent.initial, models)
-    latent = w.empty_latent_image(extent.initial, models.arch, misc.batch_count)
-    prompt, _ = encode_prompt(w, cond, clip, vae, regions, None, checkpoint.tiled_vae)
+    latent = w.empty_latent_image(extent.initial, models.arch, misc.batch_count, vae=vae)
+    latent = setup_latent_layers(w, latent, extent.initial, misc.layer_count)
+    prompt, _ = encode_prompt(
+        w, cond, clip, vae, regions, None, checkpoint.tiled_vae, extent=extent.initial
+    )
     model, prompt = apply_control(w, model, prompt, cond.all_control, extent.initial, vae, models)
     sample_params = _sampler_params(sampling, extent.initial)
     out_latent = w.sampler_custom_advanced(model, prompt, latent, models.arch, **sample_params)
+    out_latent = pack_latent_layers(w, out_latent, misc)
     out_image = scale_refine_and_decode(
         extent, w, cond, sampling, out_latent, model_orig, clip, vae, models, checkpoint.tiled_vae
     )
@@ -1027,7 +1163,7 @@ def inpaint(
         checkpoint.dynamic_caching = False  # doesn't seem to work with Flux fill model
         sampling.cfg_scale = 30  # set Flux guidance to 30 (typical values don't work well)
 
-    model, clip, vae = load_checkpoint_with_lora(w, checkpoint, models.all)
+    model, clip, vae = load_checkpoint_with_lora(w, checkpoint, models.all, cond.edit_reference)
     model = w.differential_diffusion(model)
     model_orig = copy(model)
 
@@ -1067,7 +1203,10 @@ def inpaint(
 
     model = apply_ip_adapter(w, model, cond_base.control, models)
     model = apply_regional_ip_adapter(w, model, cond_base.regions, extent.initial, models)
-    prompt, latent = encode_prompt(w, cond_base, clip, vae, regions, in_image, checkpoint.tiled_vae)
+    prompt, latent = encode_prompt(
+        w, cond_base, clip, vae, regions, in_image, checkpoint.tiled_vae,
+        extent=extent.initial,
+    )
     model, prompt = apply_control(
         w, model, prompt, cond_base.all_control, extent.initial, vae, models
     )
@@ -1118,7 +1257,9 @@ def inpaint(
 
         model, regions = apply_attention_mask(w, model, cond_upscale, clip, shape)
         model = apply_regional_ip_adapter(w, model, cond_upscale.regions, shape, models)
-        prompt_up, _ = encode_prompt(w, cond_upscale, clip, vae, regions)
+        prompt_up, _ = encode_prompt(
+            w, cond_upscale, clip, vae, regions, extent=upscale_extent.desired
+        )
 
         if params.use_inpaint_model and models.control.find(ControlMode.inpaint) is not None:
             hires_image = ImageOutput(images.hires_image)
@@ -1164,13 +1305,15 @@ def refine(
     misc: MiscParams,
     models: ModelDict,
 ):
-    model, clip, vae = load_checkpoint_with_lora(w, checkpoint, models.all)
+    model, clip, vae = load_checkpoint_with_lora(w, checkpoint, models.all, cond.edit_reference)
     model = apply_ip_adapter(w, model, cond.control, models)
     model, regions = apply_attention_mask(w, model, cond, clip, extent.initial)
     model = apply_regional_ip_adapter(w, model, cond.regions, extent.initial, models)
     in_image = w.load_image(image, alpha=models.arch.supports_alpha)
     in_image = scale_to_initial(extent, w, in_image, models)
-    prompt, latent = encode_prompt(w, cond, clip, vae, regions, in_image, checkpoint.tiled_vae)
+    prompt, latent = encode_prompt(
+        w, cond, clip, vae, regions, in_image, checkpoint.tiled_vae, extent=extent.desired
+    )
     latent = latent or vae_encode(w, vae, in_image, checkpoint.tiled_vae)
     latent_batch = w.batch_latent(latent, misc.batch_count)
     latent_batch = setup_latent_layers(w, latent_batch, extent.desired, misc.layer_count)
@@ -1197,7 +1340,7 @@ def refine_region(
 ):
     extent = ScaledExtent.from_input(images.extent)
 
-    model, clip, vae = load_checkpoint_with_lora(w, checkpoint, models.all)
+    model, clip, vae = load_checkpoint_with_lora(w, checkpoint, models.all, cond.edit_reference)
     model = w.differential_diffusion(model)
     model = apply_ip_adapter(w, model, cond.control, models)
     model_orig = copy(model)
@@ -1210,7 +1353,9 @@ def refine_region(
     in_mask = apply_grow_feather(w, in_mask, inpaint)
     initial_mask = scale_to_initial(extent, w, in_mask, models, is_mask=True)
 
-    prompt, latent = encode_prompt(w, cond, clip, vae, regions, in_image, checkpoint.tiled_vae)
+    prompt, latent = encode_prompt(
+        w, cond, clip, vae, regions, in_image, checkpoint.tiled_vae, extent=extent.initial
+    )
 
     if inpaint.use_inpaint_model and models.control.find(ControlMode.inpaint) is not None:
         cond.control.append(inpaint_control(in_image, initial_mask, models.arch))
@@ -1317,7 +1462,28 @@ def create_control_image(
     return w
 
 
+SEEDVR2_DIT = "seedvr2_7b_int8_convrot.safetensors"
+SEEDVR2_VAE = "seedvr2_ema_vae_fp16.safetensors"
+seedvr2_color_correction = "wavelet"  # set by the upscale UI before each job
+
+
 def upscale_simple(w: ComfyWorkflow, image: Image, model: str, factor: float):
+    if "seedvr2" in str(model).lower():
+        img = w.load_image(image)
+        dit = w.add_cached(
+            "UNETLoader", 1, unet_name=SEEDVR2_DIT, weight_dtype="default"
+        )
+        vae = w.add_cached("VAELoader", 1, vae_name=SEEDVR2_VAE)
+        out = w.seedvr2_upscale(
+            img,
+            dit,
+            vae,
+            scale_factor=4 if factor > 2.5 else 2,
+            color_correction=seedvr2_color_correction,
+            seed=generate_seed(),
+        )
+        w.send_image(out)
+        return w
     upscale_model = w.load_upscale_model(model)
     img = w.load_image(image)
     img = w.upscale_image(upscale_model, img)
@@ -1347,7 +1513,7 @@ def upscale_tiled(
             extent.initial, extent.desired.width, sampling.denoise_strength, multiple
         )
 
-    model, clip, vae = load_checkpoint_with_lora(w, checkpoint, models.all)
+    model, clip, vae = load_checkpoint_with_lora(w, checkpoint, models.all, cond.edit_reference)
     model = apply_ip_adapter(w, model, cond.control, models)
 
     in_image = w.load_image(image)
@@ -1390,7 +1556,10 @@ def upscale_tiled(
         tile_cond.regions = [r for r in regions if r is not None]
         tile_model, regions = apply_attention_mask(w, model, tile_cond, clip)
         tile_model = apply_regional_ip_adapter(w, tile_model, tile_cond.regions, no_reshape, models)
-        prompt, latent = encode_prompt(w, tile_cond, clip, vae, regions, tile_image, tiled_vae)
+        prompt, latent = encode_prompt(
+            w, tile_cond, clip, vae, regions, tile_image, tiled_vae,
+            extent=bounds.extent, frame=bounds,
+        )
 
         control = [tiled_control(c, i) for c in tile_cond.all_control]
         tile_model, prompt = apply_control(w, tile_model, prompt, control, no_reshape, vae, models)
@@ -1521,6 +1690,7 @@ _layer_replace = {
     Arch.flux2_9b: "image {}",
     Arch.qwen_e_p: "Picture {}",
     Arch.qwen2: "<image{}>",
+    Arch.flux3: "<ref_image_{}>",
 }
 _control_instructions = {
     ControlMode.style: "Apply the style from {}.",
@@ -1534,15 +1704,24 @@ _control_instructions = {
 }
 
 
-def build_instructions(cond: ConditioningInput, arch: Arch, inpaint: InpaintMode | None):
+def build_instructions(
+    cond: ConditioningInput,
+    arch: Arch,
+    inpaint: InpaintMode | None,
+    enable_edit_instructions: bool = False,
+):
     instructions = ""
 
-    if not cond.edit_reference and arch.supports_edit:
+    if not cond.edit_reference and (arch.supports_edit or enable_edit_instructions):
         match inpaint, arch:
             case InpaintMode.fill | InpaintMode.expand, Arch.flux2_4b | Arch.qwen2:
                 instructions += "Fill the green spaces according to the image.\n"
             case InpaintMode.expand, Arch.flux2_9b:
                 instructions += "Expand the image to fill the empty canvas.\n"
+            case InpaintMode.fill, Arch.flux3:
+                instructions += "Fill the empty areas of <ref_image_0>.\n"
+            case InpaintMode.expand, Arch.flux3:
+                instructions += "Expand <ref_image_0> to fill the empty canvas.\n"
             case InpaintMode.add_object, _:
                 instructions += "Add the object to the scene.\n"
             case InpaintMode.remove_object, _:
@@ -1552,7 +1731,11 @@ def build_instructions(cond: ConditioningInput, arch: Arch, inpaint: InpaintMode
         if instructions != "":
             cond.edit_reference = True
 
-    offset = 2 if cond.edit_reference else 1
+    offset = (
+        (1 if cond.edit_reference else 0)
+        if arch is Arch.flux3
+        else (2 if cond.edit_reference else 1)
+    )
     for i, control in enumerate(cond.control):
         if control.mode.can_substitute_instruction(arch):
             if instruction := _control_instructions.get(control.mode):
@@ -1595,12 +1778,23 @@ def prepare_prompts(
     cond.positive, extra_loras = extract_loras(cond.positive, files.loras)
     cond.positive = replace_layers(cond.positive, ref_layers, layer_replace)
     cond.positive += _collect_lora_triggers(models.loras, files)
-    cond.positive = build_instructions(cond, arch, inpaint)
+    cond.positive = build_instructions(
+        cond,
+        arch,
+        inpaint,
+        enable_edit_instructions=arch.supports_same_model_edit and cond.is_editing,
+    )
     if cond.positive == "" and inpaint is InpaintMode.remove_object:
         cond.positive = "background scenery"
     meta["prompt_final"] = cond.positive
     if cond.positive != "":
         meta["prompt_final"] = merge_prompt(cond.positive, cond.style, cond.language)
+
+    if arch is Arch.flux3 and cond.regions:
+        boxes = _region_layout_boxes(cond.regions)
+        if boxes:
+            cond.positive = format_flux3_layout_prompt(cond.positive, boxes)
+            meta["prompt_final"] = cond.positive
 
     cfg = style.live_cfg_scale if is_live else style.cfg_scale
     if math.isclose(cfg, 1.0):
@@ -1671,6 +1865,8 @@ def prepare(
     model_set = models.for_arch(arch)
     has_ip_adapter = model_set.ip_adapter.find(ControlMode.reference) is not None
     i.models.loras += _get_sampling_lora(style, is_live, model_set, models)
+    if arch.supports_same_model_edit and cond.edit_reference:
+        i.models.loras += _get_edit_adapter_lora(model_set)
     all_control = cond.control + [c for r in cond.regions for c in r.control]
     face_weight = median_or_zero(c.strength for c in all_control if c.mode is ControlMode.face)
     if face_weight > 0:
@@ -1864,6 +2060,19 @@ def create(i: WorkflowInput, models: ClientModels, comfy_mode=ComfyRunMode.serve
         )
     else:
         raise ValueError(f"Unsupported workflow kind: {i.kind}")
+
+
+def _get_edit_adapter_lora(model_set: ModelDict):
+    adapter = model_set.lora.find("edit")
+    if adapter is None:
+        paths = resources.search_path(ResourceKind.lora, model_set.arch, "edit") or []
+        raise ValueError(
+            _(
+                "Image editing requires an adapter LoRA ({models}), which is not installed",
+                models=", ".join(paths),
+            )
+        )
+    return [LoraInput(adapter, 1.0)]
 
 
 def _get_sampling_lora(style: Style, is_live: bool, model_set: ModelDict, models: ClientModels):

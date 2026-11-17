@@ -15,10 +15,10 @@ from tempfile import TemporaryDirectory
 from typing import Any, NamedTuple
 
 from PyQt6.QtCore import QMetaObject, QObject, Qt, QUuid, pyqtSignal
-from PyQt6.QtGui import QBrush, QColor, QPainter
+from PyQt6.QtGui import QBrush, QColor, QIcon, QPainter
 
 from .. import eventloop, util
-from ..backend import resolution, workflow
+from ..backend import resolution, resources, workflow
 from ..backend.api import (
     ConditioningInput,
     ControlInput,
@@ -44,7 +44,7 @@ from ..backend.client import (
 )
 from ..backend.network import NetworkError
 from ..backend.resolution import compute_bounds, compute_relative_bounds
-from ..backend.resources import ControlMode
+from ..backend.resources import ControlMode, ResourceKind
 from ..backend.sweep import parse_sweep_spec
 from ..document import Document, KritaDocument, SelectionModifiers
 from ..files import FileLibrary
@@ -72,6 +72,7 @@ from .custom_workflow import (
     WorkflowCollection,
     get_inpaint_context,
 )
+from ..native_engine import NativeLiveEngine
 from .jobs import Job, JobKind, JobParams, JobQueue, JobRegion, JobState
 from .properties import ObservableProperties, Property
 from .region import (
@@ -226,7 +227,79 @@ class DocumentModel(QObject, ObservableProperties):
     def generate_replace(self):
         self._generate(QueueMode.replace)
 
-    def _generate(self, queue_mode: QueueMode):
+    def generative_fill(self):
+        """One-click Generative Fill entry point (Select > AI Generative Fill).
+
+        Inpaints the active selection through the regular generation pipeline
+        and marks the job so its first result is applied as a new layer when
+        it finishes, regardless of the generation-finished-action setting.
+        Uses the current style and the docker's prompt: an empty prompt makes
+        the workflow condition on the surrounding pixels (see
+        workflow.detect_inpaint -> use_reference), ie. a content-aware fill;
+        a typed prompt guides the fill instead. The docker's inpaint mode and
+        strength are overridden for this call only."""
+        if not self._has_active_selection():
+            self._notify_error(_("Generative Fill needs an active selection"))
+            return
+        if self._connection.state is not ConnectionState.connected:
+            eventloop.run(self._connect_then_fill())
+            return
+        self._enqueue_fill()
+
+    def _has_active_selection(self):
+        """Fresh selection check — `document.selection_bounds` is polled and
+        can lag a beat right after the document/model is created."""
+        if self._doc.selection_bounds is not None:
+            return True
+        try:
+            from krita import Krita
+
+            krita_doc = Krita.instance().activeDocument()
+            return krita_doc is not None and krita_doc.selection() is not None
+        except Exception:
+            return False
+
+    def _notify_error(self, message: str):
+        """Error on the model (docker ErrorBox) plus a transient canvas
+        message, so menu-triggered errors stay visible with the docker
+        closed."""
+        self.report_error(message)
+        try:
+            from krita import Krita
+
+            if view := Krita.instance().activeWindow().activeView():
+                view.showFloatingMessage(message, QIcon(), 4000, 1)
+        except Exception:
+            pass
+
+    async def _connect_then_fill(self):
+        """Managed-server start/connect through the plugin's normal autostart,
+        then run the fill. Failure surfaces through the plugin's standard
+        connection state plus a reported error."""
+        from .root import root  # deferred: root imports this module
+
+        await root.autostart(lambda: None)
+        if self._connection.state is ConnectionState.connected:
+            self._enqueue_fill()
+        elif self._doc.is_valid:
+            self.report_error(
+                _("ComfyUI is not connected — open the AI Diffusion docker "
+                  "to check the server status")
+            )
+
+    def _enqueue_fill(self):
+        saved_inpaint_mode = self.inpaint.mode
+        saved_strength = self.strength
+        try:
+            # automatic resolves to fill or expand from the selection geometry
+            self.inpaint.mode = InpaintMode.automatic
+            self.strength = 1.0
+            self._generate(self.queue_mode, auto_apply=True)
+        finally:
+            self.inpaint.mode = saved_inpaint_mode
+            self.strength = saved_strength
+
+    def _generate(self, queue_mode: QueueMode, auto_apply: bool = False):
         """Enqueue image generation for the current setup."""
         ok, msg = self._doc.check_color_mode()
         if not ok and msg:
@@ -255,12 +328,22 @@ class DocumentModel(QObject, ObservableProperties):
             source = self.regions.positive if self.regions is not None else ""
             prompt_lines = [s for s in (l.strip() for l in source.splitlines()) if s]
         if sweep[0] is not None:
-            jobs = self._enqueue_jobs_sweep(input, job_params, cond_orig, sweep, queue_mode)
+            jobs = self._enqueue_jobs_sweep(
+                input, job_params, cond_orig, sweep, queue_mode, auto_apply
+            )
         elif len(prompt_lines) > 1:
-            jobs = self._enqueue_jobs_per_line(input, job_params, cond_orig, prompt_lines, queue_mode)
+            jobs = self._enqueue_jobs_per_line(
+                input, job_params, cond_orig, prompt_lines, queue_mode, auto_apply
+            )
         else:
             jobs = self.enqueue_jobs(
-                input, JobKind.diffusion, job_params, cond_orig, self.batch_count, queue_mode
+                input,
+                JobKind.diffusion,
+                job_params,
+                cond_orig,
+                self.batch_count,
+                queue_mode,
+                auto_apply,
             )
         eventloop.run(_report_errors(self, jobs))
 
@@ -269,8 +352,11 @@ class DocumentModel(QObject, ObservableProperties):
         workflow_kind = WorkflowKind.generate
         strength = self.strength
         if arch is Arch.qwen_l:
+            # Qwen-Image-Layered always full-denoises an empty layered latent and
+            # does not consume the canvas image: route it through generate() so
+            # text-to-layered works (see setup/pack_latent_layers in workflow.py).
             strength = 1.0
-        if strength < 1.0 or self.is_editing:
+        elif strength < 1.0 or self.is_editing:
             workflow_kind = WorkflowKind.refine
         client = self._connection.client
         image = None
@@ -357,6 +443,7 @@ class DocumentModel(QObject, ObservableProperties):
         job_params.metadata.update(prompt_meta)
         job_params.metadata["loras"] = [{"name": l.name, "weight": l.strength} for l in loras]
         job_params.metadata["strength"] = strength
+        job_params.metadata["edit_mode"] = self.edit_mode
         return input, job_params, original_conditioning
 
     async def enqueue_jobs(
@@ -367,6 +454,7 @@ class DocumentModel(QObject, ObservableProperties):
         original_cond: ConditioningInput | None = None,
         count: int = 1,
         queue_mode: QueueMode | None = None,
+        auto_apply: bool = False,
     ):
         sampling = ensure(input.sampling)
         params.has_mask = input.images is not None and input.images.hires_mask is not None
@@ -395,7 +483,13 @@ class DocumentModel(QObject, ObservableProperties):
                     input.conditioning = next_prompt.conditioning
                     params.metadata = params.metadata | next_prompt.metadata
                     params.name = params.metadata.get("prompt_eval", params.name)
-            job = self.jobs.add(kind, copy(params))
+            job_params = copy(params)
+            if i == 0 and auto_apply:
+                # One-click Generative Fill: _finish_job applies this job's
+                # first result as a new layer; later batch results stay in
+                # the job history like a normal Generate run.
+                job_params.metadata = {**job_params.metadata, "auto_apply": True}
+            job = self.jobs.add(kind, job_params)
             await self._enqueue_job(job, input, front=queue_mode is QueueMode.front)
 
         if self.workspace is not Workspace.custom:
@@ -408,6 +502,7 @@ class DocumentModel(QObject, ObservableProperties):
         original_cond: ConditioningInput,
         lines: list[str],
         queue_mode: QueueMode | None,
+        auto_apply: bool = False,
     ):
         """Enqueue one job for each non-empty line of the prompt ("per line" batch mode).
         Each line is evaluated with the same seed schedule used for regular batches."""
@@ -427,7 +522,13 @@ class DocumentModel(QObject, ObservableProperties):
             # not the base prompt's stale prompt_eval.
             line_params.name = prepared.metadata.get("prompt_eval") or trim_text(line, 180)
             await self.enqueue_jobs(
-                line_input, JobKind.diffusion, line_params, None, count=1, queue_mode=queue_mode
+                line_input,
+                JobKind.diffusion,
+                line_params,
+                None,
+                count=1,
+                queue_mode=queue_mode,
+                auto_apply=auto_apply and i == 0,
             )
 
     async def _enqueue_jobs_sweep(
@@ -437,6 +538,7 @@ class DocumentModel(QObject, ObservableProperties):
         original_cond: ConditioningInput,
         sweep: tuple,
         queue_mode: QueueMode | None,
+        auto_apply: bool = False,
     ):
         """Enqueue one job per value of a {{axis:v1,v2}} prompt spec. Each job
         shares the (spec-stripped) prompt but overrides the swept sampling
@@ -463,7 +565,13 @@ class DocumentModel(QObject, ObservableProperties):
             job_params.metadata = params.metadata | prepared.metadata | {"sweep": f"{axis}={value}"}
             job_params.name = f"{job_params.metadata.get('prompt_eval', params.name)} [{axis}={value}]"
             await self.enqueue_jobs(
-                job_input, JobKind.diffusion, job_params, None, count=1, queue_mode=queue_mode
+                job_input,
+                JobKind.diffusion,
+                job_params,
+                None,
+                count=1,
+                queue_mode=queue_mode,
+                auto_apply=auto_apply and i == 0,
             )
 
     async def _enqueue_job(self, job: Job, input: WorkflowInput, front: bool = False):
@@ -526,6 +634,7 @@ class DocumentModel(QObject, ObservableProperties):
         try:
             self.clear_error()
             inputs, job_params = self._prepare_upscale_image()
+            job_params.metadata["original_extent"] = list(self._doc.extent)
             job = self.jobs.add(JobKind.upscaling, job_params)
         except Exception as e:
             self.report_error(util.log_error(e))
@@ -822,13 +931,21 @@ class DocumentModel(QObject, ObservableProperties):
 
             if job.id and job.kind in [JobKind.diffusion, JobKind.animation]:
                 action = settings.generation_finished_action
-                if action is GenerationFinishedAction.preview and self._layer is None:
+                if job.params.metadata.get("auto_apply"):
+                    # One-click Generative Fill: always lands as a new layer.
+                    self.apply_generated_result(job.id, 0, ApplyBehavior.layer)
+                elif action is GenerationFinishedAction.preview and self._layer is None:
                     self.jobs.select(job.id, 0)
                 elif action is GenerationFinishedAction.apply:
                     self.apply_generated_result(job.id, 0)
         else:
             self.jobs.notify_cancelled(job)
             self.progress = 0
+            if job.kind is JobKind.upscaling:
+                original = job.params.metadata.get("original_extent")
+                if original and self._doc.extent == job.params.bounds.extent:
+                    self._doc.resize(Extent(*original))
+                    self.upscale.target_extent_changed.emit(self.upscale.target_extent)
 
     def update_preview(self):
         if selection := self.jobs.selection:
@@ -965,11 +1082,15 @@ class DocumentModel(QObject, ObservableProperties):
         return layer
 
     def _post_process_output_layer(self, layer: Layer, params: JobParams):
-        """Optional output pipeline applied to each freshly generated layer:
+        """Optional output pipeline applied to each freshly applied output layer:
         Cutout (native Smart Matting edge refine) followed by Vectorize
-        (Trace to Vector Layer). Both are off by default and only apply to
-        generation output — upscale/refine/custom results are left alone."""
-        if params.workflow_kind is not WorkflowKind.generate:
+        (Trace to Vector Layer). Both are off by default. Applies to every
+        applied result regardless of workflow kind (generate, inpaint, refine,
+        upscale, layered, custom). Control images are skipped: they are
+        intermediate guidance maps, not artwork. Preview paths (live preview
+        ticks, job result previews) never create layers through apply_result,
+        so they stay unaffected."""
+        if params.workflow_kind is WorkflowKind.control_image:
             return
         if self.matte_output:
             self._apply_output_matte(layer)
@@ -1087,12 +1208,60 @@ class DocumentModel(QObject, ObservableProperties):
                 "workflow_kind": getattr(
                     params.workflow_kind, "name", str(params.workflow_kind)
                 ),
+                "edit_mode": params.metadata.get("edit_mode", self.edit_mode),
             }
             layer.node.setProperty("ai_diffusion_params", json.dumps(data))
         except Exception as e:
             log.warning(f"Failed to store generation params on layer {layer.name}: {e}")
 
-    def apply_generated_result(self, job_id: str, index: int):
+    def re_edit_from_active_layer(self) -> bool:
+        """Inspects the active layer's 'ai_diffusion_params' property (if set),
+        parses it, and restores prompt, seed, and settings into the model so the
+        user can easily re-run or adjust previous generative edits. Returns True
+        if parameters were successfully restored, False otherwise."""
+        try:
+            layer = self.layers.active
+            if not layer or not layer.node:
+                return False
+            raw = layer.node.property("ai_diffusion_params")
+            if not raw:
+                return False
+            if isinstance(raw, (bytes, bytearray)):
+                raw = raw.decode("utf-8")
+            data = json.loads(str(raw)) if isinstance(raw, str) else dict(raw)
+            if not isinstance(data, dict):
+                return False
+
+            if "edit_mode" in data:
+                self.edit_mode = bool(data["edit_mode"])
+            elif layer.name and "[AI Edit]" in layer.name:
+                self.edit_mode = True
+
+            active = getattr(self.active_regions, "active_or_root", self.active_regions)
+            if "prompt" in data and data["prompt"]:
+                active.positive = str(data["prompt"])
+            if "negative_prompt" in data and hasattr(active, "negative"):
+                active.negative = str(data["negative_prompt"])
+
+            if "seed" in data and data["seed"] is not None:
+                self.fixed_seed = True
+                self.seed = int(data["seed"])
+
+            if "strength" in data and data["strength"] is not None:
+                self.strength = float(data["strength"])
+
+            if "style" in data and data["style"]:
+                if style := Styles.list().find(str(data["style"])):
+                    self.style = style
+
+            return True
+        except Exception as e:
+            log.warning(f"Failed to re-edit from active layer: {e}")
+            return False
+
+    def apply_generated_result(
+        self, job_id: str, index: int, behavior: ApplyBehavior | None = None
+    ):
         job = self.jobs.find(job_id)
         assert job is not None, "Cannot apply result, invalid job id"
 
@@ -1104,16 +1273,38 @@ class DocumentModel(QObject, ObservableProperties):
             # is the merged image, slots 1..N are the decomposed layers ordered bottom
             # to top; pack_latent_layers (backend/workflow.py:225) keeps slot 0, so
             # job.results[0] is the background/composite and 1..N are elements.
-            for i, image in enumerate(job.results):
-                label = "Background" if i == 0 else f"Element {i}"
-                self.apply_result(image, job.params, prefix=f"[Layer {i + 1}] {label} - ")
+            if len(job.params.regions) == 0:
+                # Wrap the stack in a named group: layers are appended in result
+                # order, so the composite lands at the bottom and each element
+                # stacks above it (matching the bottom-to-top latent order).
+                if job.params.resize_canvas and self.document.extent != job.results[0].extent:
+                    self.document.resize_canvas(*job.results[0].extent)
+                name = trim_text(job.params.name, 200)
+                group = self.layers.create_group(f"[Layered] {name} ({job.params.seed})")
+                for i, image in enumerate(job.results):
+                    label = "Background" if i == 0 else f"Element {i}"
+                    bounds = Bounds(*job.params.bounds.offset, *image.extent)
+                    layer = self.layers.create(
+                        f"[Layer {i + 1}] {label} - {name} ({job.params.seed})",
+                        image,
+                        bounds,
+                        parent=group,
+                    )
+                    self._record_layer_provenance(layer, job.params)
+                    self._post_process_output_layer(layer, job.params)
+            else:
+                for i, image in enumerate(job.results):
+                    label = "Background" if i == 0 else f"Element {i}"
+                    self.apply_result(image, job.params, prefix=f"[Layer {i + 1}] {label} - ")
         else:
+            is_edit = bool(job.params.metadata.get("edit_mode") or self.edit_mode)
+            prefix = "[AI Edit] " if is_edit else "[Generated] "
             self.apply_result(
                 job.results[index],
                 job.params,
-                settings.apply_behavior,
+                behavior or settings.apply_behavior,
                 settings.apply_region_behavior,
-                "[Generated] ",
+                prefix,
             )
         if self._layer:
             self._layer.remove()
@@ -1204,16 +1395,37 @@ class DocumentModel(QObject, ObservableProperties):
                 ctrl = ControlLayer(self, ControlMode.reference, uid, 0)
                 control.append(ctrl.to_api())
 
-        cond.edit_reference = self.is_editing
-        layers = extract_layers(cond)
+        cond.is_editing = self.is_editing
+        cond.edit_reference = self.is_editing and (
+            self.arch.supports_edit
+            or (self._edit_adapter_available() and self._edit_nodes_available())
+        )
+        layers = extract_layers(cond, arch=self.arch)
         add_refs(cond.control, layers)
 
         for region in cond.regions:
-            region_layers = extract_layers(cond, region)
+            region_layers = extract_layers(cond, region, self.arch)
             add_refs(region.control, region_layers)
             layers.update(region_layers)
 
         return cond, layers
+
+    def _edit_adapter_available(self) -> bool:
+        """True if the adapter LoRA required for editing with the active model is
+        present. Models like MOSS Image only support edit mode through their
+        edit adapter, so edit mode is not offered without it."""
+        client = self._connection.client_if_connected
+        arch = resolve_arch(self.style, client)
+        if resources.search_path(ResourceKind.lora, arch, "edit") is None:
+            return False
+        if client is None:
+            return True  # model set unknown
+        return client.models.for_arch(arch).lora.find("edit") is not None
+
+    def _edit_nodes_available(self) -> bool:
+        """True if the server supports reference-conditioned editing."""
+        client = self._connection.client_if_connected
+        return client is not None and client.features.moss_edit
 
     def _performance_settings(self, client: Client):
         result = client.performance_settings
@@ -1303,6 +1515,8 @@ class DocumentModel(QObject, ObservableProperties):
             if style := Styles.list().find(style_id):
                 if is_style_supported(style, self._connection.client_if_connected):
                     return style
+        if style_arch.supports_same_model_edit and self._edit_adapter_available():
+            return self.style  # edit with the same model, same style settings
         return None
 
     @property
@@ -1445,10 +1659,10 @@ class UpscaleWorkspace(QObject, ObservableProperties):
 
 
 class LiveScheduler:
-    poll_rate = 0.1
-    default_grace_period = 0.25  # seconds to delay after most recent document edit
-    max_wait_time = 3.0  # maximum seconds to delay over total editing time
-    delay_threshold = 1.5  # use delay only if average generation time exceeds this value
+    poll_rate = 0.02  # 50 Hz polling for ultra-responsive real-time diffusion
+    default_grace_period = 0.05  # 50ms grace period for instant stroke dispatch
+    max_wait_time = 1.0  # 1.0s max wait time
+    delay_threshold = 0.8  # use delay only if average generation time exceeds 800ms
 
     def __init__(self):
         self._last_input: WorkflowInput | None = None
@@ -1510,6 +1724,7 @@ class LiveWorkspace(QObject, ObservableProperties):
         super().__init__()
         self._model = weakref.ref(model)
         self._scheduler = LiveScheduler()
+        self._native = NativeLiveEngine(model)
         self._result: Image | None = None
         self._result_composition: Image | None = None
         self._result_params: JobParams | None = None
@@ -1531,6 +1746,7 @@ class LiveWorkspace(QObject, ObservableProperties):
                 eventloop.run(_report_errors(self.model, self._continue_generating()))
             else:
                 self.is_recording = False
+                self._native.release()
 
     def toggle_record(self, active: bool):
         if self.is_recording != active:
@@ -1556,9 +1772,25 @@ class LiveWorkspace(QObject, ObservableProperties):
     async def _continue_generating(self):
         while self.is_active:
             if self.model.document.is_active:
+                native_error: str | None = None
+                if self._native.is_selected():
+                    native_error = self._native.availability()
+                    if native_error is None:
+                        if await self._native.generate_frame():
+                            self._scheduler.notify_generation_started()
+                            return
+                        await asyncio.sleep(self._scheduler.poll_rate)
+                        continue
                 new_input, job_params = self.model._prepare_live_workflow()
                 if self._scheduler.should_generate(new_input):
                     await self.model._generate_live(new_input, job_params)
+                    # The ComfyUI enqueue clears errors; surface the native
+                    # fallback afterwards so the notice stays visible — but
+                    # never over a real ComfyUI failure.
+                    if native_error is not None and not self.model.error:
+                        self.model.report_error(
+                            f"Native engine unavailable, using ComfyUI: {native_error}"
+                        )
                     self._scheduler.notify_generation_started()
                     return
             await asyncio.sleep(self._scheduler.poll_rate)

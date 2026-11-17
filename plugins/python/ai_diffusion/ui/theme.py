@@ -90,6 +90,8 @@ def checkpoint_icon(arch: Arch, format: FileFormat | None = None, client: Client
         return icon("sd-version-ernie")
     elif arch is Arch.krea2:
         return icon("sd-version-krea2")
+    elif arch is Arch.moss:
+        return icon("sd-version-moss")
     elif arch is Arch.generic or arch is Arch.auto:
         return icon("context-layer")
     else:

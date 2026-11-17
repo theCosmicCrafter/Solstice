@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import zlib
 from copy import deepcopy
 from enum import Enum
@@ -54,6 +55,74 @@ class ComfyNode(NamedTuple):
 
     def output(self, index=0) -> Output:
         return Output(int(self.id), index)
+
+
+flux3_shift = math.log(16.0)
+
+
+def format_flux3_layout_prompt(prompt: str, boxes: list[dict]) -> str:
+    """Formats bounding boxes into ComfyUI Flux3LayoutPrompt format:
+    [{"id": "obj_1", "bbox": [ymin, xmin, ymax, xmax], "desc": ...}]
+    appended as JSON string to prompt. Coordinates in 0..1000 range.
+    """
+    if not boxes:
+        return prompt
+    rows = []
+    for i, b in enumerate(boxes):
+        ymin = max(0, min(1000, int(b.get("ymin", 0))))
+        xmin = max(0, min(1000, int(b.get("xmin", 0))))
+        ymax = max(ymin + 1, min(1000, int(b.get("ymax", 1000))))
+        xmax = max(xmin + 1, min(1000, int(b.get("xmax", 1000))))
+        desc = b.get("desc", f"object {i+1}")
+        rows.append({"id": f"obj_{i+1}", "bbox": [ymin, xmin, ymax, xmax], "desc": desc})
+    return f"{prompt.rstrip()} {json.dumps(rows, ensure_ascii=False)}"
+
+
+def format_moss_layout_prompt(
+    prompt: str, boxes: list[dict], extent: Extent | None = None
+) -> str:
+    """Formats region boxes into the MOSS-Image layout-prompt format
+    (mirrors comfy_extras.nodes_moss_image.MOSSImageLayoutPrompt):
+    {"summary": {"caption": ...}, "items": [{"label": "object",
+    "caption": ..., "bbox": [y0, x0, y1, x1]}...],
+    "bbox_coord_space": "abs_centralized", "bbox_format": "yxyx"}
+
+    Input `boxes` are pixel bounds; when `extent` is given they are
+    normalized to the 0..1000 grid the ComfyUI node expects, then
+    re-expressed as center-origin pixel coords exactly like the node.
+    """
+    if not boxes:
+        return prompt
+    items = []
+    for i, b in enumerate(boxes):
+        ymin = max(0, min(1000, b.get("ymin", 0)))
+        xmin = max(0, min(1000, b.get("xmin", 0)))
+        ymax = max(ymin + 1, min(1000, b.get("ymax", 1000)))
+        xmax = max(xmin + 1, min(1000, b.get("xmax", 1000)))
+        label = b.get("label") or ("text" if b.get("type") == "text" else "object")
+        item = {"label": label, "caption": b.get("desc", "")}
+        if label == "text":
+            item["text"] = b.get("text", "")
+        if b.get("palette"):
+            item["palette"] = b["palette"]
+        if extent is not None:
+            w, h = extent.width, extent.height
+            item["bbox"] = [
+                math.floor(round(ymin * h / 1000, 9)) - h // 2,
+                math.floor(round(xmin * w / 1000, 9)) - w // 2,
+                math.ceil(round(ymax * h / 1000, 9)) - h // 2,
+                math.ceil(round(xmax * w / 1000, 9)) - w // 2,
+            ]
+        else:
+            item["bbox"] = [ymin, xmin, ymax, xmax]
+        items.append(item)
+    layout = {
+        "summary": {"caption": prompt.strip()},
+        "items": items,
+        "bbox_coord_space": "abs_centralized",
+        "bbox_format": "yxyx",
+    }
+    return json.dumps(layout, ensure_ascii=False, separators=(",", ":"))
 
 
 class ComfyWorkflow:
@@ -120,7 +189,8 @@ class ComfyWorkflow:
             for k, v in node_inputs.items():
                 if v is not None:
                     args.setdefault(k, v)
-                elif k not in args:
+                elif k not in args and not any(name.startswith(f"{k}.") for name in args):
+                    # group inputs like autogrow lists are given as "name.item"
                     log.warning(f"Node {node_name} missing required input {k} (no default)")
         return args
 
@@ -305,6 +375,31 @@ class ComfyWorkflow:
             denoise=denoise,
         )
 
+    def sample(
+        self,
+        model: Output,
+        latent_image: Output,
+        positive: Output,
+        negative: Output,
+        steps: int = 1,
+        cfg: float = 1.0,
+        sampler: str = "euler",
+        scheduler: str = "simple",
+        denoise: float = 1.0,
+        seed: int = 0,
+    ) -> Output:
+        return self.ksampler(
+            model=model,
+            cond=ConditioningOutput(positive, negative),
+            latent_image=latent_image,
+            sampler=sampler,
+            scheduler=scheduler,
+            steps=steps,
+            cfg=cfg,
+            denoise=denoise,
+            seed=seed,
+        )
+
     def ksampler_advanced(
         self,
         model: Output,
@@ -352,6 +447,9 @@ class ComfyWorkflow:
         extent: Extent | None = None,
     ):
         self.sample_count += steps - start_at_step
+
+        if arch is Arch.flux3 and extent is not None:
+            model = self.model_sampling_flux(model, extent)
 
         if arch.is_flux_like:
             positive = self.flux_guidance(cond.positive, cfg if cfg > 1 else 3.5)
@@ -498,8 +596,46 @@ class ComfyWorkflow:
     def model_sampling_sd3(self, model: Output, shift=3.0):
         return self.add("ModelSamplingSD3", 1, model=model, shift=shift)
 
+    def model_sampling_flux(self, model: Output, extent: Extent):
+        # official Flux 3 recipe: mu = ln(16 megapixels), applied as a constant shift
+        return self.add(
+            "ModelSamplingFlux",
+            1,
+            model=model,
+            max_shift=flux3_shift,
+            base_shift=flux3_shift,
+            width=extent.width,
+            height=extent.height,
+        )
+
     def rescale_cfg(self, model: Output, multiplier=0.7):
         return self.add("RescaleCFG", 1, model=model, multiplier=multiplier)
+
+    def flux_kv_cache(self, model: Output) -> Output:
+        return self.add("FluxKVCache", 1, model=model)
+
+    def qwen_image21_cache(
+        self, model: Output, device: str = "auto", dtype: str = "int8"
+    ) -> Output:
+        return self.add("QwenImage21Cache", 1, model=model, device=device, dtype=dtype)
+
+    def skip_layer_guidance(
+        self,
+        model: Output,
+        single_layers: str,
+        double_layers: str = "",
+        start_percent=0.0,
+        end_percent=1.0,
+    ):
+        return self.add(
+            "SkipLayerGuidanceDiTSimple",
+            1,
+            model=model,
+            double_layers=double_layers,
+            single_layers=single_layers,
+            start_percent=start_percent,
+            end_percent=end_percent,
+        )
 
     def load_checkpoint(self, checkpoint: str):
         return self.add_cached("CheckpointLoaderSimple", 3, ckpt_name=checkpoint)
@@ -582,11 +718,21 @@ class ComfyWorkflow:
             "T5TokenizerOptions", 1, clip=clip, min_padding=min_padding, min_length=min_length
         )
 
-    def empty_latent_image(self, extent: Extent, arch: Arch, batch_size=1):
+    def empty_latent_image(
+        self, extent: Extent, arch: Arch, batch_size=1, vae: Output | None = None
+    ):
         w, h = extent.width, extent.height
+        if arch is Arch.qwen2:
+            # Qwen Image 2.1 latents are 64ch at /16 — no dedicated empty node
+            # exists, so encode a blank image to produce the exact format.
+            assert vae is not None, "Qwen Image 2.1 latent requires a VAE"
+            image = self.add(
+                "EmptyImage", 1, width=w, height=h, batch_size=batch_size, color=0
+            )
+            return self.vae_encode(vae, image)
         if arch.is_flux_like or arch.is_qwen_like or arch in (Arch.sd3, Arch.chroma, Arch.zimage):
             return self.add("EmptySD3LatentImage", 1, width=w, height=h, batch_size=batch_size)
-        if arch.is_flux2 or arch is Arch.ernie:
+        if arch.is_flux2 or arch is Arch.ernie or arch is Arch.moss:
             return self.add("EmptyFlux2LatentImage", 1, width=w, height=h, batch_size=batch_size)
         else:
             return self.add("EmptyLatentImage", 1, width=w, height=h, batch_size=batch_size)
@@ -595,7 +741,12 @@ class ComfyWorkflow:
         w, h = extent.width, extent.height
         l = 1 + layer_count * 4  # number of layers for Qwen-Image-Layered
         return self.add(
-            "EmptyHunyuanLatentVideo", 1, width=w, height=h, length=l, batch_size=batch_size
+            "EmptyQwenImageLayeredLatentImage",
+            1,
+            width=w,
+            height=h,
+            layers=l - 1,  # the node adds the base layer itself
+            batch_size=batch_size,
         )
 
     def cut_latent_to_batch(self, latent: Output, dim: str = "t", slice: int = 1):
@@ -666,6 +817,29 @@ class ComfyWorkflow:
         )
         return ConditioningOutput(pos, neg), model
 
+    def reference_multi_latent(
+        self,
+        positive: Output,
+        negative: Output,
+        vae: Output,
+        images: list[Output],
+        megapixels=1.0,
+    ):
+        """ReferenceMultiLatent: encodes reference images (image0 = <ref_image_0>) and appends
+        their latents to positive and negative conditioning - the official Flux 3 edit recipe."""
+        assert 1 <= len(images) <= 10, "Expected 1 to 10 reference images"
+        args: dict[str, Any] = {
+            "positive": positive,
+            "negative": negative,
+            "vae": vae,
+            "resolution": "resize",
+            "resolution.megapixels": megapixels,
+        }
+        for i, image in enumerate(images):
+            args[f"images.image{i}"] = image
+        positive, negative, _ = self.add("ReferenceMultiLatent", 3, **args)
+        return ConditioningOutput(positive, negative)
+
     def reference_latent(self, conditioning: Output, latent: Output):
         return self.add("ReferenceLatent", 1, conditioning=conditioning, latent=latent)
 
@@ -715,6 +889,32 @@ class ComfyWorkflow:
             args[f"images.image_{i + 1}"] = image
         positive, negative, _ = self.add("TextEncodeQwenImage21", 3, **args)
         return ConditioningOutput(positive, negative)
+
+    def text_encode_moss_edit(
+        self,
+        clip: Output,
+        vae: Output,
+        images: list[Output],
+        positive: str | Output,
+        negative: str | Output,
+        image_strength: float = 1.0,
+    ):
+        assert 1 <= len(images) <= 10, "MOSS-Image edit supports 1 to 10 reference images"
+
+        def encode(text: str | Output):
+            args: dict[str, Any] = {
+                "clip": clip,
+                "prompt": text,
+                "edit_format": "Moss-Image-Edit",
+                "image_strength": image_strength,
+            }
+            if vae is not None:
+                args["vae"] = vae
+            for i, image in enumerate(images):
+                args[f"images.image_{i}"] = image
+            return self.add("TextEncodeMOSSImageEdit", 1, **args)
+
+        return ConditioningOutput(encode(positive), encode(negative))
 
     def background_region(self, conditioning: Output):
         return self.add("ETN_BackgroundRegion", 1, conditioning=conditioning)
@@ -1090,6 +1290,90 @@ class ComfyWorkflow:
             exclude_mask=exclude_mask,
             strength=strength,
         )
+
+    def color_transfer(
+        self,
+        target_image: Output,
+        reference_image: Output,
+        method: str = "mkl_lab",
+        strength: float = 1.0,
+    ) -> Output:
+        return self.add(
+            "ColorTransfer",
+            1,
+            target=target_image,
+            reference=reference_image,
+            method=method,
+            strength=strength,
+        )
+
+    def image_sdr_to_hdr(self, image: Output, target_luminance: float = 650.0) -> Output:
+        return self.add("ImageSDRToHDR", 1, image=image, target_luminance=target_luminance)
+
+    def seedvr2_upscale(
+        self,
+        image: Output,
+        model: Output,
+        vae: Output,
+        scale_factor: float = 2.0,
+        color_correction: str = "wavelet",
+        seed: int = 0,
+    ) -> Output:
+        """SeedVR2 1-step restoration via native nodes (SeedVR2Preprocess/
+        Conditioning/PostProcessing), matching the utility_seedvr2 upscale
+        template: resize -> preprocess -> tiled encode -> 1-step sample ->
+        tiled decode -> color-correct against the resized original."""
+        resized = self.add(
+            "ImageScaleBy", 1, image=image, upscale_method="lanczos",
+            scale_by=scale_factor,
+        )
+        pre = self.add("SeedVR2Preprocess", 1, resized_images=resized)
+        latent_in = self.add(
+            "VAEEncodeTiled", 1, pixels=pre, vae=vae,
+            tile_size=512, overlap=128, temporal_size=4096, temporal_overlap=8,
+        )
+        pos, neg = self.add(
+            "SeedVR2Conditioning", 2, model=model, vae_conditioning=latent_in,
+        )
+        latent = self.sample(
+            model,
+            latent_in,
+            pos,
+            neg,
+            steps=1,
+            cfg=1.0,
+            sampler="euler",
+            scheduler="simple",
+            denoise=1.0,
+            seed=seed,
+        )
+        decoded = self.add(
+            "VAEDecodeTiled", 1, samples=latent, vae=vae,
+            tile_size=512, overlap=128, temporal_size=4096, temporal_overlap=8,
+        )
+        return self.add(
+            "SeedVR2PostProcessing",
+            1,
+            images=decoded,
+            original_resized_images=resized,
+            color_correction_method=color_correction,
+        )
+
+    def seamless_tile(
+        self, model: Output, vae: Output, tiling: str = "enable"
+    ) -> tuple[Output, Output]:
+        tiled_model = (
+            self.add("SeamlessTile", 1, model=model, tiling=tiling)
+            if not self.node_defs or "SeamlessTile" in self.node_defs
+            else model
+        )
+        if not self.node_defs or "CircularVAEDecode" in self.node_defs:
+            tiled_vae = self.add("CircularVAEDecode", 1, vae=vae, tiling=tiling)
+        elif "MakeCircularVAE" in self.node_defs:
+            tiled_vae = self.add("MakeCircularVAE", 1, vae=vae, tiling=tiling)
+        else:
+            tiled_vae = vae
+        return tiled_model, tiled_vae
 
     def crop_mask(self, mask: Output, bounds: Bounds):
         return self.add(

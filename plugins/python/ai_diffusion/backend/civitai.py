@@ -161,3 +161,41 @@ class CivitaiClient:
             return []
         items = data.get("items") if isinstance(data, dict) else None
         return [i for i in items if isinstance(i, dict)] if isinstance(items, list) else []
+
+    async def check_for_updates(
+        self,
+        model_id: int,
+        current_version_id: int,
+        base_model: str = "",
+    ) -> dict[str, Any] | None:
+        """Check for updates to a model on CivitAI. Offline-safe; never raises."""
+        try:
+            data = await self._requests.get(
+                f"{API_BASE}/models/{int(model_id)}", timeout=REQUEST_TIMEOUT
+            )
+        except Exception as e:
+            log.warning(f"CivitAI check_for_updates failed: {e}")
+            return None
+
+        if not isinstance(data, dict):
+            return None
+
+        versions = data.get("modelVersions")
+        if not isinstance(versions, list):
+            return None
+
+        candidates = []
+        for v in versions:
+            if not isinstance(v, dict):
+                continue
+            v_id = v.get("id")
+            if not isinstance(v_id, int) or v_id <= current_version_id:
+                continue
+            if base_model and v.get("baseModel") != base_model:
+                continue
+            candidates.append(v)
+
+        if not candidates:
+            return None
+
+        return max(candidates, key=lambda v: int(v.get("id", 0)))

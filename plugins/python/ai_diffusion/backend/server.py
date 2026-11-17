@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
 import shutil
@@ -11,7 +12,8 @@ from itertools import chain
 from pathlib import Path
 from typing import NamedTuple
 
-from PyQt6.QtNetwork import QNetworkAccessManager
+from PyQt6.QtCore import QUrl
+from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 
 from .. import eventloop
 from ..localization import translate as _
@@ -29,7 +31,7 @@ from ..settings import ServerBackend, settings
 from ..util import client_logger as log
 from ..util import server_logger as server_log
 from . import resources
-from .network import DownloadProgress, download
+from .network import DownloadProgress, _map_host, download
 from .resources import (
     Arch,
     CustomNode,
@@ -308,6 +310,9 @@ class Server:
         await _download_cached(pkg.name, network, resource_url, resource_zip_path, cb)
         await _extract_archive(pkg.name, resource_zip_path, folder.parent, cb)
         await rename_extracted_folder(pkg.name, folder, pkg.version)
+        requirements_txt = folder / "requirements.txt"
+        if requirements_txt.exists():
+            await self._pip_install(pkg.name, ["-r", str(requirements_txt)], cb)
         cb(f"Installing {pkg.name}", f"Finished installing {pkg.name}")
 
     async def install(self, callback: Callback):
@@ -360,18 +365,52 @@ class Server:
             if len(to_install) != len(packages):
                 not_found = set(packages) - {r.id.string for r in to_install}
                 raise ValueError("Some requested models were not found: " + ", ".join(not_found))
+
+            # A file only counts as installed if it exists AND matches its
+            # catalog sha256 (when one is configured) — in self.path or comfy_dir.
+            dirs = [self.path, self.comfy_dir]
+            pending: list[tuple[ModelResource, resources.ModelFile]] = []
             for resource in to_install:
-                if not resource.exists_in(self.path) and not resource.exists_in(self.comfy_dir):
-                    for file in resource.files:
-                        target_file = self.path / file.path
-                        target_file.parent.mkdir(parents=True, exist_ok=True)
-                        await _download_cached(resource.name, network, file.url, target_file, cb)
+                for file in await asyncio.to_thread(_missing_or_invalid, resource, dirs):
+                    pending.append((resource, file))
+
+            target_dir = self.path if self.path.exists() else self.path.parent
+            disk_info = shutil.disk_usage(str(target_dir))
+            known_total_size = 0
+            for _, file in pending:
+                size = file.size
+                if size <= 0:
+                    size = await _remote_file_size(network, file.url)
+                known_total_size += size
+            min_free_bytes = 2 * 1024 * 1024 * 1024  # 2 GB
+            required_space = max(min_free_bytes, int(known_total_size * 1.05))
+            if disk_info.free < required_space:
+                free_gb = disk_info.free / (1024**3)
+                req_gb = required_space / (1024**3)
+                msg = f"Insufficient disk space in {target_dir}: {free_gb:.2f} GB free, need at least {req_gb:.2f} GB"
+                log.error(msg)
+                raise RuntimeError(msg)
+
+            for resource, file in pending:
+                target_file = self.path / file.path
+                target_file.parent.mkdir(parents=True, exist_ok=True)
+                if target_file.exists():
+                    # _missing_or_invalid already hashed it: an existing file in
+                    # pending has a checksum mismatch. Remove it so the stale copy
+                    # is re-downloaded instead of aborting in _verify_downloaded.
+                    log.info(f"Replacing corrupt model file {target_file}")
+                    remove_file(target_file)
+                await _download_cached(resource.name, network, file.url, target_file, cb)
+                _verify_downloaded(resource.name, file, target_file)
+                _write_metadata_sidecar(resource, file, target_file)
         except Exception as e:
             log.exception(f"Download failed: {e}")
             raise
         finally:
             self.state = prev_state
             self.check_install()
+
+    download_models = download
 
     async def upgrade(self, callback: Callback):
         assert self.state is ServerState.update_required and self.comfy_dir is not None
@@ -611,6 +650,17 @@ class Server:
                     log.info(f"Removing {filepath}")
                     remove_file(filepath)
                     await _download_cached(status.file.name, network, status.file.url, filepath, cb)
+                    _verify_downloaded(status.file.name, status.file, filepath)
+                    resource = next(
+                        (
+                            m
+                            for m in resources.all_models()
+                            if any(f.path == status.file.path for f in m.files)
+                        ),
+                        None,
+                    )
+                    if resource is not None:
+                        _write_metadata_sidecar(resource, status.file, filepath)
         except Exception as e:
             log.exception(f"Error while replacing corrupted models: {e}")
             raise
@@ -756,7 +806,117 @@ async def _download_cached(
 async def _extract_archive(name: str, archive: Path, target: Path, cb: InternalCB):
     cb(f"Installing {name}", f"Extracting {archive} to {target}")
     with ZipFile(archive) as zip_file:
+        target_root = target.resolve()
+        for member in zip_file.infolist():
+            member_path = (target / member.filename).resolve()
+            if not member_path.is_relative_to(target_root):
+                raise RuntimeError(
+                    f"Error during {name} installation: archive member {member.filename}"
+                    " would escape the target directory"
+                )
         zip_file.extractall(target)
+
+
+def _missing_or_invalid(resource: ModelResource, dirs: list[Path]):
+    """Model files that must be (re)downloaded: absent from every search dir,
+    or present only with a checksum that fails verification. Runs synchronous
+    sha256 hashing — call from a worker thread."""
+    if resource.alternatives and any(
+        (d / alt).exists() for d in dirs for alt in resource.alternatives
+    ):
+        return []
+    pending = []
+    for file in resource.files:
+        ok = False
+        for d in dirs:
+            if not (d / file.path).exists():
+                continue
+            if file.sha256 is None:
+                ok = True  # nothing to verify against, preserve legacy trust
+                break
+            status = file.verify(d)
+            if status.state is VerificationState.verified:
+                ok = True
+                break
+            log.warning(f"Checksum mismatch for {d / file.path}: will re-download")
+        if not ok:
+            pending.append(file)
+    return pending
+
+
+async def _remote_file_size(network: QNetworkAccessManager, url: str) -> int:
+    """Best-effort HEAD request for Content-Length when the catalog has no
+    size entry. Returns 0 on any failure — the caller falls back to the floor."""
+    reply = None
+    try:
+        request = QNetworkRequest(QUrl(_map_host(url)))
+        request.setAttribute(
+            QNetworkRequest.Attribute.RedirectPolicyAttribute,
+            QNetworkRequest.RedirectPolicy.NoLessSafeRedirectPolicy,
+        )
+        reply = network.head(request)
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future = loop.create_future()
+        reply.finished.connect(
+            lambda: None if future.done() else future.set_result(None)
+        )
+        await asyncio.wait_for(future, timeout=15)
+        size = reply.header(QNetworkRequest.KnownHeaders.ContentLengthHeader)
+        if not size:  # HuggingFace LFS serves the real size on a custom header
+            linked = reply.rawHeader(b"x-linked-size")
+            size = int(linked.data().decode()) if linked else 0
+        return int(size) if size else 0
+    except Exception as e:
+        log.warning(f"Could not determine remote size of {url}: {e}")
+        return 0
+    finally:
+        if reply is not None:
+            reply.deleteLater()
+
+
+def _verify_downloaded(name: str, file: resources.ModelFile, path: Path):
+    """Fail fast on corrupt downloads: hash the file right after download when
+    the catalog supplies a sha256, rather than surfacing corruption at the next
+    manual verify pass."""
+    if file.sha256 is None or not path.exists():
+        return
+    actual = resources.compute_sha256(path)
+    if actual != file.sha256:
+        remove_file(path)
+        raise RuntimeError(
+            f"Downloaded {name} failed sha256 verification"
+            f" (expected {file.sha256}, got {actual}); removed {path.name}"
+        )
+
+
+def _write_metadata_sidecar(resource: ModelResource, file: resources.ModelFile, path: Path):
+    """Write a LoRA-Manager-compatible `<name>.metadata.json` sidecar for files
+    we download, so LM and the model browser share one metadata plane. Never
+    overwrites an existing sidecar — LM-managed files keep their data."""
+    if not path.exists():
+        return
+    sidecar = path.with_name(path.stem + ".metadata.json")
+    if sidecar.exists():
+        return
+    base_model = (
+        resource.arch.value
+        if hasattr(resource.arch, "value")
+        else str(resource.arch)
+    ) if resource.arch is not None else None
+    data = {
+        "model_name": resource.name,
+        "base_model": base_model,
+        "file_name": file.path.name,
+        "sha256": file.sha256,
+        "source_url": file.url,
+        "license": resource.license,
+        "min_vram_gb": resource.min_vram_gb,
+        "solstice_managed": True,
+    }
+    sidecar.write_text(
+        json.dumps({k: v for k, v in data.items() if v is not None}, indent=1) + "\n",
+        encoding="utf-8",
+    )
 
 
 async def _execute_process(
@@ -940,6 +1100,7 @@ krita-managed:
     controlnet: controlnet
     diffusion_models: diffusion_models
     embeddings: embeddings
+    frame_interpolation: frame_interpolation
     inpaint: inpaint
     ipadapter: ipadapter
     loras: loras
@@ -979,6 +1140,7 @@ model_dirs = [
     "clip_vision",
     "controlnet",
     "diffusion_models",
+    "frame_interpolation",
     "inpaint",
     "ipadapter",
     "loras",

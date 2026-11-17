@@ -13,7 +13,11 @@ from typing import Any, Callable, NamedTuple, cast
 from PyQt6.QtCore import QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt
 from PyQt6.QtGui import QIcon
 
-from .backend.modelspec import extract_metadata_fields, read_safetensors_metadata
+from .backend.modelspec import (
+    extract_metadata_fields,
+    extract_sidecar_metadata,
+    read_safetensors_metadata,
+)
 from .util import client_logger as log
 from .util import encode_json, read_json_with_comments, user_data_dir
 
@@ -180,13 +184,37 @@ class File:
         Reads at most ~32 MiB from the start of the file (typically a few KB).
         Results are stored in ModelMetadataCache so repeated scans stay cheap.
         Existing metadata keys are never overwritten."""
-        if self.path is None or self.path.suffix.lower() != ".safetensors":
+        if self.path is None:
+            return
+        self.read_sidecar_metadata()
+        if self.path.suffix.lower() != ".safetensors":
             return
         fields = ModelMetadataCache.get(self.path)
         if fields is None:
             fields = extract_metadata_fields(read_safetensors_metadata(self.path))
             if fields:
                 ModelMetadataCache.set(self.path, fields)
+        if not fields:
+            return
+        if self.metadata is None:
+            self.metadata = {}
+        for key, value in fields.items():
+            self.metadata.setdefault(key, value)
+        if triggers := fields.get("trigger_words"):
+            self.metadata.setdefault("lora_triggers", " ".join(triggers))
+
+    def read_sidecar_metadata(self):
+        """Merge a Lora-Manager-style ``<name>.metadata.json`` sidecar into
+        `metadata`.
+
+        ComfyUI LoRA Manager (and other CivitAI managers) write model
+        metadata next to the file: `model_name`, `base_model`,
+        `trainedWords`, plus a `civitai` block. Reading it makes models they
+        manage show name/arch/trigger words here without a network lookup.
+        Existing metadata keys are never overwritten (safetensors wins)."""
+        if self.path is None:
+            return
+        fields = extract_sidecar_metadata(self.path)
         if not fields:
             return
         if self.metadata is None:

@@ -15,6 +15,18 @@
             <isCheckable>false</isCheckable>
             <statusTip />
         </Action>
+        <Action name="ai_diffusion_generative_fill">
+            <icon />
+            <text>AI Generative Fill</text>
+            <whatsThis />
+            <toolTip>Inpaint the active selection with the diffusion model; the result lands on a new layer</toolTip>
+            <iconText>AI Generative Fill</iconText>
+            <activationFlags>10000000000</activationFlags>
+            <activationConditions>0</activationConditions>
+            <shortcut></shortcut>
+            <isCheckable>false</isCheckable>
+            <statusTip>Fill the current selection with AI-generated content</statusTip>
+        </Action>
         <Action name="ai_diffusion_cancel">
             <icon />
             <text>Cancel current job</text>
