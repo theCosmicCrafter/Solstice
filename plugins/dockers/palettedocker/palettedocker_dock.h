@@ -105,6 +105,7 @@ private /* member variables */:
 
     QPointer<KisDocument> m_activeDocument;
     QSharedPointer<KoColorSet> m_currentColorSet;
+    QVector<QMetaObject::Connection> m_stackConnections;
     QScopedPointer<KisPaletteEditor> m_paletteEditor;
 
     QScopedPointer<QAction> m_actAdd;

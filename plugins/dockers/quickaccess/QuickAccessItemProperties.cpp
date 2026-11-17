@@ -247,9 +247,10 @@ bool QuickAccessItemProperties::edit(QuickAccess::Document &document,
                                                                            : QStringLiteral("text"),
                                 textEdit->text().trimmed());
         if (fontSize) {
-            item.payload.insert(QStringLiteral("fontSize"), QString::number(fontSize->value()));
-            item.payload.insert(QStringLiteral("backgroundColor"), buttonColor(background).name(QColor::HexArgb));
-            item.payload.insert(QStringLiteral("fontColor"), buttonColor(foreground).name(QColor::HexArgb));
+            item.payload.insert(QStringLiteral("font_size"), QString::number(fontSize->value()));
+            item.payload.insert(QStringLiteral("background_color"),
+                                buttonColor(background).name(QColor::HexArgb));
+            item.payload.insert(QStringLiteral("font_color"), buttonColor(foreground).name(QColor::HexArgb));
         }
         if (item.type == QuickAccess::ItemType::Separator) {
             item.payload.insert(QStringLiteral("thickness"), QString::number(valueSpin->value()));

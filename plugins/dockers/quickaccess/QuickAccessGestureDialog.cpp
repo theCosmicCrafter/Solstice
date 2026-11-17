@@ -224,8 +224,9 @@ void QuickAccessGestureDialog::editDirection(int pageIndex, const QString &direc
     layout->addLayout(form);
     const auto populate = [type, value, existing]() {
         const QString selectedType = type->currentData().toString();
-        const QString previous =
-            value->currentData().toString().isEmpty() ? configuredValue(existing) : value->currentData().toString();
+        const QString typedOrSelected =
+            value->currentIndex() >= 0 ? value->currentData().toString() : value->currentText().trimmed();
+        const QString previous = typedOrSelected.isEmpty() ? configuredValue(existing) : typedOrSelected;
         value->clear();
         QSet<QString> identifiers;
         if (selectedType == QStringLiteral("action")) {
@@ -273,8 +274,12 @@ void QuickAccessGestureDialog::editDirection(int pageIndex, const QString &direc
         const int index = value->findData(previous);
         if (index >= 0)
             value->setCurrentIndex(index);
-        else
+        else {
+            // Keep the index empty so currentData() cannot shadow the
+            // restored text on accept.
+            value->setCurrentIndex(-1);
             value->setEditText(previous);
+        }
     };
     connect(type, qOverload<int>(&QComboBox::currentIndexChanged), &dialog, populate);
     populate();
@@ -285,8 +290,16 @@ void QuickAccessGestureDialog::editDirection(int pageIndex, const QString &direc
     if (dialog.exec() != QDialog::Accepted)
         return;
     const QString selectedType = type->currentData().toString();
-    const QString selectedValue =
-        value->currentData().toString().isEmpty() ? value->currentText().trimmed() : value->currentData().toString();
+    const int row = value->currentIndex();
+    QString selectedValue;
+    if (row >= 0 && value->currentText() == value->itemText(row)) {
+        selectedValue = value->itemData(row).toString();
+    } else {
+        selectedValue = value->currentText().trimmed();
+        const int byText = value->findText(selectedValue);
+        if (byText >= 0)
+            selectedValue = value->itemData(byText).toString();
+    }
     if (selectedType.isEmpty() || selectedValue.isEmpty()) {
         m_pages[pageIndex].remove(direction);
     } else {

@@ -7,6 +7,8 @@
 
 #include "palettedocker_dock.h"
 
+#include <utility>
+
 #include <QPainter>
 #include <QGridLayout>
 #include <QTableView>
@@ -285,9 +287,9 @@ void PaletteDockerDock::slotSetColorSet(KoColorSetSP colorSet)
         return;
     }
 
-    if (m_currentColorSet) {
-        disconnect(m_currentColorSet->undoStack());
-    }
+    for (const QMetaObject::Connection &connection : std::as_const(m_stackConnections))
+        disconnect(connection);
+    m_stackConnections.clear();
 
     // needs to save the palette before switching to another one
     if (m_paletteEditor->isModified() && m_currentColorSet != colorSet) {
@@ -298,22 +300,28 @@ void PaletteDockerDock::slotSetColorSet(KoColorSetSP colorSet)
         m_model->setColorSet(colorSet);
 
         m_ui->bnUndo->setEnabled(colorSet->undoStack()->canUndo() && !colorSet->isLocked());
-        connect(colorSet->undoStack(),
-                &KUndo2Stack::canUndoChanged,
-                this,
-                [bnUndo = m_ui->bnUndo, colorSet = colorSet](bool canUndo) {
-                    bnUndo->setEnabled(!colorSet->isLocked() && canUndo);
-                });
-        connect(colorSet->undoStack(), SIGNAL(undoTextChanged(QString)), this, SLOT(setUndoToolTip(QString)));
+        m_stackConnections << connect(colorSet->undoStack(),
+                                      &KUndo2Stack::canUndoChanged,
+                                      this,
+                                      [bnUndo = m_ui->bnUndo, colorSet = colorSet](bool canUndo) {
+                                          bnUndo->setEnabled(!colorSet->isLocked() && canUndo);
+                                      });
+        m_stackConnections << connect(colorSet->undoStack(),
+                                      SIGNAL(undoTextChanged(QString)),
+                                      this,
+                                      SLOT(setUndoToolTip(QString)));
 
         m_ui->bnRedo->setEnabled(colorSet->undoStack()->canRedo() && colorSet->isLocked());
-        connect(colorSet->undoStack(),
-                &KUndo2Stack::canRedoChanged,
-                this,
-                [bnRedo = m_ui->bnRedo, colorSet = colorSet](bool canRedo) {
-                    bnRedo->setEnabled(!colorSet->isLocked() && canRedo);
-                });
-        connect(colorSet->undoStack(), SIGNAL(redoTextChanged(QString)), this, SLOT(setRedoToolTip(QString)));
+        m_stackConnections << connect(colorSet->undoStack(),
+                                      &KUndo2Stack::canRedoChanged,
+                                      this,
+                                      [bnRedo = m_ui->bnRedo, colorSet = colorSet](bool canRedo) {
+                                          bnRedo->setEnabled(!colorSet->isLocked() && canRedo);
+                                      });
+        m_stackConnections << connect(colorSet->undoStack(),
+                                      SIGNAL(redoTextChanged(QString)),
+                                      this,
+                                      SLOT(setRedoToolTip(QString)));
 
         // m_currentColorSet is still the previous palette here, so toggled()
         // must not reach slotLockPalette(); the call below updates the UI.

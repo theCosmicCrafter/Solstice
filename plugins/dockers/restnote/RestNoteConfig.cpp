@@ -10,6 +10,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSaveFile>
 
 namespace
 {
@@ -84,6 +85,6 @@ bool RestNoteConfig::save(const QString &path) const
                   {QStringLiteral("overlay_title_font_size"), overlayTitleFontSize},
                   {QStringLiteral("overlay_message_font_size"), overlayMessageFontSize},
                   {QStringLiteral("overlay_skip_font_size"), overlaySkipFontSize}};
-    QFile file(path);
-    return file.open(QIODevice::WriteOnly | QIODevice::Truncate) && file.write(QJsonDocument(o).toJson()) >= 0;
+    QSaveFile file(path);
+    return file.open(QIODevice::WriteOnly) && file.write(QJsonDocument(o).toJson()) >= 0 && file.commit();
 }

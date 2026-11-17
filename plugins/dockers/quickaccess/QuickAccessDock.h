@@ -11,12 +11,14 @@
 #include <KoDockFactoryBase.h>
 #include <kis_mainwindow_observer.h>
 
+#include <QDateTime>
 #include <QDockWidget>
 #include <QPointer>
 
 class KisCanvas2;
 class KisViewManager;
 class QAction;
+class QFileSystemWatcher;
 class QTabWidget;
 class QToolButton;
 class QWidget;
@@ -46,6 +48,7 @@ public:
 
 private Q_SLOTS:
     void slotCurrentTabChanged(int index);
+    void slotProfileDirChanged(const QString &path);
 
 private:
     void buildHeader(QWidget *root);
@@ -121,6 +124,10 @@ private:
     bool m_rebuilding{false};
     bool m_popupMode{false};
     bool m_popupPinned{false};
+    // Synchronizes this dock with saves made by other palette instances
+    // (popups, other windows) writing to the same profile file.
+    QFileSystemWatcher *m_profileWatcher{nullptr};
+    QDateTime m_profileSavedAt;
 };
 
 class QuickAccessDockFactory : public KoDockFactoryBase

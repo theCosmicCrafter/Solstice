@@ -21,6 +21,8 @@
 #include "QuickAccessSettingsDialog.h"
 #include "QuickAdjustDock.h"
 
+#include <QFileSystemWatcher>
+
 #include <KisResourceServerProvider.h>
 #include <KisViewManager.h>
 #include <KoResource.h>
@@ -286,14 +288,42 @@ void QuickAccessDock::loadProfile()
                                    [this](const QString &title, const QString &message) {
                                        QMessageBox::warning(this, title, message);
                                    });
+    m_profileSavedAt = QFileInfo(m_profilePath).lastModified();
+    if (!m_profileWatcher) {
+        m_profileWatcher = new QFileSystemWatcher(this);
+        connect(m_profileWatcher,
+                &QFileSystemWatcher::directoryChanged,
+                this,
+                &QuickAccessDock::slotProfileDirChanged);
+    }
+    // Watch the directory rather than the file: profile saves go through an
+    // atomic temp-file rename which would end a file-level watch.
+    const QString dir = QFileInfo(m_profilePath).absolutePath();
+    if (!m_profileWatcher->directories().contains(dir))
+        m_profileWatcher->addPath(dir);
+}
+
+void QuickAccessDock::slotProfileDirChanged(const QString &path)
+{
+    if (!m_profilePath.startsWith(path))
+        return;
+    const QFileInfo info(m_profilePath);
+    if (!info.exists())
+        return;
+    if (m_profileSavedAt.isValid() && info.lastModified() == m_profileSavedAt)
+        return;
+    loadProfile();
+    rebuildUi();
 }
 
 bool QuickAccessDock::saveProfile()
 {
     QString error;
     QuickAccess::ProfileRepository repository(m_profilePath);
-    if (repository.save(m_document, &error))
+    if (repository.save(m_document, &error)) {
+        m_profileSavedAt = QFileInfo(m_profilePath).lastModified();
         return true;
+    }
 
     QMessageBox::warning(this,
                          i18nc("@title:window", "Quick Access Profile"),

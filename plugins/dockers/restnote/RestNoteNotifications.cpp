@@ -182,7 +182,6 @@ public:
         setAttribute(Qt::WA_ShowWithoutActivating);
         resize(config.toastWidth, config.toastHeight);
         const QRect available = (screen ? screen : QGuiApplication::primaryScreen())->availableGeometry();
-        move(available.right() - width() - config.toastMargin, available.bottom() - height() - config.toastMargin);
         auto *layout = new QVBoxLayout(this);
         layout->setContentsMargins(20, 16, 20, 16);
         layout->setSpacing(6);
@@ -190,11 +189,16 @@ public:
         title->setStyleSheet(QStringLiteral("color:rgba(230,220,205,220); font-size:%1px; letter-spacing:3px;")
                                  .arg(config.toastTitleFontSize));
         layout->addWidget(title);
-        auto *message = new QLabel(i18n("Look about 6 m (20 ft) away for 20 seconds."), this);
+        auto *message = new QLabel(
+            i18np("Look about 6 m (20 ft) away for %1 second.", "Look about 6 m (20 ft) away for %1 seconds.",
+                  config.microDurationSeconds),
+            this);
         message->setStyleSheet(
             QStringLiteral("color:rgba(245,235,220,200); font-size:%1px;").arg(config.toastMessageFontSize));
         layout->addWidget(message);
         layout->addStretch();
+        adjustSize();
+        move(available.right() - width() - config.toastMargin, available.bottom() - height() - config.toastMargin);
         setWindowOpacity(0);
         auto *fadeIn = new QVariantAnimation(this);
         fadeIn->setDuration(800);
