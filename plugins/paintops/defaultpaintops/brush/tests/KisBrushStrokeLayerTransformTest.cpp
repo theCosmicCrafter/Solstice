@@ -7,6 +7,7 @@
 #include <QtMath>
 
 #include <atomic>
+#include <memory>
 
 #include "KisBrushTestMain.h"
 
@@ -128,25 +129,33 @@ bool startTransform(KisImageSP image, KisNodeSP node, KisStrokeId *id, ToolTrans
                                                                                   image.data(),
                                                                                   image->root(),
                                                                                   false);
-    std::atomic<bool> generated(false);
+    // Heap-owned so a transaction signal arriving after the timeout return
+    // cannot write into dead stack frames; the lambda's copy keeps it alive
+    // until the strategy is destroyed.
+    struct PendingTransaction {
+        std::atomic<bool> generated{false};
+        ToolTransformArgs args;
+    };
+    auto pending = std::make_shared<PendingTransaction>();
     QObject::connect(
         strategy,
         &InplaceTransformStrokeStrategy::sigTransactionGenerated,
         strategy,
-        [&generated, args](TransformTransactionProperties, ToolTransformArgs initial, void *) {
-            *args = initial;
-            generated = true;
+        [pending](TransformTransactionProperties, ToolTransformArgs initial, void *) {
+            pending->args = initial;
+            pending->generated = true;
         },
         Qt::DirectConnection);
 
     *id = image->startStroke(strategy);
-    for (int i = 0; i < 500 && !generated; i++) {
+    for (int i = 0; i < 500 && !pending->generated; i++) {
         QTest::qWait(10);
     }
-    if (!generated) {
+    if (!pending->generated) {
         image->cancelStroke(*id);
         return false;
     }
+    *args = pending->args;
     return true;
 }
 

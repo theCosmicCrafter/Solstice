@@ -257,14 +257,18 @@ void KisBrushMinimumOnePixelTest::testMatchesOnePixelBrush()
     // pressure draw the same dabs at every level of detail: the minimum
     // applies before the level of detail scale, so an instant preview shows
     // the final line scaled down instead of a line 2^lod times as wide.
-    const QByteArray full = pixels(paintLine(brushSettings(1.0, false), 1.0, lod));
-    const QByteArray raised = pixels(paintLine(brushSettings(1.0, true), 0.0, lod));
-    QCOMPARE(raised, full);
+    const KisPaintDeviceSP fullDevice = paintLine(brushSettings(1.0, false), 1.0, lod);
+    const KisPaintDeviceSP raisedDevice = paintLine(brushSettings(1.0, true), 0.0, lod);
+    QVERIFY2(fullDevice, "the unscaled reference line failed to render");
+    QVERIFY2(raisedDevice, "the option-on line failed to render");
+    QCOMPARE(pixels(raisedDevice), pixels(fullDevice));
 
     // the same for a larger tip whose size at this pressure is below 1 px
-    const QByteArray fullSize = pixels(paintLine(brushSettings(4.0, false), 0.25, lod));
-    const QByteArray raisedSize = pixels(paintLine(brushSettings(4.0, true), 0.0, lod));
-    QCOMPARE(raisedSize, fullSize);
+    const KisPaintDeviceSP fullSizeDevice = paintLine(brushSettings(4.0, false), 0.25, lod);
+    const KisPaintDeviceSP raisedSizeDevice = paintLine(brushSettings(4.0, true), 0.0, lod);
+    QVERIFY2(fullSizeDevice, "the subpixel reference line failed to render");
+    QVERIFY2(raisedSizeDevice, "the option-on subpixel line failed to render");
+    QCOMPARE(pixels(raisedSizeDevice), pixels(fullSizeDevice));
 }
 
 void KisBrushMinimumOnePixelTest::testSnapshotCarriesToolOption()

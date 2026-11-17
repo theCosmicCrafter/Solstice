@@ -133,16 +133,18 @@ private Q_SLOTS:
     {
         if (!KisGpuTileBackend::instance())
             QSKIP("No GPU backend");
-        QVERIFY(KisPaintOpRegistry::instance()->contains("paintbrush"));
-        KisPaintOpRegistry::instance()->add(
-            new KisSimplePaintOpFactory<KisBrushOp, KisBrushOpSettings, KisBrushOpSettingsWidget>(
-                "paintbrush",
-                "Test pixel brush",
-                KisPaintOpFactory::categoryStable(),
-                QString(),
-                QString(),
-                QStringList(),
-                1));
+        // Use the installed paintop plugin when it has already registered;
+        // otherwise fall back to the linked factory so pre-install runs work.
+        if (!KisPaintOpRegistry::instance()->contains("paintbrush"))
+            KisPaintOpRegistry::instance()->add(
+                new KisSimplePaintOpFactory<KisBrushOp, KisBrushOpSettings, KisBrushOpSettingsWidget>(
+                    "paintbrush",
+                    "Test pixel brush",
+                    KisPaintOpFactory::categoryStable(),
+                    QString(),
+                    QString(),
+                    QStringList(),
+                    1));
     }
 
     void cleanupTestCase()

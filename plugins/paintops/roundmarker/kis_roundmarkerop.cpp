@@ -74,7 +74,7 @@ KisSpacingInformation KisRoundMarkerOp::paintAt(const KisPaintInformation& info)
     const qreal diameter = m_markerOption.diameter * scale;
     qreal radius = 0.5 * diameter;
 
-    if (KisPaintOpUtils::checkSizeTooSmall(scale, diameter, diameter)) return KisSpacingInformation();
+    if (KisPaintOpUtils::checkSizeTooSmall(scale, m_markerOption.diameter, m_markerOption.diameter)) return KisSpacingInformation();
     KisDabShape shape(scale, 1.0, rotation);
 
     // The position will need subtracting 0.5, but you cannot do this here
