@@ -17,3 +17,7 @@ add_subdirectory( qmic )
 add_subdirectory( buginfo )
 add_subdirectory( samplescreencolor )
 add_subdirectory( dbexplorer )
+# Uses the Qt 6 pointing-device API for synthetic tablet input.
+if (BUILD_WITH_QT6)
+    add_subdirectory( testcontrol )
+endif()

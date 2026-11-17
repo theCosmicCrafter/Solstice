@@ -1,0 +1,9 @@
+{
+    "Id": "Test Control Plugin",
+    "Type": "Service",
+    "X-KDE-Library": "kritatestcontrol",
+    "X-KDE-ServiceTypes": [
+        "Krita/ApplicationPlugin"
+    ],
+    "X-Krita-Version": "28"
+}

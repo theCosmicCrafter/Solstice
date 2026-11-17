@@ -1552,3 +1552,470 @@ ame:weight)
   - Preview layer applied to canvas as permanent layer [Generated] (538682944).
   - Executed native VisionML ackground_removal (BiRefNet on RTX 5090 Vulkan backend) directly on the generated layer, producing 44.1% clean alpha transparency in under 3 seconds.
   - Exported 1920x1080 full masterpiece solstice_masterpiece.png and transparent cutout solstice_cutout_art.png.
+
+## 2026-10-27 — AI pipeline e2e hardening + FLF2V inbetweening
+
+- **Phase 9 complete (all verified live)**: Qwen-Edit instruction editing;
+  IC-Light harmonize custom workflow (`ai_workflows`/`ai_workflow`
+  bridge actions; latent size must match the foreground image);
+  SeedVR2 generative upscale on native nodes + `w.send_image` (a
+  `w.save_image` terminal swallows results → job "cancelled" despite
+  server success); ideation (`similar_to` job inherit, `[[a|b|c]]`
+  deterministic variants, `{a|b}` native seeded wildcards kept);
+  `ai_remove_distraction` selection→fill chain.
+- **Phase 10 verified**: `ai_live` drives the existing LiveWorkspace —
+  results stay in the preview until `apply` (forced `layer_only`); live
+  jobs vanish from `ai_jobs` on finish (poll `ai_live` for `has_result`).
+- **Phase 12.4 shipped**: `ai_inbetween`/`ai_inbetween_status` —
+  Wan 2.2 FLF2V (high/low noise + i2v lightx2v loras + clipVisionH +
+  umt5_xxl) → frames via ComfyUI `/view` → `doc.importAnimation` onto
+  a renamed animation layer. 9 frames in ~10 s warm.
+- **Phase 12.3**: native `FrameInterpolate` + rife_v4.26 (added
+  `frame_interpolation` to krita-managed yaml + `server.py`); RIFE
+  dissolves on large displacement — densification only, sparse keys
+  belong to FLF2V.
+- **Bridge pitfalls learned** (all documented in e2e-testing.md +
+  mcp-bridge.md): response `"error": None` → HTTP 500 (key-presence
+  check); `server_url` lacks scheme; `importAnimation` ignores the
+  active layer; per-request state must be module-global because
+  duplicate .desktop registrations create multiple Extension objects;
+  ComfyUI model names need subfolder prefixes in loader nodes.
+- **Phase 12.2 shipped**: `ai_lipsync` — rhubarb → phoneme cues →
+  mouth-shape PNG seq → `importAnimation` → `[Lipsync]`; pixel-verified
+  shape-per-frame. `waitForDone` after `remove_layer` + imports fixed a
+  silent crash on big animated-layer remove→reimport.
+- **Phase 12.1 partial**: `ai_anim` timeline get/set + keyframe report.
+- **Phase 13.2 partial**: `ai_reference` — named layer → reference-mode
+  control input on root or a region-linked layer.
+- **Phase 12.5 blocked on model**: `Wan2_1-VACE_module` is a patch not
+  a UNET; Wan2.2 Fun VACE is high-only (needs `_low` partner);
+  `WanVaceToVideo`=36ch vs `Wan22FunControlToVideo`=48ch verified by
+  channel mismatch. Wan2.1 VACE fp8 full model downloading.
+- **Phase 12.5 shipped**: `ai_propagate`/`ai_propagate_status` — VACE
+  motion propagation via native `WanVaceToVideo` + Wan2.1 VACE fp8
+  (Kamikaze-88, UNETLoader-loadable). Dense `pixelDataAtTime` control
+  extraction + optional reference layer; verified 9f control + ref →
+  13f `[Propagated]`. VAE decoder pads latent length (9→13 frames).
+- **Phase 13.2 shipped (bridge)**: `ai_region` (create/link/prompt
+  regions) + `ai_reference` (bind layer as reference control, root or
+  region-scoped).
+- **WanAnimate2 verified feasible**: native `WanAnimate2ToVideo` +
+  `wan2.2_animate_14B_bf16` + clipVisionH ran e2e (pose_video +
+  reference_image); bridge = port of `ai_propagate` pattern.
+- **Phase 12.7 shipped (WanAnimate2 path)**: `ai_animate`/
+  `ai_animate_status` — pose layer → `pose_video`, character layer →
+  reference + clipVisionH; verified 9f→13f `[Animated]`. H3 audio path
+  still needs its AV encoder chain (license flag required).
+- **MOSS regions verified e2e**: `ai_region`+`ai_generate` (MOSS style)
+  drives `format_moss_layout_prompt` from region bounds+prompts;
+  verified spatial layout honored. Fixed 2 real bugs: missing
+  `format_moss_layout_prompt` import (NameError killed every
+  MOSS+region job) and `str(TextPrompt)` reprs rendered into images.
+- **ai_animate shipped**: WanAnimate2 performance transfer, verified
+  9f pose → 13f `[Animated]`.
+- **Phase 12.1 xsheet shipped**: `ai_xsheet` — JSON/CSV exposure-sheet
+  export over `animated()` layers + optional per-keyframe PNG thumbs
+  via `pixelDataAtTime`. Verified (31 keys, 7 thumbs).
+- **Phase 12.7 H3 verified feasible e2e**: full native MiniMax H3 AV
+  chain on disk — `MiniMaxH3ImageToVideo`(clip,vae,prompt) → KSampler →
+  `VAEDecode`(video_vae)+`VAEDecodeAudio`(audio_vae). Gotchas: CLIP
+  **must** be `qwen3vl_32b_minimax_h3_*` (5120-dim; `qwen3vl_8b`→4096
+  mat-mismatch), `minimax_h3_audio_vae_fp32` decodes audio (the empty
+  `audio_encoders/` folder is a different feature), `SaveVideo.format`
+  takes the bare option key `"auto"`, frame length is 17k+5 (22≈1s,
+  124≈5s). Verified: 22-frame mp4 + real FLAC.
+- **Phase 12.6 blocked→documented**: `KisBrushStrokeLayer` is in
+  kritaui not libkis — no Python path. Native path documented:
+  `KisPaintInformation::mix` exists; plan = `lerpStroke` pairwise
+  jobs → bake into `KisRasterKeyframeChannel` via `addKeyframe` +
+  device copy.
+- **Phase 13.3 researched**: LazyDrag (ICLR'26, MM-DiT, no TTO, SOTA)
+  is the ideal but **code not yet released**; FramePainter
+  (smthemex/ComfyUI_FramePainter, MIT, ~8GB VRAM @512²) is the
+  shippable path — drag points AND sketches (pairs w/ stroke layers).
+- **Phase 11 plan written**: `docs/agent/phase11-implementation-plan.md`.
+  Mixbox is CC BY-NC (GPL-incompatible!) — implement Burns/spectral.js
+  (MIT) via RGB→spectral LUT + K-M compute-mix kernel; wet media =
+  Curtis'97 3-layer on kritagpu with prototype gate; LookFX/flarecore
+  → external-worker filter first, shader ports later.
+- **missing_resources semantics**: `ai_status.missing_resources` lists
+  catalog styles whose checkpoints aren't installed — informational
+  "installable" report, not a defect; don't mass-download.
+- **Deploy cruft**: noncanonical top-level `kritamcp.desktop`/
+  `ai_diffusion.desktop` + nested `kritapykrita_*.desktop` inside
+  packages caused double registration (race on instance state) —
+  canonical = top-level `kritapykrita_<name>.desktop` only; nested
+  desktop copies come from `cp -r` syncs, not CMake install.
+- **Phase 11.1-Py shipped + verified**: `plugins/python/kritamcp/spectral_mix.py`
+  is a numpy port of spectral.js 3.0.0 (MIT, (c) 2025 Ronald van Wijnen —
+  NOT mixbox). lRGB→38-band reflectance via 7 base spectra (W,C,M,Y,R,G,B),
+  luminance-weighted K/S mixing, KM back-map, D65-weighted CMFs. `ai_pigment`
+  blends two layers into a `[Pigment]` paint layer (BGRA↔RGBA swap around
+  the blend). Verified live: blue+yellow → `[130,144,72]` olive, identity
+  exact, op0/op1 exact endpoints. First draft mixed raw reflectance
+  (additive) and died; K/S-on-smooth-curves went black — the spectral.js
+  luminance concentration term is the fix.
+- **Flux 3 resources verified on disk**: `qwen3vl_4b_fp8_scaled` sha256
+  `54bd5144…87094` ✓ and `flux2-vae.safetensors` sha256 `868fe7b3…ce8f3` ✓
+  (exact-match, not substring). `ai_status.missing_resources` no longer
+  lists flux3. Checkpoints `flux3-image-klein-int8-convrot` + `-nvfp4`
+  were absent → aria2 downloads in flight from the catalog URLs.
+- **Deploy path**: running Solstice loads plugins from
+  `<install>/share/krita/pykrita/` (the *install tree*, not
+  %APPDATA%/krita/pykrita — that dir is empty since the shadow-backup
+  rename). Bridge auth token at `%LOCALAPPDATA%/krita/kritamcp.token`,
+  `Authorization: Bearer`, port 5678.
+- **Flux 3 Klein verified e2e (2026-10-27)**: all three resources
+  hash-verified on disk — TE `qwen3vl_4b_fp8_scaled` `54bd5144…87094`,
+  shared VAE `flux2-vae` `868fe7b3…ce8f3`, checkpoint
+  `flux3-image-klein-int8-convrot` `847d8933…8fe2` (5.8 GB aria2
+  download). Generation smoke test: 512² "red cube" job finished, 6
+  results, applied layer samples `[107,16,18]` at center.
+- **ComfyUI stale-model-list gotcha**: after a model lands on disk,
+  ComfyUI re-scans live but the *plugin's* `client.models` cache only
+  refreshes on reconnect — new checkpoint resolves as 'not-found'
+  until reconnect. Restarting the managed server + app fixed it.
+- **`ai_connect` stale-state fix**: a killed managed server leaves
+  `connection.state=connected` but `server.state=stopped`; the old
+  early-return on `connected` blocked `autostart` from relaunching.
+  Now treats stopped-server as needing restart (`_connect`
+  self-disconnects safely).
+- **ai_drag shipped (Phase 13.3)**: FramePainter installed at
+  `ComfyUI/custom_nodes/ComfyUI_FramePainter` (MIT, deps already in
+  venv), weights in `D:\models\FramePainter\` (unet+encoder) +
+  `checkpoints/svd_xt.safetensors` (8.9 GiB, ungated — the `_1_1`
+  variant is gated). Node registers `FramePainter` paths under
+  `models_dir/FramePainter` → junction
+  `D:\krita\ComfyUI\models\FramePainter → D:\models\FramePainter`.
+  Graph: CheckpointLoaderSimple(svd_xt)+CLIPVisionLoader(clip-vision_vit-h
+  — dash not underscore!)+LoadImage+LoadImageMask(red)+Loader+Sampler.
+  `ai_drag{sx,sy,tx,ty,radius}` renders the track mask itself; e2e
+  verified. Caveat: diffusion-regen output, `control_scale`/`steps`
+  tune fidelity vs. change.
+- **Canvas quality audit**: `instant_preview_lod` was ON → disabled
+  (was the pixelation-during-work source); `OpenGLFilterMode=3` is
+  already HighQualityFiltering (mipmaps+highq_downscale shader).
+  `forceLodMode` in kritarc is only the transform-tool's in-stack
+  preview, not global.
+- **Canvas quality deep-dive (2026-10-27)**: captured the real canvas
+  widget (`canvas_grab` — libkis Canvas has no grab(), walk
+  `qwindow()` children for the `*Canvas*` widget). 200% zoom renders
+  GL_LINEAR-smooth (stair-step visible only at fine detail), exports
+  pixel-exact — the pixelation was Instant Preview (now off).
+  `smoothHighZoom` defaults ON and works; `EnableHiDPIFractionalScaling`
+  irrelevant at 96 DPI. Next-level fix implemented (build-pending):
+  `filterBicubicUpscale` — 4-tap B-spline bicubic in
+  `highq_downscale.frag` for viewportScale>=2, gated on new
+  `Uniform::SmoothUpscale` (set from filterMode!=Nearest &&
+  smoothHighZoom; Nearest/pixel-art unaffected since HIGHQ_SCALING is
+  only defined for HighQualityFiltering).
+- **translate_layer**: deterministic pixel roll/shift (dx,dy,wrap) —
+  exact-pixel move, fills the gap between ai_drag (generative deform)
+  and move_layer (stack reorder).
+
+## 2026-10-27 fix: undoable Python pixel writes + GUI stack overflow
+
+- `Node::setPixelDataUndoable()` (libs/libkis + `Node.sip`) wraps Python
+  pixel writes in a `KisTransaction`; kritamcp `translate_layer` reports
+  `undoable:true` and undo/redo verified pixel-accurately in e2e.
+- GUI stack overflow (0xc00000fd) under bridge load root-caused to
+  re-entrant `processEvents()`: Python timer slots (kritamcp 50 ms pump,
+  ai_diffusion 20 ms per-document poller) call `Document::activeNode()` →
+  `forceDeliverAllSynchronizedEvents()` → nested event pumps, one stack
+  level per active timer (~25-35 docs). Fixed with a `thread_local` guard
+  in `KisSynchronizedConnection.cpp` plus a `_command_processing` guard in
+  kritamcp's `process_commands`.
+- `KisKCheckAccelerators` auto-check is now opt-in (`AutoCheckAccelerators`
+  default `false`); the dev tool's event filter restarted a 20 ms precise
+  timer per widget event ("Failed to create a precise timer" storms).
+- Full e2e suite on a locally built package tree: 30 passed, 2 skipped.
+- Sources: this session's debugging (lldb 0xc00000fd capture on the GUI
+  thread), `docs/agent/e2e-testing.md` 2026-10-27 entry,
+  `docs/agent/feature-inventory.md` rows.
+
+## 2026-10-27 — packaged-build e2e + bridge disconnect noise
+
+- Self-contained package `Solstice-0.2.0-beta.4-windows-x64-deb3ebd6a6f0`
+  verified via `SOLSTICE_EXE` launch mode: **34 passed, 0 skipped** —
+  every test runs green on the self-contained package.
+- kritamcp `QuietHTTPServer.handle_error` added: routine client aborts
+  (`ConnectionError`/`TimeoutError`, e.g. WinError 10053 mid-`send_error`)
+  log one line instead of a full socketserver traceback; real bugs still
+  print tracebacks. This was the last `test_plugin_load_clean` failure.
+- `screenshot scope=canvas` now resolves the canvas inside
+  `QMdiArea::activeSubWindow()` — a global `findChildren()` grab used to
+  pick a stale view's canvas once multiple documents were open, which is
+  what made `test_smooth_high_zoom_display` soft-skip in-suite.
+- Release zip patched in place with `7z u` (single-file update).
+- Packaging pitfall: `build-windows.ps1`'s `Tee-Object` pipeline silently
+  kills the packaging worker mid-copy — invoke
+  `packaging/windows/package-complete.py` directly.
+- Lane C/D P0 stabilization closed: `21aab085` had already landed most
+  of Lane C (matting hardening); residual gaps fixed (fast+labeled
+  bounds, matte rounding, deselect view-rect). Lane D rearchitected the
+  alpha scan onto a `KisTraceScanStrokeStrategy` worker job; a
+  `QSharedPointer` holder deleter UAF in the first cut was caught by the
+  e2e suite and fixed by releasing ownership before the async
+  `KoShapeCreateCommand`. Lesson: objects handed to queued
+  KisProcessingApplicator commands must outlive the applicator stroke —
+  RAII holders guarding the *producer* must release on hand-off.
+- Six new e2e coverage tests close the E4 gap; suite is 40 tests,
+  **40 passed / 0 skipped** against the self-contained package.
+
+- 2026-10-27 C8/D5 closed: VisionMLMatteTest + KisLayerManagerTest already
+  covered the helper-level cases; added the missing single-undo-step
+  guarantee to e2e `test_trigger_action_and_trace_to_vector` (undo drops
+  vector-layer count by exactly one, redo restores — count-based because
+  the retry loop can queue >1 trace). Integration-only cases
+  (labeled-mode, colour-space, missing-model, prescaled-projection
+  toggle) documented as covered by the pipeline/smooth-zoom e2e tests.
+
+- 2026-10-27 C4 fully resolved: Smart Matting no longer clamps oversized
+  selections (which silently dropped coverage). `downscaleFactor` in
+  SegmentationMatteUtils.h caps the inference crop by *area* (3072² ≈
+  9.4 MP, ≥64-px floor); the soft matte is upsampled back to the region
+  for full-coverage compositing, and the warning names the downsampled
+  size. Empty matte cancels the stroke (C5). Unit tests updated;
+  packaged e2e `test_matting_to_vector_pipeline` green.
+
+- 2026-10-27 BUILD_TESTING enabled in C:\solstice-ci\b — first-ever unit
+  test runs: VisionMLMatteTest 10/10, KisLayerManagerTest 7/7. Fixes:
+  kritaglobal link + friend + KRITAUI_EXPORT on traceDeviceToPathShape,
+  QPainterPath include, off-by-one expandRegionToMin expectation.
+- 2026-10-27 Canvas-quality audit (full report in context):
+  "FramePainter" is an AI feature (ai_drag bridge), NOT a renderer.
+  Top ranked defects: D7 vector layers rasterize at document resolution
+  (true vector-grade gap, L), D2 QPainter canvas always-soft on HiDPI
+  (M), D4 50-100% zoom bilinear minification gap in HQ mode (S-M),
+  D5 CAS sharpens at exactly 100% (S), D6 bicubic gated ≥200% (S-M).
+  Quick-win shader set: bicubic ≥1.0, trilinear <1.0, CAS gate <1.0.
+- 2026-10-27 GPU audit: GPU engine+brush already default-ON. Remaining
+  priority-4 coverage: perspective transform (ranked #1), LUT path for
+  KisColorTransformationFilter family (~10 filters, #2), dense-kernel
+  convolution (#3), warp/cage/mesh (#4). 7 blend modes documented with
+  per-mode blockers; Divisive Modulo x3 should stay CPU.
+
+- 2026-10-27 Canvas shader quick wins (HQ display path):
+  filterBicubicUpscale now covers all zoom >100% (was >=200%) smoothing
+  fractional zooms; CAS sharpening gated off at/above 100% via
+  smoothstep(0,0.03,1-vScale) so 1:1 stays pixel-true; HQ-mode
+  minification 50-100% upgraded GL_LINEAR -> GL_LINEAR_MIPMAP_LINEAR
+  (trilinear) at KisOpenGLCanvasRenderer.cpp. Packaged suite 40 tests,
+  smooth-zoom pixel verification green.
+- 2026-10-27 D2 fixed — QPainter canvas HiDPI: prescaledQImage is now
+  allocated in device pixels (viewportSize*dpr + setDevicePixelRatio) so
+  Qt no longer upscales a logical-res buffer; all coordinate contracts
+  (viewportSize, info->viewportRect/scaleX/dirty rects) stay logical —
+  QPainter on a DPR-marked QImage maps logical->device automatically.
+  KisCanvasState gained devicePixelRatio so monitor-drag DPR changes
+  trigger a full preScale. fillInUpdateInformation decisions
+  (DIRECT/PATCH, borderSize, >=1.0) now use imagePhysicalScale like the
+  GL renderer; NearestFilterMode honored for magnification on both the
+  projection and KisQPainterCanvas::drawImage blit (per-mode live via
+  openGLFilteringMode watch). viewportMoved memcpy offset mapped to the
+  device grid; fractional-DPR pans fall back to full preScale.
+  Packaged suite 39/1skip (skip = gated ComfyUI test), libkritaui.dll
+  deployed to i/, package, zip.
+- 2026-10-27 GPU perspective transform (phase 4.110): KisGpuPerspectiveWorker
+  + KisGpuPerspectivePass + perspective_transform.comp (F32/F16 variants)
+  port runImpl/runPartialDst's 3x3 projective backward map to compute;
+  per-row dst span tables preserve the CPU rect iteration; failure flag →
+  CPU repaint; progress kept via progressHelper scope; kill-switch
+  KRITA_GPU_PERSPECTIVE=0. Unit-test env has no Vulkan backend so only
+  CPU path exercised there — pre-existing reference-PNG drift in
+  kis_perspective_transform_worker_test noted (fails identically with
+  GPU off). Packaged e2e 39/1skip; dlls deployed + zip patched.
+- 2026-10-28 Brush stroke layer productizing: on-demand actions wired.
+  New KisAction flag ACTIVE_BRUSH_STROKE_LAYER (0x100000, binary string in
+  .action files) gates actions to the layer type; actions live in Layer
+  menu tail + layer context menu (conditional in LayerBox). Re-render runs
+  createRerenderCommand() inside a KisSimpleProcessingVisitor job (scratch
+  KisImage render is heavy); forget uses runSingleCommandStroke. Re-render
+  replaces pixels with the record (foreign content removed, undoable) and
+  deliberately does NOT markChangeRecorded so the monitor re-checks and
+  clears the warning; monitor now skips empty records (state->Unknown) so
+  a forgotten record goes silent. krita5.xmlgui bumps need version+md5 in
+  krita/CMakeLists.txt or configure fails.
+- 2026-10-28 Brush-stroke layer productization: two new actions gated to
+  brush stroke layers (KisAction::ACTIVE_BRUSH_STROKE_LAYER 0x100000),
+  in Layer menu + Layers-docker context menu: "Re-render Strokes"
+  (KisRerenderBrushStrokesVisitor + KisProcessingApplicator, undoable,
+  record-is-truth fix path; skips markChangeRecorded so the background
+  monitor re-verifies and clears the badge) and "Forget Recorded
+  Strokes" (undoable SetStrokesCommand, pixels-are-truth; empty record =
+  silent monitor). Per-stroke replay deferred to stage 3 (needs
+  stroke-picking UI); AI-upscale handoff not in spec, skipped.
+  libkritaui + kritalayerdocker + krita.dll (xmlgui v549) + krita.action
+  deployed; packaged e2e 39/1skip.
+- 2026-10-28 Bug fix: "Server error: invalid literal for int() 'resize'"
+  on Flux-3 edit/reference jobs. comfy_workflow.py sent
+  resolution=["resize",{megapixels}] to ReferenceMultiLatent's V3
+  DynamicCombo input — a 2-element list is a LINK in ComfyUI prompt
+  format, so executor ran int("resize") as a node id. Fixed to the
+  flattened wire format: resolution="resize" + resolution.megapixels=x
+  (matches _expand_schema_for_dynamic + finalize_prefix dot-join).
+  Lesson: V3 DynamicCombo inputs serialize as key + dotted children,
+  never as [option, {params}] lists.
+- 2026-10-29 D7 (vector layers rasterize at document resolution) fixed
+  with a re-composition overlay, not a pure overlay and not a
+  view-dependent projection. New `KisViewResVectorCompositor` walks the
+  root projection-leaf sequence (which already flattens pass-through
+  groups and merges effective opacity/channel flags), classifies
+  source-over-only units as recompositable, groups vector units with all
+  overlapping units into jobs, and peels each job out of the displayed
+  projection with the inverse of premultiplied over (B = (D - S)/(1-a_s)).
+  `KisViewResVectorDecoration` then redraws backdrop + raster units at
+  doc resolution and vector units via `KoShapeManager::paint` into a
+  DPR-aware patch at the widget transform, so both canvas backends get
+  crisp edges with correct stacking. Non-over/inherit-alpha/styles/
+  adjustment units are firewalls: overlapping vectors stay
+  document-resolution. Wrap-around and LOD>0 bail out. Key learnings:
+  leaf `channelFlags` encode inherit-alpha (alpha-disabled layer), the
+  global shape manager paints in *document* space (documentToWidget),
+  and KoShapeManager::paint needs a clip rect or it paints everything.
+  Kill-switch: kritarc `viewResVectorRendering` (default ON) +
+  `KRITA_DISABLE_VIEW_RES_VECTORS` env var. 6 unit tests in
+  `kis_view_res_vector_compositor_test` cover unblend, unit collection,
+  job grouping/firewall, and the peel/recomposite identity.
+- 2026-10-29 AI Generative Fill: Select > AI Generative Fill
+  (`ai_diffusion_generative_fill`) one-click-inpaints the selection via
+  the vendored ai_diffusion pipeline — pure Python, no new C++. Handler
+  `DocumentModel.generative_fill()` guards on the *live* Krita
+  `document.selection()` (not only the 20 ms-polled `selection_bounds`),
+  runs `root.autostart` when disconnected (plugin's standard connect
+  path), saves/sets `InpaintMode.automatic`+`strength=1.0`, calls
+  `_generate(queue_mode, auto_apply=True)`, restores. New
+  `params.metadata["auto_apply"]` flag (re-bound dict, shared metadata
+  never mutated; first job only) is checked in `_finish_job` before the
+  finished-action setting → `apply_generated_result(job.id, 0,
+  ApplyBehavior.layer)` → normal undoable `[Generated]` layer via
+  `layers.create`/`addChildNode`. Empty prompt → `use_reference`
+  context-conditioned fill (workflow.detect_inpaint); typed prompt →
+  guided fill. Menu reach: plugin `createActions` runs before
+  `guiFactory()->addClient`, so the `krita5.xmlgui` `<Action>` plug in
+  the Select menu resolves; `menulocation="Select"` +
+  `synchronizeDynamicActions` covers mid-session enabling; plugin
+  disabled → graceful absence. `.action` activationFlags `10000000000`
+  is binary for ANY_SELECTION_WITH_PIXELS (0x400) → greyed without a
+  selection. xmlgui v549→550 + hash bump (task explicitly mandated
+  xmlgui despite the xmlgui-unchanged decision). Docs:
+  `docs/generative-fill.md`, `docs/agent/generative-fill.md`.
+- 2026-11-02 Spectral pigment mixing (Phase 11.1, first slice):
+  `COMPOSITE_PIGMENT = "pigment"` Kubelka–Munk composite op for all
+  RGB/BGR colorspaces (U8/U16/F16/F32). Math = spectral.js v3 port
+  (`KoSpectralMixing`: closed-form 7-basis uplift W/C/M/Y/R/G/B →
+  38-sample reflectance, K/S mix weighted by share²·luminance, CIE
+  D65 CMF → linear sRGB), MIT licensed — Mixbox (CC BY-NC) avoided
+  per plan. `KoCompositeOpPigment` (non-separable `KoCompositeOp`,
+  modeled on Dissolve) mixes by relative coverage share
+  `sa/(sa+da)` then Porter-Duff-composites so alpha semantics match
+  normal blend modes; profile TRC linearized via per-op LUT
+  (`profile()->linearizeFloatValue`), sRGB fallback. Registered in
+  `AddRGBOps<Traits,true>::add` → appears as layer blend mode
+  ("Pigment", Mix category), brush Blending Mode, and Color Smudge
+  "Composite Op" (color-rate path `KisColorSmudgeStrategyBase`), so
+  no paintop scaffolding needed. Constant-source K/S spectrum cached
+  for `srcRowStride==0`. `TestKoSpectralMixing` 7/7 pass —
+  blue-over-yellow on rgb8 → green end-to-end through the LCMS
+  colorspace. Gotchas: unit tests must use `KISTEST_MAIN`/
+  `testpigment.h` (sets `KRITA_PLUGIN_PATH` to the install
+  `lib/kritaplugins`); `QTEST_GUILESS_MAIN` leaves the path empty so
+  KoJsonTrader scans CWD and picks up *stale installed* colorspace
+  plugins — the new op then "doesn't exist". `addStandardCompositeOps`
+  is a header template instantiated inside kritalcmsengine, not just
+  libkritapigment — rebuild + install both. Docs:
+  `docs/agent/spectral-mixing.md`, status note in
+  `phase11-implementation-plan.md` §11.1. Remaining: GPU kernel +
+  dispatch, optional CPU LUT, smudge checkbox, golden-image check.
+
+- 2026-11-15 DevOps doc set + rendering/art-engine megaplan: new
+  `docs/agent/devops.md` master index plus `devops-ci.md`,
+  `devops-environments.md`, `devops-dependencies.md`,
+  `devops-testing.md`, `devops-release.md`, `devops-security.md`;
+  new `rendering-art-engine-megaplan.md` (translates the external
+  production plan into repo phases — selective 1.1.1 rebase,
+  librediffusion real-time canvas, segmentation/layering, LookFX/
+  Flarecore, art-engine polish) with `integration-ledger.md` holding
+  every item's status/provenance. New artifacts: `ci-checks.yml`
+  push/PR sanity gate (compileall, workflow YAML, whitespace,
+  check-docs), `build-tools/github-actions/check-docs.py`,
+  `build-tools/toolchains/windows-dev.lock.json` +
+  `check-local-toolchains.py` (CUDA/TRT/Rust pins gate megaplan
+  phases), `build-tools/release/package-local.ps1` (CI-mirroring
+  local packager, unsigned). Decision recorded: hosted CI = gates
+  only, GPU builds/releases local (`decisions/local-gpu-builds.md`).
+  phase11-implementation-plan.md §11.5 external-worker superseded by
+  the megaplan's native LookFX/Flarecore path.
+- 2026-11-16 Crash hunt after the 1.1.1 selective merge: the full e2e
+  suite (40 tests, ai_diffusion loaded) passes twice in a row on one
+  instance, 38 passed and 2 skipped (attach mode, no ComfyUI). Root
+  causes: two QStringBuilder dangling-builder bugs
+  (`KisBrushStrokePreviewCache::process()`, Quick Color
+  `updateChannelGradients()` lambda), nested autosave clones
+  (`KisDocument::lockAndCloneImpl()` guard), half-built image repaint and
+  destruction (`KisShapeLayerCanvas`, `~KisImagePrivate`), and
+  ai_diffusion per-document poll timers nesting through
+  `Document.activeNode()` until the GUI stack overflowed. Also: reverse
+  PyQt6 shim so ai_diffusion 1.56 loads on Qt5, `Qt5ResourceCompat`
+  resolves a relative BASE/FILES, and VisionML tests use
+  `Qt${QT_MAJOR_VERSION}`. Stale hand-copied plugin DLLs in `_install`
+  hid one crash: install with `cmake --install`, not by copying files.
+  New pitfalls: `qstringbuilder-deduced-types.md`, `nested-event-pumps.md`.
+2026-11-16 (pm): GPU engine brought online — Vulkan SDK 1.4.357.0
+  provisioned copy-only (CI recipe, sha256-verified) to
+  `F:\krita-work\krita\VulkanSDK\1.4.357.0`; `libs/gpu` gate is now
+  required-by-default (`KRITA_GPU_ENGINE`), VisionML CPU fallback logged at
+  WARNING. `libkritagpu.dll` + 41 shaders built; ggml-vulkan backend loads
+  at runtime (RTX 5090 + iGPU); e2e 39p/1s on the GPU build. Resource
+  audit → `concepts/resource-management.md`: GPU fallback verified clean;
+  ai_diffusion/kritamcp eager-by-default is the main lazy-load target;
+  PoseLayers 500 ms timer wrapped in `exclusive_poll_tick` (same
+  re-entrancy class). AI feature harness corrected: apply removes the
+  preview layer (net 0 is correct), upscale completes via document resize
+  not `model.jobs`, composite sampling hides layers beneath the matte.
+
+## 2026-11-16 — Phase 3 native engine functional + DevSec pass
+
+- librediffusion.dll built (TRT 11.0.0.114/CUDA 13.2/MSVC 14.44); ctypes
+  seam `native_engine.py` into LiveWorkspace verified end-to-end in-app.
+- TRT plan version lock: plans must match the linked runtime exactly;
+  the thin SDK wheel needs a `__init__.py` + `sitecustomize.py`
+  (`add_dll_directory`) and cwd=TRT/bin for libLoader resource lookup.
+- Dynamic-geometry profiles work: ONNX already dynamic; ranged TRT
+  profiles (Th 18-48/Tw 16-48, Lp<=4608 where ref path sends 2*Th*Tw)
+  cover 288x256..768x768 without re-export.
+- `frame_cached` requires `set_prompt` first (INVALID_ARGUMENT) — even
+  `""`; same prompt is a cached no-op.
+- ctypes output params take the buffer OBJECT, never `.raw` — that is a
+  fresh immutable copy (zeros + UAF class bug, caught in review).
+- DevSec: gitleaks 22 hits = vendored test fixtures only; semgrep clean;
+  auditor found `export_layers` prefix traversal + native races — all
+  fixed. `for_write=False` now enforces file existence.
+- Startup hygiene: invalid `.bundle` junk + stale `vision_tools`
+  disabled; plugin `.action` dup warnings = vendored upstream noise.
+- RIFE: plan rebuilt under matched TRT, `native_rife_exp` 0-3 wired
+  end-to-end (C smoke: 4 frames/20ms, monotonic interpolation).
+
+## 2026-11-17 — FP8 engine tier + unified /mcp Phase 2
+
+- FLUX.2-klein FP8 TensorRT engine shipped (opt-in): real calibration
+  goldens captured via a transformer forward hook on the actual
+  Flux2KleinPipeline (`capture_klein_goldens.py`), 100/108 linears
+  quantized, 4.08 GB vs 7.79 GB bf16, ~35% faster. A/B at matched
+  seed/schedule: mean PSNR 24.8 dB / SSIM 0.91 — compositional parity,
+  drift in fine texture only. User eyeball-verified on contact sheets.
+- Conservative `ff` variant (20 quantized linears) rejected: same
+  quality cost as `all` but only ~5% speed — recycled along with
+  dead engine staging dirs (~49 GB total).
+- Solstice wiring: `native_precision` setting (bf16 default, fp8
+  opt-in); `find_engine_bundle()` picks `transformer_fp8.plan` with
+  silent bf16 fallback. fp8 built `hw_compat=none` — per-arch builds
+  needed before broad distribution (`ampere_plus` starves fp8 tactics
+  of shared memory).
+- Unified /mcp Phase 2 implemented: `kritamcp/mcp_rpc.py` JSON-RPC 2.0
+  front on :5678 — krita_<action> tools over the envelope CommandQueue,
+  native-name proxy to the C++ TestControl listener (env-gated, 300 s),
+  merged+cached tools/list, SOLSTICE_TEST_CONTROL_TOKEN as second
+  bearer, Origin guard/202/400/405 semantics per unified-mcp-design.
+  plugins/extensions/testcontrol was already byte-identical to
+  upstream; dev-tools/test-control runner copied verbatim.

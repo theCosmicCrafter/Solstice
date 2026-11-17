@@ -4,10 +4,11 @@ kritamcp bridge. No krita stubs — every assertion observes the running app
 (pixel data, files on disk, HTTP responses, process state).
 
 Covered: bridge health, bearer auth, document lifecycle, real pixel writes
-and readback, stroke rendering, layer ops (incl. undo/redo on node ops —
-pixel writes are not undoable in Krita), selections, filters, save/export
-file validation (magic bytes + PNG dims), path-traversal rejection,
-unknown-action handling, and a soak pass that watches process health.
+and readback, stroke rendering, layer ops (incl. undo/redo on node ops and
+translate_layer pixel writes via Node::setPixelDataUndoable), selections,
+filters, save/export file validation (magic bytes + PNG dims),
+path-traversal rejection, unknown-action handling, and soak/churn passes
+that watch process health.
 """
 
 import struct
@@ -19,7 +20,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from solstice_bridge import resolve_token  # noqa: E402
+from solstice_bridge import BridgeError, resolve_token  # noqa: E402
 
 
 def _png_pixels(path):
@@ -283,6 +284,23 @@ def test_trigger_action_and_trace_to_vector(app):
     assert traced, "trigger_action(layer_to_vector) produced no vector layer"
     assert "Traced" in traced["name"]
 
+    # Single undo step (Lane D, D5): one undo must remove exactly one
+    # traced layer — the scan job leaves no stray entries on the stack.
+    # The retry loop above may have queued more than one trace, so count.
+    def _vector_count():
+        layers = bridge.cmd_ok("list_layers")["layers"]
+        return sum(1 for l in layers if l["type"] == "vectorlayer")
+
+    before = _vector_count()
+    bridge.cmd_ok("undo")
+    assert _wait_for(
+        lambda: _vector_count() == before - 1,
+        timeout=10), "one undo did not remove exactly one traced layer"
+    bridge.cmd_ok("redo")
+    assert _wait_for(
+        lambda: _vector_count() == before,
+        timeout=10), "redo did not restore the traced layer"
+
     status, payload = bridge.cmd("trigger_action", {"name": "no_such_action_xyz"})
     assert "error" in payload
 
@@ -363,9 +381,10 @@ def test_smooth_high_zoom_display(app):
 
 
 def test_undo_redo_layer_ops(app):
-    """Node add/remove is undoable; pixel writes are not — so undo is
-    verified on layer operations where Krita has a real undo adapter.
-    Undo/redo effects land asynchronously — poll for them."""
+    """Node add/remove is undoable, and destructive pixel writes are
+    undoable via Node::setPixelDataUndoable (KisTransaction). Undo is
+    verified here on layer ops; pixel-write undo is covered by
+    translate_layer. Undo/redo effects land asynchronously — poll."""
     bridge, _ = app
     bridge.cmd_ok("new_canvas", {"width": 100, "height": 100})
     bridge.cmd_ok("add_layer", {"name": "undo_target"})
@@ -387,6 +406,53 @@ def test_undo_redo_layer_ops(app):
         time.sleep(0.5)
         back = "undo_target" in _layer_names(bridge.cmd_ok("list_layers")["layers"])
     assert back, "redo did not restore the layer"
+
+
+def test_translate_layer_undo_redo(app):
+    """translate_layer is the bridge pixel write routed through
+    Node::setPixelDataUndoable (KisTransaction) — undo/redo must move
+    the pixels back and forth exactly. Undo/redo effects land
+    asynchronously — retry the trigger and poll, as in
+    test_undo_redo_layer_ops."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 100, "height": 100,
+                                 "background": "#ffffff"})
+    bridge.cmd_ok("set_color", {"color": "#ff0000"})
+    bridge.cmd_ok("fill", {"x": 50, "y": 50, "radius": 5})
+
+    res = bridge.cmd_ok("translate_layer", {"dx": 30, "dy": 30})
+    assert res["status"] == "ok"
+    assert res["undoable"] is True, "build predates Node::setPixelDataUndoable"
+
+    def dot_states():
+        at_50 = bridge.cmd_ok("get_color_at", {"x": 50, "y": 50})
+        at_80 = bridge.cmd_ok("get_color_at", {"x": 80, "y": 80})
+        red_80 = at_80["r"] > 200 and at_80["g"] < 80
+        red_50 = at_50["r"] > 200 and at_50["g"] < 80
+        white_50 = at_50["r"] > 200 and at_50["g"] > 200 and at_50["b"] > 200
+        white_80 = at_80["r"] > 200 and at_80["g"] > 200 and at_80["b"] > 200
+        return red_80 and white_50, red_50 and white_80
+
+    moved, _ = dot_states()
+    assert moved, "red dot did not translate from (50, 50) to (80, 80)"
+
+    # The edit_undo action's enabled state syncs on idle — retry the
+    # trigger until the undo actually lands.
+    deadline = time.time() + 15
+    undone = False
+    while time.time() < deadline and not undone:
+        bridge.cmd_ok("undo")
+        time.sleep(0.5)
+        _, undone = dot_states()
+    assert undone, "undo did not move the red dot back to (50, 50)"
+
+    deadline = time.time() + 15
+    redone = False
+    while time.time() < deadline and not redone:
+        bridge.cmd_ok("redo")
+        time.sleep(0.5)
+        redone, _ = dot_states()
+    assert redone, "redo did not move the red dot back to (80, 80)"
 
 
 def test_merge_and_flatten(app):
@@ -552,6 +618,29 @@ def test_soak(app, tmp_path):
     assert reopened["width"] == 200
 
 
+@pytest.mark.slow
+@pytest.mark.soak
+def test_rapid_canvas_churn_no_crash(app):
+    """GUI stack-overflow regression: the repeating 50ms QTimer in
+    kritamcp plus per-document 20ms pollers recursed through
+    Document::activeNode() → processEvents → nested timer delivery and
+    overflowed the GUI stack at ~25-35 open documents
+    (STATUS_STACK_OVERFLOW). Open many small canvases back-to-back with
+    no sleeps; the app and bridge must survive."""
+    import os
+    iterations = int(os.environ.get("SOLSTICE_SOAK_ITERS", "5")) * 8
+    bridge, managed = app
+    for i in range(iterations):
+        bridge.cmd_ok("new_canvas", {"width": 64, "height": 64,
+                                     "name": f"churn_{i}"})
+    if managed.proc:
+        assert managed.proc.poll() is None, "process died during canvas churn"
+    status, _ = bridge.health()
+    assert status == 200, "bridge did not answer /health after canvas churn"
+    info = bridge.cmd_ok("get_document_info")
+    assert info["width"] == 64 and info["height"] == 64
+
+
 def test_plugin_load_clean(app):
     """No Python tracebacks or plugin load failures in app stderr."""
     _, managed = app
@@ -610,7 +699,7 @@ def test_host_header_rejection(app):
 
 
 def test_info_advertises_all_actions(app):
-    """GET /info lists all 44 supported actions including screenshot, trigger_action, and docker controls."""
+    """GET /info lists every supported action (88 today) including screenshot, trigger_action, and docker controls."""
     bridge, _ = app
     status, payload = bridge._request("GET", "/info", token=bridge._token)
     assert status == 200
@@ -619,7 +708,9 @@ def test_info_advertises_all_actions(app):
     assert "trigger_action" in commands
     assert "show_docker" in commands
     assert "list_dockers" in commands
-    assert len(commands) == 44
+    assert len(commands) >= 88
+    for name in ("ai_status", "ai_catalog", "get_viewport", "set_zoom"):
+        assert name in commands
 
 
 def test_set_layer_blend_mode(app):
@@ -701,3 +792,198 @@ def test_clear_canvas(app):
     corner = bridge.cmd_ok("get_color_at", {"x": 5, "y": 5})
     assert center["g"] > 200 and center["r"] < 50, f"center not cleared to green: {center}"
     assert corner["g"] > 200 and corner["r"] < 50, f"corner not cleared to green: {corner}"
+
+
+def test_draw_shape(app):
+    """draw_shape writes pixels inside the geometry and leaves outside untouched."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 100, "height": 100, "background": "#000000"})
+    bridge.cmd_ok("set_color", {"color": "#ff0000"})
+    res = bridge.cmd_ok("draw_shape", {"shape": "rectangle", "x": 10, "y": 10, "width": 20, "height": 20})
+    assert res["shape"] == "rectangle"
+    inside = bridge.cmd_ok("get_color_at", {"x": 20, "y": 20})
+    assert inside["r"] > 200 and inside["g"] < 50, f"rect not drawn: {inside}"
+    outside = bridge.cmd_ok("get_color_at", {"x": 5, "y": 5})
+    assert outside["r"] < 40, f"rect bled outside: {outside}"
+    status, payload = bridge.cmd("draw_shape", {"shape": "triangle"})
+    assert "error" in payload
+
+
+def test_get_canvas_export(app):
+    """get_canvas exports the flattened canvas as a real PNG."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 64, "height": 48, "background": "#102030"})
+    res = bridge.cmd_ok("get_canvas", {"filename": "e2e_canvas.png"})
+    p = Path(res["path"])
+    assert p.exists() and _png_dims(p) == (64, 48)
+    status, payload = bridge.cmd("get_canvas", {"filename": "..\\evil_canvas.png"})
+    assert "error" in payload
+
+
+def test_export_layers(app, tmp_path):
+    """export_layers writes one real PNG per visible layer."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 32, "height": 32, "background": "#000000"})
+    bridge.cmd_ok("add_layer", {"name": "e2e_exp_top"})
+    bridge.cmd_ok("set_active_layer", {"name": "e2e_exp_top"})
+    bridge.cmd_ok("set_color", {"color": "#ff0000"})
+    bridge.cmd_ok("fill", {"x": 16, "y": 16, "radius": 5})
+    out = tmp_path / "layers_out"
+    res = bridge.cmd_ok("export_layers", {"output_dir": str(out), "prefix": "e2e"})
+    assert res["count"] >= 2
+    names = [e["name"] for e in res["exported"]]
+    assert "e2e_exp_top" in names, f"new layer not exported: {names}"
+    for e in res["exported"]:
+        p = Path(e["path"])
+        assert p.exists(), f"missing export {p}"
+        assert _png_dims(p) == (32, 32), f"bad dims {p}"
+
+
+def test_create_from_template(app):
+    """create_from_template builds a document whose layers match the preset."""
+    bridge, _ = app
+    res = bridge.cmd_ok("create_from_template", {
+        "preset": "minimal", "width": 120, "height": 90, "name": "e2e_tpl"})
+    assert res["preset"] == "minimal"
+    assert res["width"] == 120 and res["height"] == 90
+    assert res["layers"] == ["Background", "Layer 1"]
+    names = _layer_names(bridge.cmd_ok("list_layers")["layers"])
+    assert "Background" in names and "Layer 1" in names
+
+    res2 = bridge.cmd_ok("create_from_template", {
+        "name": "e2e_custom",
+        "layers": [{"name": "Solo", "type": "paintlayer"}]})
+    assert res2["preset"] == "custom" and res2["layers"] == ["Solo"]
+
+    status, payload = bridge.cmd("create_from_template", {"preset": "bogus"})
+    assert "error" in payload
+
+
+def test_get_layer_presets(app):
+    """get_layer_presets lists all presets and returns one by name."""
+    bridge, _ = app
+    res = bridge.cmd_ok("get_layer_presets")
+    presets = res["presets"]
+    assert presets["minimal"]["layer_count"] == 2
+    assert presets["comic"]["layer_count"] == 7
+    one = bridge.cmd_ok("get_layer_presets", {"name": "comic"})
+    assert one["preset"] == "comic" and len(one["layers"]) == 7
+    status, payload = bridge.cmd("get_layer_presets", {"name": "bogus"})
+    assert "error" in payload
+
+
+def test_save_as_template(app):
+    """save_as_template writes a .kra that list_templates then reports."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 48, "height": 48, "background": "#202020"})
+    res = bridge.cmd_ok("save_as_template", {"name": "e2e_template_probe"})
+    p = Path(res["path"])
+    try:
+        assert p.exists() and p.read_bytes()[:4] == b"PK\x03\x04"
+        listing = bridge.cmd_ok("list_templates")
+        names = [t["name"] for t in listing["templates"]]
+        assert "e2e_template_probe" in names
+    finally:
+        p.unlink(missing_ok=True)
+
+
+# ── AI generation bridge (vendored ai_diffusion) ─────────────────────────
+
+
+def _ai_status_or_skip(bridge):
+    """Return the ai_status payload, skipping when the vendored plugin cannot
+    load in this environment (version gate or missing Qt binding — e.g. the
+    PyQt6 tree on a Qt5 build). The plugin being absent is a platform
+    constraint, not a defect of the bridge."""
+    status, payload = bridge.cmd("ai_status")
+    if status != 200 or not payload.get("enabled"):
+        err = str(payload.get("error", payload))
+        pytest.skip(f"ai_diffusion not loadable here: {err}")
+    return payload
+
+
+def test_ai_status(app):
+    """ai_status always answers; enabled/connected reflect real state."""
+    bridge, _ = app
+    res = _ai_status_or_skip(bridge)
+    assert res["status"] == "ok"
+    assert "enabled" in res
+    if res["enabled"]:
+        assert "state" in res
+        if res.get("connected"):
+            assert "checkpoints" in res
+
+
+def test_ai_generate_validation(app):
+    """ai_generate validates its contract; error surface depends on whether
+    ComfyUI is connected (connection is checked before mode)."""
+    bridge, _ = app
+    bridge.cmd_ok("new_canvas", {"width": 256, "height": 256})
+    connected = _ai_status_or_skip(bridge).get("connected")
+
+    bad = bridge.cmd("ai_generate", {"mode": "bogus", "prompt": "x"})[1]
+    assert "error" in bad
+    if connected:
+        assert "mode" in bad["error"]
+
+        no_prompt = bridge.cmd("ai_generate", {"mode": "create"})[1]
+        assert "error" in no_prompt and "prompt" in no_prompt["error"]
+
+        no_sel = bridge.cmd("ai_generate", {"mode": "fill", "prompt": "x"})[1]
+        assert "error" in no_sel and "selection" in no_sel["error"]
+
+        bad_style = bridge.cmd(
+            "ai_generate", {"mode": "create", "prompt": "x",
+                            "style": "__definitely_not_a_style__"})[1]
+        assert "error" in bad_style and "style" in bad_style["error"].lower()
+
+
+def test_ai_expand_grows_canvas(app):
+    """ai_expand resizes the document before enqueueing the outpaint job —
+    the resize must happen even when ComfyUI is not connected."""
+    bridge, _ = app
+    connected = _ai_status_or_skip(bridge).get("connected")
+    bridge.cmd_ok("new_canvas", {"width": 128, "height": 128})
+    res = bridge.cmd("ai_expand", {"right": 64, "bottom": 32})
+    info = bridge.cmd_ok("get_document_info")
+    assert info["width"] == 192 and info["height"] == 160, info
+    if connected:
+        assert res[1].get("status") == "queued", res
+    else:
+        assert "error" in res[1]
+    bridge.cmd_ok("deselect")
+
+
+@pytest.mark.slow
+def test_ai_generate_fill_then_apply(app):
+    """Full Photoshop-parity loop: select → generative fill → poll → apply
+    the result as a layer. Skips when no ComfyUI is connected."""
+    bridge, _ = app
+    if not _ai_status_or_skip(bridge).get("connected"):
+        pytest.skip("ComfyUI is not connected — generation path not testable")
+
+    bridge.cmd_ok("new_canvas", {"width": 512, "height": 512,
+                                 "background": "#336699"})
+    bridge.cmd_ok("select_rect", {"x": 128, "y": 128, "width": 256, "height": 256})
+    res = bridge.cmd_ok("ai_generate", {
+        "mode": "fill", "prompt": "a red apple", "apply": False})
+    assert res["status"] == "queued"
+
+    deadline = time.time() + 300
+    job = None
+    while time.time() < deadline:
+        jobs = bridge.cmd_ok("ai_jobs")["jobs"]
+        for j in jobs:
+            if j["state"] == "finished" and j["results"] > 0:
+                job = j
+                break
+        if job:
+            break
+        time.sleep(2)
+    assert job is not None, "fill job did not finish within 300s"
+    assert job["id"] is not None
+
+    applied = bridge.cmd_ok("ai_apply", {"job_id": job["id"]})
+    assert applied["status"] == "ok"
+    layers = bridge.cmd_ok("list_layers")["layers"]
+    assert len(layers) >= 2, "applied result did not create a layer"
