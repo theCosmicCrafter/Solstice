@@ -94,6 +94,8 @@ public Q_SLOTS:
 
     void setFinishStabilizedCurve(bool value);
 
+    void slotSetMinimumOnePixel(bool value);
+
     void updateSettingsViews() override;
 
 Q_SIGNALS:
@@ -132,6 +134,7 @@ private:
     KisDoubleSliderSpinBox *m_sliderDelayDistance {0};
 
     QCheckBox *m_chkFinishStabilizedCurve {0};
+    QCheckBox *m_chkMinimumOnePixel{0};
     KisSignalMapper m_signalMapper;
 };
 

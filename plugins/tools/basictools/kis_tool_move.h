@@ -87,7 +87,7 @@ public:
 
     void mouseMoveEvent(KoPointerEvent *event) override;
 
-    void startAction(KoPointerEvent *event, MoveToolMode mode);
+    void startAction(KoPointerEvent *event, MoveToolMode mode, bool duplicate = false);
     void continueAction(KoPointerEvent *event);
     void endAction(KoPointerEvent *event);
 
@@ -123,7 +123,7 @@ private:
     void cancelStroke();
     QPoint applyModifiers(Qt::KeyboardModifiers modifiers, QPoint pos);
 
-    bool startStrokeImpl(MoveToolMode mode, const QPoint *pos);
+    bool startStrokeImpl(MoveToolMode mode, const QPoint *pos, bool duplicate = false);
 
     QPoint currentOffset() const;
     void notifyGuiAfterMove(bool showFloatingMessage = true);
@@ -154,6 +154,9 @@ private:
 
     KisNodeList m_currentlyProcessingNodes;
     bool m_currentlyUsingSelection {false};
+    // Solstice: the stroke copies the selected pixels (Ctrl-drag,
+    // docs/agent/duplicate-selection-in-layer.md)
+    bool m_currentlyDuplicating {false};
     MoveToolMode m_currentMode {MoveSelectedLayer};
 
     int m_resolution {0};

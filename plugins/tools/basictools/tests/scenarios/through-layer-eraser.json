@@ -1,0 +1,734 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "through-layer-eraser",
+  "description": "The Through-Layer Eraser Tool erases every visible layer with one undo step and leaves a hidden layer; it erases an alpha locked layer only with Erase alpha locked layers checked; with Selected layers only it erases the selected layers.",
+  "covers": "Through-Layer Eraser Tool: the tool activation, the option check boxes, alpha locked layers, multiple selected layers, undo",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "sharedtooldocker"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#ff0000"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "select_all"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "add_new_paint_layer"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#00ff00"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "select_all"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "add_new_paint_layer"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#0000ff"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "select_all"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "add_new_paint_layer"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#808080"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "select_all"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "save": {
+        "top": "layers.0.name",
+        "hidden": "layers.1.name",
+        "middle": "layers.2.name",
+        "bottom": "layers.3.name"
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$top"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "topFilled": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 120000
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$hidden"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "hiddenFilled": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 120000
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$middle"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "middleFilled": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 120000
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$bottom"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "bottomFilled": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 120000
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$hidden"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "toggle_layer_visibility"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$top"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KritaShape/KisToolThroughLayerEraser"
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "preset": "b) Basic-5 Size Opacity",
+        "size": 40,
+        "opacity": 1,
+        "eraser": false
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "objectName": "chkSelectedLayersOnly",
+        "value": false
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 200
+        },
+        "to": {
+          "x": 300,
+          "y": 200
+        },
+        "steps": 40,
+        "durationMs": 400
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Erase Through Layers"
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$top"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 120,
+        "y": 195,
+        "width": 160,
+        "height": 10
+      },
+      "expect": {
+        "nonTransparentPixels": 0
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$middle"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 120,
+        "y": 195,
+        "width": 160,
+        "height": 10
+      },
+      "expect": {
+        "nonTransparentPixels": 0
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$bottom"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 120,
+        "y": 195,
+        "width": 160,
+        "height": 10
+      },
+      "expect": {
+        "nonTransparentPixels": 0
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$hidden"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$hiddenFilled"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$top"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$topFilled"
+        }
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$middle"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$middleFilled"
+        }
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$bottom"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$bottomFilled"
+        }
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$middle"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "toggle_layer_alpha_lock"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$top"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "objectName": "chkEraseAlphaLocked",
+        "value": true
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 200
+        },
+        "to": {
+          "x": 300,
+          "y": 200
+        },
+        "steps": 40,
+        "durationMs": 400
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$middle"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 120,
+        "y": 195,
+        "width": 160,
+        "height": 10
+      },
+      "expect": {
+        "nonTransparentPixels": 0
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$middleFilled"
+        }
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "objectName": "chkEraseAlphaLocked",
+        "value": false
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$top"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 200
+        },
+        "to": {
+          "x": 300,
+          "y": 200
+        },
+        "steps": 40,
+        "durationMs": 400
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 120,
+        "y": 195,
+        "width": 160,
+        "height": 10
+      },
+      "expect": {
+        "nonTransparentPixels": 0
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$middle"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$middleFilled"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$top"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$topFilled"
+        }
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$middle"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "toggle_layer_alpha_lock"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "objectName": "chkEraseAlphaLocked",
+        "value": true
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "objectName": "chkSelectedLayersOnly",
+        "value": true
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$top",
+        "select": [
+          "$top",
+          "$bottom"
+        ]
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 200
+        },
+        "to": {
+          "x": 300,
+          "y": 200
+        },
+        "steps": 40,
+        "durationMs": 400
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$top"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 120,
+        "y": 195,
+        "width": 160,
+        "height": 10
+      },
+      "expect": {
+        "nonTransparentPixels": 0
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$bottom"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 120,
+        "y": 195,
+        "width": 160,
+        "height": 10
+      },
+      "expect": {
+        "nonTransparentPixels": 0
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$middle"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$middleFilled"
+        }
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "$hidden"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$hiddenFilled"
+        }
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "objectName": "chkSelectedLayersOnly",
+        "value": false
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

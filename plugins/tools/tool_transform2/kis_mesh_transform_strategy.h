@@ -38,6 +38,7 @@ public:
     void paint(QPainter &gc) override;
     QCursor getCurrentCursor() const override;
     void externalConfigChanged() override;
+    void flushPendingRecalculation() override;
 
     bool beginPrimaryAction(const QPointF &pt) override;
     void continuePrimaryAction(const QPointF &pt, bool shiftModifierActive, bool altModifierActive) override;

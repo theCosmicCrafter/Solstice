@@ -1,0 +1,126 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "polygon-select",
+  "description": "The polygonal selection tool closes a square when the first point is clicked again, and finishes a triangle with a double click.",
+  "covers": "Polygonal selection tool: clicks with hover moves, close snapping on the first point, double click, Replace mode",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectPolygonal"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 300,
+        "y": 100
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 300,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 100,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 1,
+        "undo.lastCommand": "Select Polygon",
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 200
+          }
+        },
+        "selection.selectedPixels": 40000
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 100
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 600,
+        "y": 100
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300,
+        "doubleClick": true
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 2,
+        "undo.lastCommand": "Select Polygon",
+        "selection.bounds": {
+          "equals": {
+            "x": 400,
+            "y": 100,
+            "width": 200,
+            "height": 200
+          }
+        },
+        "selection.selectedPixels": {
+          "min": 19800,
+          "max": 20400
+        }
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

@@ -1,0 +1,429 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "puppet-pin-delete",
+  "description": "Deleting the right pin, with Ctrl+Alt-click or with a plain click when 'Click pin' is Delete pin, leaves the same deformation as never placing it.",
+  "covers": "Puppet Warp pin deletion (Ctrl+Alt-click, Click pin: Delete pin), index alignment after deletion",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "sharedtooldocker"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#000000"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 250
+        },
+        "to": {
+          "x": 700,
+          "y": 350
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "original": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 60000
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 400,
+          "y": 300
+        },
+        "to": {
+          "x": 400,
+          "y": 380
+        },
+        "steps": 20,
+        "durationMs": 400
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "twoPins": "sha256"
+      },
+      "expect": {
+        "sha256": {
+          "notEquals": "$original"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300,
+        "modifiers": [
+          "ctrl",
+          "alt"
+        ]
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 400,
+          "y": 300
+        },
+        "to": {
+          "x": 400,
+          "y": 380
+        },
+        "steps": 20,
+        "durationMs": 400
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$twoPins"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "objectName": "puppetClickActionCombo",
+        "value": 1
+      },
+      "expect": {
+        "widget.currentIndex": 1
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "objectName": "puppetClickActionCombo",
+        "value": 0
+      },
+      "expect": {
+        "widget.currentIndex": 0
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 400,
+          "y": 300
+        },
+        "to": {
+          "x": 400,
+          "y": 380
+        },
+        "steps": 20,
+        "durationMs": 400
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$twoPins"
+        }
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

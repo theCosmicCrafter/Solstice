@@ -1,0 +1,433 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "puppet-mixed-devices",
+  "description": "Puppet pins placed with the mouse and dragged with the pen, twice: the second transform's first mouse click used to crash on the pin index left from the first, and its result equals the same drag with the mouse only. (The first pen drag on a canvas switches it to the pen's tool instances, so the first mixed pass deforms differently; that is not checked.)",
+  "covers": "KisWarpTransformStrategy::beginPrimaryAction() with a press that comes without a hover move after the canvas switched input devices (stale pointIndexUnderCursor)",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "sharedtooldocker"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#000000"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 250
+        },
+        "to": {
+          "x": 700,
+          "y": 350
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "original": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 60000
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 650,
+          "y": 300
+        },
+        "to": {
+          "x": 650,
+          "y": 200
+        },
+        "steps": 20,
+        "durationMs": 400
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "mouseOnly": "sha256"
+      },
+      "expect": {
+        "sha256": {
+          "notEquals": "$original"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 650,
+          "y": 300
+        },
+        "to": {
+          "x": 650,
+          "y": 200
+        },
+        "steps": 20,
+        "durationMs": 400,
+        "device": "tablet"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "notEquals": "$original"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 650,
+          "y": 300
+        },
+        "to": {
+          "x": 650,
+          "y": 200
+        },
+        "steps": 20,
+        "durationMs": 400,
+        "device": "tablet"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$mouseOnly"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

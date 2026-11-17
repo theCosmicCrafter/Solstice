@@ -383,6 +383,16 @@ QCursor KisMeshTransformStrategy::getCurrentCursor() const
     return cursor;
 }
 
+void KisMeshTransformStrategy::flushPendingRecalculation()
+{
+    // The compressor delivers a drag's latest arguments to the stroke up to
+    // 40 ms later; Apply in that time would end the stroke with older ones.
+    if (m_d->recalculateSignalCompressor.isActive()) {
+        m_d->recalculateSignalCompressor.stop();
+        m_d->recalculateTransformations();
+    }
+}
+
 void KisMeshTransformStrategy::externalConfigChanged()
 {
     verifyExpectedMeshSize();

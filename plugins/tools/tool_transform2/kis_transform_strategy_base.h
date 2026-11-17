@@ -42,6 +42,13 @@ public:
 
     virtual void externalConfigChanged() = 0;
 
+    /**
+     * Runs a recalculation the strategy has postponed (a compressed preview
+     * update), so the transform stroke has the current arguments before it
+     * ends. The default does nothing.
+     */
+    virtual void flushPendingRecalculation();
+
     virtual void activatePrimaryAction();
     virtual void deactivatePrimaryAction();
 

@@ -1,0 +1,356 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "selection-modifiers",
+  "description": "With rectangle A selected, a second rectangle B (overlapping A by 100x50) drawn with Shift adds, Alt subtracts, Shift+Alt intersects, Ctrl+Alt takes the symmetric difference and Ctrl replaces; undo returns to A each time.",
+  "covers": "Selection modifier keys of the selection tools (KisSelectionModifierMapper, default Ctrl/Alt assignment), modifier keys through the input manager with canvas focus",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 100
+        },
+        "to": {
+          "x": 300,
+          "y": 200
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 1,
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        },
+        "selection.selectedPixels": 20000
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 400,
+          "y": 250
+        },
+        "to": {
+          "x": 200,
+          "y": 150
+        },
+        "modifiers": [
+          "shift"
+        ]
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 2,
+        "undo.lastCommand": "Select Rectangle",
+        "selection.selectedPixels": 35000,
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 300,
+            "height": 150
+          }
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.index": 1,
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        },
+        "selection.selectedPixels": 20000
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 400,
+          "y": 250
+        },
+        "to": {
+          "x": 200,
+          "y": 150
+        },
+        "modifiers": [
+          "alt"
+        ]
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 2,
+        "undo.lastCommand": "Select Rectangle",
+        "selection.selectedPixels": 15000,
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.index": 1,
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        },
+        "selection.selectedPixels": 20000
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 400,
+          "y": 250
+        },
+        "to": {
+          "x": 200,
+          "y": 150
+        },
+        "modifiers": [
+          "shift",
+          "alt"
+        ]
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 2,
+        "undo.lastCommand": "Select Rectangle",
+        "selection.selectedPixels": 5000,
+        "selection.bounds": {
+          "equals": {
+            "x": 200,
+            "y": 150,
+            "width": 100,
+            "height": 50
+          }
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.index": 1,
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        },
+        "selection.selectedPixels": 20000
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 400,
+          "y": 250
+        },
+        "to": {
+          "x": 200,
+          "y": 150
+        },
+        "modifiers": [
+          "ctrl",
+          "alt"
+        ]
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 2,
+        "undo.lastCommand": "Select Rectangle",
+        "selection.selectedPixels": 30000,
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 300,
+            "height": 150
+          }
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.index": 1,
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        },
+        "selection.selectedPixels": 20000
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 400,
+          "y": 250
+        },
+        "to": {
+          "x": 200,
+          "y": 150
+        },
+        "modifiers": [
+          "ctrl"
+        ]
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 2,
+        "undo.lastCommand": "Select Rectangle",
+        "selection.selectedPixels": 20000,
+        "selection.bounds": {
+          "equals": {
+            "x": 200,
+            "y": 150,
+            "width": 200,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.index": 1,
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        },
+        "selection.selectedPixels": 20000
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

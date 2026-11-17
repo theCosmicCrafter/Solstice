@@ -612,12 +612,14 @@ void InplaceTransformStrokeStrategy::initStrokeCallback()
     }
 
     // Solstice: hand the original pixels to the tool for Puppet Warp's mesh
-    // (a copy-on-write copy, so the tool reads its own tiles).
+    // (a copy-on-write copy, so the tool reads its own tiles). A transform
+    // mask keeps its source in transformMaskCacheHash instead.
     KritaUtils::addJobBarrier(extraInitJobs, [this]() {
         KisPaintDeviceSP preview;
         {
             QMutexLocker l(&m_d->devicesCacheMutex);
-            const QList<KisPaintDeviceSP> caches = m_d->devicesCacheHash.values();
+            const QList<KisPaintDeviceSP> caches =
+                m_d->devicesCacheHash.values() + m_d->transformMaskCacheHash.values();
             if (caches.size() == 1) {
                 preview = new KisPaintDevice(*caches.first());
             } else if (!caches.isEmpty()) {
@@ -1131,7 +1133,7 @@ void InplaceTransformStrokeStrategy::finishAction(QVector<KisStrokeJobData *> &m
         }
     }
 
-    redrawRecordedStrokes(mutatedJobs);
+    redrawRecordedStrokes(mutatedJobs, false);
 
     mutatedJobs << new UpdateTransformData(m_d->currentTransformArgs,
                                            UpdateTransformData::SELECTION);
@@ -1157,12 +1159,13 @@ void InplaceTransformStrokeStrategy::finishAction(QVector<KisStrokeJobData *> &m
     });
 }
 
-void InplaceTransformStrokeStrategy::redrawRecordedStrokes(QVector<KisStrokeJobData *> &mutatedJobs)
+void InplaceTransformStrokeStrategy::redrawRecordedStrokes(QVector<KisStrokeJobData *> &mutatedJobs,
+                                                           bool initialArgs)
 {
     // Solstice: a brush stroke layer draws its strokes again for the final
     // transform, over the transformed pixels of the preview; when it cannot
     // (rotation, other edits on the layer), they stay
-    // (docs/agent/brush-stroke-layer-plan.md)
+    // (docs/agent/brush-stroke-layer.md)
     if (m_d->selection || m_d->initialTransformArgs.externalSource()) {
         return;
     }
@@ -1172,11 +1175,12 @@ void InplaceTransformStrokeStrategy::redrawRecordedStrokes(QVector<KisStrokeJobD
         if (!redrawable || !node->paintDevice())
             continue;
 
-        KritaUtils::addJobSequential(mutatedJobs, [this, node, redrawable]() {
+        KritaUtils::addJobSequential(mutatedJobs, [this, node, redrawable, initialArgs]() {
             // the arguments of the last update, which has run by now
-            if (m_d->currentTransformArgs.mode() != ToolTransformArgs::FREE_TRANSFORM)
+            const ToolTransformArgs args = initialArgs ? m_d->initialTransformArgs : m_d->currentTransformArgs;
+            if (args.mode() != ToolTransformArgs::FREE_TRANSFORM)
                 return;
-            const QTransform transform = KisTransformUtils::MatricesPack(m_d->currentTransformArgs).finalTransform();
+            const QTransform transform = KisTransformUtils::MatricesPack(args).finalTransform();
 
             KisPaintDeviceSP device = node->paintDevice();
             KisPaintDeviceSP original;
@@ -1186,7 +1190,6 @@ void InplaceTransformStrokeStrategy::redrawRecordedStrokes(QVector<KisStrokeJobD
             }
 
             const QRect oldRect = device->extent();
-            const ToolTransformArgs args = m_d->currentTransformArgs;
             auto transformPixels = [args, node](KisPaintDeviceSP source) {
                 KisPaintDeviceSP pixels = new KisPaintDevice(source->colorSpace());
                 KisProcessingVisitor::ProgressHelper helper(node);
@@ -1270,6 +1273,13 @@ void InplaceTransformStrokeStrategy::cancelAction(QVector<KisStrokeJobData *> &m
              */
             KritaUtils::addJobBarrier(mutatedJobs, [this]() { Q_UNUSED(this) });
             repopulateUI(mutatedJobs, m_d->updatesFacade, m_d->updatesFacade->bounds());
+        }
+
+        // Solstice: the previous transform, applied again, draws a brush
+        // stroke layer's strokes again as it did (undoing it at the start
+        // returned the record to before it)
+        if (m_d->overriddenCommand) {
+            redrawRecordedStrokes(mutatedJobs, true);
         }
 
         mutatedJobs << new UpdateTransformData(m_d->initialTransformArgs,

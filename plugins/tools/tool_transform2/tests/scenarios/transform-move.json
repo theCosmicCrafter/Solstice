@@ -1,0 +1,217 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "transform-move",
+  "description": "A drag inside the content (not on the pivot) moves it with the free transform; Apply commits one Transform step; undo restores the original pixels; Return applies as well.",
+  "covers": "Transform Tool free transform: move by drag, Apply button, Return key, undo; a new transform after re-activation",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "sharedtooldocker"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#000000"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 200,
+          "y": 200
+        },
+        "to": {
+          "x": 400,
+          "y": 300
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "original": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 20000
+      }
+    },
+    {
+      "call": "query_state",
+      "save": {
+        "undoBefore": "undo.count"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 250,
+          "y": 230
+        },
+        "to": {
+          "x": 350,
+          "y": 280
+        }
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Transform",
+        "activeLayer.exactBounds": {
+          "equals": {
+            "x": 300,
+            "y": 250,
+            "width": 200,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "opaquePixels": 20000
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.index": {
+          "equals": "$undoBefore"
+        }
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 250,
+          "y": 230
+        },
+        "to": {
+          "x": 250,
+          "y": 330
+        }
+      }
+    },
+    {
+      "call": "input_key",
+      "args": {
+        "key": "Return"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Transform",
+        "activeLayer.exactBounds": {
+          "equals": {
+            "x": 200,
+            "y": 300,
+            "width": 200,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

@@ -40,7 +40,8 @@ public:
     MoveSelectionStrokeStrategy(KisPaintLayerSP paintLayer,
                                 KisSelectionSP selection,
                                 KisUpdatesFacade *updatesFacade,
-                                KisStrokeUndoFacade *undoFacade);
+                                KisStrokeUndoFacade *undoFacade,
+                                bool duplicate = false);
 
     void initStrokeCallback() override;
     void finishStrokeCallback() override;
@@ -63,6 +64,9 @@ private:
     QPoint m_finalOffset;
     QPoint m_initialDeviceOffset;
     QPoint m_initialSelectionOffset;
+    // Solstice: copy the selected pixels instead of cutting them
+    // (docs/agent/duplicate-selection-in-layer.md)
+    bool m_duplicate {false};
 };
 
 #endif /* __MOVE_SELECTION_STROKE_STRATEGY_H */

@@ -1,0 +1,1233 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "puppet-quick-apply",
+  "description": "A Puppet Warp pin drag whose last move comes 5 ms after the one before, released at that move and applied with Return in the same call, gives the same pixels as the same drag with a pause before the release and Apply clicked afterwards: Apply uses the drag's last position, not the one the strategy's 40 ms recalculation compressor last delivered. The quick pass runs five times: whether the compressor still holds an update at Return depends on timer phases, and without the fix about one pass in three applied the old position.",
+  "covers": "KisToolTransform::endStroke() flushing the strategy's pending recalculation (the 40 ms recalculateSignalCompressor of the Warp, Cage, Puppet and Mesh modes) before the stroke ends; KisInputManager delivering a held move before the release",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "sharedtooldocker"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#000000"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 250
+        },
+        "to": {
+          "x": 700,
+          "y": 350
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "original": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 60000
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 650,
+          "y": 300
+        },
+        "to": {
+          "x": 650,
+          "y": 200
+        },
+        "steps": 20,
+        "durationMs": 400
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "settled": "sha256"
+      },
+      "expect": {
+        "sha256": {
+          "notEquals": "$original"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_stroke",
+      "args": {
+        "points": [
+          {
+            "x": 650,
+            "y": 300,
+            "t": 0
+          },
+          {
+            "x": 650,
+            "y": 295,
+            "t": 20
+          },
+          {
+            "x": 650,
+            "y": 290,
+            "t": 40
+          },
+          {
+            "x": 650,
+            "y": 285,
+            "t": 60
+          },
+          {
+            "x": 650,
+            "y": 280,
+            "t": 80
+          },
+          {
+            "x": 650,
+            "y": 275,
+            "t": 100
+          },
+          {
+            "x": 650,
+            "y": 270,
+            "t": 120
+          },
+          {
+            "x": 650,
+            "y": 265,
+            "t": 140
+          },
+          {
+            "x": 650,
+            "y": 260,
+            "t": 160
+          },
+          {
+            "x": 650,
+            "y": 255,
+            "t": 180
+          },
+          {
+            "x": 650,
+            "y": 250,
+            "t": 200
+          },
+          {
+            "x": 650,
+            "y": 245,
+            "t": 220
+          },
+          {
+            "x": 650,
+            "y": 240,
+            "t": 240
+          },
+          {
+            "x": 650,
+            "y": 235,
+            "t": 260
+          },
+          {
+            "x": 650,
+            "y": 230,
+            "t": 280
+          },
+          {
+            "x": 650,
+            "y": 225,
+            "t": 300
+          },
+          {
+            "x": 650,
+            "y": 220,
+            "t": 320
+          },
+          {
+            "x": 650,
+            "y": 215,
+            "t": 340
+          },
+          {
+            "x": 650,
+            "y": 210,
+            "t": 360
+          },
+          {
+            "x": 650,
+            "y": 205,
+            "t": 380
+          },
+          {
+            "x": 650,
+            "y": 200,
+            "t": 385
+          }
+        ],
+        "releaseDelayMs": 0,
+        "keyAfterRelease": "Return"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$settled"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_stroke",
+      "args": {
+        "points": [
+          {
+            "x": 650,
+            "y": 300,
+            "t": 0
+          },
+          {
+            "x": 650,
+            "y": 295,
+            "t": 20
+          },
+          {
+            "x": 650,
+            "y": 290,
+            "t": 40
+          },
+          {
+            "x": 650,
+            "y": 285,
+            "t": 60
+          },
+          {
+            "x": 650,
+            "y": 280,
+            "t": 80
+          },
+          {
+            "x": 650,
+            "y": 275,
+            "t": 100
+          },
+          {
+            "x": 650,
+            "y": 270,
+            "t": 120
+          },
+          {
+            "x": 650,
+            "y": 265,
+            "t": 140
+          },
+          {
+            "x": 650,
+            "y": 260,
+            "t": 160
+          },
+          {
+            "x": 650,
+            "y": 255,
+            "t": 180
+          },
+          {
+            "x": 650,
+            "y": 250,
+            "t": 200
+          },
+          {
+            "x": 650,
+            "y": 245,
+            "t": 220
+          },
+          {
+            "x": 650,
+            "y": 240,
+            "t": 240
+          },
+          {
+            "x": 650,
+            "y": 235,
+            "t": 260
+          },
+          {
+            "x": 650,
+            "y": 230,
+            "t": 280
+          },
+          {
+            "x": 650,
+            "y": 225,
+            "t": 300
+          },
+          {
+            "x": 650,
+            "y": 220,
+            "t": 320
+          },
+          {
+            "x": 650,
+            "y": 215,
+            "t": 340
+          },
+          {
+            "x": 650,
+            "y": 210,
+            "t": 360
+          },
+          {
+            "x": 650,
+            "y": 205,
+            "t": 380
+          },
+          {
+            "x": 650,
+            "y": 200,
+            "t": 385
+          }
+        ],
+        "releaseDelayMs": 0,
+        "keyAfterRelease": "Return"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$settled"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_stroke",
+      "args": {
+        "points": [
+          {
+            "x": 650,
+            "y": 300,
+            "t": 0
+          },
+          {
+            "x": 650,
+            "y": 295,
+            "t": 20
+          },
+          {
+            "x": 650,
+            "y": 290,
+            "t": 40
+          },
+          {
+            "x": 650,
+            "y": 285,
+            "t": 60
+          },
+          {
+            "x": 650,
+            "y": 280,
+            "t": 80
+          },
+          {
+            "x": 650,
+            "y": 275,
+            "t": 100
+          },
+          {
+            "x": 650,
+            "y": 270,
+            "t": 120
+          },
+          {
+            "x": 650,
+            "y": 265,
+            "t": 140
+          },
+          {
+            "x": 650,
+            "y": 260,
+            "t": 160
+          },
+          {
+            "x": 650,
+            "y": 255,
+            "t": 180
+          },
+          {
+            "x": 650,
+            "y": 250,
+            "t": 200
+          },
+          {
+            "x": 650,
+            "y": 245,
+            "t": 220
+          },
+          {
+            "x": 650,
+            "y": 240,
+            "t": 240
+          },
+          {
+            "x": 650,
+            "y": 235,
+            "t": 260
+          },
+          {
+            "x": 650,
+            "y": 230,
+            "t": 280
+          },
+          {
+            "x": 650,
+            "y": 225,
+            "t": 300
+          },
+          {
+            "x": 650,
+            "y": 220,
+            "t": 320
+          },
+          {
+            "x": 650,
+            "y": 215,
+            "t": 340
+          },
+          {
+            "x": 650,
+            "y": 210,
+            "t": 360
+          },
+          {
+            "x": 650,
+            "y": 205,
+            "t": 380
+          },
+          {
+            "x": 650,
+            "y": 200,
+            "t": 385
+          }
+        ],
+        "releaseDelayMs": 0,
+        "keyAfterRelease": "Return"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$settled"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_stroke",
+      "args": {
+        "points": [
+          {
+            "x": 650,
+            "y": 300,
+            "t": 0
+          },
+          {
+            "x": 650,
+            "y": 295,
+            "t": 20
+          },
+          {
+            "x": 650,
+            "y": 290,
+            "t": 40
+          },
+          {
+            "x": 650,
+            "y": 285,
+            "t": 60
+          },
+          {
+            "x": 650,
+            "y": 280,
+            "t": 80
+          },
+          {
+            "x": 650,
+            "y": 275,
+            "t": 100
+          },
+          {
+            "x": 650,
+            "y": 270,
+            "t": 120
+          },
+          {
+            "x": 650,
+            "y": 265,
+            "t": 140
+          },
+          {
+            "x": 650,
+            "y": 260,
+            "t": 160
+          },
+          {
+            "x": 650,
+            "y": 255,
+            "t": 180
+          },
+          {
+            "x": 650,
+            "y": 250,
+            "t": 200
+          },
+          {
+            "x": 650,
+            "y": 245,
+            "t": 220
+          },
+          {
+            "x": 650,
+            "y": 240,
+            "t": 240
+          },
+          {
+            "x": 650,
+            "y": 235,
+            "t": 260
+          },
+          {
+            "x": 650,
+            "y": 230,
+            "t": 280
+          },
+          {
+            "x": 650,
+            "y": 225,
+            "t": 300
+          },
+          {
+            "x": 650,
+            "y": 220,
+            "t": 320
+          },
+          {
+            "x": 650,
+            "y": 215,
+            "t": 340
+          },
+          {
+            "x": 650,
+            "y": 210,
+            "t": 360
+          },
+          {
+            "x": 650,
+            "y": 205,
+            "t": 380
+          },
+          {
+            "x": 650,
+            "y": 200,
+            "t": 385
+          }
+        ],
+        "releaseDelayMs": 0,
+        "keyAfterRelease": "Return"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$settled"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_stroke",
+      "args": {
+        "points": [
+          {
+            "x": 650,
+            "y": 300,
+            "t": 0
+          },
+          {
+            "x": 650,
+            "y": 295,
+            "t": 20
+          },
+          {
+            "x": 650,
+            "y": 290,
+            "t": 40
+          },
+          {
+            "x": 650,
+            "y": 285,
+            "t": 60
+          },
+          {
+            "x": 650,
+            "y": 280,
+            "t": 80
+          },
+          {
+            "x": 650,
+            "y": 275,
+            "t": 100
+          },
+          {
+            "x": 650,
+            "y": 270,
+            "t": 120
+          },
+          {
+            "x": 650,
+            "y": 265,
+            "t": 140
+          },
+          {
+            "x": 650,
+            "y": 260,
+            "t": 160
+          },
+          {
+            "x": 650,
+            "y": 255,
+            "t": 180
+          },
+          {
+            "x": 650,
+            "y": 250,
+            "t": 200
+          },
+          {
+            "x": 650,
+            "y": 245,
+            "t": 220
+          },
+          {
+            "x": 650,
+            "y": 240,
+            "t": 240
+          },
+          {
+            "x": 650,
+            "y": 235,
+            "t": 260
+          },
+          {
+            "x": 650,
+            "y": 230,
+            "t": 280
+          },
+          {
+            "x": 650,
+            "y": 225,
+            "t": 300
+          },
+          {
+            "x": 650,
+            "y": 220,
+            "t": 320
+          },
+          {
+            "x": 650,
+            "y": 215,
+            "t": 340
+          },
+          {
+            "x": 650,
+            "y": 210,
+            "t": 360
+          },
+          {
+            "x": 650,
+            "y": 205,
+            "t": 380
+          },
+          {
+            "x": 650,
+            "y": 200,
+            "t": 385
+          }
+        ],
+        "releaseDelayMs": 0,
+        "keyAfterRelease": "Return"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$settled"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

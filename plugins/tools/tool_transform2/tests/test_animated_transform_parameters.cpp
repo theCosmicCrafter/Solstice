@@ -19,6 +19,8 @@
 
 #include <QDomDocument>
 
+#include <limits>
+
 #include <KoToolRegistry.h>
 
 void KisAnimatedTransformParametersTest::initTestCase()
@@ -213,6 +215,60 @@ void KisAnimatedTransformParametersTest::testPuppetTransformSerialization()
     rotationOnly.setPoints({QPointF(10.0, 20.0)}, {QPointF(10.0, 20.0)});
     rotationOnly.setPuppetRotation(0, 0.25);
     QVERIFY(!rotationOnly.isIdentity());
+}
+
+void KisAnimatedTransformParametersTest::testPuppetArgsState()
+{
+    ToolTransformArgs args;
+    args.setMode(ToolTransformArgs::PUPPET);
+    args.setPoints({QPointF(10.0, 20.0), QPointF(30.0, 40.0)}, {QPointF(10.0, 20.0), QPointF(30.0, 40.0)});
+    args.setPuppetRotation(1, 0.5);
+    args.setPuppetOrder(1, 2);
+
+    // New pins do not inherit the rotations and orders of the old ones.
+    ToolTransformArgs replaced(args);
+    replaced.setPoints({QPointF(1.0, 2.0), QPointF(3.0, 4.0)}, {QPointF(1.0, 2.0), QPointF(3.0, 4.0)});
+    QCOMPARE(replaced.puppetRotations(), QVector<qreal>({0.0, 0.0}));
+    QCOMPARE(replaced.puppetOrders(), QVector<int>({0, 0}));
+    QVERIFY(replaced.isIdentity());
+
+    // Reset compares with isSameMode(): an order change is a change...
+    ToolTransformArgs reordered(args);
+    reordered.changePuppetOrder({0}, ToolTransformArgs::PuppetOrderToFront);
+    QVERIFY(!args.isSameMode(reordered));
+    // ...and so is a different mesh, but not a legacy transform getting one.
+    QImage mask(40, 30, QImage::Format_Grayscale8);
+    mask.fill(255);
+    ToolTransformArgs meshed(args);
+    meshed.setPuppetMesh(KisPuppetTransformWorker::Mesh::build(mask, QRectF(0, 0, 160, 120), 2));
+    QVERIFY(args.isSameMode(meshed));
+    ToolTransformArgs remeshed(meshed);
+    remeshed.setPuppetMesh(KisPuppetTransformWorker::Mesh::build(mask, QRectF(0, 0, 160, 120), 5));
+    QVERIFY(!meshed.isSameMode(remeshed));
+
+    // The click action is a tool preference: assigning (undo, restoring a
+    // continued transform) keeps the current one.
+    const ToolTransformArgs::PuppetClickAction savedAction = args.puppetClickAction();
+    ToolTransformArgs current(args);
+    current.setPuppetClickAction(ToolTransformArgs::PuppetDeletePin);
+    ToolTransformArgs older(args);
+    older.setPuppetClickAction(ToolTransformArgs::PuppetSelectPin);
+    current.setPuppetClickAction(ToolTransformArgs::PuppetDeletePin);
+    current = older;
+    QCOMPARE(current.puppetClickAction(), ToolTransformArgs::PuppetDeletePin);
+    current.setPuppetClickAction(savedAction);
+
+    // Non-finite rotations in a document load as zero.
+    ToolTransformArgs damaged(args);
+    damaged.setPuppetRotation(0, std::numeric_limits<qreal>::quiet_NaN());
+    damaged.setPuppetRotation(1, std::numeric_limits<qreal>::infinity());
+    QDomDocument document;
+    QDomElement element = document.createElement(QStringLiteral("transform"));
+    document.appendChild(element);
+    damaged.toXML(&element);
+    const ToolTransformArgs restored = ToolTransformArgs::fromXML(element);
+    QCOMPARE(restored.puppetRotation(0), 0.0);
+    QCOMPARE(restored.puppetRotation(1), 0.0);
 }
 
 KISTEST_MAIN(KisAnimatedTransformParametersTest)

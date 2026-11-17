@@ -18,6 +18,7 @@
 #include "kis_tool_fill.h"
 #include "kis_tool_brush.h"
 #include "kis_tool_multihand.h"
+#include "KisToolThroughLayerEraser.h"
 #include "kis_tool_freehand.h"
 #include "kis_tool_gradient.h"
 #include "kis_tool_rectangle.h"
@@ -47,6 +48,7 @@ DefaultTools::DefaultTools(QObject *parent, const QVariantList &)
     KoToolRegistry::instance()->add(new KisToolPathFactory());
     KoToolRegistry::instance()->add(new KisToolMoveFactory());
     KoToolRegistry::instance()->add(new KisToolMultiBrushFactory());
+    KoToolRegistry::instance()->add(new KisToolThroughLayerEraserFactory());
     KoToolRegistry::instance()->add(new KisToolPencilFactory());
     KoToolRegistry::instance()->add(new KisToolPanFactory());
 }

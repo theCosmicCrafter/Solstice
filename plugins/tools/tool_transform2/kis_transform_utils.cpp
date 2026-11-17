@@ -31,6 +31,11 @@
 #include "kis_image.h"
 #include "kis_image_animation_interface.h"
 
+#include <deque>
+#include <memory>
+
+#include <QMutex>
+
 const int KisTransformUtils::rotationHandleVisualRadius = 12;
 const int KisTransformUtils::rotationHandleRadius = 8;
 const int KisTransformUtils::handleVisualRadius = 12;
@@ -281,6 +286,58 @@ void KisTransformUtils::transformDevice(const ToolTransformArgs &config,
 
 namespace {
 
+/**
+ * Solved Puppet Warp workers of the last few argument sets. changeRect() runs
+ * for every update of a Puppet transform mask and transformDevice() once per
+ * processed node; both would otherwise repeat the same ARAP solve.
+ */
+std::shared_ptr<const KisPuppetTransformWorker> cachedPuppetWorker(const ToolTransformArgs &config)
+{
+    struct Entry {
+        KisPuppetTransformWorker::Mesh mesh;
+        QVector<QPointF> original;
+        QVector<QPointF> transformed;
+        QVector<qreal> rotations;
+        QVector<int> orders;
+        std::shared_ptr<const KisPuppetTransformWorker> worker;
+
+        bool matches(const ToolTransformArgs &config) const
+        {
+            return mesh == config.puppetMesh() && original == config.origPoints()
+                && transformed == config.transfPoints() && rotations == config.puppetRotations()
+                && orders == config.puppetOrders();
+        }
+    };
+    static QMutex mutex;
+    static std::deque<Entry> cache; // most recent first
+    constexpr size_t CacheSize = 4;
+
+    {
+        QMutexLocker locker(&mutex);
+        for (auto it = cache.begin(); it != cache.end(); ++it) {
+            if (it->matches(config)) {
+                const Entry entry = *it;
+                cache.erase(it);
+                cache.push_front(entry);
+                return entry.worker;
+            }
+        }
+    }
+    // Solve without holding the lock.
+    auto worker = std::make_shared<const KisPuppetTransformWorker>(config.createPuppetWorker());
+    QMutexLocker locker(&mutex);
+    cache.push_front({config.puppetMesh(),
+                      config.origPoints(),
+                      config.transfPoints(),
+                      config.puppetRotations(),
+                      config.puppetOrders(),
+                      worker});
+    if (cache.size() > CacheSize) {
+        cache.pop_back();
+    }
+    return worker;
+}
+
 void warpControlPoints(const ToolTransformArgs &config,
                        QVector<QPointF> *originalPoints,
                        QVector<QPointF> *transformedPoints)
@@ -301,7 +358,7 @@ void transformDeviceImpl(const ToolTransformArgs &config,
                          bool forceSubPixelTranslation)
 {
     if (config.usesPuppetMesh()) {
-        config.createPuppetWorker().run(srcDevice, dstDevice);
+        cachedPuppetWorker(config)->run(srcDevice, dstDevice);
     } else if (config.mode() == ToolTransformArgs::WARP || config.mode() == ToolTransformArgs::PUPPET) {
         KoUpdaterPtr updater = helper->updater();
 
@@ -448,7 +505,7 @@ QRect KisTransformUtils::changeRect(const ToolTransformArgs &config,
 
     if (config.usesPuppetMesh()) {
         // The source area is cleared as well.
-        result = config.createPuppetWorker().approxChangeRect(rc) | rc;
+        result = cachedPuppetWorker(config)->approxChangeRect(rc) | rc;
     } else if (config.mode() == ToolTransformArgs::WARP || config.mode() == ToolTransformArgs::PUPPET) {
         QVector<QPointF> originalPoints;
         QVector<QPointF> transformedPoints;

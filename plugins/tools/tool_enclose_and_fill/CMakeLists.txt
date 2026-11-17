@@ -1,5 +1,6 @@
 set(kritatoolencloseandfill_SOURCES
     KisToolEncloseAndFill.cpp
+    KisToolRemoveDust.cpp
     KisToolEncloseAndFillPlugin.cpp
     subtools/KisRectangleEnclosingProducer.cpp
     subtools/KisEllipseEnclosingProducer.cpp
@@ -15,4 +16,4 @@ target_link_libraries(kritatoolencloseandfill kritaui kritabasicflakes)
 
 install(TARGETS kritatoolencloseandfill  DESTINATION ${KRITA_PLUGIN_INSTALL_DIR})
 
-install( FILES KisToolEncloseAndFill.action DESTINATION  ${KDE_INSTALL_DATADIR}/krita/actions)
+install( FILES KisToolEncloseAndFill.action KisToolRemoveDust.action DESTINATION  ${KDE_INSTALL_DATADIR}/krita/actions)

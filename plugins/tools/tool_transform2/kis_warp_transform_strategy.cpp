@@ -7,6 +7,7 @@
 #include "kis_warp_transform_strategy.h"
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -16,6 +17,7 @@
 #include <QPainterPath>
 #include <QPointF>
 #include <QQueue>
+#include <QtMath>
 
 #include "kis_coordinates_converter.h"
 #include "tool_transform_args.h"
@@ -110,6 +112,7 @@ struct KisWarpTransformStrategy::Private
     mutable QVector<QPointF> puppetWorkerOriginal;
     mutable QVector<QPointF> puppetWorkerTransformed;
     mutable QVector<qreal> puppetWorkerRotations;
+    mutable QVector<int> puppetWorkerOrders;
     // Image <-> preview thumbnail space of the last recalculation.
     std::function<QPointF(const QPointF &)> imageToThumbMap;
     std::function<QPointF(const QPointF &)> thumbToImageMap;
@@ -168,7 +171,9 @@ void KisWarpTransformStrategy::setTransformFunction(const QPointF &mousePos, boo
 
     if (!cursorOverPoint && m_d->transformType == TransformType::PUPPET_TRANSFORM
         && !m_d->currentArgs.isEditingTransformPoints()) {
-        const qreal rotationRadius = 2.4 * handleRadius;
+        // The ring is drawn at 24 screen pixels (paint()), the handle grab
+        // radius is KisTransformUtils::handleRadius (8) screen pixels.
+        const qreal rotationRadius = 3.0 * handleRadius;
         const qreal ringTolerance = 0.65 * handleRadius;
         qreal closestDistance = std::numeric_limits<qreal>::max();
         for (int i = 0; i < points.size(); ++i) {
@@ -187,7 +192,8 @@ void KisWarpTransformStrategy::setTransformFunction(const QPointF &mousePos, boo
 
     const bool puppet = m_d->transformType == TransformType::PUPPET_TRANSFORM;
     if (cursorOverPoint && puppet) {
-        // Puppet: Alt or the "Delete pin" click action deletes; Shift or Ctrl
+        // Puppet: the layer sampler modifier (Ctrl+Alt in the default input
+        // profile) or the "Delete pin" click action deletes; Shift or Ctrl
         // toggles the pin in the selection.
         const bool deletes =
             altModifierActive || m_d->currentArgs.puppetClickAction() == ToolTransformArgs::PuppetDeletePin;
@@ -412,12 +418,13 @@ const KisPuppetTransformWorker *KisWarpTransformStrategy::Private::cachedPuppetW
     }
     if (!puppetWorker || puppetWorkerMesh != currentArgs.puppetMesh()
         || puppetWorkerOriginal != currentArgs.origPoints() || puppetWorkerTransformed != currentArgs.transfPoints()
-        || puppetWorkerRotations != currentArgs.puppetRotations()) {
+        || puppetWorkerRotations != currentArgs.puppetRotations() || puppetWorkerOrders != currentArgs.puppetOrders()) {
         puppetWorker.reset(new KisPuppetTransformWorker(currentArgs.createPuppetWorker()));
         puppetWorkerMesh = currentArgs.puppetMesh();
         puppetWorkerOriginal = currentArgs.origPoints();
         puppetWorkerTransformed = currentArgs.transfPoints();
         puppetWorkerRotations = currentArgs.puppetRotations();
+        puppetWorkerOrders = currentArgs.puppetOrders();
     }
     return puppetWorker.get();
 }
@@ -622,6 +629,7 @@ void KisWarpTransformStrategy::paint(QPainter &gc)
             for (int i = 0; i < numPoints; ++i) {
                 if (m_d->transformType == TransformType::PUPPET_TRANSFORM
                     && !m_d->currentArgs.isEditingTransformPoints()) {
+                    // Keep in sync with the ring hit test in setTransformFunction().
                     const qreal ringRadius = 24.0 / handlesExtraScale;
                     const QRectF ringRect(-ringRadius, -ringRadius, 2.0 * ringRadius, 2.0 * ringRadius);
                     gc.setPen(outlinePen);
@@ -733,6 +741,16 @@ void KisWarpTransformStrategy::paint(QPainter &gc)
     gc.restore();
 }
 
+void KisWarpTransformStrategy::flushPendingRecalculation()
+{
+    // The compressor delivers a drag's latest arguments to the stroke up to
+    // 40 ms later; Apply in that time would end the stroke with older ones.
+    if (m_d->recalculateSignalCompressor.isActive()) {
+        m_d->recalculateSignalCompressor.stop();
+        m_d->recalculateTransformations();
+    }
+}
+
 void KisWarpTransformStrategy::externalConfigChanged()
 {
     if (m_d->lastNumPoints != m_d->currentArgs.transfPoints().size()) {
@@ -744,6 +762,18 @@ void KisWarpTransformStrategy::externalConfigChanged()
 
 bool KisWarpTransformStrategy::beginPrimaryAction(const QPointF &pt)
 {
+    const bool pointMode = m_d->mode == Private::OVER_POINT || m_d->mode == Private::MULTIPLE_POINT_SELECTION
+        || m_d->mode == Private::ROTATE_PIN || m_d->mode == Private::DELETE_POINT;
+    if (pointMode
+        && (m_d->pointIndexUnderCursor < 0 || m_d->pointIndexUnderCursor >= m_d->currentArgs.transfPoints().size())) {
+        // The hover that set this mode belonged to other points: a new
+        // transform started, and the press came without a hover move, as
+        // the first mouse event after the canvas switched from the pen
+        // (KoToolManager keeps one tool per input device). Decide for the
+        // press position, as that hover would have.
+        setTransformFunction(pt, false, m_d->shiftOnHover, false);
+    }
+
     const bool isEditingPoints = m_d->currentArgs.isEditingTransformPoints();
     bool retval = false;
 
@@ -872,7 +902,10 @@ void KisWarpTransformStrategy::continuePrimaryAction(const QPointF &pt, bool shi
         const QPointF newDirection = pt - center;
         if (!qFuzzyIsNull(QLineF(QPointF(), oldDirection).length())
             && !qFuzzyIsNull(QLineF(QPointF(), newDirection).length())) {
-            const qreal angle = KisAlgebra2D::angleBetweenVectors(oldDirection, newDirection);
+            // angleBetweenVectors() is a difference of atan2() values: crossing
+            // the -pi/pi cut would add a full turn to the stored rotation.
+            const qreal angle =
+                std::remainder(KisAlgebra2D::angleBetweenVectors(oldDirection, newDirection), 2.0 * M_PI);
             // Puppet: rotating a pin of a multiple selection turns all of them
             // about that pin.
             const bool group =
@@ -999,8 +1032,10 @@ bool KisWarpTransformStrategy::Private::shouldCloseTheCage() const
 
 bool KisWarpTransformStrategy::acceptsClicks() const
 {
-    return m_d->shouldCloseTheCage() ||
-        m_d->currentArgs.isEditingTransformPoints();
+    // Puppet: a pin deleted by a click (on press) must be committed, and a
+    // click on empty canvas ends the rubber band (and clears the selection).
+    return m_d->shouldCloseTheCage() || m_d->currentArgs.isEditingTransformPoints()
+        || m_d->mode == Private::DELETE_POINT || m_d->mode == Private::RUBBER_BAND;
 }
 
 bool KisWarpTransformStrategy::endPrimaryAction()
@@ -1014,7 +1049,8 @@ bool KisWarpTransformStrategy::endPrimaryAction()
             m_d->pointsInAction.clear();
         }
         Q_EMIT requestCanvasUpdate();
-        return true;
+        // Selection only: nothing to commit (an undo step would be a no-op).
+        return false;
     }
     if (m_d->shouldCloseTheCage()) {
         m_d->currentArgs.setEditingTransformPoints(false);

@@ -20,6 +20,7 @@
 #include "KisImageBarrierLock.h"
 #include "kis_paint_device_frames_interface.h"
 #include "kis_paint_device_debug_utils.h"
+#include "kis_undo_stores.h"
 
 #include <testui.h>
 
@@ -113,6 +114,121 @@ void MoveSelectionStrokeTest::test()
         KIS_DUMP_DEVICE_2(lodDevice(image->globalSelection()->projection()), imageRect, "05_1_selection_lod", "mm");
     }
 
+}
+
+namespace
+{
+/// An image whose bottom layer holds a red square at (0,0,100,100), selected
+struct DuplicateFixture {
+    DuplicateFixture()
+        : undoStore(new KisSurrogateUndoStore())
+        , image(utils::createImage(undoStore, QSize(400, 400)))
+    {
+        image->setLodPreferences(KisLodPreferences(2));
+        image->waitForDone();
+
+        layer = dynamic_cast<KisPaintLayer *>(image->root()->firstChild().data());
+        {
+            KisImageBarrierLock lock(image);
+            layer->paintDevice()->fill(QRect(0, 0, 100, 100), KoColor(Qt::red, image->colorSpace()));
+        }
+        KisSelectionSP selection = new KisSelection();
+        selection->pixelSelection()->select(QRect(0, 0, 100, 100), OPACITY_OPAQUE_U8);
+        KisSetGlobalSelectionCommand cmd(image, selection);
+        cmd.redo();
+    }
+
+    /// Ctrl-drag in the Move Tool: the selected pixels, copied @p offset away
+    void duplicate(const QPoint &offset)
+    {
+        MoveSelectionStrokeStrategy *strategy =
+            new MoveSelectionStrokeStrategy(layer, image->globalSelection(), image.data(), image.data(), true);
+        KisStrokeId id = image->startStroke(strategy);
+        image->addJob(id, new MoveStrokeStrategy::Data(offset));
+        image->endStroke(id);
+        image->waitForDone();
+    }
+
+    KisSurrogateUndoStore *undoStore;
+    KisImageSP image;
+    KisPaintLayerSP layer;
+};
+
+bool isRed(KisPaintDeviceSP device, int x, int y)
+{
+    KoColor color;
+    device->pixel(x, y, &color);
+    return color.toQColor() == QColor(Qt::red);
+}
+
+bool isTransparent(KisPaintDeviceSP device, int x, int y)
+{
+    KoColor color;
+    device->pixel(x, y, &color);
+    return color.opacityU8() == OPACITY_TRANSPARENT_U8;
+}
+} // namespace
+
+/// A duplicate leaves the selected pixels in place, pastes the copy at the
+/// offset and moves the selection to it, as one undo step; Instant
+/// Preview (the level of detail clone) shows the same
+void MoveSelectionStrokeTest::testDuplicateKeepsSource()
+{
+    DuplicateFixture f;
+    KisPaintDeviceSP device = f.layer->paintDevice();
+
+    f.duplicate(QPoint(200, 100));
+
+    QVERIFY(isRed(device, 50, 50));
+    QVERIFY(isRed(device, 250, 150));
+    QVERIFY(isTransparent(device, 150, 50));
+    QCOMPARE(device->exactBounds(), QRect(0, 0, 300, 200));
+    QCOMPARE(f.image->globalSelection()->selectedExactRect(), QRect(200, 100, 100, 100));
+    QCOMPARE(f.undoStore->presentCommand()->text().toString(), QString("Duplicate Selection"));
+
+    // the preview at a quarter of the size
+    KisPaintDeviceSP lod = lodDevice(device);
+    QVERIFY(isRed(lod, 12, 12));
+    QVERIFY(isRed(lod, 62, 37));
+    QVERIFY(isTransparent(lod, 37, 12));
+
+    f.undoStore->undo();
+    f.image->waitForDone();
+    QCOMPARE(device->exactBounds(), QRect(0, 0, 100, 100));
+    QVERIFY(isRed(device, 50, 50));
+    QCOMPARE(f.image->globalSelection()->selectedExactRect(), QRect(0, 0, 100, 100));
+
+    f.undoStore->redo();
+    f.image->waitForDone();
+    QVERIFY(isRed(device, 50, 50));
+    QVERIFY(isRed(device, 250, 150));
+    QCOMPARE(f.image->globalSelection()->selectedExactRect(), QRect(200, 100, 100, 100));
+}
+
+/// Duplicating again copies the last copy: each stamp is its own undo step
+void MoveSelectionStrokeTest::testDuplicateStamps()
+{
+    DuplicateFixture f;
+    KisPaintDeviceSP device = f.layer->paintDevice();
+
+    f.duplicate(QPoint(100, 0));
+    f.duplicate(QPoint(100, 0));
+
+    for (int x : {50, 150, 250}) {
+        QVERIFY(isRed(device, x, 50));
+    }
+    QCOMPARE(device->exactBounds(), QRect(0, 0, 300, 100));
+    QCOMPARE(f.image->globalSelection()->selectedExactRect(), QRect(200, 0, 100, 100));
+
+    f.undoStore->undo();
+    f.image->waitForDone();
+    QCOMPARE(device->exactBounds(), QRect(0, 0, 200, 100));
+    QCOMPARE(f.image->globalSelection()->selectedExactRect(), QRect(100, 0, 100, 100));
+
+    f.undoStore->undo();
+    f.image->waitForDone();
+    QCOMPARE(device->exactBounds(), QRect(0, 0, 100, 100));
+    QCOMPARE(f.image->globalSelection()->selectedExactRect(), QRect(0, 0, 100, 100));
 }
 
 KISTEST_MAIN(MoveSelectionStrokeTest)

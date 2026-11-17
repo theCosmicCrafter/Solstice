@@ -36,6 +36,8 @@
 #include "kis_floating_message.h"
 #include "canvas/kis_canvas2.h"
 #include "KisViewManager.h"
+#include <brushengine/KisMinimumDabSize.h>
+#include <kis_signals_blocker.h>
 
 #define MAXIMUM_SMOOTHNESS_DISTANCE 1000.0 // 0..1000.0 == weight in gui
 #define MAXIMUM_MAGNETISM 1000
@@ -82,6 +84,13 @@ void KisToolBrush::activate(const QSet<KoShape*> &shapes)
     optionWidgets(); // Ensure m_chkAssistant is initialized.
     QAction *toggleaction = action("toggle_assistant");
     connect(toggleaction, SIGNAL(triggered(bool)), m_chkAssistant, SLOT(toggle()), Qt::UniqueConnection);
+
+    // another window's Freehand Brush may have changed the shared setting
+    if (m_chkMinimumOnePixel) {
+        const KisSignalsBlocker blocker(m_chkMinimumOnePixel);
+        m_chkMinimumOnePixel->setChecked(
+            KisConfig(true).readEntry<bool>(KisMinimumDabSize::configKey(), KisMinimumDabSize::defaultEnabled()));
+    }
 }
 
 void KisToolBrush::deactivate()
@@ -371,6 +380,12 @@ bool KisToolBrush::stabilizeSensors() const
     return smoothingOptions()->stabilizeSensors();
 }
 
+void KisToolBrush::slotSetMinimumOnePixel(bool value)
+{
+    // read by KisResourcesSnapshot when the next stroke starts
+    KisConfig(false).writeEntry<bool>(KisMinimumDabSize::configKey(), value);
+}
+
 void KisToolBrush::updateSettingsViews()
 {
     m_cmbSmoothingType->setCurrentIndex(smoothingOptions()->smoothingType());
@@ -597,6 +612,18 @@ QWidget * KisToolBrush::createOptionWidget()
     connect(m_chkAssistant, SIGNAL(toggled(bool)), magnetismLabel, SLOT(setVisible(bool)));
     connect(m_chkAssistant, SIGNAL(toggled(bool)), snapSingleLabel, SLOT(setVisible(bool)));
     connect(m_chkAssistant, SIGNAL(toggled(bool)), snapEraserLabel, SLOT(setVisible(bool)));
+
+    // Solstice: "At least 1 pixel" (docs/agent/brush-minimum-one-pixel.md)
+    m_chkMinimumOnePixel = new QCheckBox(i18n("At least 1 pixel"), optionsWidget);
+    m_chkMinimumOnePixel->setObjectName("chkMinimumOnePixel");
+    m_chkMinimumOnePixel->setToolTip(
+        i18nc("@info:tooltip",
+              "Keep the brush at least 1 pixel large when pen pressure or another sensor makes it smaller, "
+              "so that thin, tapered lines do not fade out"));
+    m_chkMinimumOnePixel->setChecked(
+        KisConfig(true).readEntry<bool>(KisMinimumDabSize::configKey(), KisMinimumDabSize::defaultEnabled()));
+    connect(m_chkMinimumOnePixel, &QCheckBox::toggled, this, &KisToolBrush::slotSetMinimumOnePixel);
+    addOptionWidgetOption(m_chkMinimumOnePixel);
 
     KisConfig cfg(true);
 

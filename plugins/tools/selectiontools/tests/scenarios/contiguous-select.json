@@ -1,0 +1,124 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "contiguous-select",
+  "description": "On a layer with one filled rectangle, the contiguous selection tool selects exactly the rectangle when clicked inside it and everything else when clicked outside.",
+  "covers": "Contiguous selection tool (fill-like region detection on the active layer)",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#ff0000"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 100
+        },
+        "to": {
+          "x": 300,
+          "y": 200
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectContiguous"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 200,
+        "y": 150
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Select Contiguous Area",
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        },
+        "selection.selectedPixels": 20000
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 600,
+        "y": 400
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Select Contiguous Area",
+        "selection.bounds": {
+          "equals": {
+            "x": 0,
+            "y": 0,
+            "width": 800,
+            "height": 600
+          }
+        },
+        "selection.selectedPixels": 460000
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

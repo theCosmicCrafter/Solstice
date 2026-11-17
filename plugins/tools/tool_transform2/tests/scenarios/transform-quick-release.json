@@ -1,0 +1,276 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "transform-quick-release",
+  "description": "A free transform drag whose 50 moves arrive back to back and whose release follows the last move at once ends exactly at the release point, with the mouse and with the pen. Before the pen pass a pen click with the selection tool switches the canvas to the pen's tool instances (KoToolManager keeps one set per input device), so the Tool Options clicks reach the tool the pen drags with.",
+  "covers": "KisInputManager delivering the move its compression still holds before a mouse or tablet release (tools without high-resolution input, here the Transform Tool)",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "sharedtooldocker"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#000000"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 200,
+          "y": 200
+        },
+        "to": {
+          "x": 400,
+          "y": 300
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "activeLayer.exactBounds": {
+          "equals": {
+            "x": 200,
+            "y": 200,
+            "width": 200,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "call": "view_reset",
+      "args": {
+        "width": 640,
+        "height": 480
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 330,
+          "y": 260
+        },
+        "to": {
+          "x": 430,
+          "y": 310
+        },
+        "steps": 50,
+        "realtime": false,
+        "releaseDelayMs": 0,
+        "device": "mouse"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Transform",
+        "activeLayer.exactBounds": {
+          "equals": {
+            "x": 300,
+            "y": 250,
+            "width": 200,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "activeLayer.exactBounds": {
+          "equals": {
+            "x": 200,
+            "y": 200,
+            "width": 200,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 420,
+        "y": 320,
+        "device": "tablet"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "selection.active": false
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 330,
+          "y": 260
+        },
+        "to": {
+          "x": 430,
+          "y": 310
+        },
+        "steps": 50,
+        "realtime": false,
+        "releaseDelayMs": 0,
+        "device": "tablet"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Transform",
+        "activeLayer.exactBounds": {
+          "equals": {
+            "x": 300,
+            "y": 250,
+            "width": 200,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "activeLayer.exactBounds": {
+          "equals": {
+            "x": 200,
+            "y": 200,
+            "width": 200,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

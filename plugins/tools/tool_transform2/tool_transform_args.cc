@@ -111,8 +111,10 @@ void ToolTransformArgs::setPoints(QVector<QPointF> origPoints, QVector<QPointF> 
 {
     m_origPoints = origPoints;
     m_transfPoints = transfPoints;
-    m_puppetRotations.resize(qMin(m_origPoints.size(), m_transfPoints.size()));
-    m_puppetOrders.resize(m_puppetRotations.size());
+    // New pins: rotations and orders of the old ones do not apply to them.
+    const int count = qMin(m_origPoints.size(), m_transfPoints.size());
+    m_puppetRotations = QVector<qreal>(count, 0.0);
+    m_puppetOrders = QVector<int>(count, 0);
 }
 
 qreal ToolTransformArgs::puppetRotation(int index) const
@@ -352,10 +354,15 @@ ToolTransformArgs& ToolTransformArgs::operator=(const ToolTransformArgs& args)
 {
     if (this == &args) return *this;
 
+    // The Puppet click action is a tool preference (KConfig), not transform
+    // state: undo and restoring a continued transform must not change it.
+    const PuppetClickAction clickAction = m_puppetClickAction;
+
     clear();
 
     m_liquifyProperties.reset(new KisLiquifyProperties(*args.m_liquifyProperties.data()));
     init(args);
+    m_puppetClickAction = clickAction;
 
     return *this;
 }
@@ -420,6 +427,10 @@ bool ToolTransformArgs::isSameMode(const ToolTransformArgs& other) const
         result &= m_transfPoints == other.m_transfPoints;
         if (m_mode == PUPPET) {
             result &= m_puppetRotations == other.m_puppetRotations;
+            result &= m_puppetOrders == other.m_puppetOrders;
+            // A legacy transform (no mesh) gets one when edited; that alone
+            // must not count as a change, or Reset would only ever restore it.
+            result &= !m_puppetMesh.isValid() || !other.m_puppetMesh.isValid() || m_puppetMesh == other.m_puppetMesh;
         }
 
     } else if (m_mode == LIQUIFY) {
@@ -763,8 +774,14 @@ ToolTransformArgs ToolTransformArgs::fromXML(const QDomElement &e)
         if (args.m_mode == PUPPET) {
             (void)KisDomUtils::loadValue(warpEl, "rotations", &args.m_puppetRotations);
             args.m_puppetRotations.resize(args.m_origPoints.size());
+            for (qreal &rotation : args.m_puppetRotations) {
+                if (!std::isfinite(rotation)) {
+                    rotation = 0.0;
+                }
+            }
             (void)KisDomUtils::loadValue(warpEl, "showMesh", &args.m_puppetShowMesh);
             (void)KisDomUtils::loadValue(warpEl, "expansion", &args.m_puppetExpansion);
+            args.m_puppetExpansion = qBound(0, args.m_puppetExpansion, 64);
             // Missing in documents saved before the mesh solver: they keep the
             // legacy MLS deformation.
             QString mesh;

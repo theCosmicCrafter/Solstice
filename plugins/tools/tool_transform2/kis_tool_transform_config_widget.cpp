@@ -364,28 +364,41 @@ KisToolTransformConfigWidget::KisToolTransformConfigWidget(TransformTransactionP
         pinLayout->setContentsMargins(0, 0, 0, 0);
         pinLayout->addWidget(new QLabel(i18nc("@label:listbox Puppet Warp", "Click pin:"), m_puppetPinOptions));
         m_puppetClickActionCombo = new QComboBox(m_puppetPinOptions);
+        m_puppetClickActionCombo->setObjectName("puppetClickActionCombo");
         m_puppetClickActionCombo->addItem(i18nc("@item:inlistbox Puppet Warp click action", "Select pin"));
         m_puppetClickActionCombo->addItem(i18nc("@item:inlistbox Puppet Warp click action", "Delete pin"));
         m_puppetClickActionCombo->setToolTip(i18n(
-            "What a click on a pin does. Alt-click always deletes a pin.\n"
+            "What a click on a pin does. Ctrl+Alt-click always deletes a pin.\n"
             "Shift- or Ctrl-click adds a pin to the selection; drag on the canvas to select pins in a rectangle."));
         pinLayout->addWidget(m_puppetClickActionCombo);
         pinLayout->addSpacing(8);
         pinLayout->addWidget(new QLabel(i18nc("@label Puppet Warp pin stacking order", "Order:"), m_puppetPinOptions));
         const struct {
+            const char *objectName;
             const char *text;
             QString toolTip;
             int change;
         } orderButtons[] = {
-            {"\u2191\u2191",
+            {"puppetOrderToFrontButton",
+             "\u2191\u2191",
              i18n("Bring the selected pins' parts to the front"),
              ToolTransformArgs::PuppetOrderToFront},
-            {"\u2191", i18n("Bring the selected pins' parts forward"), ToolTransformArgs::PuppetOrderForward},
-            {"\u2193", i18n("Send the selected pins' parts backward"), ToolTransformArgs::PuppetOrderBackward},
-            {"\u2193\u2193", i18n("Send the selected pins' parts to the back"), ToolTransformArgs::PuppetOrderToBack},
+            {"puppetOrderForwardButton",
+             "\u2191",
+             i18n("Bring the selected pins' parts forward"),
+             ToolTransformArgs::PuppetOrderForward},
+            {"puppetOrderBackwardButton",
+             "\u2193",
+             i18n("Send the selected pins' parts backward"),
+             ToolTransformArgs::PuppetOrderBackward},
+            {"puppetOrderToBackButton",
+             "\u2193\u2193",
+             i18n("Send the selected pins' parts to the back"),
+             ToolTransformArgs::PuppetOrderToBack},
         };
         for (const auto &button : orderButtons) {
             QToolButton *toolButton = new QToolButton(m_puppetPinOptions);
+            toolButton->setObjectName(button.objectName);
             toolButton->setText(QString::fromUtf8(button.text));
             toolButton->setToolTip(button.toolTip);
             const int change = button.change;
@@ -702,7 +715,7 @@ void KisToolTransformConfigWidget::updateConfig(const ToolTransformArgs &config)
         customRadioButton->setChecked(true);
         customWarpWidget->setEnabled(true);
         groupBox->setToolTip(
-            i18n("Click the canvas to add pins. Alt-click a pin to delete it. "
+            i18n("Click the canvas to add pins. Ctrl+Alt-click a pin to delete it. "
                  "Shift-click or drag a rectangle to select several pins and move them together."));
         cmbWarpType->setCurrentIndex((int)config.warpType());
         puppetShowMeshCheckBox->setChecked(config.puppetShowMesh());
@@ -1372,6 +1385,9 @@ void KisToolTransformConfigWidget::slotWarpLockPointsButtonClicked()
         int nbPoints = config->origPoints().size();
         for (int i = 0; i < nbPoints; ++i) {
             config->transfPoint(i) = config->origPoint(i);
+            // Puppet: pin rotations deform too; keeping them left the
+            // unlocked transform non-identity (Apply still rotated).
+            config->setPuppetRotation(i, 0.0);
         }
     }
 

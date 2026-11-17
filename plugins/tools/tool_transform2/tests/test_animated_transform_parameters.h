@@ -17,6 +17,7 @@ private Q_SLOTS:
     void initTestCase();
     void testTransformKeyframing();
     void testPuppetTransformSerialization();
+    void testPuppetArgsState();
 };
 
 #endif

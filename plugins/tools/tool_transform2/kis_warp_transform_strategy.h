@@ -55,6 +55,7 @@ public:
     QCursor getCurrentCursor() const override;
 
     void externalConfigChanged() override;
+    void flushPendingRecalculation() override;
 
     using KisTransformStrategyBase::beginPrimaryAction;
     using KisTransformStrategyBase::continuePrimaryAction;

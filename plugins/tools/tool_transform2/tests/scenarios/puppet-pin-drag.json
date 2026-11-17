@@ -1,0 +1,233 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "puppet-pin-drag",
+  "description": "Puppet Warp on a horizontal bar: three pins placed in Draw mode and locked; dragging the right pin up bends the bar's right end while the area at the untouched left pin stays as it was.",
+  "covers": "Transform Tool Puppet mode switch, Draw/lock pin placement, center drag, anchoring by untouched pins, Apply",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "sharedtooldocker"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#000000"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 250
+        },
+        "to": {
+          "x": 700,
+          "y": 350
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "original": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 60000
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 130,
+        "y": 280,
+        "width": 40,
+        "height": 40
+      },
+      "save": {
+        "leftPin": "sha256"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 650,
+          "y": 300
+        },
+        "to": {
+          "x": 650,
+          "y": 200
+        },
+        "steps": 20,
+        "durationMs": 400
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "buttonBox",
+        "standardButton": "Apply"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Transform",
+        "activeLayer.exactBounds.y": {
+          "min": 130,
+          "max": 170
+        }
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 130,
+        "y": 280,
+        "width": 40,
+        "height": 40
+      },
+      "expect": {
+        "sha256": {
+          "equals": "$leftPin"
+        }
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 600,
+        "y": 150,
+        "width": 100,
+        "height": 100
+      },
+      "expect": {
+        "nonTransparentPixels": {
+          "min": 3000
+        }
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "notEquals": "$original"
+        }
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

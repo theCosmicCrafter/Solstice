@@ -1,0 +1,278 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "puppet-unlock-identity",
+  "description": "Rotating a locked pin's ring deforms the bar; unlocking resets the pins and their rotation, so applying leaves the artwork unchanged.",
+  "covers": "Puppet Warp ring rotation, unlock resetting positions and rotations (slotWarpLockPointsButtonClicked), identity apply",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "docker_show",
+      "args": {
+        "id": "sharedtooldocker"
+      },
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#000000"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 250
+        },
+        "to": {
+          "x": 700,
+          "y": 350
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "original": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 60000
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolTransform"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "freeTransformButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "puppetButton"
+      },
+      "expect": {
+        "widget.checked": true
+      }
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "within": "sharedtooldocker",
+        "nameFilter": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widgets.0.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 150,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "call": "input_click",
+      "args": {
+        "x": 650,
+        "y": 300
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Unlock Points"
+      }
+    },
+    {
+      "call": "input_stroke",
+      "args": {
+        "points": [
+          {
+            "x": 674.0,
+            "y": 300.0,
+            "t": 0
+          },
+          {
+            "x": 673.91,
+            "y": 297.91,
+            "t": 20
+          },
+          {
+            "x": 673.64,
+            "y": 295.83,
+            "t": 40
+          },
+          {
+            "x": 673.18,
+            "y": 293.79,
+            "t": 60
+          },
+          {
+            "x": 672.55,
+            "y": 291.79,
+            "t": 80
+          },
+          {
+            "x": 671.75,
+            "y": 289.86,
+            "t": 100
+          },
+          {
+            "x": 670.78,
+            "y": 288.0,
+            "t": 120
+          },
+          {
+            "x": 669.66,
+            "y": 286.23,
+            "t": 140
+          },
+          {
+            "x": 668.39,
+            "y": 284.57,
+            "t": 160
+          },
+          {
+            "x": 666.97,
+            "y": 283.03,
+            "t": 180
+          },
+          {
+            "x": 665.43,
+            "y": 281.61,
+            "t": 200
+          },
+          {
+            "x": 663.77,
+            "y": 280.34,
+            "t": 220
+          },
+          {
+            "x": 662.0,
+            "y": 279.22,
+            "t": 240
+          },
+          {
+            "x": 660.14,
+            "y": 278.25,
+            "t": 260
+          },
+          {
+            "x": 658.21,
+            "y": 277.45,
+            "t": 280
+          },
+          {
+            "x": 656.21,
+            "y": 276.82,
+            "t": 300
+          },
+          {
+            "x": 654.17,
+            "y": 276.36,
+            "t": 320
+          },
+          {
+            "x": 652.09,
+            "y": 276.09,
+            "t": 340
+          },
+          {
+            "x": 650.0,
+            "y": 276.0,
+            "t": 360
+          }
+        ]
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "objectName": "lockUnlockPointsButton"
+      },
+      "expect": {
+        "widget.text": "Lock Points"
+      }
+    },
+    {
+      "call": "input_key",
+      "args": {
+        "key": "Return"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$original"
+        }
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

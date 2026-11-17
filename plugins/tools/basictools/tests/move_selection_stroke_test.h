@@ -14,6 +14,8 @@ class MoveSelectionStrokeTest : public QObject
     Q_OBJECT
 private Q_SLOTS:
     void test();
+    void testDuplicateKeepsSource();
+    void testDuplicateStamps();
 };
 
 #endif /* __MOVE_SELECTION_STROKE_TEST_H */

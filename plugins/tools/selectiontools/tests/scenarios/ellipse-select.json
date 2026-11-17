@@ -1,0 +1,78 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "ellipse-select",
+  "description": "A mouse drag with the elliptical selection tool selects the ellipse inscribed in the dragged rectangle; undo removes it.",
+  "covers": "Elliptical selection tool (vector selection), undo",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectElliptical"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 100
+        },
+        "to": {
+          "x": 300,
+          "y": 200
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 1,
+        "undo.lastCommand": "Select Ellipse",
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        },
+        "selection.selectedPixels": {
+          "min": 15600,
+          "max": 16100
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "selection.active": false
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

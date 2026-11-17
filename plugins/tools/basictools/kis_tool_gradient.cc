@@ -44,6 +44,7 @@
 #include <kis_slider_spin_box.h>
 #include <kis_cursor.h>
 #include <kis_config.h>
+#include <kis_icon_utils.h>
 #include "kis_resources_snapshot.h"
 #include "kis_command_utils.h"
 #include "kis_processing_applicator.h"
@@ -101,6 +102,15 @@ void KisToolGradient::paint(QPainter &painter, const KoViewConverter &converter)
 void KisToolGradient::beginPrimaryAction(KoPointerEvent *event)
 {
     if (!nodeEditable()) {
+        event->ignore();
+        return;
+    }
+    // Solstice: a brush stroke layer records the brush tools' strokes only
+    if (nodePaintAbility() == NodePaintAbility::VECTOR) {
+        KisCanvas2 *kiscanvas = static_cast<KisCanvas2 *>(canvas());
+        kiscanvas->viewManager()->showFloatingMessage(
+            i18n("The gradient tool cannot paint on this layer. Please select a paint layer or mask."),
+            KisIconUtils::loadIcon("object-locked"));
         event->ignore();
         return;
     }

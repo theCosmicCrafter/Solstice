@@ -68,6 +68,10 @@ void KisTransformStrategyBase::setThumbnailImage(const QImage &image, QTransform
     m_d->thumbToImageTransform = thumbToImageTransform;
 }
 
+void KisTransformStrategyBase::flushPendingRecalculation()
+{
+}
+
 bool KisTransformStrategyBase::acceptsClicks() const
 {
     return false;

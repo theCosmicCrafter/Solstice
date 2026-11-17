@@ -17,6 +17,7 @@ set(kritadefaulttools_static_SRCS
     KisMoveBoundsCalculationJob.cpp
     kis_tool_multihand.cpp
     kis_tool_multihand_config.cpp
+    KisToolThroughLayerEraser.cpp
     kis_tool_pencil.cc
     kis_tool_pan.cpp
 )

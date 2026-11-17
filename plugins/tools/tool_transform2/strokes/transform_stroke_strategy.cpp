@@ -306,7 +306,7 @@ void TransformStrokeStrategy::doStrokeCallback(KisStrokeJobData *data)
                 Q_ASSERT(cachedPortion);
 
                 // Solstice: a brush stroke layer draws its strokes again
-                // instead (docs/agent/brush-stroke-layer-plan.md)
+                // instead (docs/agent/brush-stroke-layer.md)
                 KUndo2Command *redraw = nullptr;
                 KisRedrawableLayerInterface *redrawable = dynamic_cast<KisRedrawableLayerInterface *>(td->node.data());
                 if (redrawable && !m_selection && td->config.mode() == ToolTransformArgs::FREE_TRANSFORM) {

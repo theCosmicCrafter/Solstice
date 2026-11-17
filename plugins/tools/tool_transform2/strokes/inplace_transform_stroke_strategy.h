@@ -176,7 +176,9 @@ private:
     void finalizeStrokeImpl(QVector<KisStrokeJobData *> &mutatedJobs, bool saveCommands);
 
     void finishAction(QVector<KisStrokeJobData *> &mutatedJobs);
-    void redrawRecordedStrokes(QVector<KisStrokeJobData *> &mutatedJobs);
+    /// Solstice: with @p initialArgs, for the transform the stroke started
+    /// with (a cancelled continued transform), otherwise the current one
+    void redrawRecordedStrokes(QVector<KisStrokeJobData *> &mutatedJobs, bool initialArgs);
     void cancelAction(QVector<KisStrokeJobData *> &mutatedJobs);
     void addDirtyRect(KisNodeSP node, const QRect &rect, int levelOfDetail);
 
