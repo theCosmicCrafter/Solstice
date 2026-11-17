@@ -178,7 +178,7 @@ class Settings(QObject):
     server_mode: ServerMode
     _server_mode = Setting(
         _("Server Management"),
-        ServerMode.undefined,
+        ServerMode.managed,
         _("To generate images, the plugin connects to a ComfyUI server"),
     )
 

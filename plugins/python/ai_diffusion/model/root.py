@@ -88,10 +88,10 @@ class Root(QObject):
 
         if server.state is ServerState.update_required:
             await server.upgrade(cb)
-        elif server.state is ServerState.missing_resources:
+        elif server.state in (ServerState.not_installed, ServerState.missing_resources):
             await server.install(cb)
             required = {m.id.string for m in resources.required_models}
-            missing = [r for r in server.missing_resources if r in required]
+            missing = sorted({r for r in server.missing_resources if r in required})
             if missing:
                 await server.download(missing, cb)
 
