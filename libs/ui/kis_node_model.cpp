@@ -309,6 +309,14 @@ void KisNodeModel::setDummiesFacade(KisDummiesFacadeBase *dummiesFacade,
         }
     }
 
+    if (dummiesFacade != oldDummiesFacade) {
+        // Queued updates name the old facade's dummies; the compressor
+        // would deliver them to the new index converter, or to none when
+        // the document closes.
+        m_d->updateCompressor.stop();
+        m_d->updateQueue.clear();
+    }
+
     m_d->image = image;
     m_d->dummiesFacade = dummiesFacade;
     m_d->parentOfRemovedNode = 0;
@@ -841,6 +849,7 @@ bool KisNodeModel::dropMimeData(const QMimeData * data, Qt::DropAction action, i
     }
 
     return KisMimeData::insertMimeLayers(data,
+                                         KisMimeData::MimeFromDragAndDrop,
                                          m_d->image,
                                          m_d->shapeController,
                                          parentDummy,
@@ -869,7 +878,7 @@ void KisNodeModel::setDropEnabled(const QMimeData *data) {
     // the only robust implementation seems to set all flags correctly, which is done here.
 
     bool copyNode = false;
-    KisNodeList nodes = KisMimeData::loadNodesFast(data, m_d->image, m_d->shapeController, copyNode);
+    KisNodeList nodes = KisMimeData::loadNodesFast(data, KisMimeData::MimeFromDragAndDrop, m_d->image, m_d->shapeController, copyNode);
     m_d->dropEnabled.clear();
     updateDropEnabled(nodes);
 }

@@ -9,6 +9,7 @@
 
 #include <QElapsedTimer>
 #include <QFloat16>
+#include <QScopeGuard>
 #include <QThread>
 #include <QThreadPool>
 #include <QtConcurrent>
@@ -591,6 +592,61 @@ void KisGpuEngineTest::testSoftwareDevicesRefused()
                                       VK_PHYSICAL_DEVICE_TYPE_OTHER}) {
         QVERIFY(KisGpuContext::acceptsDeviceType(type, false));
     }
+}
+
+void KisGpuEngineTest::testUnverifiedDevicesNeedOptIn()
+{
+    // The rule itself needs no GPU: only NVIDIA Blackwell counts as verified.
+    auto device = [](quint32 vendorId, quint32 deviceId) {
+        KisGpuDeviceInfo info;
+        info.vendorId = vendorId;
+        info.deviceId = deviceId;
+        return info;
+    };
+    const KisGpuDeviceInfo blackwell = device(0x10DE, 0x2BB1); // RTX PRO 6000 Blackwell
+    const KisGpuDeviceInfo ada = device(0x10DE, 0x2684); // GeForce RTX 4090
+    const KisGpuDeviceInfo amd = device(0x1002, 0x744C);
+    const KisGpuDeviceInfo intel = device(0x8086, 0x56A0);
+    QVERIFY(blackwell.isVerified());
+    QVERIFY(!ada.isVerified());
+    QVERIFY(!amd.isVerified());
+    QVERIFY(!intel.isVerified());
+
+    qunsetenv("KRITA_GPU_TREAT_DEVICE_AS_UNVERIFIED");
+    for (const KisGpuDeviceInfo &info : {blackwell, ada, amd, intel}) {
+        // without the requirement (tests, and users who allowed other cards)
+        QVERIFY(KisGpuContext::acceptsDevice(info, false));
+    }
+    QVERIFY(KisGpuContext::acceptsDevice(blackwell, true));
+    QVERIFY(!KisGpuContext::acceptsDevice(ada, true));
+    QVERIFY(!KisGpuContext::acceptsDevice(amd, true));
+    QVERIFY(!KisGpuContext::acceptsDevice(intel, true));
+
+    // The refusal as the application sees it, on whatever device this
+    // machine has: the development switch makes it count as unverified.
+    QString error;
+    if (!KisGpuContext::create(&error)) {
+        QSKIP(qPrintable(QStringLiteral("no usable GPU: %1").arg(error)));
+    }
+    qputenv("KRITA_GPU_TREAT_DEVICE_AS_UNVERIFIED", "1");
+    const auto restore = qScopeGuard([] {
+        qunsetenv("KRITA_GPU_TREAT_DEVICE_AS_UNVERIFIED");
+    });
+    QVERIFY(!KisGpuContext::acceptsDevice(blackwell, true));
+
+    KisGpuContext::Options options;
+    options.requireVerifiedDevice = true;
+    KisGpuDeviceInfo refused;
+    error.clear();
+    QVERIFY(!KisGpuContext::create(options, &error, &refused));
+    QVERIFY(!refused.name.isEmpty());
+    QVERIFY2(error.contains(refused.name), qPrintable(error));
+
+    // Allowed by the user: the same device starts the engine.
+    options.requireVerifiedDevice = false;
+    KisGpuDeviceInfo notRefused;
+    QVERIFY(KisGpuContext::create(options, &error, &notRefused));
+    QVERIFY(notRefused.name.isEmpty());
 }
 
 void KisGpuEngineTest::testTilePoolAllocation()

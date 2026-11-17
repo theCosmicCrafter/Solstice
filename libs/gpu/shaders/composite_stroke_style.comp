@@ -1,0 +1,233 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Krita contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Composites one layer with a Stroke layer style (outside, solid color)
+ * onto destination tiles (Solstice: GPU engine phase 4.114,
+ * docs/agent/gpu-engine.md). Only pixels inside the clip rect are written.
+ *
+ * It reproduces, per pixel, what KisLayerStyleProjectionPlane::apply() and
+ * KisLsStrokeFilter::applyStroke() do on the CPU:
+ *
+ *  1. A = opacityU8 of the layer pixel (KoColorSpaceMaths::scaleToA).
+ *  2. The layer is blended onto the destination with its alpha maxed out
+ *     where A > 0 (KritaUtils::ThresholdCeil).
+ *  3. D = the dilated A: a convolution with KisGaussianKernel's dilate
+ *     matrix, summed in double, clamped to 0..255 and rounded like
+ *     qRound() (KisConvolutionPainter on an 8-bit selection).
+ *  4. The knockout coverage is D erased by A: UINT8_MULT(255 - A, D).
+ *  5. The stroke color is blended onto the destination as it was before
+ *     the layer (the style's mergedStyle device), and copied through the
+ *     knockout coverage onto the result of step 2 (the Copy composite op
+ *     with a selection, KisLayerStyleKnockoutBlower::apply()).
+ *
+ * Compile with -DTILE_F16 for RGBA16F tiles; every result written to a
+ * device is then rounded to half, as on the CPU. Basic blend modes only.
+ */
+#version 460
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+
+#ifdef TILE_F16
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#define PIXEL f16vec4
+#define LOAD_PIXEL(v) vec4(v)
+#define STORE_PIXEL(v) f16vec4(v)
+#else
+#define PIXEL vec4
+#define LOAD_PIXEL(v) (v)
+#define STORE_PIXEL(v) (v)
+#endif
+
+#extension GL_GOOGLE_include_directive : require
+#include "composite_blend.glsl"
+#include "composite_over.glsl"
+
+layout(local_size_x = 256) in;
+
+layout(buffer_reference, std430, buffer_reference_align = 8) buffer TilePixels
+{
+    PIXEL px[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer AddressTable
+{
+    uint64_t addr[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer KernelTable
+{
+    double value[];
+};
+
+layout(push_constant) uniform Params
+{
+    AddressTable dstTiles; // tileCount, row-major over gridWidth columns
+    AddressTable layerTiles; // layerTableSize.x * layerTableSize.y; 0 = no tile
+    KernelTable kernel; // (2 * radius + 1)^2 weights, row-major
+    uint tileCount;
+    uint gridWidth;
+    ivec4 clip; // x0, y0, x1, y1 (exclusive) in grid pixels
+    ivec2 layerBias; // grid pixel + bias = pixel in the layer's table
+    ivec2 layerTableSize; // tiles
+    vec4 strokeColor; // tile memory order
+    float layerOpacity;
+    uint layerOp;
+    uint layerAlphaLocked;
+    uint layerChannelMask;
+    float strokeOpacity;
+    uint strokeOp;
+    uint strokeAlphaLocked;
+    uint strokeChannelMask;
+    int radius;
+}
+params;
+
+const uint PixelsPerTile = 64 * 64;
+
+bool layerPixel(ivec2 position, out vec4 pixel)
+{
+    const ivec2 p = position + params.layerBias;
+    if (any(lessThan(p, ivec2(0)))) {
+        return false;
+    }
+    const ivec2 tile = p >> 6;
+    if (any(greaterThanEqual(tile, params.layerTableSize))) {
+        return false;
+    }
+    const uint64_t address = params.layerTiles.addr[uint(tile.y * params.layerTableSize.x + tile.x)];
+    if (address == uint64_t(0)) {
+        return false;
+    }
+    pixel = LOAD_PIXEL(TilePixels(address).px[uint((p.y & 63) * 64 + (p.x & 63))]);
+    return true;
+}
+
+// KoColorSpace::opacityU8() of an RGBA float pixel
+uint alphaU8(float alpha)
+{
+#ifdef TILE_F16
+    // KoColorSpaceMaths<half, quint8>::scaleToA(): half(a * 255), truncated
+    const float v = float(float16_t(alpha * 255.0));
+    return uint(clamp(v, 0.0, 255.0));
+#else
+    // KoColorSpaceMaths<float, quint8>::scaleToA(): int(clamp(a * 255) + 0.5f)
+    precise float v = alpha * 255.0;
+    precise float rounded = clamp(v, 0.0, 255.0) + 0.5;
+    return uint(rounded);
+#endif
+}
+
+// KisGaussianKernel::applyDilate() at one pixel
+uint dilatedAlpha(ivec2 position)
+{
+    const int size = 2 * params.radius + 1;
+    double sum = 0.0LF;
+    for (int y = 0; y < size && sum < 256.0LF; y++) {
+        for (int x = 0; x < size; x++) {
+            const double weight = params.kernel.value[y * size + x];
+            if (weight == 0.0LF) {
+                continue;
+            }
+            vec4 pixel;
+            if (!layerPixel(position + ivec2(x, y) - ivec2(params.radius), pixel)) {
+                continue;
+            }
+            sum += weight * double(alphaU8(pixel.a));
+        }
+    }
+    // limitValue() to 0..255, then qRound(): int(v + 0.5)
+    return uint(min(sum, 255.0LF) + 0.5LF);
+}
+
+// UINT8_MULT
+uint mult8(uint a, uint b)
+{
+    const uint c = a * b + 0x80u;
+    return ((c >> 8) + c) >> 8;
+}
+
+vec4 blend(uint op, vec4 dst, vec4 src, float opacity, bool alphaLocked, uint channels)
+{
+    vec4 result = op == OpOver ? compositeOver(dst, src, opacity, alphaLocked, 1.0, channels)
+                               : compositeGeneric(op, dst, src, opacity, alphaLocked, 1.0, channels);
+#ifdef TILE_F16
+    result = vec4(f16vec4(result));
+#endif
+    return result;
+}
+
+// The Copy composite op of src onto dst through a coverage byte 1..254
+vec4 copyThroughMask(vec4 dst, vec4 src, uint coverage)
+{
+#ifdef TILE_F16
+    // KoCompositeOpCopy2 on half channels: every assignment rounds.
+    const float opacity = float(float16_t(float(coverage) * (1.0 / 255.0)));
+    const float newAlpha = float(float16_t((src.a - dst.a) * opacity + dst.a));
+    if (newAlpha == 0.0) {
+        return vec4(dst.rgb, 0.0);
+    }
+    const vec3 dstMult = vec3(f16vec3(dst.rgb * dst.a));
+    const vec3 srcMult = vec3(f16vec3(src.rgb * src.a));
+    const vec3 blended = vec3(f16vec3((srcMult - dstMult) * opacity + dstMult));
+    return vec4(f16vec4(vec4(blended / newAlpha, newAlpha)));
+#else
+    // KoOptimizedCompositeOpCopy128
+    precise float opacity = float(coverage) * (1.0 / 255.0);
+    precise float newAlpha = dst.a + opacity * (src.a - dst.a);
+    if (newAlpha == 0.0) {
+        return vec4(0.0);
+    }
+    precise vec3 dstMult = dst.rgb * dst.a;
+    precise vec3 srcMult = src.rgb * src.a;
+    precise vec3 blended = dstMult + opacity * (srcMult - dstMult);
+    precise vec3 color = blended / newAlpha;
+    return vec4(min(color, vec3(1.0)), newAlpha);
+#endif
+}
+
+void main()
+{
+    const uint tile = gl_WorkGroupID.x;
+    if (tile >= params.tileCount) {
+        return;
+    }
+
+    const ivec2 tileOrigin = ivec2(int(tile % params.gridWidth), int(tile / params.gridWidth)) * 64;
+    TilePixels dstTile = TilePixels(params.dstTiles.addr[tile]);
+
+    for (uint index = gl_LocalInvocationID.x; index < PixelsPerTile; index += gl_WorkGroupSize.x) {
+        const ivec2 position = tileOrigin + ivec2(int(index % 64), int(index / 64));
+        if (any(lessThan(position, params.clip.xy)) || any(greaterThanEqual(position, params.clip.zw))) {
+            continue;
+        }
+
+        const vec4 before = LOAD_PIXEL(dstTile.px[index]);
+        vec4 result = before;
+
+        // The layer, with its alpha maxed out where it is visible at all.
+        vec4 layer;
+        uint alpha = 0;
+        if (layerPixel(position, layer)) {
+            alpha = alphaU8(layer.a);
+            if (alpha > 0) {
+                layer.a = 1.0;
+            }
+            result = blend(params.layerOp, before, layer, params.layerOpacity, params.layerAlphaLocked != 0,
+                           params.layerChannelMask);
+        }
+
+        // The stroke: outside the layer, as far as the dilated alpha reaches.
+        if (alpha < 255) {
+            const uint coverage = mult8(255 - alpha, dilatedAlpha(position));
+            if (coverage > 0) {
+                const vec4 stroke = blend(params.strokeOp, before, params.strokeColor, params.strokeOpacity,
+                                          params.strokeAlphaLocked != 0, params.strokeChannelMask);
+                result = coverage == 255 ? stroke : copyThroughMask(result, stroke, coverage);
+            }
+        }
+
+        dstTile.px[index] = STORE_PIXEL(result);
+    }
+}

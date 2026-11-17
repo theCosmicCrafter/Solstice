@@ -24,6 +24,7 @@ private:
     void showSelectionMaskPopup();
     void setForegroundColor(int slot);
     void showFastExportDialog();
+    void runSavedExports(bool checkedOnly);
     void showRenameDialog();
     void pickColorFromScreen();
     void applyCustomSettings();

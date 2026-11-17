@@ -47,6 +47,10 @@ public:
 
     void cursorMoved(const QPointF &cursorPos);
 
+    /// Solstice: the next stroke erases @p targets
+    /// (KisResourcesSnapshot::setThroughLayerTargets())
+    void setThroughLayerTargets(const KisNodeList &targets);
+
     /**
      * @param event The event
      * @param pixelCoords The position of the KoPointerEvent, in pixel coordinates.

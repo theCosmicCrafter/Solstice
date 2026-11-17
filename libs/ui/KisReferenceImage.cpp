@@ -33,6 +33,12 @@
 #include <KisPart.h>
 
 #include "kis_clipboard.h"
+#include <QFutureWatcher>
+#include <QtConcurrent>
+#include <filter/kis_filter.h>
+#include <filter/kis_filter_registry.h>
+#include <KisGlobalResourcesInterface.h>
+#include <kis_paint_device.h>
 
 struct KisReferenceImage::Private : public QSharedData
 {
@@ -44,6 +50,10 @@ struct KisReferenceImage::Private : public QSharedData
 
     QImage image;
     QImage cachedImage;
+    QImage filteredImage;
+    QVector<FilterEffect> effects;
+    bool filtersEnabled = true;
+    bool filterCacheReady = false;
     KisQImagePyramid mipmap;
 
     qreal saturation{1.0};
@@ -92,16 +102,17 @@ struct KisReferenceImage::Private : public QSharedData
     }
 
     void updateCache() {
+        const QImage &input = filteredImage.isNull() ? image : filteredImage;
         if (saturation < 1.0) {
-            cachedImage = KritaUtils::convertQImageToGrayA(image);
+            cachedImage = KritaUtils::convertQImageToGrayA(input);
 
             if (saturation > 0.0) {
                 QPainter gc2(&cachedImage);
                 gc2.setOpacity(saturation);
-                gc2.drawImage(QPoint(), image);
+                gc2.drawImage(QPoint(), input);
             }
         } else {
-            cachedImage = image;
+            cachedImage = input;
         }
 
         mipmap = KisQImagePyramid(cachedImage, false);
@@ -153,10 +164,16 @@ KisReferenceImage::KisReferenceImage()
 KisReferenceImage::KisReferenceImage(const KisReferenceImage &rhs)
     : KoShape(rhs)
     , d(rhs.d)
-{}
+{
+    d->filteredImage = QImage();
+    d->cachedImage = QImage();
+    d->filterCacheReady = false;
+}
 
 KisReferenceImage::~KisReferenceImage()
-{}
+{
+    delete m_filterWatcher;
+}
 
 KisReferenceImage * KisReferenceImage::fromFile(const QString &filename, const KisCoordinatesConverter &converter, QWidget *parent)
 {
@@ -183,9 +200,11 @@ KisReferenceImage * KisReferenceImage::fromFile(const QString &filename, const K
 
 KisReferenceImage *KisReferenceImage::fromClipboard(const KisCoordinatesConverter &converter)
 {
-    const auto sz = KisClipboard::instance()->clipSize();
-    KisPaintDeviceSP clip = KisClipboard::instance()->clip({0, 0, sz.width(), sz.height()}, true);
-    return fromPaintDevice(clip, converter, nullptr);
+    KisImageSP clipImage = KisClipboard::instance()->clipImage(true);
+    if (!clipImage) {
+        return nullptr;
+    }
+    return fromPaintDevice(clipImage->projection(), converter, nullptr);
 }
 
 KisReferenceImage *
@@ -225,6 +244,7 @@ KisReferenceImage *KisReferenceImage::fromQImage(const KisCoordinatesConverter &
 void KisReferenceImage::paint(QPainter &gc) const
 {
     if (!parent()) return;
+    const_cast<KisReferenceImage *>(this)->ensureFilterCache();
 
     gc.save();
 
@@ -304,6 +324,7 @@ void KisReferenceImage::setFilename(const QString &filename)
 
 QColor KisReferenceImage::getPixel(QPointF position)
 {
+    ensureFilterCache();
     if (transparency() == 1.0) return Qt::transparent;
 
     const QSizeF shapeSize = size();
@@ -340,6 +361,16 @@ void KisReferenceImage::saveXml(QDomDocument &document, QDomElement &parentEleme
 
     element.setAttribute("opacity", KisDomUtils::toString(1.0 - transparency()));
     element.setAttribute("saturation", KisDomUtils::toString(d->saturation));
+    QDomElement stack = document.createElement("solstice-filters");
+    stack.setAttribute("enabled", d->filtersEnabled ? "1" : "0");
+    for (const auto &effect : std::as_const(d->effects)) {
+        QDomElement entry = document.createElement("effect");
+        entry.setAttribute("id", effect.id);
+        entry.setAttribute("enabled", effect.enabled ? "1" : "0");
+        entry.appendChild(document.createTextNode(effect.configuration));
+        stack.appendChild(entry);
+    }
+    element.appendChild(stack);
 
     parentElement.appendChild(element);
 }
@@ -371,6 +402,12 @@ KisReferenceImage * KisReferenceImage::fromXml(const QDomElement &elem)
 
     qreal saturation = KisDomUtils::toDouble(elem.attribute("saturation", "1"));
     reference->setSaturation(saturation);
+    const QDomElement stack = elem.firstChildElement("solstice-filters");
+    QVector<FilterEffect> effects;
+    for (auto entry = stack.firstChildElement("effect"); !entry.isNull(); entry = entry.nextSiblingElement("effect")) {
+        effects.append({entry.attribute("id"), entry.text(), entry.attribute("enabled", "1") == "1"});
+    }
+    reference->setFilterEffects(effects, stack.attribute("enabled", "1") == "1");
 
     return reference;
 }
@@ -423,4 +460,116 @@ QImage KisReferenceImage::getImage()
 KoShape *KisReferenceImage::cloneShape() const
 {
     return new KisReferenceImage(*this);
+}
+
+QVector<KisReferenceImage::FilterEffect> KisReferenceImage::filterEffects() const
+{
+    return d->effects;
+}
+
+bool KisReferenceImage::filtersEnabled() const
+{
+    return d->filtersEnabled;
+}
+
+void KisReferenceImage::setFilterEffects(const QVector<FilterEffect> &effects, bool enabled)
+{
+    m_previewActive = false;
+    d->effects = effects;
+    d->filtersEnabled = enabled;
+    d->filterCacheReady = false;
+    ++m_filterRevision;
+    if (!enabled || effects.isEmpty()) {
+        d->filteredImage = QImage();
+        d->cachedImage = QImage();
+    }
+    update();
+}
+
+namespace
+{
+using FilterJobs = QVector<QPair<KisFilterSP, KisFilterConfigurationSP>>;
+FilterJobs prepareFilterJobs(const QVector<KisReferenceImage::FilterEffect> &effects)
+{
+    FilterJobs jobs;
+    for (const auto &effect : effects) {
+        if (!effect.enabled)
+            continue;
+        auto filter = KisFilterRegistry::instance()->value(effect.id);
+        if (!filter || !filter->supportsAdjustmentLayers())
+            continue;
+        auto config = filter->factoryConfiguration(KisGlobalResourcesInterface::instance());
+        config->fromXML(effect.configuration);
+        if (!filter->configurationAllowedForMask(config))
+            continue;
+        config->createLocalResourcesSnapshot();
+        jobs.append({filter, config});
+    }
+    return jobs;
+}
+QImage renderJobs(const QImage &source, const FilterJobs &jobs)
+{
+    KisPaintDeviceSP device = new KisPaintDevice(KoColorSpaceRegistry::instance()->rgb8());
+    device->convertFromQImage(source, KoColorSpaceRegistry::instance()->p709SRGBProfile());
+    for (const auto &job : jobs) {
+        if (job.second->isCompatible(device))
+            job.first->process(device, source.rect(), job.second);
+        device->crop(source.rect());
+    }
+    return device->convertToQImage(KoColorSpaceRegistry::instance()->p709SRGBProfile(), source.rect());
+}
+} // namespace
+
+QImage KisReferenceImage::renderFilterEffects(const QImage &source, const QVector<FilterEffect> &effects)
+{
+    return renderJobs(source, prepareFilterJobs(effects));
+}
+
+void KisReferenceImage::previewFilterEffects(const QVector<FilterEffect> &effects, bool enabled)
+{
+    m_previewActive = true;
+    m_previewEnabled = enabled;
+    m_previewEffects = effects;
+    d->filterCacheReady = false;
+    ++m_filterRevision;
+    if (!enabled || effects.isEmpty()) {
+        d->filteredImage = QImage();
+        d->cachedImage = QImage();
+    }
+    update();
+}
+
+void KisReferenceImage::ensureFilterCache()
+{
+    if (d->filterCacheReady || m_filterWatcher)
+        return;
+    const auto effects = m_previewActive ? m_previewEffects : d->effects;
+    const bool enabled = m_previewActive ? m_previewEnabled : d->filtersEnabled;
+    if (!enabled || effects.isEmpty()) {
+        d->filterCacheReady = true;
+        return;
+    }
+    const auto revision = m_filterRevision;
+    const QImage source = d->image;
+    const auto jobs = prepareFilterJobs(effects);
+    auto *watcher = new QFutureWatcher<QImage>();
+    m_filterWatcher = watcher;
+    QObject::connect(watcher, &QFutureWatcher<QImage>::finished, watcher, [this, watcher, revision]() {
+        if (revision == m_filterRevision) {
+            d->filteredImage = watcher->result();
+            d->cachedImage = QImage();
+            d->filterCacheReady = true;
+        }
+        m_filterWatcher = nullptr;
+        watcher->deleteLater();
+        update();
+    });
+    watcher->setFuture(QtConcurrent::run([source, jobs]() {
+        try {
+            return renderJobs(source, jobs);
+        } catch (...) {
+            warnUI << "Reference image filter processing failed";
+            return source;
+        }
+    }));
 }

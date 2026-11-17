@@ -31,6 +31,7 @@ public:
 
     static QByteArray fetchFile(const QUrl &remote);
 
+
 private Q_SLOTS:
     void error(QNetworkReply::NetworkError error);
 

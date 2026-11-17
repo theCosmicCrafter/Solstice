@@ -254,7 +254,7 @@ KisApplication::KisApplication(const QString &key, int &argc, char **argv)
         KisConfig cfg(true);
         QString widgetStyleFromConfig = cfg.widgetStyle();
         if (KisSolsticeStyle::isStyleKey(widgetStyleFromConfig)) {
-            // Solstice: Fusion with flat common controls (ui-modernization-plan.md)
+            // Solstice: Fusion with flat common controls (docs/agent/ui-modernization.md)
             qApp->setStyle(new KisSolsticeStyle());
         } else if (widgetStyleFromConfig != "") {
             qApp->setStyle(widgetStyleFromConfig);

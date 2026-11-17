@@ -74,6 +74,7 @@ struct KisToolFreehandHelper::Private
     QVector<KisFreehandStrokeInfo*> strokeInfos;
     KisResourcesSnapshotSP resources;
     KisStrokeId strokeId;
+    KisNodeList throughLayerTargets;
 
     KisPaintInformation previousPaintInformation;
     // Used only by basic, weighted and pixel smoothing.
@@ -295,6 +296,11 @@ bool KisToolFreehandHelper::isRunning() const
     return bool(m_d->strokeId);
 }
 
+void KisToolFreehandHelper::setThroughLayerTargets(const KisNodeList &targets)
+{
+    m_d->throughLayerTargets = targets;
+}
+
 void KisToolFreehandHelper::initPaintImpl(qreal startAngle,
                                           const KisPaintInformation &pi,
                                           KoCanvasResourceProvider *resourceManager,
@@ -319,6 +325,10 @@ void KisToolFreehandHelper::initPaintImpl(qreal startAngle,
                                               bounds);
     if(overrideNode) {
         m_d->resources->setCurrentNode(overrideNode);
+    }
+    if (!m_d->throughLayerTargets.isEmpty()) {
+        m_d->resources->setThroughLayerTargets(m_d->throughLayerTargets);
+        m_d->throughLayerTargets.clear();
     }
 
     const bool airbrushing = m_d->resources->needsAirbrushing();

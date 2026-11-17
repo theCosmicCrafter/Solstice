@@ -6,6 +6,7 @@
 #ifndef KISGPULAYERCOMPOSITOR_H
 #define KISGPULAYERCOMPOSITOR_H
 
+#include <QPoint>
 #include <QRect>
 #include <QString>
 #include <QVector>
@@ -180,7 +181,19 @@ public:
         /// Copy the layer's pixels (@p fill where it has no tile) instead of
         /// blending, ignoring the other fields and coverage (COMPOSITE_COPY base copy).
         bool replace = false;
+        /// With @p replace and a @p channelMask other than 0xf: the Copy
+        /// composite op at full opacity with channel flags. Only the enabled
+        /// channels are replaced; with alpha disabled, transparent layer
+        /// pixels change nothing.
         float fill[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // tile memory order, as float
+        /**
+         * Phase 4.112: the layer's tiles are shifted against the destination
+         * grid by 0..63 pixels per axis. A shifted layer has
+         * (gridWidth + 1) * (gridHeight + 1) tiles in layerTiles instead of
+         * tileCount: its tile (c, r) covers the grid pixels from
+         * ((c - 1) * 64 + shift.x(), (r - 1) * 64 + shift.y()).
+         */
+        QPoint shift;
     };
 
     ~KisGpuLayerCompositor();
@@ -197,7 +210,9 @@ public:
     preparePipelines(KisGpuContext &context, KisGpuTileFormat format, bool extended, QString *errorMessage = nullptr);
 
     /**
-     * @param layerTiles layer-major, layerTiles[layer * tileCount + tile]; 0 skips the tile
+     * @param layerTiles the layers' tile tables one after another, each
+     * row-major: tileCount tiles (the destination grid), or the larger grid
+     * of a shifted layer (Layer::shift); 0 skips the tile
      * @param dstTiles destination tiles (read and written)
      * @param mask optional single-layer coverage; copied into the
      * internal table buffer before return, with a 16 MiB limit

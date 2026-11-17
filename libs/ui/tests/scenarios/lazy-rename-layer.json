@@ -1,0 +1,152 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "lazy-rename-layer",
+  "description": "Rename Alternative renames the active layer and sets its color label from the dialog's name and color, without touching other layers; the rename is one undo step; with Save checked the name becomes a preset button that renames and labels another layer.",
+  "covers": "Lazy Tools Rename Alternative (rename_alternative), manual entry, Save to name_color_list.txt, preset buttons, KisNodeManager::setNodeName undo",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "add_new_paint_layer"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.name": "Paint Layer 1",
+        "layers.0.colorLabel": 0
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "rename_alternative",
+        "async": true
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Rename Layer",
+        "className": "QLineEdit",
+        "value": "tc-ink"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Rename Layer",
+        "className": "QComboBox",
+        "value": 3
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Rename Layer",
+        "className": "QCheckBox",
+        "value": true
+      },
+      "expect": {
+        "widget.text": "Save"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Rename Layer",
+        "text": "OK"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "active": "tc-ink",
+        "layers.0.name": "tc-ink",
+        "layers.0.colorLabel": 3,
+        "layers.1.name": "Background",
+        "layers.1.colorLabel": 0
+      }
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Node Rename"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.name": "Paint Layer 1"
+      }
+    },
+    {
+      "call": "layer_activate",
+      "args": {
+        "name": "Background"
+      },
+      "expect": {
+        "active": "Background"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "rename_alternative",
+        "async": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Rename Layer",
+        "className": "QPushButton",
+        "text": "tc-ink",
+        "index": 0
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.1.name": "tc-ink",
+        "layers.1.colorLabel": 3,
+        "layers.0.name": "Paint Layer 1"
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    }
+  ]
+}

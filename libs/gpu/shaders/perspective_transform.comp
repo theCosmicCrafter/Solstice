@@ -1,0 +1,371 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Krita contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * The perspective backward-map pass of KisPerspectiveTransformWorker (GPU
+ * engine): for every destination pixel inside the recorded row spans, the
+ * 3x3 projective backward map of QTransform::do_map(), then bilinear or
+ * nearest-neighbour sampling, bit-identical to the CPU worker.
+ *
+ * The CPU iterates the destination region's rects and visits every pixel
+ * inside them; the row/span tables here describe the same pixel set, one
+ * list of [xStart, xEnd) spans per row. Each visited pixel maps through the
+ * backward transform; a source point inside the clip rect is sampled and
+ * written, a source point outside it is not. What happens to the other
+ * pixels of the destination tile grid depends on the mode:
+ *
+ *  - OVERWRITE_ALL (KisPerspectiveTransformWorker::runImpl()): they get
+ *    the destination's default pixel, which is what the cleared
+ *    destination shows after the CPU run;
+ *  - KEEP_UNWRITTEN (KisPerspectiveTransformWorker::runPartialDst()):
+ *    they keep the content the destination access uploaded.
+ *
+ * The result equals the CPU bit for bit:
+ *  - QTransform::do_map() in doubles: the m11*x + m21*y + dx form, the
+ *    Q_NEAR_CLIP clamp of the w coordinate and the 1/w multiply (affine
+ *    backward transforms have w == 1, so the same arithmetic applies);
+ *  - QRectF::contains() on the clip rect: the edges are included, and a
+ *    NaN coordinate compares false everywhere, so it counts as inside —
+ *    the non-finite guard of the sampling below then flags the pass;
+ *  - KisRandomSubAccessor::sampledOldRawData(): qRound()ed bilinear
+ *    qint16 weights and KoMixColorsOpImpl::mixColors() with their sum;
+ *  - nearest neighbour: the pixel at qRound()ed coordinates.
+ * A sample that needs a pixel outside the source tile grid, or a
+ * non-finite source point, sets the failure flag; the caller discards
+ * the result and runs the CPU path.
+ *
+ * Compile with -DTILE_F16 for RGBA16F tiles.
+ */
+#version 460
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+
+#ifdef TILE_F16
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#define PIXEL f16vec4
+#else
+#define PIXEL vec4
+#endif
+
+layout(local_size_x = 64, local_size_y = 1) in;
+
+const int ModeOverwriteAll = 0; // KisGpuPerspectiveWorker::OverwriteAll
+const int ModeKeepUnwritten = 1; // KisGpuPerspectiveWorker::KeepUnwritten
+
+const double NearClip = 1.0e-6LF; // Q_NEAR_CLIP for qreal == double
+
+layout(buffer_reference, std430, buffer_reference_align = 8) buffer TilePixels
+{
+    PIXEL px[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer AddressTable
+{
+    uint64_t addr[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer RowTable
+{
+    // (offset, count) into the span table for the row (regionTop + index).
+    ivec2 row[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer SpanTable
+{
+    // [xStart, xEnd) per span, in image coordinates.
+    ivec2 span[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer FlagBuffer
+{
+    uint failed;
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 32) readonly buffer Params
+{
+    dvec4 clipRect; // normalized source clip rect: left, top, right, bottom
+    double backward[9]; // m11, m21, m31(dx), m12, m22, m32(dy), m13, m23, m33
+    vec4 defaultPixel; // the source device's default pixel (missing tiles)
+    vec4 clearPixel; // the destination's default pixel (ModeOverwriteAll)
+    ivec4 dstGrid; // first tile's image origin.xy, tiles wide, tiles high
+    ivec4 srcGrid;
+    int regionTop; // first row of the row table
+    int rowCount;
+    int mode;
+    int nearest;
+};
+
+layout(push_constant) uniform Constants
+{
+    Params params;
+    AddressTable srcTiles;
+    AddressTable dstTiles;
+    RowTable rows;
+    SpanTable spans;
+    FlagBuffer flag;
+}
+constants;
+
+// The double @p steps representable values away from @p value (same sign).
+double neighborDouble(double value, int steps)
+{
+    uvec2 parts = unpackDouble2x32(value);
+    uint64_t bits = (uint64_t(parts.y) << 32) | uint64_t(parts.x);
+    bits = uint64_t(int64_t(bits) + int64_t(steps));
+    return packDouble2x32(uvec2(uint(bits & 0xffffffffUL), uint(bits >> 32)));
+}
+
+// Correctly rounded a / b (the CPU's IEEE division) for finite operands.
+double exactDivide(double a, double b)
+{
+    precise double q = a / b;
+    if (a == 0.0LF || isinf(q) || isnan(q))
+        return q;
+    double best = q;
+    double bestResidual = abs(fma(-q, b, a));
+    for (int i = -2; i <= 2; ++i) {
+        if (i == 0)
+            continue;
+        precise double candidate = neighborDouble(q, i);
+        precise double residual = abs(fma(-candidate, b, a));
+        if (residual < bestResidual) {
+            best = candidate;
+            bestResidual = residual;
+        }
+    }
+    return best;
+}
+
+// a * b rounded to double, in a form the driver cannot fuse into a following
+// addition: the NVIDIA driver can ignore NoContraction (KisGpuEngineTest::
+// testBlendProbe), and a fused multiply-add changes the last bit.
+double roundedProductD(double a, double b)
+{
+    precise double p = a * b;
+    if (isinf(p) || isnan(p)) return p;
+    precise double error = fma(a, b, -p);
+    return fma(a, b, -error);
+}
+
+// QTransform::do_map(): nx = m11*x + m21*y + dx etc., with the Q_NEAR_CLIP
+// clamp and the reciprocal multiply of the projective case. Affine backward
+// transforms reach the same values: w is exactly 1 then.
+dvec2 backwardMap(double x, double y)
+{
+    const double m11 = constants.params.backward[0];
+    const double m21 = constants.params.backward[1];
+    const double dx = constants.params.backward[2];
+    const double m12 = constants.params.backward[3];
+    const double m22 = constants.params.backward[4];
+    const double dy = constants.params.backward[5];
+    const double m13 = constants.params.backward[6];
+    const double m23 = constants.params.backward[7];
+    const double m33 = constants.params.backward[8];
+    const double nx = roundedProductD(m11, x) + roundedProductD(m21, y) + dx;
+    const double ny = roundedProductD(m12, x) + roundedProductD(m22, y) + dy;
+    precise double w = roundedProductD(m13, x) + roundedProductD(m23, y) + m33;
+    if (w < NearClip)
+        w = NearClip;
+    const double rw = exactDivide(1.0LF, w);
+    return dvec2(roundedProductD(nx, rw), roundedProductD(ny, rw));
+}
+
+// QRectF::contains(): the edges are included; a NaN coordinate makes every
+// comparison false, so such a point counts as inside (like on the CPU).
+bool containsClip(dvec2 p)
+{
+    const dvec4 c = constants.params.clipRect;
+    if (c.x == c.z || c.y == c.w)
+        return false; // null rect
+    return !(p.x < c.x || p.x > c.z || p.y < c.y || p.y > c.w);
+}
+
+// double -> float, rounded to nearest even like a C++ conversion.
+float toFloat(double value)
+{
+    precise float f = float(value);
+    if (isinf(f) || isnan(f) || double(f) == value)
+        return f;
+    float best = f;
+    double bestError = abs(double(f) - value);
+    for (int i = -1; i <= 1; i += 2) {
+        uint bits = floatBitsToUint(f);
+        float candidate = uintBitsToFloat(uint(int(bits) + i));
+        double error = abs(double(candidate) - value);
+        if (error < bestError || (error == bestError && (floatBitsToUint(candidate) & 1u) == 0u)) {
+            best = candidate;
+            bestError = error;
+        }
+    }
+    return best;
+}
+
+#ifdef TILE_F16
+// Imath float -> half rounding (nearest even, denormals included).
+float roundToHalf(float value)
+{
+    uint x = floatBitsToUint(value);
+    if (value == 0.0)
+        return value;
+    uint sign = (x >> 16) & 0x8000u;
+    int e = int((x >> 23) & 0xffu) - 127 + 15;
+    uint m = x & 0x007fffffu;
+    uint h;
+    if (e <= 0) {
+        if (e < -10)
+            return uintBitsToFloat(sign << 16);
+        m |= 0x00800000u;
+        int t = 14 - e;
+        uint a = (1u << uint(t - 1)) - 1u;
+        uint b = (m >> uint(t)) & 1u;
+        h = sign | ((m + a + b) >> uint(t));
+    } else {
+        h = (sign | (uint(e) << 10)) + ((m + 0x00000fffu + ((m >> 13) & 1u)) >> 13);
+    }
+    return unpackHalf2x16(h).x;
+}
+const double ChannelMax = 65504.0LF; // HALF_MAX
+#else
+const double ChannelMax = 3.4028234663852886e38LF; // FLT_MAX
+#endif
+
+float storeChannel(double value)
+{
+    if (value > ChannelMax)
+        value = ChannelMax;
+    if (value < -ChannelMax)
+        value = -ChannelMax;
+    float f = toFloat(value);
+#ifdef TILE_F16
+    f = roundToHalf(f);
+#endif
+    return f;
+}
+
+bool g_failed = false;
+
+PIXEL sourcePixel(int x, int y)
+{
+    const ivec2 p = ivec2(x, y) - constants.params.srcGrid.xy;
+    const ivec2 tile = p >> 6;
+    if (any(lessThan(p, ivec2(0))) || tile.x >= constants.params.srcGrid.z
+        || tile.y >= constants.params.srcGrid.w) {
+        g_failed = true;
+        return PIXEL(constants.params.defaultPixel);
+    }
+    const uint64_t address = constants.srcTiles.addr[tile.y * constants.params.srcGrid.z + tile.x];
+    if (address == 0)
+        return PIXEL(constants.params.defaultPixel);
+    const ivec2 inTile = p & 63;
+    return TilePixels(address).px[inTile.y * 64 + inTile.x];
+}
+
+// KisRandomSubAccessor::moveTo(point) + sampledOldRawData(): the bilinear
+// mix of the four neighbours (as in grid_warp.comp).
+vec4 sampleSource(dvec2 point)
+{
+    if (isnan(point.x) || isnan(point.y) || isinf(point.x) || isinf(point.y) || abs(point.x) > 1.0e9LF
+        || abs(point.y) > 1.0e9LF) {
+        g_failed = true;
+        return vec4(0.0);
+    }
+    const double fx = floor(point.x);
+    const double fy = floor(point.y);
+    const int x = int(fx);
+    const int y = int(fy);
+    precise double hsub = point.x - fx;
+    if (hsub < 0.0LF)
+        hsub = 1.0LF + hsub;
+    precise double vsub = point.y - fy;
+    if (vsub < 0.0LF)
+        vsub = 1.0LF + vsub;
+    precise double invH = 1.0LF - hsub;
+    precise double invV = 1.0LF - vsub;
+    // qRound(d) == int(d + 0.5) for d >= 0 (Qt on x86-64 with SSE2).
+    precise double w0d = roundedProductD(invH * invV, 255.0LF) + 0.5LF;
+    precise double w1d = roundedProductD(invV * hsub, 255.0LF) + 0.5LF;
+    precise double w2d = roundedProductD(vsub * invH, 255.0LF) + 0.5LF;
+    precise double w3d = roundedProductD(hsub * vsub, 255.0LF) + 0.5LF;
+    const int weights[4] = int[4](int(w0d), int(w1d), int(w2d), int(w3d));
+    const int sumOfWeights = weights[0] + weights[1] + weights[2] + weights[3];
+    const ivec2 offsets[4] = ivec2[4](ivec2(0, 0), ivec2(1, 0), ivec2(0, 1), ivec2(1, 1));
+
+    precise double totalR = 0.0LF;
+    precise double totalG = 0.0LF;
+    precise double totalB = 0.0LF;
+    precise double totalAlpha = 0.0LF;
+    for (int k = 0; k < 4; ++k) {
+        const vec4 color = vec4(sourcePixel(x + offsets[k].x, y + offsets[k].y));
+        precise double alphaTimesWeight = double(color.a) * double(weights[k]);
+        precise double r = double(color.r) * alphaTimesWeight;
+        precise double g = double(color.g) * alphaTimesWeight;
+        precise double b = double(color.b) * alphaTimesWeight;
+        totalR = totalR + r;
+        totalG = totalG + g;
+        totalB = totalB + b;
+        totalAlpha = totalAlpha + alphaTimesWeight;
+    }
+    if (!(totalAlpha > 0.0LF))
+        return vec4(0.0);
+    return vec4(storeChannel(exactDivide(totalR, totalAlpha)),
+                storeChannel(exactDivide(totalG, totalAlpha)),
+                storeChannel(exactDivide(totalB, totalAlpha)),
+                storeChannel(exactDivide(totalAlpha, double(sumOfWeights))));
+}
+
+// KisRandomAccessorNG::moveTo(qRound(x), qRound(y)) + oldRawData(): the
+// single pixel at the rounded coordinates.
+PIXEL sampleNearest(dvec2 point)
+{
+    if (isnan(point.x) || isnan(point.y) || isinf(point.x) || isinf(point.y) || abs(point.x) > 1.0e9LF
+        || abs(point.y) > 1.0e9LF) {
+        g_failed = true;
+        return PIXEL(constants.params.defaultPixel);
+    }
+    // qRound(d) == int(d + copysign(0.5, d)) (Qt on x86-64 with SSE2).
+    const int x = int(point.x + (point.x >= 0.0LF ? 0.5LF : -0.5LF));
+    const int y = int(point.y + (point.y >= 0.0LF ? 0.5LF : -0.5LF));
+    return sourcePixel(x, y);
+}
+
+void main()
+{
+    const int gridPixelsX = constants.params.dstGrid.z * 64;
+    const int gridPixelsY = constants.params.dstGrid.w * 64;
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    if (gx >= gridPixelsX || gy >= gridPixelsY)
+        return;
+    const int x = constants.params.dstGrid.x + gx;
+    const int y = constants.params.dstGrid.y + gy;
+
+    PIXEL result = PIXEL(constants.params.clearPixel);
+    bool write = constants.params.mode == ModeOverwriteAll;
+    const int row = y - constants.params.regionTop;
+    if (row >= 0 && row < constants.params.rowCount) {
+        const ivec2 r = constants.rows.row[row];
+        for (int k = 0; k < r.y; ++k) {
+            const ivec2 span = constants.spans.span[r.x + k];
+            if (x >= span.x && x < span.y) {
+                const dvec2 src = backwardMap(double(x), double(y));
+                if (containsClip(src)) {
+                    result = constants.params.nearest != 0 ? sampleNearest(src) : PIXEL(sampleSource(src));
+                    write = true;
+                }
+                break;
+            }
+        }
+    }
+    if (g_failed)
+        constants.flag.failed = 1u;
+    if (!write)
+        return;
+
+    const ivec2 tile = ivec2(gx, gy) >> 6;
+    const uint64_t address = constants.dstTiles.addr[tile.y * constants.params.dstGrid.z + tile.x];
+    if (address == 0)
+        return;
+    const ivec2 inTile = ivec2(gx, gy) & 63;
+    TilePixels(address).px[inTile.y * 64 + inTile.x] = result;
+}

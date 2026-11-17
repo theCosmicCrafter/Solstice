@@ -342,8 +342,7 @@ void KisPaintOpSettingsWidget::lockProperties(const QModelIndex& index)
         KisPropertiesConfigurationSP p = new KisPropertiesConfiguration();
         // Solstice: the locked values are what the options model writes for
         // the option (its id is the option's Tool Options id), the same data
-        // that reaches the preset (docs/agent/brush-option-shared-model-plan.md,
-        // phase 5)
+        // that reaches the preset (docs/agent/brush-option-shared-model.md)
         KisPaintOpOptionStateBase *state =
             m_d->optionsModel ? m_d->optionsModel->option(info.option->toolOptionsId()) : nullptr;
         if (state) {

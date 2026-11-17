@@ -22,6 +22,8 @@ set(kritaui_LIB_SRCS
     canvas/kis_grid_decoration.cpp
     canvas/kis_grid_config.cpp
     canvas/kis_prescaled_projection.cpp
+    canvas/kis_view_res_vector_compositor.cpp
+    canvas/kis_view_res_vector_decoration.cpp
     canvas/kis_qpainter_canvas.cpp
     canvas/kis_projection_backend.cpp
     canvas/kis_update_info.cpp
@@ -144,6 +146,9 @@ set(kritaui_LIB_SRCS
     KisToolOptionsBrushItems.cpp
     KisBrushStrokeLayer.cpp
     KisBrushStrokeLayerIO.cpp
+    brushstrokelayer/KisBrushStrokeLayerMonitor.cpp
+    brushstrokelayer/KisBrushStrokeLayerReplay.cpp
+    brushstrokelayer/KisBrushStrokeLayerTransform.cpp
     KisToolOptionsParameters.cpp
     kis_paintop_settings_widget.cpp
     kis_png_converter.cpp
@@ -163,6 +168,9 @@ set(kritaui_LIB_SRCS
     kis_canvas_controls_manager.cpp
     kis_multinode_property.cpp
     KisWelcomePageWidget.cpp
+    assetlibrary/KisAssetLibrarySettings.cpp
+    assetlibrary/KisAssetLibraryBrowser.cpp
+    assetlibrary/KisAssetLibraryOperations.cpp
     KisWelcomeAssetLibraryWidget.cpp
     KisUiFont.cpp
     KisIdleTasksManager.cpp
@@ -171,6 +179,11 @@ set(kritaui_LIB_SRCS
     KisTextPropertiesManager.cpp
     KisLongPressEventFilter.cpp
     KisSolsticeLazyTools.cpp
+    lazytools/KisLazyToolsRenamePresets.cpp
+    lazytools/KisLazyToolsRenameDialog.cpp
+    lazytools/KisLazyToolsFastExport.cpp
+    lazytools/KisLazyToolsFastExportPresets.cpp
+    lazytools/KisLazyToolsFastExportDialog.cpp
     utils/KisMenuMnemonicFilter.cpp
     KisGpuEngineUi.cpp
 
@@ -204,6 +217,7 @@ set(kritaui_LIB_SRCS
     tool/kis_painting_information_builder.cpp
     tool/kis_stabilized_events_sampler.cpp
     tool/kis_tool_freehand_helper.cpp
+    tool/KisThroughLayerEraserTargets.cpp
     tool/kis_tool_multihand_helper.cpp
     tool/kis_figure_painting_tool_helper.cpp
     tool/KisAsynchronousStrokeUpdateHelper.cpp
@@ -341,6 +355,7 @@ set(kritaui_LIB_SRCS
     utils/KisFileIconCreator.cpp
     utils/KisRecentDocumentsModelWrapper.cpp
     utils/KisRecentFileIconCache.cpp
+    utils/KisShowInFileExplorer.cpp
 
     input/kis_input_manager.cpp
     input/kis_input_manager_p.cpp
@@ -472,6 +487,8 @@ set(kritaui_LIB_SRCS
 
     KisReferenceImagesDecoration.cpp
     KisReferenceImage.cpp
+    KisReferenceImageFilters.cpp
+    KisReferenceFilterTemplates.cpp
     flake/KisReferenceImagesLayer.cpp
     flake/KisReferenceImagesLayer.h
     KisMouseClickEater.cpp
@@ -678,6 +695,10 @@ endif()
 kis_add_library(kritaui SHARED ${kritaui_HEADERS_MOC} ${kritaui_LIB_SRCS})
 if(HAVE_KRITA_GPU_ENGINE AND WIN32)
     target_compile_definitions(kritaui PRIVATE HAVE_KRITA_GPU_CANVAS)
+endif()
+if(KRITAUI_ASAN)
+    target_compile_options(kritaui PRIVATE -fsanitize=address -shared-libsan -fno-omit-frame-pointer)
+    target_link_options(kritaui PRIVATE -fsanitize=address -shared-libsan)
 endif()
 
 target_sources(kritaui

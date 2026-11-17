@@ -86,6 +86,8 @@
 #include "KisMainWindow.h"
 #include "KisMimeDatabase.h"
 #include "kis_file_name_requester.h"
+#include "lazytools/KisLazyToolsFastExport.h"
+#include "lazytools/KisLazyToolsRenamePresets.h"
 #include <KisWidgetConnectionUtils.h>
 #include <dialogs/KisFrameRateLimitModel.h>
 #include <KisPlatformPluginInterfaceFactory.h>
@@ -246,6 +248,34 @@ GeneralTab::GeneralTab(QWidget *_parent, const char *_name)
             QStringLiteral("Solstice/ForegroundColor%1").arg(i + 1), defaultSlotColors[i]);
         slotButtons[i]->setColor(KoColor(color, KoColorSpaceRegistry::instance()->rgb8()));
     }
+    for (const QString &folder : KisLazyToolsFastExport::explorerFolders()) {
+        lstFastExportFolders->addItem(QDir::toNativeSeparators(folder));
+    }
+    btnRemoveFastExportFolder->setEnabled(false);
+    connect(lstFastExportFolders, &QListWidget::itemSelectionChanged, this, [this] {
+        btnRemoveFastExportFolder->setEnabled(!lstFastExportFolders->selectedItems().isEmpty());
+    });
+    connect(btnAddFastExportFolder, &QPushButton::clicked, this, [this] {
+        const QString folder = QFileDialog::getExistingDirectory(this, i18n("Register Folder"));
+        if (folder.isEmpty()) {
+            return;
+        }
+        const QString nativeFolder = QDir::toNativeSeparators(folder);
+        if (lstFastExportFolders->findItems(nativeFolder, Qt::MatchFixedString).isEmpty()) {
+            lstFastExportFolders->addItem(nativeFolder);
+        }
+    });
+    connect(btnRemoveFastExportFolder, &QPushButton::clicked, this, [this] {
+        qDeleteAll(lstFastExportFolders->selectedItems());
+    });
+    intRenameGridColumns->setValue(cfg.readEntry<int>("Solstice/RenameGridColumns", 3));
+    intRenameDialogWidth->setValue(cfg.readEntry<int>("Solstice/RenameDialogWidth", 500));
+    intRenameDialogHeight->setValue(cfg.readEntry<int>("Solstice/RenameDialogHeight", 800));
+    const QString renamePresetsPath = KisLazyToolsRenamePresets::filePath();
+    txtRenamePresets->setPlainText(KisLazyToolsRenamePresets::readText(renamePresetsPath));
+    // Only an edited list is written back, so an untouched file keeps its bytes.
+    txtRenamePresets->document()->setModified(false);
+    lblRenamePresetsFile->setText(i18n("Saved in %1", QDir::toNativeSeparators(renamePresetsPath)));
 
     // HACK ALERT!
     // QScrollArea contents are opaque at multiple levels
@@ -253,6 +283,8 @@ GeneralTab::GeneralTab(QWidget *_parent, const char *_name)
     {
         scrollAreaWidgetContents->setAutoFillBackground(false);
         scrollAreaWidgetContents->parentWidget()->setAutoFillBackground(false);
+        customScrollAreaWidgetContents->setAutoFillBackground(false);
+        customScrollAreaWidgetContents->parentWidget()->setAutoFillBackground(false);
     }
 
     //
@@ -765,6 +797,7 @@ void GeneralTab::setDefault()
     m_spnInterfaceScale->setValue(100);
     cmbCustomFont->setCurrentFont(qApp->font());
     intFontSize->setValue(qApp->font().pointSize());
+
 
     m_cmbMDIType->setCurrentIndex((int)QMdiArea::TabbedView);
     m_chkRubberBand->setChecked(cfg.useOpenGL(true));
@@ -1565,8 +1598,8 @@ void TabletSettingsTab::setDefault()
         KisConfig(true).useRightMiddleTabletButtonWorkaround(true));
 
 #if defined Q_OS_WIN && (defined QT5_HAS_WINTAB_SWITCH || QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
-    m_page->radioWintab->setChecked(!cfg.useWin8PointerInput(true));
-    m_page->radioWin8PointerInput->setChecked(cfg.useWin8PointerInput(true));
+        m_page->radioWintab->setChecked(!cfg.useWin8PointerInput(true));
+        m_page->radioWin8PointerInput->setChecked(cfg.useWin8PointerInput(true));
 #else
         m_page->grpTabletApi->setVisible(false);
 #endif
@@ -2792,6 +2825,22 @@ bool KisDlgPreferences::editPreferences(std::optional<PageDesc>page)
         for (int i = 0; i < 9; ++i) {
             cfg.writeEntry<QColor>(QStringLiteral("Solstice/ForegroundColor%1").arg(i + 1),
                                    slotButtons[i]->color().toQColor());
+        }
+        QStringList fastExportFolders;
+        for (int i = 0; i < m_general->lstFastExportFolders->count(); ++i) {
+            fastExportFolders << m_general->lstFastExportFolders->item(i)->text();
+        }
+        KisLazyToolsFastExport::setExplorerFolders(fastExportFolders);
+        cfg.writeEntry<int>("Solstice/RenameGridColumns", m_general->intRenameGridColumns->value());
+        cfg.writeEntry<int>("Solstice/RenameDialogWidth", m_general->intRenameDialogWidth->value());
+        cfg.writeEntry<int>("Solstice/RenameDialogHeight", m_general->intRenameDialogHeight->value());
+        if (m_general->txtRenamePresets->document()->isModified()) {
+            const QString path = KisLazyToolsRenamePresets::filePath();
+            if (!KisLazyToolsRenamePresets::writeText(path, m_general->txtRenamePresets->toPlainText())) {
+                QMessageBox::warning(m_general,
+                                     i18n("Rename Layer Presets"),
+                                     i18n("Could not save the rename presets to %1.", QDir::toNativeSeparators(path)));
+            }
         }
         if (m_general->chkUseCustomFont->isChecked()) {
             cfg.writeEntry<QString>("custom_system_font", m_general->cmbCustomFont->currentFont().family());

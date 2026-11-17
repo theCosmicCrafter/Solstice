@@ -36,6 +36,7 @@
 #include "KisInterstrokeDataTransactionWrapperFactory.h"
 #include "KisRunnableStrokeJobsInterface.h"
 #include "KisRunnableStrokeJobUtils.h"
+#include "FreehandStrokeRunnableJobDataWithUpdate.h"
 #include <KisStrokeCompatibilityInfo.h>
 #include "KisAnimAutoKey.h"
 
@@ -64,12 +65,14 @@ public:
             // owned by the wrapper, so that a job dropped by cancelling
             // the stroke is deleted too
             QSharedPointer<KisRunnableStrokeJobDataBase> wrapped(job);
-            KisRunnableStrokeJobData *sequential = new KisRunnableStrokeJobData(
-                [wrapped]() {
-                    wrapped->run();
-                },
-                KisStrokeJobData::SEQUENTIAL,
-                job->exclusivity());
+            auto run = [wrapped]() {
+                wrapped->run();
+            };
+            // a dab job that asks for a canvas update when it is done
+            // (FreehandStrokeStrategy) still does
+            KisRunnableStrokeJobData *sequential = dynamic_cast<FreehandStrokeRunnableJobDataWithUpdate *>(job)
+                ? new FreehandStrokeRunnableJobDataWithUpdate(run, KisStrokeJobData::SEQUENTIAL, job->exclusivity())
+                : new KisRunnableStrokeJobData(run, KisStrokeJobData::SEQUENTIAL, job->exclusivity());
             sequential->setLevelOfDetailOverride(job->levelOfDetailOverride());
             jobs << sequential;
         }
@@ -268,7 +271,9 @@ void KisPainterBasedStrokeStrategy::initPainters(KisPaintDeviceSP targetDevice,
 
         if(hasIndirectPainting) {
             painter->setCompositeOpId(indirectPaintingCompositeOp);
-            painter->setOpacityToUnit();
+            if (!m_throughLayerBuildUp) {
+                painter->setOpacityToUnit();
+            }
             painter->setChannelFlags(QBitArray());
         }
     }
@@ -317,19 +322,70 @@ void KisPainterBasedStrokeStrategy::deletePainters()
     m_maskedPainters.clear();
 }
 
+KisNodeList KisPainterBasedStrokeStrategy::strokeNodes() const
+{
+    const KisNodeList targets = m_resources->throughLayerTargets();
+    return targets.isEmpty() ? KisNodeList{m_resources->currentNode()} : targets;
+}
+
+void KisPainterBasedStrokeStrategy::attachThroughLayerTarget(KisNodeSP node, KisPaintDeviceSP device)
+{
+    KisPaintLayer *layer = dynamic_cast<KisPaintLayer *>(node.data());
+    KIS_SAFE_ASSERT_RECOVER_RETURN(layer);
+
+    layer->setTemporaryTarget(device);
+    layer->setTemporaryCompositeOp(m_resources->compositeOpId());
+    layer->setTemporaryOpacity(m_throughLayerBuildUp ? OPACITY_OPAQUE_F : m_resources->opacity());
+    layer->setTemporarySelection(layer->selection());
+
+    // an alpha locked layer is a target only when the tool is told to erase
+    // it, and erasing changes nothing but alpha. The Erase blend mode ignores
+    // the alpha lock today on the CPU and the GPU; unlock alpha explicitly so
+    // that the erase does not depend on that.
+    QBitArray channelFlags = layer->channelLockFlags();
+    if (layer->alphaLocked()) {
+        channelFlags |= layer->colorSpace()->channelFlags(false, true);
+    }
+    layer->setTemporaryChannelFlags(channelFlags);
+}
+
+void KisPainterBasedStrokeStrategy::updateStrokeNodes(const QVector<QRect> &rects)
+{
+    if (m_resources->throughLayerTargets().size() <= 1) {
+        targetNode()->setDirty(rects);
+        return;
+    }
+
+    // one walker over the stack; a merge walker per target would composite
+    // the whole stack once for each of them
+    KisImageSP image = m_resources->image();
+    image->refreshGraphAsync(image->root(), rects, image->bounds());
+}
+
 void KisPainterBasedStrokeStrategy::initStrokeCallback()
 {
     QVector<KisRunnableStrokeJobData*> jobs;
 
     KritaUtils::addJobSequential(jobs, [this] () {
-        KisNodeSP node = m_resources->currentNode();
+        QVector<KUndo2Command *> commands;
+        for (KisNodeSP node : strokeNodes()) {
+            KUndo2Command *autoKeyframeCommand =
+                KisAutoKey::tryAutoCreateDuplicatedFrame(node->paintDevice(),
+                                                         KisAutoKey::AllowBlankMode |
+                                                             KisAutoKey::SupportsLod);
+            if (autoKeyframeCommand) {
+                commands << autoKeyframeCommand;
+            }
+        }
 
-        KUndo2Command *autoKeyframeCommand =
-            KisAutoKey::tryAutoCreateDuplicatedFrame(node->paintDevice(),
-                                                     KisAutoKey::AllowBlankMode |
-                                                         KisAutoKey::SupportsLod);
-        if (autoKeyframeCommand) {
-            m_autokeyCommand.reset(autoKeyframeCommand);
+        if (commands.size() == 1) {
+            m_autokeyCommand.reset(commands.first());
+        } else if (!commands.isEmpty()) {
+            auto *composite = new KisCommandUtils::CompositeCommand();
+            for (KUndo2Command *command : commands) {
+                composite->addCommand(command);
+            }
+            m_autokeyCommand.reset(composite);
         }
     });
 
@@ -338,8 +394,18 @@ void KisPainterBasedStrokeStrategy::initStrokeCallback()
         KisPaintDeviceSP paintDevice = node->paintDevice();
         KisPaintDeviceSP targetDevice = paintDevice;
         KisSelectionSP selection =  m_resources->activeSelection();
-        bool hasIndirectPainting = supportsIndirectPainting() && m_resources->needsIndirectPainting();
-        const QString indirectCompositeOp = m_resources->indirectPaintingCompositeOp();
+        // Solstice: the dabs of a through-layer erase are painted once, on a
+        // temporary target that all its layers share
+        const bool throughLayers = !m_resources->throughLayerTargets().isEmpty();
+        m_throughLayerBuildUp = throughLayers && !m_resources->needsIndirectPainting();
+        bool hasIndirectPainting =
+            supportsIndirectPainting() && (throughLayers || m_resources->needsIndirectPainting());
+        const QString indirectCompositeOp =
+            m_throughLayerBuildUp ? QString(COMPOSITE_OVER) : m_resources->indirectPaintingCompositeOp();
+        // KisOpacityOption moves the opacity sensors to the flow when it sees
+        // a temporary target, which Build-up dabs must not do: they keep
+        // their opacity only when the paint ops are created before it is set
+        bool attachWhenPaintOpsExist = false;
 
         if (hasIndirectPainting) {
             KisIndirectPaintingSupport *indirect =
@@ -349,14 +415,23 @@ void KisPainterBasedStrokeStrategy::initStrokeCallback()
                 targetDevice = paintDevice->createCompositionSourceDevice();
                 targetDevice->setParentNode(node);
                 indirect->setCurrentColor(m_resources->currentFgColor());
-                indirect->setTemporaryTarget(targetDevice);
+                if (throughLayers) {
+                    attachWhenPaintOpsExist = m_throughLayerBuildUp;
+                    if (!attachWhenPaintOpsExist) {
+                        for (KisNodeSP target : strokeNodes()) {
+                            attachThroughLayerTarget(target, targetDevice);
+                        }
+                    }
+                } else {
+                    indirect->setTemporaryTarget(targetDevice);
 
-                indirect->setTemporaryCompositeOp(m_resources->compositeOpId());
-                indirect->setTemporaryOpacity(m_resources->opacity());
-                indirect->setTemporarySelection(selection);
+                    indirect->setTemporaryCompositeOp(m_resources->compositeOpId());
+                    indirect->setTemporaryOpacity(m_resources->opacity());
+                    indirect->setTemporarySelection(selection);
 
-                QBitArray channelLockFlags = m_resources->channelLockFlags();
-                indirect->setTemporaryChannelFlags(channelLockFlags);
+                    QBitArray channelLockFlags = m_resources->channelLockFlags();
+                    indirect->setTemporaryChannelFlags(channelLockFlags);
+                }
             }
             else {
                 hasIndirectPainting = false;
@@ -365,6 +440,11 @@ void KisPainterBasedStrokeStrategy::initStrokeCallback()
 
         std::unique_ptr<KisInterstrokeDataFactory> interstrokeDataFactory(
             KisPaintOpRegistry::instance()->createInterstrokeDataFactory(m_resources->currentPaintOpPreset()));
+
+        // Solstice: a smudge preset's interstroke data belongs to one layer
+        if (throughLayers) {
+            interstrokeDataFactory.reset();
+        }
 
         KIS_SAFE_ASSERT_RECOVER(!interstrokeDataFactory || !hasIndirectPainting) {
             interstrokeDataFactory.reset();
@@ -402,8 +482,10 @@ void KisPainterBasedStrokeStrategy::initStrokeCallback()
             m_gpuMasking = targetDevice->defaultBounds()->currentLevelOfDetail() == 0
                 && m_resources->currentPaintOpPreset()->paintOp().id() == QLatin1String("paintbrush")
                 && KisGpuMaskingWorker::supports(targetDevice->colorSpace(), compositeOpId);
-            if (auto *indirect = dynamic_cast<KisIndirectPaintingSupport *>(node.data())) {
-                indirect->setTemporaryTargetPaintedOnCpu(!m_gpuMasking);
+            for (KisNodeSP target : strokeNodes()) {
+                if (auto *indirect = dynamic_cast<KisIndirectPaintingSupport *>(target.data())) {
+                    indirect->setTemporaryTargetPaintedOnCpu(!m_gpuMasking);
+                }
             }
 
             initPainters(m_maskingBrushRenderer->strokeDevice(),
@@ -414,6 +496,12 @@ void KisPainterBasedStrokeStrategy::initStrokeCallback()
 
         } else {
             initPainters(targetDevice, nullptr, selection, hasIndirectPainting, indirectCompositeOp);
+        }
+
+        if (attachWhenPaintOpsExist) {
+            for (KisNodeSP target : strokeNodes()) {
+                attachThroughLayerTarget(target, targetDevice);
+            }
         }
 
         m_targetDevice = targetDevice;
@@ -513,14 +601,22 @@ void KisPainterBasedStrokeStrategy::finishStrokeCallback()
 
         QVector<KisRunnableStrokeJobData*> jobs;
 
-        indirect->mergeToLayerThreaded(node,
-                               parentCommand.data(),
-                               KUndo2MagicString(),
-                               -1,
-                               &jobs);
+        for (KisNodeSP target : strokeNodes()) {
+            dynamic_cast<KisIndirectPaintingSupport *>(target.data())
+                ->mergeToLayerThreaded(target, parentCommand.data(), KUndo2MagicString(), -1, &jobs);
+        }
+
+        // Solstice: after the merge's commands (deleted with the job if
+        // it never runs)
+        auto closingCommand = std::make_shared<std::unique_ptr<KUndo2Command>>(std::move(m_closingUndoCommand));
 
         KritaUtils::addJobBarrier(jobs,
-            [parentCommand, undoAdapter] () {
+            [parentCommand, undoAdapter, closingCommand] () {
+                if (*closingCommand) {
+                    KisCommandUtils::CompositeCommand *wrapper =
+                        new KisCommandUtils::CompositeCommand(parentCommand.data());
+                    wrapper->addCommand(closingCommand->release());
+                }
                 parentCommand->redo();
 
                 if (undoAdapter) {
@@ -541,6 +637,9 @@ void KisPainterBasedStrokeStrategy::finishStrokeCallback()
     else {
         KisCommandUtils::CompositeCommand *wrapper = new KisCommandUtils::CompositeCommand(parentCommand.data());
         wrapper->addCommand(m_transaction->endAndTake());
+        if (m_closingUndoCommand) {
+            wrapper->addCommand(m_closingUndoCommand.release());
+        }
 
         m_transaction.reset();
         deletePainters();
@@ -554,9 +653,10 @@ void KisPainterBasedStrokeStrategy::finishStrokeCallback()
 
 }
 
-void KisPainterBasedStrokeStrategy::setAdditionalUndoCommand(KUndo2Command *command)
+void KisPainterBasedStrokeStrategy::setAdditionalUndoCommand(KUndo2Command *command, KUndo2Command *closingCommand)
 {
     m_additionalUndoCommand.reset(command);
+    m_closingUndoCommand.reset(closingCommand);
 }
 
 void KisPainterBasedStrokeStrategy::setSequentialDabRendering(bool value)
@@ -567,6 +667,7 @@ void KisPainterBasedStrokeStrategy::setSequentialDabRendering(bool value)
 void KisPainterBasedStrokeStrategy::cancelStrokeCallback()
 {
     m_additionalUndoCommand.reset();
+    m_closingUndoCommand.reset();
     if (!m_transaction) return;
 
     if (m_autokeyCommand) {
@@ -585,8 +686,10 @@ void KisPainterBasedStrokeStrategy::cancelStrokeCallback()
             deletePainters();
 
             KisRegion region = t->region();
-            indirect->setTemporaryTarget(nullptr);
-            node->setDirty(region);
+            for (KisNodeSP target : strokeNodes()) {
+                dynamic_cast<KisIndirectPaintingSupport *>(target.data())->setTemporaryTarget(nullptr);
+            }
+            updateStrokeNodes(region.rects());
             revert = false;
         }
     }
@@ -600,39 +703,47 @@ void KisPainterBasedStrokeStrategy::cancelStrokeCallback()
 
 void KisPainterBasedStrokeStrategy::suspendStrokeCallback()
 {
-    KisNodeSP node = m_resources->currentNode();
-    KisIndirectPaintingSupport *indirect =
-        dynamic_cast<KisIndirectPaintingSupport*>(node.data());
+    for (KisNodeSP node : strokeNodes()) {
+        KisIndirectPaintingSupport *indirect =
+            dynamic_cast<KisIndirectPaintingSupport*>(node.data());
 
-    if(indirect && indirect->hasTemporaryTarget()) {
-        m_finalMergeSuspender = indirect->trySuspendFinalMerge();
-        indirect->setTemporaryTarget(nullptr);
+        if(indirect && indirect->hasTemporaryTarget()) {
+            m_finalMergeSuspenders << indirect->trySuspendFinalMerge();
+            indirect->setTemporaryTarget(nullptr);
+        }
     }
 }
 
 void KisPainterBasedStrokeStrategy::resumeStrokeCallback()
 {
-    KisNodeSP node = m_resources->currentNode();
-    KisIndirectPaintingSupport *indirect =
-        dynamic_cast<KisIndirectPaintingSupport*>(node.data());
+    const bool throughLayers = !m_resources->throughLayerTargets().isEmpty();
 
-    if(indirect) {
-        // todo: don't ask about paint device
-        // todo:change to an assert
-        if (node->paintDevice() != m_targetDevice) {
-            indirect->setTemporaryTarget(m_targetDevice);
-            indirect->setTemporaryCompositeOp(m_resources->compositeOpId());
-            indirect->setTemporaryOpacity(m_resources->opacity());
-            indirect->setTemporarySelection(m_activeSelection);
+    for (KisNodeSP node : strokeNodes()) {
+        KisIndirectPaintingSupport *indirect =
+            dynamic_cast<KisIndirectPaintingSupport*>(node.data());
 
-            QBitArray channelLockFlags = m_resources->channelLockFlags();
-            indirect->setTemporaryChannelFlags(channelLockFlags);
-            // Solstice (GPU engine): see initStrokeCallback()
-            indirect->setTemporaryTargetPaintedOnCpu(m_maskingBrushRenderer && !m_gpuMasking);
+        if(indirect) {
+            // todo: don't ask about paint device
+            // todo:change to an assert
+            if (node->paintDevice() != m_targetDevice) {
+                if (throughLayers) {
+                    attachThroughLayerTarget(node, m_targetDevice);
+                } else {
+                    indirect->setTemporaryTarget(m_targetDevice);
+                    indirect->setTemporaryCompositeOp(m_resources->compositeOpId());
+                    indirect->setTemporaryOpacity(m_resources->opacity());
+                    indirect->setTemporarySelection(m_activeSelection);
+
+                    QBitArray channelLockFlags = m_resources->channelLockFlags();
+                    indirect->setTemporaryChannelFlags(channelLockFlags);
+                }
+                // Solstice (GPU engine): see initStrokeCallback()
+                indirect->setTemporaryTargetPaintedOnCpu(m_maskingBrushRenderer && !m_gpuMasking);
+            }
         }
     }
 
-    m_finalMergeSuspender.clear();
+    m_finalMergeSuspenders.clear();
 }
 
 KisNodeSP KisPainterBasedStrokeStrategy::targetNode() const

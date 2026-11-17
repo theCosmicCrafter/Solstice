@@ -30,7 +30,7 @@ class QIODevice;
 /**
  * One brush stroke as the brush tool drew it on a KisBrushStrokeLayer: the
  * stroke's jobs and the state they were drawn with, enough to draw it again
- * at another resolution. See docs/agent/brush-stroke-layer-plan.md.
+ * at another resolution. See docs/agent/brush-stroke-layer.md.
  */
 struct KRITAUI_EXPORT KisRecordedBrushStroke {
     /// A FreehandStrokeStrategy::Data job of type POINT, LINE or CURVE
@@ -56,6 +56,11 @@ struct KRITAUI_EXPORT KisRecordedBrushStroke {
     int strokeInfoCount = 1;
     /// the offset of the layer's paint device when the stroke was drawn
     QPoint deviceOffset;
+    /// the canvas mirror (Mirror Horizontally/Vertically): the painter
+    /// mirrors every dab around @p mirrorAxesCenter, in image pixels
+    bool mirrorHorizontal = false;
+    bool mirrorVertical = false;
+    QPointF mirrorAxesCenter;
 
     /// Where the dab spacing of each mirrored copy started: the brush tool
     /// starts it from the cursor's last hover position and direction
@@ -77,7 +82,7 @@ using KisRecordedBrushStrokeSP = QSharedPointer<const KisRecordedBrushStroke>;
 /**
  * A paint layer that keeps the brush strokes drawn on it, so that they can
  * be drawn again at a new resolution (Solstice). Only the brush tool paints
- * on it. See docs/agent/brush-stroke-layer-plan.md.
+ * on it. See docs/agent/brush-stroke-layer.md.
  */
 class KRITAUI_EXPORT KisBrushStrokeLayer : public KisPaintLayer, public KisRedrawableLayerInterface
 {
@@ -111,8 +116,18 @@ public:
 
     /// The next check may be skipped: the change since the last one was a
     /// recorded brush stroke or a redraw, which keep the pixels and the
-    /// record together
+    /// record together, unless another change came with it
     void markChangeRecorded();
+
+    /// Pixel changes between these calls (a recorded brush stroke drawing,
+    /// its undo and redo, a redraw) belong to a recorded change; any other
+    /// change makes the next check run (KisRecordedChangeScopeCommand)
+    void beginRecordedChange();
+    void endRecordedChange();
+
+    /// A change inside a recorded scope that the record does not hold (a
+    /// stroke that turned out not to be recordable): the next check runs
+    void markChangeUnrecorded();
 
     /**
      * The record after the Move Tool moved the pixels inside @p mask (the
@@ -123,6 +138,16 @@ public:
      * record no longer matches the pixels).
      */
     KUndo2Command *createSelectionMoveCommand(KisPaintDeviceSP mask, const QPoint &offset);
+
+    /**
+     * The record after the Move Tool duplicated the pixels inside @p mask
+     * (the selection where it was before the drag) and placed the copy
+     * @p offset away: the strokes that lie inside the selection stay, and
+     * copies of them, moved by @p offset, come last, as the copy is pasted
+     * over everything. nullptr if nothing is copied or a stroke crosses the
+     * selection's edge (the copy holds only part of it).
+     */
+    KUndo2Command *createSelectionDuplicateCommand(KisPaintDeviceSP mask, const QPoint &offset);
 
     /// Whether drawing @p strokes again gives the pixels of @p original;
     /// otherwise @p difference describes how they differ
@@ -152,6 +177,24 @@ public:
                                                                 const QTransform &transform);
 
     /**
+     * Draws the recorded strokes again at the current resolution into the
+     * paint device, replacing what it holds: the layer is exactly its record
+     * again, so anything that is not a recorded stroke (a filter's result,
+     * the cut part of a stroke clipped by a selection) is removed. The
+     * pixels change, the record does not; the background check then takes
+     * down the out-of-sync warning. nullptr when there is no record or the
+     * layer is animated.
+     */
+    KUndo2Command *createRerenderCommand();
+
+    /**
+     * Drops the recorded strokes, keeping the pixels: the layer stays a
+     * brush stroke layer and records new strokes, but until then it scales
+     * its pixels like a paint layer. nullptr when there is no record.
+     */
+    KUndo2Command *createForgetStrokesCommand();
+
+    /**
      * Draws @p strokes again into a new paint device in @p colorSpace, through
      * the brush tool's stroke path with each stroke's seed. The positions are
      * moved by the difference between @p deviceOffset and each stroke's
@@ -166,8 +209,9 @@ public:
 
     /**
      * Writes @p strokes to @p device in Solstice's brush stroke format (the
-     * layer's file in a .kra, KisBrushStrokeLayerIO.cpp). The brush tips
-     * are not embedded; patterns and gradients are.
+     * layer's file in a .kra, KisBrushStrokeLayerIO.cpp). Brush tips,
+     * textures, patterns and gradients are embedded when their data can be
+     * saved; ABR tip images are stored as PNGs.
      */
     static bool saveStrokes(const QVector<KisRecordedBrushStrokeSP> &strokes, QIODevice *device);
 
@@ -187,7 +231,11 @@ private:
     QAtomicInt m_generation;
     /// a check is requested and not yet started
     QAtomicInt m_checkRequested;
+    /// since the last check: a recorded change, and a change outside one
     QAtomicInt m_changeRecorded;
+    QAtomicInt m_unrecordedChange;
+    /// open recorded scopes (beginRecordedChange())
+    QAtomicInt m_recordedChanges;
     QAtomicInt m_recordState{int(RecordState::Unknown)};
 };
 
@@ -205,6 +253,34 @@ public:
 private:
     KisBrushStrokeLayerSP m_layer;
     KisRecordedBrushStrokeSP m_stroke;
+};
+
+/**
+ * Brackets a recorded change in its undo command: an Opening command goes
+ * first and a Closing one last, so that the pixel changes of the commands
+ * between them happen inside KisBrushStrokeLayer::beginRecordedChange() and
+ * endRecordedChange(), in redo and in undo (which runs the commands in
+ * reverse). With @p scopeOpen, the stroke that makes the command has opened
+ * the scope already: the first redo of the Opening command does nothing,
+ * and the first redo of the Closing command (or its destruction without
+ * one) closes it.
+ */
+class KRITAUI_EXPORT KisRecordedChangeScopeCommand : public KUndo2Command
+{
+public:
+    enum Position {
+        Opening,
+        Closing,
+    };
+    KisRecordedChangeScopeCommand(KisBrushStrokeLayer *layer, Position position, bool scopeOpen = false);
+    ~KisRecordedChangeScopeCommand() override;
+    void redo() override;
+    void undo() override;
+
+private:
+    KisBrushStrokeLayerSP m_layer;
+    Position m_position;
+    bool m_scopeOpen;
 };
 
 #endif // KISBRUSHSTROKELAYER_H

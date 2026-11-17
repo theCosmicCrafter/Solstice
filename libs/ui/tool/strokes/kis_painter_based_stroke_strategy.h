@@ -50,7 +50,7 @@ public:
      * Solstice: the paint ops render their dabs one after another instead of
      * on several threads, so that the stroke's pixels do not depend on the
      * threads' timing and the same stroke can be drawn again exactly (the
-     * brush stroke layer, docs/agent/brush-stroke-layer-plan.md). Call it
+     * brush stroke layer, docs/agent/brush-stroke-layer.md). Call it
      * before the stroke starts.
      */
     void setSequentialDabRendering(bool value);
@@ -87,6 +87,9 @@ protected:
      */
     QVector<KisRunnableStrokeJobData*> doMaskingBrushUpdates(const QVector<QRect> &rects);
 
+    /// Solstice: updates the projection of what the stroke painted in @p rects
+    void updateStrokeNodes(const QVector<QRect> &rects);
+
 protected:
 
     /**
@@ -115,8 +118,9 @@ protected:
 
     /// Solstice: @p command becomes part of the stroke's undo command, done
     /// and undone with the painting (e.g. recording the stroke on a brush
-    /// stroke layer). Call it before finishStrokeCallback().
-    void setAdditionalUndoCommand(KUndo2Command *command);
+    /// stroke layer); it comes first, and @p closingCommand, if any, comes
+    /// after the painting's commands. Call it before finishStrokeCallback().
+    void setAdditionalUndoCommand(KUndo2Command *command, KUndo2Command *closingCommand = nullptr);
 
 private:
     void init();
@@ -125,6 +129,11 @@ private:
                       bool hasIndirectPainting,
                       const QString &indirectPaintingCompositeOp);
     void deletePainters();
+    /// Solstice: every node the stroke composites onto
+    KisNodeList strokeNodes() const;
+    /// Solstice: @p node composites the shared device of a through-layer
+    /// erase with its own selection and channel locks
+    void attachThroughLayerTarget(KisNodeSP node, KisPaintDeviceSP device);
     inline int timedID(const QString &id){
         return int(qHash(id));
     }
@@ -141,12 +150,16 @@ private:
     // Solstice (GPU engine): the masking composite runs on the GPU
     // (KisGpuMaskingWorker), decided once per stroke like the brush op's path
     bool m_gpuMasking = false;
+    // Solstice: a Build-up through-layer erase accumulates its dabs in the
+    // shared device at the stroke's opacity, as they would erase one by one
+    bool m_throughLayerBuildUp = false;
 
     KisPaintDeviceSP m_targetDevice;
     KisSelectionSP m_activeSelection;
 
     std::unique_ptr<KUndo2Command> m_autokeyCommand;
     std::unique_ptr<KUndo2Command> m_additionalUndoCommand;
+    std::unique_ptr<KUndo2Command> m_closingUndoCommand;
     bool m_sequentialDabRendering{false};
     QScopedPointer<KisRunnableStrokeJobsInterface> m_sequentialJobs;
 
@@ -156,7 +169,7 @@ private:
     bool m_supportsIndirectPainting {false};
     bool m_supportsContinuedInterstrokeData {false};
 
-    KisIndirectPaintingSupport::FinalMergeSuspenderSP m_finalMergeSuspender;
+    QVector<KisIndirectPaintingSupport::FinalMergeSuspenderSP> m_finalMergeSuspenders;
 
     struct FakeUndoData {
         FakeUndoData();

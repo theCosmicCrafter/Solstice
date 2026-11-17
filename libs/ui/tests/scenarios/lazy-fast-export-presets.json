@@ -1,0 +1,225 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "lazy-fast-export-presets",
+  "description": "Two saved exports added in Fast Image Export (a PNG and a JPEG under typed names) are run by Run All Saved Exports without any dialog: the PNG has the document's pixels, the JPEG its size; the document keeps its file and stays unmodified.",
+  "covers": "Lazy Tools Fast Image Export saved exports: Add from the form, editing the selected export, the fast_image_export_run_all action; a PNG document keeps them for the session only, so it is not marked modified",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "preset": "b) Basic-5 Size Opacity",
+        "size": 30,
+        "opacity": 1,
+        "color": "#c04020"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KritaShape/KisToolBrush"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 60,
+          "y": 80
+        },
+        "to": {
+          "x": 340,
+          "y": 220
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "document_export_png",
+      "args": {
+        "path": "lazy-saved-source.png"
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    },
+    {
+      "call": "document_open",
+      "args": {
+        "path": "lazy-saved-source.png"
+      },
+      "expect": {
+        "document.fileName": "lazy-saved-source.png"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "source": "projection"
+      },
+      "save": {
+        "source": "sha256"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fast_image_export"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "className": "QComboBox",
+        "index": 2,
+        "value": "Same folder as the document"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "toolTip": "Optional file name without the extension. Used only for the active document.",
+        "value": "lazy-saved-png"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Fast Image Export",
+        "text": "Add"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Fast Image Export",
+        "text": "Add"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "className": "QComboBox",
+        "index": 0,
+        "value": "JPEG"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "toolTip": "Optional file name without the extension. Used only for the active document.",
+        "value": "lazy-saved-jpeg"
+      }
+    },
+    {
+      "call": "ui_close",
+      "args": {
+        "window": "Fast Image Export"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fast_image_export_run_all",
+        "async": true
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "window": "Fast Image Export"
+      },
+      "expectError": true
+    },
+    {
+      "call": "session_info",
+      "expect": {
+        "document.fileName": "lazy-saved-source.png",
+        "document.modified": false
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    },
+    {
+      "call": "document_open",
+      "args": {
+        "path": "lazy-saved-png.png"
+      },
+      "expect": {
+        "document.width": 400,
+        "document.height": 300
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "source": "projection"
+      },
+      "expect": {
+        "sha256": {
+          "equals": "$source"
+        }
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    },
+    {
+      "call": "document_open",
+      "args": {
+        "path": "lazy-saved-jpeg.jpg"
+      },
+      "expect": {
+        "document.width": 400,
+        "document.height": 300
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    }
+  ]
+}

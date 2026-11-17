@@ -9,21 +9,14 @@
 #include "KoZoomState.h"
 
 bool KisCanvasState::operator==(const KisCanvasState &other) const {
-    return qFuzzyCompare(zoom, other.zoom) &&
-           qFuzzyCompare(effectiveZoom, other.effectiveZoom) &&
-           zoomMode == other.zoomMode &&
-           qFuzzyCompare(rotation, other.rotation) &&
-           mirrorHorizontally == other.mirrorHorizontally &&
-           mirrorVertically == other.mirrorVertically &&
-           documentOffset == other.documentOffset &&
-           documentOffsetF == other.documentOffsetF &&
-           viewportOffsetF == other.viewportOffsetF &&
-           minimumOffset == other.minimumOffset &&
-           maximumOffset == other.maximumOffset &&
-           canvasSize == other.canvasSize &&
-           qFuzzyCompare(minimumZoom, other.minimumZoom) &&
-           qFuzzyCompare(maximumZoom, other.maximumZoom) &&
-           imageRectInWidgetPixels == other.imageRectInWidgetPixels;
+    return qFuzzyCompare(zoom, other.zoom) && qFuzzyCompare(effectiveZoom, other.effectiveZoom)
+        && zoomMode == other.zoomMode && qFuzzyCompare(rotation, other.rotation)
+        && mirrorHorizontally == other.mirrorHorizontally && mirrorVertically == other.mirrorVertically
+        && documentOffset == other.documentOffset && documentOffsetF == other.documentOffsetF
+        && viewportOffsetF == other.viewportOffsetF && minimumOffset == other.minimumOffset
+        && maximumOffset == other.maximumOffset && canvasSize == other.canvasSize
+        && qFuzzyCompare(devicePixelRatio, other.devicePixelRatio) && qFuzzyCompare(minimumZoom, other.minimumZoom)
+        && qFuzzyCompare(maximumZoom, other.maximumZoom) && imageRectInWidgetPixels == other.imageRectInWidgetPixels;
 }
 
 KisCanvasState KisCanvasState::fromConverter(const KisCoordinatesConverter &converter) {
@@ -40,6 +33,7 @@ KisCanvasState KisCanvasState::fromConverter(const KisCoordinatesConverter &conv
     state.minimumOffset = converter.minimumOffset();
     state.maximumOffset = converter.maximumOffset();
     state.canvasSize = converter.getCanvasWidgetSize();
+    state.devicePixelRatio = converter.devicePixelRatio();
     state.minimumZoom = converter.minZoom();
     state.maximumZoom = converter.maxZoom();
     state.imageRectInWidgetPixels = converter.imageRectInWidgetPixels();

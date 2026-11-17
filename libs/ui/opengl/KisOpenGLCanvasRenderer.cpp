@@ -827,6 +827,11 @@ void KisOpenGLCanvasRenderer::drawImage(const QRect &updateRect)
 
     d->displayShader->setUniformValue(d->displayShader->location(Uniform::ViewportScale), (GLfloat) scaleX);
     d->displayShader->setUniformValue(d->displayShader->location(Uniform::TexelSize), (GLfloat) d->openGLImageTextures->texelSize());
+    // Mirrors the >=2x branch below: bicubic upscale is only valid
+    // while hardware MAG_FILTER is GL_LINEAR (not Nearest mode and
+    // smoothHighZoom on).
+    const bool smoothUpscale = d->filterMode != KisOpenGL::NearestFilterMode && d->smoothHighZoom;
+    d->displayShader->setUniformValue(d->displayShader->location(Uniform::SmoothUpscale), (GLfloat) (smoothUpscale ? 1.0f : 0.0f));
 
     QRect ir = d->openGLImageTextures->storedImageBounds();
     QRect wr = widgetRectInImagePixels.toAlignedRect();
@@ -967,18 +972,10 @@ void KisOpenGLCanvasRenderer::drawImageTiles(int firstCol, int lastCol, int firs
             }
 
             if (currentLodPlane > 0) {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
             } else if (SCALE_MORE_OR_EQUAL_TO(scaleX, scaleY, 2.0)) {
-                // If the user explicitly chose NearestFilterMode, that preference always
-                // wins over smoothHighZoom so pixel-art workflows retain crisp pixels.
-                if (d->filterMode != KisOpenGL::NearestFilterMode && d->smoothHighZoom) {
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                } else {
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                }
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             } else {
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -995,7 +992,11 @@ void KisOpenGLCanvasRenderer::drawImageTiles(int firstCol, int lastCol, int firs
                     break;
                 case KisOpenGL::HighQualityFiltering:
                     if (SCALE_LESS_THAN(scaleX, scaleY, 0.5)) {
+                        // pureLinear8 shader does explicit-LOD taps; keep NEAREST
                         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+                    } else if (SCALE_LESS_THAN(scaleX, scaleY, 1.0)) {
+                        // 50-100% minification: trilinear closes the bilinear gap
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
                     } else {
                         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                     }

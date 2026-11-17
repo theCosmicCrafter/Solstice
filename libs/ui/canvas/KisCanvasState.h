@@ -32,6 +32,7 @@ public:
     QPoint minimumOffset;
     QPoint maximumOffset;
     QSizeF canvasSize;
+    qreal devicePixelRatio {1.0};
     qreal minimumZoom;
     qreal maximumZoom;
     QRectF imageRectInWidgetPixels;

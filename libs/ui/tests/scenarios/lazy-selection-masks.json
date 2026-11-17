@@ -1,0 +1,202 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "lazy-selection-masks",
+  "description": "Create Selection Mask Alternative stores the selection as a mask in the hidden Selection_Mask_Group and deselects; undo restores the selection and then removes the mask, redo brings both back; the Selection Masks popup restores the saved selection.",
+  "covers": "Lazy Tools saved selections (create_selection_mask_alternative, create_selection_mask_popup), undo/redo through the node command adapter, KisSetGlobalSelectionCommand",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 50,
+          "y": 50
+        },
+        "to": {
+          "x": 150,
+          "y": 100
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "selection.selectedPixels": 5000
+      },
+      "save": {
+        "selection": "selection.sha256",
+        "commands": "undo.count"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "create_selection_mask_alternative"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "selection.active": false,
+        "undo.lastCommand": "Deselect"
+      }
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.name": "Selection_Mask_Group",
+        "layers.0.class": "KisGroupLayer",
+        "layers.0.visible": false,
+        "layers.0.children.0.class": "KisSelectionMask",
+        "layers.1.name": "Background"
+      },
+      "save": {
+        "mask": "layers.0.children.0.name"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "selection.active": true,
+        "selection.sha256": {
+          "equals": "$selection"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.name": "Selection Mask",
+        "layers.0.class": "KisSelectionMask",
+        "layers.1.name": "Background"
+      }
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.index": {
+          "equals": "$commands"
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_redo"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_redo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_layers",
+      "expect": {
+        "layers.0.name": "Selection_Mask_Group",
+        "layers.0.children.0.name": {
+          "equals": "$mask"
+        }
+      }
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "selection.active": false
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "create_selection_mask_popup"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Selection Masks",
+        "className": "QToolButton",
+        "toolTip": "$mask"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "selection.active": true,
+        "selection.sha256": {
+          "equals": "$selection"
+        },
+        "selection.bounds": {
+          "equals": {
+            "x": 50,
+            "y": 50,
+            "width": 100,
+            "height": 50
+          }
+        }
+      }
+    },
+    {
+      "call": "ui_close",
+      "args": {
+        "window": "Selection Masks"
+      },
+      "expect": {
+        "closed": 1
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    }
+  ]
+}

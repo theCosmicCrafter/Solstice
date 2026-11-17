@@ -522,6 +522,17 @@ void KisPaintOpPresetsEditor::resourceSelected(KoResourceSP resource)
     // TODO: this gets called multiple times whenever the preset is changed in the presets area
     // the connections probably need to be thought about with this a bit more to keep things in sync
 
+    /**
+     * Solstice: KisPaintopBox calls this for every change of the current
+     * preset, also of its size or opacity, while the editor is closed.
+     * Everything below only fills the editor's own widgets (and searches
+     * the preset list for the current item), and the editor is brought up
+     * to date when it is shown: showEvent() emits brushEditorShown(), and
+     * KisPaintopBox::slotUpdateOptionsWidgetPopup() calls this again.
+     */
+    if (!isVisible())
+        return;
+
     m_d->uiWdgPaintOpPresetSettings.presetWidget->setCurrentResource(resource);
 
     // find the display name of the brush engine and append it to the selected preset display
@@ -929,6 +940,16 @@ void KisPaintOpPresetsEditor::slotUpdatePresetSettings()
     if (!m_d->resourceProvider) {
         return;
     }
+
+    /**
+     * Solstice: connected to the current preset's sigSettingsChanged(),
+     * which fires for every setting change while the editor is closed too.
+     * The buttons below belong to the editor, and the broken-preset check
+     * builds a resource model each time. resourceSelected() runs this again
+     * when the editor is shown.
+     */
+    if (!isVisible())
+        return;
 
     if (!m_d->resourceProvider->currentPreset()) {
         return;

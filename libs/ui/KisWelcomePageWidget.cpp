@@ -48,6 +48,7 @@
 #include <kis_paint_device.h>
 #include <kis_painting_tweaks.h>
 
+#include <utils/KisShowInFileExplorer.h>
 #include <utils/KisUpdaterBase.h>
 
 #include <QCoreApplication>
@@ -666,7 +667,9 @@ void KisWelcomePageWidget::slotRecentDocContextMenuRequest(const QPoint &pos)
     QMenu contextMenu;
     QModelIndex index = recentDocumentsListView->indexAt(pos);
     QAction *actionForget = 0;
+    QAction *actionShowInExplorer = 0;
     if (index.isValid()) {
+        actionShowInExplorer = contextMenu.addAction(KisShowInFileExplorer::actionText());
         actionForget = new QAction(i18n("Forget \"%1\"", index.data(Qt::DisplayRole).toString()), &contextMenu);
         contextMenu.addAction(actionForget);
     }
@@ -674,6 +677,8 @@ void KisWelcomePageWidget::slotRecentDocContextMenuRequest(const QPoint &pos)
 
     if (index.isValid() && triggered == actionForget) {
         m_mainWindow->removeRecentFile(index.data(Qt::ToolTipRole).toString());
+    } else if (index.isValid() && triggered == actionShowInExplorer) {
+        KisShowInFileExplorer::showFile(index.data(Qt::ToolTipRole).toString(), this);
     }
 }
 

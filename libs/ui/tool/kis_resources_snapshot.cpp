@@ -23,6 +23,8 @@
 #include "kis_selection_mask.h"
 #include "kis_algebra_2d.h"
 #include "KisGlobalResourcesInterface.h"
+#include "kis_config.h"
+#include <brushengine/KisMinimumDabSize.h>
 
 struct KisResourcesSnapshot::Private {
     Private()
@@ -59,6 +61,7 @@ struct KisResourcesSnapshot::Private {
     bool presetAllowsLod {false};
     KisSelectionSP selectionOverride;
     bool hasOverrideSelection {false};
+    KisNodeList throughLayerTargets;
 
     KoCanvasResourcesInterfaceSP globalCanvasResourcesInterface;
 };
@@ -111,6 +114,18 @@ KisResourcesSnapshot::KisResourcesSnapshot(KisImageSP image, KisNodeSP currentNo
                     p->cloneWithResourcesSnapshot(KisGlobalResourcesInterface::instance(),
                                                   m_d->globalCanvasResourcesInterface,
                                                   cacheInterface);
+
+            // Solstice: the tool option "At least 1 pixel" travels with the
+            // stroke's own preset clone (docs/agent/brush-minimum-one-pixel.md).
+            // The base class setter keeps the clone's brush and resource
+            // caches, which a notifying KisPaintOpSettings::setProperty()
+            // would clear. Presets passed as presetOverride (Brush Stroke
+            // Layer replay, stroke previews) keep the value they carry.
+            const bool minimumOnePixel =
+                KisConfig(true).readEntry<bool>(KisMinimumDabSize::configKey(), KisMinimumDabSize::defaultEnabled());
+            m_d->currentPaintOpPreset->settings()->KisPropertiesConfiguration::setProperty(
+                KisMinimumDabSize::settingsKey(),
+                minimumOnePixel);
         }
     }
 
@@ -262,6 +277,22 @@ void KisResourcesSnapshot::setCurrentNode(KisNodeSP node)
     m_d->currentNode = node;
 }
 
+void KisResourcesSnapshot::setThroughLayerTargets(const KisNodeList &targets)
+{
+    KIS_SAFE_ASSERT_RECOVER_RETURN(!targets.isEmpty());
+
+    m_d->throughLayerTargets = targets;
+    m_d->currentNode = targets.first();
+    m_d->compositeOpId = COMPOSITE_ERASE;
+    m_d->globalAlphaLock = false;
+    m_d->presetAllowsLod = false;
+}
+
+KisNodeList KisResourcesSnapshot::throughLayerTargets() const
+{
+    return m_d->throughLayerTargets;
+}
+
 void KisResourcesSnapshot::setStrokeStyle(KisPainter::StrokeStyle strokeStyle)
 {
     m_d->strokeStyle = strokeStyle;
@@ -364,6 +395,27 @@ void KisResourcesSnapshot::setMirroring(bool horizontal, bool vertical)
 {
     m_d->mirrorMaskHorizontal = horizontal;
     m_d->mirrorMaskVertical = vertical;
+}
+
+void KisResourcesSnapshot::setMirroring(bool horizontal, bool vertical, const QPointF &axesCenter)
+{
+    setMirroring(horizontal, vertical);
+    m_d->axesCenter = axesCenter;
+}
+
+bool KisResourcesSnapshot::mirrorMaskHorizontal() const
+{
+    return m_d->mirrorMaskHorizontal;
+}
+
+bool KisResourcesSnapshot::mirrorMaskVertical() const
+{
+    return m_d->mirrorMaskVertical;
+}
+
+QPointF KisResourcesSnapshot::axesCenter() const
+{
+    return m_d->axesCenter;
 }
 
 qreal KisResourcesSnapshot::opacity() const

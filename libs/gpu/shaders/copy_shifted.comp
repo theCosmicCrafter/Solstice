@@ -1,0 +1,83 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Krita contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Copies source tiles into destination tiles, shifted by any number of
+ * pixels (Solstice: Clone Layer offsets, docs/agent/clone-layer.md). Every
+ * destination pixel inside the clip rect becomes the source pixel at
+ * (position + shift), or the fill color where the source has no tile, like
+ * KisPainter::copyAreaOptimized() with equal default pixels. Pixels are
+ * copied unconverted. One workgroup per destination tile.
+ * Compile with -DTILE_F16 for RGBA16F tiles.
+ */
+#version 460
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+
+#ifdef TILE_F16
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#define PIXEL f16vec4
+#define STORE_PIXEL(v) f16vec4(v)
+#else
+#define PIXEL vec4
+#define STORE_PIXEL(v) (v)
+#endif
+
+layout(local_size_x = 256) in;
+
+layout(buffer_reference, std430, buffer_reference_align = 8) buffer TilePixels
+{
+    PIXEL px[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer AddressTable
+{
+    uint64_t addr[];
+};
+
+layout(push_constant) uniform Params
+{
+    AddressTable dstTiles; // dstTileCount, row-major over dstGridWidth columns
+    AddressTable srcTiles; // srcGridWidth * srcGridHeight, row-major; 0 = no tile
+    uint dstTileCount;
+    uint dstGridWidth;
+    uint srcGridWidth;
+    uint srcGridHeight;
+    ivec2 shift; // source grid pixel = destination grid pixel + shift
+    ivec2 padding;
+    ivec4 clip; // x0, y0, x1, y1 (exclusive) in destination grid pixels
+    vec4 fill; // the source's default pixel, tile memory order
+}
+params;
+
+void main()
+{
+    const uint tile = gl_WorkGroupID.x;
+    if (tile >= params.dstTileCount) {
+        return;
+    }
+
+    const ivec2 tileOrigin = ivec2(int(tile % params.dstGridWidth), int(tile / params.dstGridWidth)) * 64;
+    TilePixels dstTile = TilePixels(params.dstTiles.addr[tile]);
+    const ivec2 srcGridSize = ivec2(int(params.srcGridWidth), int(params.srcGridHeight)) * 64;
+
+    for (uint index = gl_LocalInvocationID.x; index < 64 * 64; index += gl_WorkGroupSize.x) {
+        const ivec2 position = tileOrigin + ivec2(int(index % 64), int(index / 64));
+        if (any(lessThan(position, params.clip.xy)) || any(greaterThanEqual(position, params.clip.zw))) {
+            continue;
+        }
+        const ivec2 src = position + params.shift;
+        uint64_t address = uint64_t(0);
+        if (all(greaterThanEqual(src, ivec2(0))) && all(lessThan(src, srcGridSize))) {
+            const ivec2 srcTile = src / 64;
+            address = params.srcTiles.addr[uint(srcTile.y) * params.srcGridWidth + uint(srcTile.x)];
+        }
+        if (address == uint64_t(0)) {
+            dstTile.px[index] = STORE_PIXEL(params.fill);
+        } else {
+            const ivec2 inTile = src % 64;
+            dstTile.px[index] = TilePixels(address).px[uint(inTile.y) * 64 + uint(inTile.x)];
+        }
+    }
+}

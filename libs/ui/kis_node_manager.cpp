@@ -73,8 +73,11 @@
 #include "kis_layer_utils.h"
 #include "kis_filter_mask.h"
 
-#include "processing/kis_mirror_processing_visitor.h"
+#include "KisBrushStrokeLayer.h"
 #include "KisView.h"
+#include "kis_undo_adapter.h"
+#include "processing/kis_mirror_processing_visitor.h"
+#include "processing/kis_simple_processing_visitor.h"
 
 #include <kis_signals_blocker.h>
 #include <libs/image/kis_layer_properties_icons.h>
@@ -312,6 +315,14 @@ void KisNodeManager::setup(KisKActionCollection * actionCollection, KisActionMan
     connect(action, SIGNAL(triggered()), this, SLOT(saveVectorLayerAsImage()));
     action->setActivationFlags(KisAction::ACTIVE_SHAPE_LAYER);
 
+    // Solstice: on-demand re-render / drop of a brush stroke layer's
+    // record (docs/agent/brush-stroke-layer-plan.md)
+    action = actionManager->createAction("rerender_brush_strokes");
+    connect(action, SIGNAL(triggered()), this, SLOT(rerenderBrushStrokes()));
+
+    action = actionManager->createAction("forget_brush_strokes");
+    connect(action, SIGNAL(triggered()), this, SLOT(forgetBrushStrokes()));
+
     action = actionManager->createAction("duplicatelayer");
     connect(action, SIGNAL(triggered()), this, SLOT(duplicateActiveNode()));
 
@@ -425,6 +436,12 @@ void KisNodeManager::setup(KisKActionCollection * actionCollection, KisActionMan
 
     action = actionManager->createAction("toggle_layer_inherit_alpha");
     connect(action, SIGNAL(triggered()), this, SLOT(toggleInheritAlpha()));
+
+    action = actionManager->createAction("toggle_layer_clipping");
+    connect(action, SIGNAL(triggered()), this, SLOT(toggleClipping()));
+
+    action = actionManager->createAction("new_clipping_layer");
+    connect(action, SIGNAL(triggered()), this, SLOT(createClippingLayer()));
 
     action = actionManager->createAction("toggle_layer_alpha_lock");
     connect(action, SIGNAL(triggered()), this, SLOT(toggleAlphaLock()));
@@ -1285,6 +1302,92 @@ void KisNodeManager::mirrorNodes(KisNodeList nodes,
     nodesUpdated();
 }
 
+namespace
+{
+/**
+ * Draws a brush stroke layer's recorded strokes again over its content,
+ * inside the image's job queue (rendering takes a while on layers with
+ * many strokes). Solstice, docs/agent/brush-stroke-layer-plan.md.
+ */
+class KisRerenderBrushStrokesVisitor : public KisSimpleProcessingVisitor
+{
+public:
+    void visitNodeWithPaintDevice(KisNode *node, KisUndoAdapter *undoAdapter) override
+    {
+        KisBrushStrokeLayer *layer = dynamic_cast<KisBrushStrokeLayer *>(node);
+        if (!layer) {
+            return;
+        }
+        KUndo2Command *command = layer->createRerenderCommand();
+        if (command) {
+            undoAdapter->addCommand(command);
+        }
+    }
+
+    void visitExternalLayer(KisExternalLayer *layer, KisUndoAdapter *undoAdapter) override
+    {
+        Q_UNUSED(layer);
+        Q_UNUSED(undoAdapter);
+    }
+
+    void visitColorizeMask(KisColorizeMask *mask, KisUndoAdapter *undoAdapter) override
+    {
+        Q_UNUSED(mask);
+        Q_UNUSED(undoAdapter);
+    }
+};
+} // namespace
+
+void KisNodeManager::rerenderBrushStrokes()
+{
+    KisNodeSP node = activeNode();
+    KisBrushStrokeLayer *layer = dynamic_cast<KisBrushStrokeLayer *>(node.data());
+    if (!layer || !canModifyLayer(node)) {
+        return;
+    }
+    if (layer->strokes().isEmpty()) {
+        m_d->view->showFloatingMessage(
+            i18nc("@info:status", "\"%1\" has no recorded brush strokes to draw again", layer->name()),
+            QIcon());
+        return;
+    }
+    KisPaintDeviceSP device = layer->paintDevice();
+    if (!device || device->keyframeChannel()) {
+        m_d->view->showFloatingMessage(
+            i18nc("@info:status", "Re-rendering the strokes of an animated layer is not supported"),
+            QIcon());
+        return;
+    }
+
+    KisImageSignalVector emitSignals;
+    KisProcessingApplicator applicator(m_d->view->image(),
+                                       node,
+                                       KisProcessingApplicator::NONE,
+                                       emitSignals,
+                                       kundo2_i18n("Re-render Strokes"));
+    applicator.applyVisitor(KisProcessingVisitorSP(new KisRerenderBrushStrokesVisitor()));
+    applicator.end();
+
+    nodesUpdated();
+}
+
+void KisNodeManager::forgetBrushStrokes()
+{
+    KisNodeSP node = activeNode();
+    KisBrushStrokeLayer *layer = dynamic_cast<KisBrushStrokeLayer *>(node.data());
+    if (!layer || !canModifyLayer(node)) {
+        return;
+    }
+    KUndo2Command *command = layer->createForgetStrokesCommand();
+    if (!command) {
+        m_d->view->showFloatingMessage(i18nc("@info:status", "\"%1\" has no recorded brush strokes", layer->name()),
+                                       QIcon());
+        return;
+    }
+    KisProcessingApplicator::runSingleCommandStroke(m_d->view->image(), command);
+    nodesUpdated();
+}
+
 void KisNodeManager::Private::saveDeviceAsImage(KisPaintDeviceSP device,
                                                 const QString &defaultName,
                                                 const QRect &bounds,
@@ -1546,6 +1649,44 @@ void KisNodeManager::toggleInheritAlpha()
     }
 }
 
+void KisNodeManager::toggleClipping()
+{
+    KisNodeList nodes = this->selectedNodes();
+    KisNodeSP active = activeNode();
+    if (nodes.isEmpty() || !active)
+        return;
+
+    auto layer = qobject_cast<KisLayer *>(active.data());
+    if (!layer) {
+        return;
+    }
+
+    const bool isClipped = layer->isClipped();
+    for (auto &node : nodes) {
+        auto layer = qobject_cast<KisLayer *>(node.data());
+        if (layer) {
+            KisLayerPropertiesIcons::setNodePropertyAutoUndo(node,
+                                                             KisLayerPropertiesIcons::clipping,
+                                                             !isClipped,
+                                                             m_d->view->image());
+        }
+    }
+}
+
+void KisNodeManager::createClippingLayer()
+{
+    if (!m_d->view->blockUntilOperationsFinished(m_d->view->image())) {
+        return;
+    }
+
+    KisNodeSP activeNode = this->activeNode();
+    if (!activeNode) {
+        activeNode = m_d->view->image()->root();
+    }
+
+    m_d->layerManager.addClippingLayer(activeNode);
+}
+
 void KisNodeManager::colorOverlayMaskProperties(KisNodeSP node)
 {
     Q_ASSERT(node);
@@ -1577,7 +1718,7 @@ void KisNodeManager::cutLayersToClipboard()
         it++;
     }
 
-    KisClipboard::instance()->setLayers(nodes, m_d->view->image(), false);
+    KisClipboard::instance()->setLayers(nodes, m_d->view->image(), m_d->view->image()->bounds(), false);
 
     if (canModifyLayers(nodes)) {
         KUndo2MagicString actionName = kundo2_i18n("Cut Nodes");
@@ -1589,10 +1730,10 @@ void KisNodeManager::cutLayersToClipboard()
 void KisNodeManager::copyLayersToClipboard()
 {
     KisNodeList nodes = this->selectedNodes();
-    KisClipboard::instance()->setLayers(nodes, m_d->view->image(), true);
+    KisClipboard::instance()->setLayers(nodes, m_d->view->image(), m_d->view->image()->bounds(), true);
 }
 
-void KisNodeManager::pasteLayersFromClipboard(bool changeOffset, QPointF offset, KisProcessingApplicator *applicator)
+void KisNodeManager::pasteLayersFromClipboard(std::optional<QPoint> preferredClipCenter, KisProcessingApplicator *applicator)
 {
     const QMimeData *data = KisClipboard::instance()->layersMimeData();
     if (!data) return;
@@ -1611,14 +1752,14 @@ void KisNodeManager::pasteLayersFromClipboard(bool changeOffset, QPointF offset,
     KisNodeDummy *aboveThisDummy = parentDummy ? parentDummy->lastChild() : 0;
 
     KisMimeData::insertMimeLayers(data,
+                                  KisMimeData::MimeFromClipboard,
                                   image,
                                   shapeController,
                                   parentDummy,
                                   aboveThisDummy,
                                   copyNode,
                                   nodeInsertionAdapter(),
-                                  changeOffset,
-                                  offset,
+                                  preferredClipCenter,
                                   applicator);
 }
 

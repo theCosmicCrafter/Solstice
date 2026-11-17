@@ -244,7 +244,7 @@ void KisFilterSelectorWidget::setFilter(KisFilterSP f, KisFilterConfigurationSP 
     d->currentCentralWidget->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     d->widgetLayout->addWidget(d->currentCentralWidget, 0 , 0);
 
-    if (d->uiFilterSelector.chkRememberPreset->isChecked()) {
+    if (!overrideDefaultConfig && d->uiFilterSelector.chkRememberPreset->isChecked()) {
         int lastBookmarkedFilterConfiguration = KisConfig(true).readEntry<int>("lastBookmarkedFilterConfiguration/" + f->id(), 0);
         if (d->uiFilterSelector.comboBoxPresets->count() > lastBookmarkedFilterConfiguration) {
             d->uiFilterSelector.comboBoxPresets->setCurrentIndex(lastBookmarkedFilterConfiguration);

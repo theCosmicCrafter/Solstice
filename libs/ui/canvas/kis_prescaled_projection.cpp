@@ -26,9 +26,10 @@
 #include "krita_utils.h"
 
 #include "kis_coordinates_converter.h"
-#include "kis_projection_backend.h"
-#include "kis_image_pyramid.h"
 #include "kis_display_filter.h"
+#include "kis_image_pyramid.h"
+#include "kis_projection_backend.h"
+#include "opengl/kis_opengl.h"
 #include <KisDisplayConfig.h>
 
 #include <KisCanvasState.h>
@@ -40,60 +41,64 @@ namespace {
  * if this structure changes, then the prescaled projection
  * needs an update.
  */
-struct RelevantCanvasState
-{
+struct RelevantCanvasState {
     qreal zoom = 1.0;
     qreal rotation = 0.0;
     QPointF viewportOffsetF;
+    qreal devicePixelRatio = 1.0;
 
-    std::tuple<qreal,qreal> transformations() const {
-        return {zoom, rotation};
+    std::tuple<qreal, qreal, qreal> transformations() const
+    {
+        return {zoom, rotation, devicePixelRatio};
     }
 
-    bool operator==(const RelevantCanvasState& other) const {
-        return qFuzzyCompare(zoom, other.zoom) &&
-               qFuzzyCompare(rotation, other.rotation) &&
-               viewportOffsetF == other.viewportOffsetF;
+    bool operator==(const RelevantCanvasState &other) const
+    {
+        return qFuzzyCompare(zoom, other.zoom) && qFuzzyCompare(rotation, other.rotation)
+            && qFuzzyCompare(devicePixelRatio, other.devicePixelRatio) && viewportOffsetF == other.viewportOffsetF;
     }
 
-    bool operator!=(const RelevantCanvasState& other) const {
+    bool operator!=(const RelevantCanvasState &other) const
+    {
         return !(*this == other);
     }
 
-    static RelevantCanvasState fromCanvasState(const KisCanvasState &state) {
-        return {state.effectiveZoom, state.rotation, state.viewportOffsetF};
+    static RelevantCanvasState fromCanvasState(const KisCanvasState &state)
+    {
+        return {state.effectiveZoom, state.rotation, state.viewportOffsetF, state.devicePixelRatio};
     }
 };
-}
+} // namespace
 
 #define ceiledSize(sz) QSize(ceil((sz).width()), ceil((sz).height()))
 
-inline void copyQImageBuffer(uchar* dst, const uchar* src , qint32 deltaX, qint32 width)
-{
-    if (deltaX >= 0) {
-        memcpy(dst + 4 * deltaX, src, 4 *(width - deltaX) * sizeof(uchar));
-    } else {
-        memcpy(dst, src - 4 * deltaX, 4 *(width + deltaX) * sizeof(uchar));
-    }
-}
-
 void copyQImage(qint32 deltaX, qint32 deltaY, QImage* dstImage, const QImage& srcImage)
 {
-    qint32 height = dstImage->height();
-    qint32 width = dstImage->width();
-    Q_ASSERT(dstImage->width() == srcImage.width() && dstImage->height() == srcImage.height());
-    if (deltaY >= 0) {
-        for (int y = 0; y < height - deltaY; y ++) {
-            const uchar* src = srcImage.scanLine(y);
-            uchar* dst = dstImage->scanLine(y + deltaY);
-            copyQImageBuffer(dst, src, deltaX, width);
-        }
-    } else {
-        for (int y = 0; y < height + deltaY; y ++) {
-            const uchar* src = srcImage.scanLine(y - deltaY);
-            uchar* dst = dstImage->scanLine(y);
-            copyQImageBuffer(dst, src, deltaX, width);
-        }
+    const qint32 height = dstImage->height();
+    const qint32 width = dstImage->width();
+    /**
+     * The offset reaches here in *device* pixels while the caller's
+     * overlap check uses viewport units, so |delta| may exceed the image
+     * bounds on HiDPI canvases. The old code fed 4*(width - deltaX)
+     * straight to memcpy, which goes negative and scribbles the heap
+     * (release builds drop the size assert). Clip the copy instead;
+     * in-range behavior is identical.
+     */
+    if (dstImage->size() != srcImage.size() || dstImage->depth() != srcImage.depth())
+        return;
+    const int pixelSize = dstImage->depth() / 8;
+    const int copyW = width - qAbs(deltaX);
+    const int copyH = height - qAbs(deltaY);
+    if (copyW <= 0 || copyH <= 0)
+        return;
+    const int srcX = qMax(0, -deltaX);
+    const int dstX = qMax(0, deltaX);
+    const int srcY = qMax(0, -deltaY);
+    const int dstY = qMax(0, deltaY);
+    for (int y = 0; y < copyH; ++y) {
+        memcpy(dstImage->scanLine(dstY + y) + pixelSize * dstX,
+               srcImage.scanLine(srcY + y) + pixelSize * srcX,
+               size_t(pixelSize) * size_t(copyW));
     }
 }
 
@@ -102,6 +107,7 @@ struct KisPrescaledProjection::Private {
         : viewportSize(0, 0)
         , projectionBackend(0)
         , smoothHighZoom(KisConfig(true).smoothHighZoom())
+        , filterMode((KisOpenGL::FilterMode)KisConfig(true).openGLFilteringMode())
     {
     }
 
@@ -112,9 +118,10 @@ struct KisPrescaledProjection::Private {
     QSize canvasSize;
     QSize viewportSize;
     KisImageWSP image;
-    KisCoordinatesConverter *coordinatesConverter {0};
+    KisCoordinatesConverter *coordinatesConverter{0};
     KisProjectionBackend *projectionBackend{0};
     bool smoothHighZoom{true};
+    KisOpenGL::FilterMode filterMode{KisOpenGL::BilinearFilterMode};
 };
 
 KisPrescaledProjection::KisPrescaledProjection()
@@ -177,6 +184,13 @@ void KisPrescaledProjection::updateSettings()
 
     KisConfig cfg(true);
     setSmoothHighZoom(cfg.smoothHighZoom());
+
+    const KisOpenGL::FilterMode filterMode = (KisOpenGL::FilterMode)cfg.openGLFilteringMode();
+    if (m_d->filterMode != filterMode) {
+        m_d->filterMode = filterMode;
+        preScale();
+        Q_EMIT sigSettingsChanged();
+    }
 }
 
 void KisPrescaledProjection::notifyCanvasStateChanged(const KisCanvasState &state)
@@ -216,7 +230,24 @@ void KisPrescaledProjection::viewportMoved(const QPointF &offset)
         return;
     }
 
-    QImage newImage = QImage(m_d->viewportSize, QImage::Format_ARGB32);
+    const qreal devicePixelRatio = m_d->coordinatesConverter->devicePixelRatio();
+
+    /**
+     * copyQImage() works in the raw pixels of the device-pixel-sized
+     * buffers, so the offset has to be mapped to the device pixel grid as
+     * well. If it doesn't land on an exact device pixel, just prescale.
+     */
+    const QPointF devicePixelOffset = QPointF(alignedOffset) * devicePixelRatio;
+    const QPoint alignedDevicePixelOffset = devicePixelOffset.toPoint();
+
+    if (devicePixelOffset != alignedDevicePixelOffset) {
+        dbgRender << "prescaling the entire image because the offset is not aligned to device pixels";
+        preScale();
+        return;
+    }
+
+    QImage newImage = QImage(m_d->prescaledQImage.size(), QImage::Format_ARGB32);
+    newImage.setDevicePixelRatio(devicePixelRatio);
     newImage.fill(0);
 
     /**
@@ -230,7 +261,7 @@ void KisPrescaledProjection::viewportMoved(const QPointF &offset)
     QRegion updateRegion = newViewportRect;
     QRect savedArea = newViewportRect & oldViewportRect;
     if(!savedArea.isEmpty()) {
-        copyQImage(alignedOffset.x(), alignedOffset.y(), &newImage, m_d->prescaledQImage);
+        copyQImage(alignedDevicePixelOffset.x(), alignedDevicePixelOffset.y(), &newImage, m_d->prescaledQImage);
         updateRegion -= savedArea;
     }
 
@@ -350,12 +381,38 @@ void KisPrescaledProjection::updateViewportSize()
                        qMin(imageRect.height(), m_d->canvasSize.height()));
     QRectF minimalRect(QPointF(0,0), minimalSize);
 
-    m_d->viewportSize = m_d->coordinatesConverter->widgetToViewport(minimalRect).toAlignedRect().size();
+    const QSize viewportSize = m_d->coordinatesConverter->widgetToViewport(minimalRect).toAlignedRect().size();
 
-    if (m_d->prescaledQImage.isNull() ||
-        m_d->prescaledQImage.size() != m_d->viewportSize) {
+    /**
+     * The prescaled image is rendered in device pixels so that its content
+     * is not upscaled once again when blitting onto a High-DPI canvas
+     * widget. All the rects calculated via KisCoordinatesConverter stay in
+     * logical (widget-like) units; QImage::devicePixelRatio() on the buffer
+     * makes every QPainter opened on it work in logical units as well.
+     */
+    const qreal devicePixelRatio = m_d->coordinatesConverter->devicePixelRatio();
+    const QSize devicePixelSize = ceiledSize(QSizeF(viewportSize) * devicePixelRatio);
 
-        m_d->prescaledQImage = QImage(m_d->viewportSize, QImage::Format_ARGB32);
+    /**
+     * During view construction/window-state churn the converter can report
+     * a degenerate rect (0-size or effectively unbounded transform) and
+     * canvasSize may still be invalid. Allocating a QImage from that threw
+     * std::bad_alloc inside the maximize cascade. The bound allows any real
+     * configuration (a 32k canvas at 8x HiDPI is 262144 device px) while
+     * still rejecting garbage. Defer until a sane notify arrives; the old
+     * size and buffer remain valid meanwhile.
+     */
+    if (devicePixelSize.isEmpty() || devicePixelSize.width() > 262144
+        || devicePixelSize.height() > 262144 || !devicePixelSize.isValid()) {
+        return;
+    }
+
+    m_d->viewportSize = viewportSize;
+
+    if (m_d->prescaledQImage.isNull() || m_d->prescaledQImage.size() != devicePixelSize
+        || !qFuzzyCompare(m_d->prescaledQImage.devicePixelRatio(), devicePixelRatio)) {
+        m_d->prescaledQImage = QImage(devicePixelSize, QImage::Format_ARGB32);
+        m_d->prescaledQImage.setDevicePixelRatio(devicePixelRatio);
         m_d->prescaledQImage.fill(0);
     }
 }
@@ -387,6 +444,15 @@ void KisPrescaledProjection::fillInUpdateInformation(const QRect &viewportRect,
 {
     m_d->coordinatesConverter->imageScale(&info->scaleX, &info->scaleY);
 
+    /**
+     * The prescaled buffer is rendered in device pixels, so all the
+     * scale-dependent decisions below (direct/patch transfer, smooth
+     * scaling, border size) are driven by the physical scale, like in
+     * KisOpenGLCanvasRenderer.
+     */
+    qreal physicalScaleX, physicalScaleY;
+    m_d->coordinatesConverter->imagePhysicalScale(&physicalScaleX, &physicalScaleY);
+
     // first, crop the part of the view rect that is outside of the canvas
     QRect croppedViewRect = viewportRect.intersected(QRect(QPoint(0, 0), m_d->viewportSize));
 
@@ -401,7 +467,7 @@ void KisPrescaledProjection::fillInUpdateInformation(const QRect &viewportRect,
      * later we request a bit more pixels for the patch to make the
      * scaling safe (like needRect).
      */
-    const int borderSize = BORDER_SIZE(qMax(info->scaleX, info->scaleY));
+    const int borderSize = BORDER_SIZE(qMax(physicalScaleX, physicalScaleY));
     info->imageRect.adjust(-borderSize, -borderSize, borderSize, borderSize);
 
     info->imageRect = info->imageRect & m_d->image->bounds();
@@ -412,12 +478,12 @@ void KisPrescaledProjection::fillInUpdateInformation(const QRect &viewportRect,
     info->viewportRect = m_d->coordinatesConverter->imageToViewport(info->imageRect);
 
     info->borderWidth = 0;
-    if (SCALE_MORE_OR_EQUAL_TO(info->scaleX, info->scaleY, 1.0)) {
-        // Note: QPainter canvas backend does not have an explicit NearestFilterMode setting
-        // like the OpenGL canvas renderer; it only switches between SmoothPixmapTransform
-        // and nearest (no hint) based on zoom scale and smoothHighZoom.
-        if (SCALE_LESS_THAN(info->scaleX, info->scaleY, 2.0) || m_d->smoothHighZoom) {
-            dbgRender << "smoothHighZoom" << Qt::endl;
+    if (SCALE_MORE_OR_EQUAL_TO(physicalScaleX, physicalScaleY, 1.0)) {
+        // The QPainter canvas backend maps KisOpenGL::FilterMode onto its two
+        // available sampling modes: NearestFilterMode always forces pixel-exact
+        // blitting on magnification, like in KisOpenGLCanvasRenderer.
+        if (m_d->filterMode != KisOpenGL::NearestFilterMode
+            && (SCALE_LESS_THAN(physicalScaleX, physicalScaleY, 2.0) || m_d->smoothHighZoom)) {
             info->renderHints = QPainter::SmoothPixmapTransform;
             info->borderWidth = borderSize;
         }
@@ -455,8 +521,13 @@ void KisPrescaledProjection::drawUsingBackend(QPainter &gc, KisPPUpdateInfoSP in
     } else /* if info->transfer == KisPPUpdateInformation::PATCH */ {
         KisImagePatch patch = m_d->projectionBackend->getNearestPatch(info);
         // prescale the patch because otherwise we'd scale using QPainter, which gives
-        // a crap result compared to QImage's smoothscale
-        patch.preScale(info->viewportRect);
+        // a crap result compared to QImage's smoothscale. The patch is prescaled
+        // to device pixels: the painter on the device-pixel prescaled image
+        // converts logical units to device pixels automatically.
+        const qreal devicePixelRatio = m_d->coordinatesConverter->devicePixelRatio();
+        const QRectF devicePixelRect(info->viewportRect.topLeft() * devicePixelRatio,
+                                     info->viewportRect.size() * devicePixelRatio);
+        patch.preScale(devicePixelRect);
         patch.drawMe(gc, info->viewportRect, info->renderHints);
     }
 }

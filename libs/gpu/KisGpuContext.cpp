@@ -65,6 +65,19 @@ bool KisGpuDeviceInfo::isBlackwell() const
     return isNvidia() && deviceId >= 0x2B00;
 }
 
+bool KisGpuDeviceInfo::isVerified() const
+{
+    return isBlackwell();
+}
+
+bool KisGpuContext::acceptsDevice(const KisGpuDeviceInfo &info, bool requireVerified)
+{
+    if (!requireVerified) {
+        return true;
+    }
+    return info.isVerified() && qEnvironmentVariableIntValue("KRITA_GPU_TREAT_DEVICE_AS_UNVERIFIED") != 1;
+}
+
 QString KisGpuDeviceInfo::summary() const
 {
     return QStringLiteral("%1 (vendor 0x%2, device 0x%3, Vulkan %4, %5 %6, VRAM %7 MiB, ReBAR %8 MiB, interop %9%10)")
@@ -191,7 +204,21 @@ std::unique_ptr<KisGpuContext> KisGpuContext::create(QString *errorMessage)
     return create(Options(), errorMessage);
 }
 
-std::unique_ptr<KisGpuContext> KisGpuContext::create(const Options &options, QString *errorMessage)
+KisGpuDeviceInfo KisGpuContext::probeDevice(QString *errorMessage)
+{
+    QString error;
+    std::unique_ptr<KisGpuContext> context(new KisGpuContext);
+    Private *d = context->d.get();
+    const bool found =
+        d->vk.loadGlobal(&error) && d->createInstance(Options(), &error) && d->selectPhysicalDevice(&error);
+    if (errorMessage) {
+        *errorMessage = error;
+    }
+    return found ? d->info : KisGpuDeviceInfo();
+}
+
+std::unique_ptr<KisGpuContext>
+KisGpuContext::create(const Options &options, QString *errorMessage, KisGpuDeviceInfo *unverifiedDevice)
 {
     std::unique_ptr<KisGpuContext> context(new KisGpuContext);
     Private *d = context->d.get();
@@ -199,14 +226,28 @@ std::unique_ptr<KisGpuContext> KisGpuContext::create(const Options &options, QSt
     if (!d->vk.loadGlobal(errorMessage)) {
         return nullptr;
     }
-    if (!d->createInstance(options, errorMessage) || !d->selectPhysicalDevice(errorMessage)
-        || !d->createDevice(options, errorMessage)) {
+    if (!d->createInstance(options, errorMessage) || !d->selectPhysicalDevice(errorMessage)) {
+        return nullptr;
+    }
+    if (!acceptsDevice(d->info, options.requireVerifiedDevice)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral(
+                                "%1 is not a device the GPU engine was verified with, and other devices "
+                                "are not allowed in the settings")
+                                .arg(d->info.name);
+        }
+        if (unverifiedDevice) {
+            *unverifiedDevice = d->info;
+        }
+        return nullptr;
+    }
+    if (!d->createDevice(options, errorMessage)) {
         return nullptr;
     }
 
     dbgKrita << "GPU engine device:" << d->info.summary();
-    if (!d->info.isBlackwell()) {
-        warnKrita << "GPU engine: device is not an NVIDIA Blackwell GPU; this configuration is untested";
+    if (!d->info.isVerified()) {
+        warnKrita << "GPU engine: device is not an NVIDIA Blackwell GPU; this configuration is not verified";
     }
     return context;
 }
@@ -661,13 +702,14 @@ bool KisGpuContext::wait(quint64 value, quint64 timeoutNs) const
     waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
     waitInfo.semaphoreCount = 1;
     waitInfo.pSemaphores = &d->timeline;
-    waitInfo.pValues = &value;
+    const uint64_t waitValue = value;
+    waitInfo.pValues = &waitValue;
     return d->vk.vkWaitSemaphores(d->device, &waitInfo, timeoutNs) == VK_SUCCESS;
 }
 
 quint64 KisGpuContext::completedValue() const
 {
-    quint64 value = 0;
+    uint64_t value = 0;
     d->vk.vkGetSemaphoreCounterValue(d->device, d->timeline, &value);
     return value;
 }

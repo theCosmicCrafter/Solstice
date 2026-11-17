@@ -44,6 +44,7 @@ private Q_SLOTS:
     void slotThumbnailGenerated(KisNodeSP node, int seqNo, int maxSize, const QImage &thumb);
 private:
     void setIdleTaskManagerImpl(KisIdleTasksManager *manager);
+    void startProvisionalThumbnail(KisNodeSP node);
 
 private:
     struct Private;

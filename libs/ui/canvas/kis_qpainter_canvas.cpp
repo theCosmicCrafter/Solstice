@@ -30,16 +30,17 @@
 #include <kis_image.h>
 #include <kis_layer.h>
 
+#include "KisDocument.h"
 #include "KisViewManager.h"
 #include "kis_canvas2.h"
-#include "kis_prescaled_projection.h"
 #include "kis_canvas_resource_provider.h"
-#include "KisDocument.h"
-#include "kis_selection_manager.h"
-#include "kis_selection.h"
 #include "kis_canvas_updates_compressor.h"
 #include "kis_config_notifier.h"
 #include "kis_group_layer.h"
+#include "kis_prescaled_projection.h"
+#include "kis_selection.h"
+#include "kis_selection_manager.h"
+#include "opengl/kis_opengl.h"
 
 #include "KisLongPressEventFilter.h"
 #include <KoCanvasController.h>
@@ -53,6 +54,7 @@ public:
     QBrush checkBrush;
     bool scrollCheckers;
     KisRepaintDebugger repaintDbg;
+    KisOpenGL::FilterMode filterMode{KisOpenGL::BilinearFilterMode};
 };
 
 KisQPainterCanvas::KisQPainterCanvas(KisCanvas2 *canvas, KisCoordinatesConverter *coordinatesConverter, QWidget * parent)
@@ -131,19 +133,29 @@ void KisQPainterCanvas::paintEvent(QPaintEvent * ev)
     m_d->repaintDbg.paint(this, ev);
 }
 
-void KisQPainterCanvas::drawImage(QPainter & gc, const QRect &updateWidgetRect) const
+void KisQPainterCanvas::drawImage(QPainter &gc, const QRect &updateWidgetRect) const
 {
     KisCoordinatesConverter *converter = coordinatesConverter();
 
     QTransform imageTransform = converter->viewportToWidgetTransform();
     gc.setTransform(imageTransform);
-    gc.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    gc.setRenderHint(QPainter::SmoothPixmapTransform, m_d->filterMode != KisOpenGL::NearestFilterMode);
+
+    const QImage prescaledImage = m_d->prescaledProjection->prescaledQImage();
+
+    /**
+     * The prescaled image is stored in device pixels and carries the
+     * corresponding QImage::devicePixelRatio(). The source rect of
+     * QPainter::drawImage() is measured in the image's own pixels, hence
+     * the multiplication by the ratio.
+     */
+    const qreal devicePixelRatio = prescaledImage.devicePixelRatio();
 
     QRectF viewportRect = converter->widgetToViewport(updateWidgetRect);
+    QRectF sourceRect(viewportRect.topLeft() * devicePixelRatio, viewportRect.size() * devicePixelRatio);
 
     gc.setCompositionMode(QPainter::CompositionMode_SourceOver);
-    gc.drawImage(viewportRect, m_d->prescaledProjection->prescaledQImage(),
-                 viewportRect);
+    gc.drawImage(viewportRect, prescaledImage, sourceRect);
 }
 
 QVariant KisQPainterCanvas::inputMethodQuery(Qt::InputMethodQuery query) const
@@ -277,6 +289,7 @@ void KisQPainterCanvas::slotConfigChanged()
 
     m_d->checkBrush = QBrush(createCheckersImage());
     m_d->scrollCheckers = cfg.scrollCheckers();
+    m_d->filterMode = (KisOpenGL::FilterMode) cfg.openGLFilteringMode();
     notifyConfigChanged();
     if (m_d->prescaledProjection) {
         m_d->prescaledProjection->updateSettings();

@@ -32,6 +32,7 @@
 #include <QPointer>
 #include <KisSignalMapper.h>
 #include <QTabBar>
+#include <QMouseEvent>
 #include <QMoveEvent>
 #include <QUrl>
 #include <QMessageBox>
@@ -360,6 +361,73 @@ public:
     }
 };
 
+/**
+ * Solstice: middle-click closes the document tab under the cursor when the
+ * button is released over the same tab. QMdiArea closes the tab on press,
+ * so the next tab slides under the cursor while the button is still down,
+ * and a repeated press from the same click closed that document too.
+ */
+class MdiTabMiddleClickCloser : public QObject
+{
+public:
+    MdiTabMiddleClickCloser(QMdiArea *mdiArea, QTabBar *tabBar)
+        : QObject(tabBar)
+        , m_mdiArea(mdiArea)
+        , m_tabBar(tabBar)
+    {
+        setObjectName(Name);
+        tabBar->installEventFilter(this);
+    }
+
+    static constexpr const char *Name = "SolsticeMdiTabMiddleClickCloser";
+
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched != m_tabBar) {
+            return false;
+        }
+        const QEvent::Type type = event->type();
+        if (type != QEvent::MouseButtonPress && type != QEvent::MouseButtonDblClick
+            && type != QEvent::MouseButtonRelease) {
+            return false;
+        }
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+        if (mouseEvent->button() != Qt::MiddleButton) {
+            return false;
+        }
+
+        QMdiSubWindow *subWindow = subWindowAt(mouseEvent->pos());
+        if (type != QEvent::MouseButtonRelease) {
+            // A press that is not newer than the release which closed the
+            // previous tab is a repeat of that click.
+            const bool repeated = m_lastCloseTimestamp && mouseEvent->timestamp() <= m_lastCloseTimestamp;
+            m_pressedSubWindow = repeated ? nullptr : subWindow;
+        } else {
+            const bool sameTab = subWindow && subWindow == m_pressedSubWindow;
+            m_pressedSubWindow = nullptr;
+            if (sameTab) {
+                m_lastCloseTimestamp = mouseEvent->timestamp();
+                subWindow->close();
+            }
+        }
+        return true;
+    }
+
+private:
+    QMdiSubWindow *subWindowAt(const QPoint &pos) const
+    {
+        // Same mapping as QMdiArea: tab index == creation order.
+        const int index = m_tabBar->tabAt(pos);
+        const QList<QMdiSubWindow *> subWindows = m_mdiArea->subWindowList();
+        return index >= 0 && index < subWindows.size() ? subWindows.at(index) : nullptr;
+    }
+
+    QMdiArea *m_mdiArea;
+    QTabBar *m_tabBar;
+    QPointer<QMdiSubWindow> m_pressedSubWindow;
+    quint64 m_lastCloseTimestamp{0};
+};
+
 KisMainWindow::KisMainWindow(QUuid uuid)
     : KXmlGuiWindow()
     , d(new Private(this, uuid))
@@ -472,7 +540,7 @@ KisMainWindow::KisMainWindow(QUuid uuid)
         d->styleMenu->addAction(d->actionMap.value(styleName));
     }
 
-    // Solstice: Fusion with flat common controls (ui-modernization-plan.md)
+    // Solstice: Fusion with flat common controls (docs/agent/ui-modernization.md)
     action = new QAction(KisSolsticeStyle::styleKey(), d->styleActions);
     action->setCheckable(true);
     d->actionMap.insert(KisSolsticeStyle::styleKey(), action);
@@ -1012,7 +1080,7 @@ void KisMainWindow::customizeTabBar()
            )")
            .arg(closeButtonImageUrl, closeButtonHoverColor);
 
-    // Solstice interface (docs/agent/ui-modernization-plan.md, phase 2):
+    // Solstice interface (docs/agent/ui-modernization.md):
     // document tabs, toolbars and docker titles in the theme's colors.
     const bool solsticeLook = KisConfig(true).readEntry<bool>("Solstice/ModernInterface", true);
     QString toolBarStyleSheet;
@@ -1072,6 +1140,10 @@ void KisMainWindow::customizeTabBar()
         // Solstice: tabs sized to their titles keep the close button next to
         // the title; the default stretches them across the window.
         tabBar->setExpanding(!solsticeLook);
+        // QMdiArea recreates the tab bar when the view mode changes.
+        if (!tabBar->findChild<QObject *>(MdiTabMiddleClickCloser::Name, Qt::FindDirectChildrenOnly)) {
+            new MdiTabMiddleClickCloser(d->mdiArea, tabBar);
+        }
     }
 
     Q_FOREACH (KisToolBar *toolBar, toolBars()) {
@@ -2755,8 +2827,8 @@ bool KisMainWindow::event(QEvent *event)
         }
         // Let QMainWindow find the separator under the press first.
         QMouseEvent probe(QEvent::MouseMove,
-                          press->position(),
-                          press->globalPosition(),
+                          press->localPos(),
+                          press->screenPos(),
                           Qt::NoButton,
                           Qt::NoButton,
                           press->modifiers());

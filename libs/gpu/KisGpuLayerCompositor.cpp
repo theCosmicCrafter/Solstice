@@ -53,8 +53,13 @@ struct LayerParams {
     quint32 flags;
     quint32 channelMask;
     float fill[4]; // replace layers: the pixel where the layer has no tile
+    qint32 bias[2]; // added to a grid pixel position: the pixel in the layer's table
+    quint32 tableOffset; // the layer's first tile in the address table
+    quint32 tableWidth; // tiles per row of the layer's table
 };
-static_assert(sizeof(LayerParams) == 32, "must match the shader LayerParams struct");
+static_assert(sizeof(LayerParams) == 48, "must match the shader LayerParams struct");
+
+constexpr int TileSize = 64;
 
 VkDeviceSize alignUp(VkDeviceSize value, VkDeviceSize alignment)
 {
@@ -112,8 +117,21 @@ bool KisGpuLayerCompositor::record(KisGpuCommandList &commands,
                                    const Mask *mask)
 {
     const int tileCount = dstTiles.size();
-    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(layerTiles.size() == tileCount * layers.size(), false);
-    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(gridWidth > 0, false);
+    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(gridWidth > 0 && tileCount % gridWidth == 0, false);
+    const int gridHeight = tileCount / gridWidth;
+    // Every layer's table: the destination grid, or one more column and row
+    // for a shifted layer.
+    QVector<quint32> tableOffsets;
+    tableOffsets.reserve(layers.size());
+    qint64 tableEntries = 0;
+    for (const Layer &layer : layers) {
+        KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(layer.shift.x() >= 0 && layer.shift.x() < TileSize && layer.shift.y() >= 0
+                                                 && layer.shift.y() < TileSize,
+                                             false);
+        tableOffsets << quint32(tableEntries);
+        tableEntries += layer.shift.isNull() ? qint64(tileCount) : qint64(gridWidth + 1) * (gridHeight + 1);
+    }
+    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(layerTiles.size() == tableEntries, false);
     if (!tileCount || layers.isEmpty() || clip.isEmpty()) {
         return true;
     }
@@ -180,6 +198,11 @@ bool KisGpuLayerCompositor::record(KisGpuCommandList &commands,
             | (layers[i].explicitChannelFlags ? 4u : 0u) | (layers[i].replace ? 8u : 0u);
         params[i].channelMask = layers[i].channelMask;
         std::memcpy(params[i].fill, layers[i].fill, sizeof(params[i].fill));
+        const bool shifted = !layers[i].shift.isNull();
+        params[i].bias[0] = shifted ? TileSize - layers[i].shift.x() : 0;
+        params[i].bias[1] = shifted ? TileSize - layers[i].shift.y() : 0;
+        params[i].tableOffset = tableOffsets[i];
+        params[i].tableWidth = quint32(shifted ? gridWidth + 1 : gridWidth);
     }
 
     PushConstants constants{};
@@ -204,14 +227,14 @@ bool KisGpuLayerCompositor::record(KisGpuCommandList &commands,
     }
 
     // A mixed stack must also keep old modes out of the extended shader.
-    // Consecutive runs share the tables and submission; only their offsets and
-    // pipeline change. Each run observes the preceding run's destination writes.
+    // Consecutive runs share the tables and submission; only their layers and
+    // pipeline change (a layer finds its tiles through its table offset). Each
+    // run observes the preceding run's destination writes.
     for (int first = 0; first < layers.size();) {
         const bool useExtended = layers[first].op >= KisGpuBlendOp::SoftLightSvg;
         int end = first + 1;
         while (end < layers.size() && (layers[end].op >= KisGpuBlendOp::SoftLightSvg) == useExtended)
             ++end;
-        constants.layerTiles = m_tables->deviceAddress() + VkDeviceSize(first) * tileCount * sizeof(VkDeviceAddress);
         constants.layers = m_tables->deviceAddress() + paramsOffset + VkDeviceSize(first) * sizeof(LayerParams);
         constants.layerCount = quint32(end - first);
         if (first)

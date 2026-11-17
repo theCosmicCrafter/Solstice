@@ -3,34 +3,25 @@
  */
 
 #include "KisSolsticeLazyTools.h"
+#include "lazytools/KisLazyToolsRenameDialog.h"
+#include "lazytools/KisLazyToolsFastExportDialog.h"
+#include "lazytools/KisLazyToolsFastExportPresets.h"
 
 #include <QAbstractNativeEventFilter>
 #include <QApplication>
-#include <QCheckBox>
-#include <QComboBox>
 #include <QCursor>
 #include <QDateTime>
 #include <QDialog>
-#include <QDialogButtonBox>
-#include <QDir>
-#include <QFile>
-#include <QFileDialog>
-#include <QFileInfo>
-#include <QFormLayout>
 #include <QGridLayout>
-#include <QGroupBox>
 #include <QGuiApplication>
 #include <QHBoxLayout>
-#include <QHash>
 #include <QLabel>
-#include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScreen>
+#include <QScopedPointer>
 #include <QScrollArea>
-#include <QSpinBox>
-#include <QTextStream>
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -43,7 +34,6 @@
 
 #include <KoColor.h>
 #include <KoColorSpaceRegistry.h>
-#include <KoResourcePaths.h>
 
 #include "KisDocument.h"
 #include "KisMainWindow.h"
@@ -56,12 +46,11 @@
 #include "kis_config.h"
 #include "kis_config_notifier.h"
 #include "kis_group_layer.h"
+#include "kis_icon_utils.h"
 #include "kis_image.h"
 #include "kis_node.h"
 #include "kis_node_commands_adapter.h"
 #include "kis_node_manager.h"
-#include "kis_node_view_color_scheme.h"
-#include "kis_properties_configuration.h"
 #include "kis_selection.h"
 #include "kis_selection_mask.h"
 #include "kis_undo_adapter.h"
@@ -180,185 +169,6 @@ QColor defaultForegroundColor(int slot)
     return colors[qBound(1, slot, 9) - 1];
 }
 
-int colorLabelIndex(const QString &name)
-{
-    static const QHash<QString, int> labels = {
-        {QStringLiteral("blue"), 1},
-        {QStringLiteral("green"), 2},
-        {QStringLiteral("yellow"), 3},
-        {QStringLiteral("orange"), 4},
-        {QStringLiteral("brown"), 5},
-        {QStringLiteral("red"), 6},
-        {QStringLiteral("purple"), 7},
-        {QStringLiteral("grey"), 8},
-        {QStringLiteral("gray"), 8},
-    };
-    return labels.value(name.trimmed().toLower(), 0);
-}
-
-QString colorLabelName(int index)
-{
-    static const QStringList names = {QString(),
-                                      QStringLiteral("Blue"),
-                                      QStringLiteral("Green"),
-                                      QStringLiteral("Yellow"),
-                                      QStringLiteral("Orange"),
-                                      QStringLiteral("Brown"),
-                                      QStringLiteral("Red"),
-                                      QStringLiteral("Purple"),
-                                      QStringLiteral("Grey")};
-    return names.value(index);
-}
-
-QString renamePresetPath()
-{
-    return QDir(KoResourcePaths::getAppDataLocation())
-        .filePath(QStringLiteral("lazy_tools/config/name_color_list.txt"));
-}
-
-class RenameLayerDialog : public QDialog
-{
-public:
-    explicit RenameLayerDialog(KisViewManager *viewManager)
-        : QDialog(viewManager->mainWindowAsQWidget())
-        , m_viewManager(viewManager)
-    {
-        setWindowTitle(i18n("Rename Layer"));
-        setMinimumSize(240, 200);
-
-        KisConfig cfg(true);
-        const int columns = qMax(1, cfg.readEntry<int>("Solstice/RenameGridColumns", 3));
-        resize(qMax(240, cfg.readEntry<int>("Solstice/RenameDialogWidth", 500)),
-               qMax(200, cfg.readEntry<int>("Solstice/RenameDialogHeight", 800)));
-
-        auto *layout = new QVBoxLayout(this);
-        auto *scrollArea = new QScrollArea(this);
-        scrollArea->setWidgetResizable(true);
-        auto *presetsWidget = new QWidget(scrollArea);
-        auto *grid = new QGridLayout(presetsWidget);
-        grid->setContentsMargins(0, 0, 0, 0);
-        grid->setSpacing(4);
-        grid->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-
-        QFile presetFile(renamePresetPath());
-        if (presetFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            int buttonIndex = 0;
-            QTextStream stream(&presetFile);
-            while (!stream.atEnd()) {
-                const QString line = stream.readLine().trimmed();
-                if (line.isEmpty()) {
-                    continue;
-                }
-                const qsizetype comma = line.indexOf(QLatin1Char(','));
-                const QString name = (comma < 0 ? line : line.left(comma)).trimmed();
-                const int label = comma < 0 ? 0 : colorLabelIndex(line.mid(comma + 1));
-                if (name.isEmpty()) {
-                    continue;
-                }
-                auto *button = new QPushButton(name, presetsWidget);
-                button->setMinimumHeight(28);
-                if (label > 0) {
-                    QPixmap pixmap(14, 14);
-                    pixmap.fill(KisNodeViewColorScheme::instance()->colorFromLabelIndex(label));
-                    button->setIcon(QIcon(pixmap));
-                }
-                connect(button, &QPushButton::clicked, this, [this, name, label] {
-                    apply(name, label);
-                });
-                grid->addWidget(button, buttonIndex / columns, buttonIndex % columns);
-                ++buttonIndex;
-            }
-            for (int column = 0; column < columns; ++column) {
-                grid->setColumnStretch(column, 1);
-            }
-        }
-        scrollArea->setWidget(presetsWidget);
-        layout->addWidget(scrollArea);
-
-        auto *manualLayout = new QHBoxLayout;
-        m_colorCombo = new QComboBox(this);
-        const QVector<QColor> colors = KisNodeViewColorScheme::instance()->allColorLabels();
-        for (int index = 0; index <= 8; ++index) {
-            QPixmap pixmap(14, 14);
-            pixmap.fill(index == 0 ? Qt::white : colors.value(index));
-            m_colorCombo->addItem(QIcon(pixmap), QString(), index);
-            m_colorCombo->setItemData(index, index == 0 ? i18n("None") : colorLabelName(index), Qt::ToolTipRole);
-        }
-        m_nameInput = new QLineEdit(this);
-        m_nameInput->setPlaceholderText(i18n("Layer name"));
-        m_savePreset = new QCheckBox(i18n("Save"), this);
-        manualLayout->addWidget(m_colorCombo);
-        manualLayout->addWidget(m_nameInput);
-        manualLayout->addWidget(m_savePreset);
-        layout->addLayout(manualLayout);
-
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-        layout->addWidget(buttons);
-        connect(buttons, &QDialogButtonBox::accepted, this, [this] {
-            const QString name = m_nameInput->text().trimmed();
-            if (name.isEmpty()) {
-                return;
-            }
-            const int label = m_colorCombo->currentData().toInt();
-            if (m_savePreset->isChecked()) {
-                savePreset(name, label);
-            }
-            apply(name, label);
-        });
-        connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-        connect(m_nameInput, &QLineEdit::returnPressed, buttons->button(QDialogButtonBox::Ok), &QPushButton::click);
-        m_nameInput->setFocus();
-    }
-
-    ~RenameLayerDialog() override
-    {
-        KisConfig cfg(false);
-        cfg.writeEntry("Solstice/RenameDialogWidth", width());
-        cfg.writeEntry("Solstice/RenameDialogHeight", height());
-    }
-
-private:
-    void apply(const QString &name, int label)
-    {
-        KisNodeSP node = m_viewManager->activeNode();
-        if (!node || name.isEmpty()) {
-            return;
-        }
-        m_viewManager->nodeManager()->setNodeName(node, name);
-        node->setColorLabelIndex(label);
-        accept();
-    }
-
-    void savePreset(const QString &name, int label)
-    {
-        const QString path = renamePresetPath();
-        QDir().mkpath(QFileInfo(path).absolutePath());
-
-        QStringList lines;
-        QFile input(path);
-        if (input.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QTextStream stream(&input);
-            while (!stream.atEnd()) {
-                lines << stream.readLine();
-            }
-        }
-        const QString newLine = label > 0 ? QStringLiteral("%1, %2").arg(name, colorLabelName(label)) : name;
-        if (!lines.contains(newLine)) {
-            lines << newLine;
-            QFile output(path);
-            if (output.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
-                QTextStream stream(&output);
-                stream << lines.join(QLatin1Char('\n'));
-            }
-        }
-    }
-
-    KisViewManager *m_viewManager{nullptr};
-    QComboBox *m_colorCombo{nullptr};
-    QLineEdit *m_nameInput{nullptr};
-    QCheckBox *m_savePreset{nullptr};
-};
-
 class SelectionMaskPopup : public QDialog
 {
 public:
@@ -447,148 +257,6 @@ private:
     QScrollArea *m_scrollArea{nullptr};
 };
 
-class FastExportDialog : public QDialog
-{
-public:
-    explicit FastExportDialog(KisViewManager *viewManager)
-        : QDialog(viewManager->mainWindowAsQWidget())
-        , m_viewManager(viewManager)
-    {
-        setWindowTitle(i18n("Fast Image Export"));
-        setAttribute(Qt::WA_DeleteOnClose);
-
-        KisConfig cfg(true);
-        auto *layout = new QVBoxLayout(this);
-        auto *form = new QFormLayout;
-        m_format = new QComboBox(this);
-        m_format->addItem(i18n("PNG"), QStringLiteral("png"));
-        m_format->addItem(i18n("JPEG"), QStringLiteral("jpg"));
-        m_scope = new QComboBox(this);
-        m_scope->addItem(i18n("Active document"), false);
-        m_scope->addItem(i18n("All open documents"), true);
-        m_destination = new QComboBox(this);
-        m_destination->addItem(i18n("Same folder as the document"), 0);
-        m_destination->addItem(i18n("Configured export folder"), 1);
-        m_destination->addItem(i18n("Choose a folder now"), 2);
-        m_folder = new QLineEdit(cfg.readEntry<QString>("Solstice/FastExportFolder", QString()), this);
-        auto *browse = new QPushButton(i18n("Browse…"), this);
-        auto *folderRow = new QHBoxLayout;
-        folderRow->addWidget(m_folder);
-        folderRow->addWidget(browse);
-        m_pngCompression = new QSpinBox(this);
-        m_pngCompression->setRange(0, 9);
-        m_pngCompression->setValue(cfg.readEntry<int>("Solstice/FastExportPngCompression", 6));
-        m_pngAlpha = new QCheckBox(i18n("Save alpha channel"), this);
-        m_pngAlpha->setChecked(cfg.readEntry<bool>("Solstice/FastExportPngAlpha", true));
-        m_jpegQuality = new QSpinBox(this);
-        m_jpegQuality->setRange(0, 100);
-        m_jpegQuality->setValue(cfg.readEntry<int>("Solstice/FastExportJpegQuality", 90));
-        form->addRow(i18n("Format:"), m_format);
-        form->addRow(i18n("Documents:"), m_scope);
-        form->addRow(i18n("Destination:"), m_destination);
-        form->addRow(i18n("Export folder:"), folderRow);
-        form->addRow(i18n("PNG compression:"), m_pngCompression);
-        form->addRow(QString(), m_pngAlpha);
-        form->addRow(i18n("JPEG quality:"), m_jpegQuality);
-        layout->addLayout(form);
-
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-        QPushButton *exportButton = buttons->addButton(i18n("Export"), QDialogButtonBox::AcceptRole);
-        layout->addWidget(buttons);
-        connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-        connect(browse, &QPushButton::clicked, this, [this] {
-            const QString folder =
-                QFileDialog::getExistingDirectory(this, i18n("Select Export Folder"), m_folder->text());
-            if (!folder.isEmpty()) {
-                m_folder->setText(folder);
-            }
-        });
-        connect(exportButton, &QPushButton::clicked, this, [this] {
-            exportImages();
-        });
-    }
-
-private:
-    void exportImages()
-    {
-        QString outputFolder;
-        const int destination = m_destination->currentData().toInt();
-        if (destination == 1) {
-            outputFolder = m_folder->text().trimmed();
-        } else if (destination == 2) {
-            outputFolder = QFileDialog::getExistingDirectory(this, i18n("Select Export Folder"), m_folder->text());
-            if (outputFolder.isEmpty()) {
-                return;
-            }
-        }
-        if (destination != 0 && outputFolder.isEmpty()) {
-            QMessageBox::warning(this, i18n("Fast Image Export"), i18n("Select an export folder first."));
-            return;
-        }
-
-        KisConfig cfg(false);
-        cfg.writeEntry("Solstice/FastExportFolder", m_folder->text().trimmed());
-        cfg.writeEntry("Solstice/FastExportPngCompression", m_pngCompression->value());
-        cfg.writeEntry("Solstice/FastExportPngAlpha", m_pngAlpha->isChecked());
-        cfg.writeEntry("Solstice/FastExportJpegQuality", m_jpegQuality->value());
-
-        QList<QPointer<KisDocument>> documents;
-        if (m_scope->currentData().toBool()) {
-            documents = KisPart::instance()->documents();
-        } else if (KisDocument *document = m_viewManager->document()) {
-            documents << document;
-        }
-
-        const QString extension = m_format->currentData().toString();
-        const QByteArray mimeType =
-            extension == QLatin1String("png") ? QByteArray("image/png") : QByteArray("image/jpeg");
-        int exported = 0;
-        QStringList skipped;
-        for (const QPointer<KisDocument> &document : documents) {
-            if (!document || document->localFilePath().isEmpty()) {
-                skipped << (document ? document->caption() : i18n("Unknown document"));
-                continue;
-            }
-            const QFileInfo source(document->localFilePath());
-            const QString folder = destination == 0 ? source.absolutePath() : outputFolder;
-            const QString path = QDir(folder).filePath(source.completeBaseName() + QLatin1Char('.') + extension);
-            KisPropertiesConfigurationSP options(new KisPropertiesConfiguration);
-            if (extension == QLatin1String("png")) {
-                options->setProperty("compression", m_pngCompression->value());
-                options->setProperty("alpha", m_pngAlpha->isChecked());
-            } else {
-                options->setProperty("quality", m_jpegQuality->value());
-            }
-            if (m_viewManager->blockUntilOperationsFinished(document->image())
-                && document->exportDocumentSync(path, mimeType, options)) {
-                ++exported;
-            } else {
-                skipped << document->caption();
-            }
-        }
-
-        if (!skipped.isEmpty()) {
-            QMessageBox::warning(this,
-                                 i18n("Fast Image Export"),
-                                 i18np("Exported %1 document. Skipped: %2",
-                                       "Exported %1 documents. Skipped: %2",
-                                       exported,
-                                       skipped.join(QStringLiteral(", "))));
-        } else {
-            accept();
-        }
-    }
-
-    KisViewManager *m_viewManager{nullptr};
-    QComboBox *m_format{nullptr};
-    QComboBox *m_scope{nullptr};
-    QComboBox *m_destination{nullptr};
-    QLineEdit *m_folder{nullptr};
-    QSpinBox *m_pngCompression{nullptr};
-    QCheckBox *m_pngAlpha{nullptr};
-    QSpinBox *m_jpegQuality{nullptr};
-};
-
 } // namespace
 
 KisSolsticeLazyTools::KisSolsticeLazyTools(KisViewManager *viewManager)
@@ -624,6 +292,14 @@ void KisSolsticeLazyTools::createActions()
     action = m_viewManager->actionManager()->createAction("fast_image_export");
     connect(action, &QAction::triggered, this, [this] {
         showFastExportDialog();
+    });
+    action = m_viewManager->actionManager()->createAction("fast_image_export_run_all");
+    connect(action, &QAction::triggered, this, [this] {
+        runSavedExports(false);
+    });
+    action = m_viewManager->actionManager()->createAction("fast_image_export_run_checked");
+    connect(action, &QAction::triggered, this, [this] {
+        runSavedExports(true);
     });
     action = m_viewManager->actionManager()->createAction("rename_alternative");
     connect(action, &QAction::triggered, this, [this] {
@@ -697,14 +373,68 @@ void KisSolsticeLazyTools::setForegroundColor(int slot)
 
 void KisSolsticeLazyTools::showFastExportDialog()
 {
-    (new FastExportDialog(m_viewManager))->show();
+    KisLazyToolsFastExportDialog::create(
+        m_viewManager->mainWindowAsQWidget(),
+        [viewManager = m_viewManager](bool allDocuments) {
+            if (allDocuments)
+                return KisPart::instance()->documents();
+            QList<QPointer<KisDocument>> documents;
+            if (KisDocument *document = viewManager->document())
+                documents << document;
+            return documents;
+        },
+        [viewManager = m_viewManager](KisImageSP image) {
+            return viewManager->blockUntilOperationsFinished(image);
+        },
+        m_viewManager->document())
+        ->show();
+}
+
+void KisSolsticeLazyTools::runSavedExports(bool checkedOnly)
+{
+    KisDocument *document = m_viewManager->document();
+    if (!document) {
+        return;
+    }
+    const auto result = KisLazyToolsFastExportPresets::run({document},
+                                                           checkedOnly ? KisLazyToolsFastExportPresets::Which::Checked
+                                                                       : KisLazyToolsFastExportPresets::Which::All,
+                                                           [viewManager = m_viewManager](KisImageSP image) {
+                                                               return viewManager->blockUntilOperationsFinished(image);
+                                                           });
+    QWidget *parent = m_viewManager->mainWindowAsQWidget();
+    if (!result.conflicts.isEmpty()) {
+        QMessageBox::warning(parent,
+                             i18n("Fast Image Export"),
+                             i18n("Nothing was exported. More than one saved export would write:\n%1",
+                                  result.conflicts.join(QLatin1Char('\n'))));
+    } else if (!result.skipped.isEmpty()) {
+        QMessageBox::warning(parent,
+                             i18n("Fast Image Export"),
+                             i18np("Exported %1 file. Skipped:\n%2",
+                                   "Exported %1 files. Skipped:\n%2",
+                                   result.exported,
+                                   result.skipped.join(QLatin1Char('\n'))));
+    } else {
+        m_viewManager->showFloatingMessage(i18np("Exported %1 file", "Exported %1 files", result.exported),
+                                           KisIconUtils::loadIcon(QStringLiteral("document-export")));
+    }
 }
 
 void KisSolsticeLazyTools::showRenameDialog()
 {
-    RenameLayerDialog dialog(m_viewManager);
-    dialog.move(QCursor::pos());
-    dialog.exec();
+    QScopedPointer<QDialog> dialog(
+        KisLazyToolsRenameDialog::create(m_viewManager->mainWindowAsQWidget(),
+                                         [viewManager = m_viewManager](const QString &name, int label) {
+                                             KisNodeSP node = viewManager->activeNode();
+                                             if (!node)
+                                                 return false;
+                                             viewManager->nodeManager()->setNodeName(node, name);
+                                             node->setColorLabelIndex(label);
+                                             return true;
+                                         }));
+    dialog->move(QCursor::pos());
+    dialog->exec();
 }
 
 void KisSolsticeLazyTools::pickColorFromScreen()

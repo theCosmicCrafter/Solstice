@@ -189,6 +189,13 @@ void KisSelectionDecoration::antsAttackEvent()
     KisSelectionSP selection = view()->selection();
     if (!selection) return;
 
+    // Solstice: do not repaint a view nobody can see. Background tabs of the
+    // tabbed document area are covered, not hidden, so each of them used to
+    // repaint its whole canvas on every tick; with many documents that have
+    // selections this kept the GUI thread busy.
+    if (view()->visibleRegion().isEmpty())
+        return;
+
     if (selectionIsActive()) {
         m_offset = (m_offset + 1) % (ANT_ADVANCE_WIDTH);
         m_antsPen.setDashOffset(m_offset);

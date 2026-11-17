@@ -66,6 +66,12 @@ public:
 
     void setOpacity(qreal opacity);
     void setMirroring(bool horizontal, bool vertical);
+    /// Solstice: mirroring around @p axesCenter (image pixels) instead of
+    /// the image's mirror axes (a brush stroke layer redraws its strokes)
+    void setMirroring(bool horizontal, bool vertical, const QPointF &axesCenter);
+    bool mirrorMaskHorizontal() const;
+    bool mirrorMaskVertical() const;
+    QPointF axesCenter() const;
     qreal opacity() const;
     QString compositeOpId() const;
 
@@ -90,6 +96,15 @@ public:
     void setBGColorOverride(const KoColor &color);
     void setSelectionOverride(KisSelectionSP selection);
     void setBrush(const KisPaintOpPresetSP &brush);
+
+    /**
+     * Solstice: the stroke erases @p targets, paint layers listed from the
+     * top of the stack, instead of painting on the current node
+     * (docs/agent/through-layer-eraser.md). The first one becomes the current
+     * node. Such a stroke has no level of detail preview.
+     */
+    void setThroughLayerTargets(const KisNodeList &targets);
+    KisNodeList throughLayerTargets() const;
 
 private:
     struct Private;

@@ -11,6 +11,7 @@
 #include <KoColorSpace.h>
 #include <KoColorSpaceRegistry.h>
 #include <KoPathShape.h>
+#include <QPainterPath>
 #include <kis_paint_device.h>
 #include "kis_layer_manager.h"
 

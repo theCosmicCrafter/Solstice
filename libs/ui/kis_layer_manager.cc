@@ -8,16 +8,17 @@
 #include "kis_layer_manager.h"
 #include "KisBrushStrokeLayer.h"
 
-#include <QRect>
 #include <QApplication>
-#include <QCursor>
-#include <QString>
-#include <QDialog>
-#include <QVBoxLayout>
-#include <QFileInfo>
-#include <QStandardPaths>
 #include <QClipboard>
+#include <QCursor>
+#include <QDialog>
+#include <QFileInfo>
 #include <QMimeData>
+#include <QRect>
+#include <QSharedPointer>
+#include <QStandardPaths>
+#include <QString>
+#include <QVBoxLayout>
 
 #include <kactioncollection.h>
 #include <klocalizedstring.h>
@@ -36,41 +37,40 @@
 #include <KisPart.h>
 #include <KisMainWindow.h>
 
-#include <KisImageBarrierLock.h>
 #include <KisImageResolutionProxy.h>
-#include <KisMimeDatabase.h>
+#include <KisRunnableBasedStrokeStrategy.h>
+#include <KisRunnableStrokeJobData.h>
 #include <KoColor.h>
 #include <KoColorBackground.h>
 #include <KoPathShape.h>
 #include <KoShapeController.h>
 #include <KoShapeCreateCommand.h>
-#include <filter/kis_filter.h>
 #include <filter/kis_filter_configuration.h>
-#include <flake/kis_shape_layer.h>
+#include <filter/kis_filter.h>
+#include <kis_filter_strategy.h>
 #include <generator/kis_generator_layer.h>
+#include <kis_file_layer.h>
 #include <kis_adjustment_layer.h>
 #include <kis_algebra_2d.h>
 #include <kis_assert.h>
-#include <kis_clipboard.h>
+#include <kis_mask.h>
 #include <kis_clone_layer.h>
 #include <kis_default_bounds.h>
-#include <kis_file_layer.h>
-#include <kis_filter_strategy.h>
 #include <kis_group_layer.h>
 #include <kis_image.h>
-#include <kis_iterator_ng.h>
 #include <kis_layer.h>
-#include <kis_mask.h>
-#include <kis_meta_data_merge_strategy_registry.h>
-#include <kis_meta_data_store.h>
 #include <kis_paint_device.h>
-#include <kis_painter.h>
 #include <kis_pixel_selection.h>
-#include <kis_psd_layer_style.h>
 #include <kis_selection.h>
 #include <kis_sequential_iterator.h>
+#include <flake/kis_shape_layer.h>
 #include <kis_undo_adapter.h>
-#include <kis_update_outline_job.h>
+#include <kis_painter.h>
+#include <kis_meta_data_store.h>
+#include <kis_meta_data_merge_strategy_registry.h>
+#include <kis_psd_layer_style.h>
+#include <KisMimeDatabase.h>
+#include <kis_clipboard.h>
 
 #include "kis_config.h"
 #include "kis_cursor.h"
@@ -724,6 +724,23 @@ KisLayerSP KisLayerManager::addPaintLayer(KisNodeSP activeNode)
     return layer;
 }
 
+KisLayerSP KisLayerManager::addClippingLayer(KisNodeSP activeNode)
+{
+    KisImageWSP image = m_view->image();
+    KisLayerSP layer = new KisPaintLayer(image.data(),
+                                         image->nextLayerName(i18n("Paint Layer")),
+                                         OPACITY_OPAQUE_U8,
+                                         image->colorSpace());
+
+    KisConfig cfg(true);
+    layer->setPinnedToTimeline(cfg.autoPinLayersToTimeline());
+    layer->setClipped(true);
+
+    addLayerCommon(activeNode, layer, false, 0);
+
+    return layer;
+}
+
 KisNodeSP KisLayerManager::addBrushStrokeLayer(KisNodeSP activeNode)
 {
     KisImageWSP image = m_view->image();
@@ -838,6 +855,33 @@ KoPathShape *KisLayerManager::traceDeviceToPathShape(KisPaintDeviceSP device,
     return shape;
 }
 
+namespace
+{
+
+/**
+ * Stroke strategy that only executes KisRunnableStrokeJobData jobs on the
+ * worker thread (Lane D, D3). Unlike KisStrokeStrategyUndoCommandBased it has
+ * no undo facade, so the trace scan does not leave a stray (empty) command on
+ * the undo stack; the real "Trace to Vector Layer" undo step is added later
+ * by the KisProcessingApplicator below.
+ */
+class KisTraceScanStrokeStrategy : public KisRunnableBasedStrokeStrategy
+{
+public:
+    KisTraceScanStrokeStrategy()
+        : KisRunnableBasedStrokeStrategy(QLatin1String("TraceToVectorScan"), kundo2_i18n("Trace to Vector Layer"))
+    {
+        enableJob(JOB_DOSTROKE);
+
+        // The scan only reads pixels and writes into a scratch selection; the
+        // document is not modified, so it must not eat the user's redo stack
+        // when the trace ends up a no-op (e.g. empty outline).
+        setClearsRedoOnStart(false);
+    }
+};
+
+} // anonymous namespace
+
 void KisLayerManager::traceLayerToVector()
 {
     if (!m_view || !m_view->document())
@@ -868,16 +912,17 @@ void KisLayerManager::traceLayerToVector()
 
     const QRect rc = device->exactBounds();
 
-    // Size guard (D3): If the layer exceeds 64 megapixels (e.g. 8K x 8K), warn the user
-    // because synchronous tracing on the UI thread under image barrier lock may take
-    // noticeable time and freeze responsiveness.
+    // Size guard (D3): the scan itself runs on a worker thread inside a stroke
+    // job (see below), so the GUI stays responsive, but tracing a very large
+    // layer still takes noticeable time and produces a huge vector path.
     const qint64 pixelCount = qint64(rc.width()) * rc.height();
     const qint64 maxPixelsWithoutWarning = 64LL * 1024 * 1024; // 64 megapixels
     if (pixelCount > maxPixelsWithoutWarning && m_view->mainWindow()) {
         const int answer = QMessageBox::warning(
             m_view->mainWindow(),
             i18nc("@title:window", "Trace to Vector"),
-            i18n("The layer is very large (%1 megapixels). Tracing it to vector may take significant time and make Krita temporarily unresponsive. Do you want to continue?",
+            i18n("The layer is very large (%1 megapixels). Tracing it to vector may take significant time and produce "
+                 "a very large vector layer. Do you want to continue?",
                  QString::number(pixelCount / (1024.0 * 1024.0), 'f', 1)),
             QMessageBox::Yes | QMessageBox::No,
             QMessageBox::No);
@@ -887,45 +932,48 @@ void KisLayerManager::traceLayerToVector()
         }
     }
 
-    // Build a selection from the layer's alpha (Select Opaque semantics,
-    // processed with KisSequentialIterator for speed).
+    const qreal xRes = image->xRes() > 0.0 ? image->xRes() : 1.0;
+    const qreal yRes = image->yRes() > 0.0 ? image->yRes() : 1.0;
+
+    // D3: the alpha scan, outline recalculation and path shaping run inside a
+    // dedicated stroke job on a worker thread via traceDeviceToPathShape().
+    // KisRunnableBasedStrokeStrategy has no undo facade, so the scan leaves no
+    // entry on the undo stack and the "Trace to Vector Layer" step below stays
+    // a single undo command. While the job runs,
+    // blockUntilOperationsFinished() keeps the GUI responsive and shows the
+    // standard cancellable busy dialog after ~1 s.
     //
-    // Limitation (D4): The alpha threshold is currently fixed at 50% opacity
-    // (opacityU8 >= 128). Pixels with alpha below 128 are treated as fully
-    // transparent; pixels at or above 128 are treated as fully opaque (MAX_SELECTED).
-    // Soft/antialiased edges are binarized without configurable thresholding or
-    // multi-level vectorization.
-    KisSelectionSP selection =
-        new KisSelection(new KisDefaultBounds(image), toQShared(new KisImageResolutionProxy(image)));
-    {
-        KisPixelSelectionSP pixelSelection = selection->pixelSelection();
-        const KoColorSpace *cs = device->colorSpace();
+    // The job is barrier+exclusive, so it sees the same quiescent image state
+    // the previous GUI-thread KisImageBarrierLock relied on.
+    //
+    // Limitation (D4): the alpha threshold inside traceDeviceToPathShape() is
+    // fixed at 50% opacity (opacityU8 >= 128); soft edges are binarized.
+    // If the user cancels the wait below, the job may still complete after we
+    // return; make sure a shape produced that late is deleted rather than
+    // leaked (the holder itself is kept alive by the job's lambda capture).
+    QSharedPointer<KoPathShape *> shapeHolder(new KoPathShape *(nullptr), [](KoPathShape **holder) {
+        delete *holder;
+        delete holder;
+    });
 
-        KisImageBarrierLock lock(image);
-        KisSequentialConstIterator devIter(device, rc);
-        KisSequentialIterator selIter(pixelSelection, rc);
+    KisStrokeId traceStroke = image->startStroke(new KisTraceScanStrokeStrategy());
+    KIS_SAFE_ASSERT_RECOVER_RETURN(traceStroke);
 
-        while (devIter.nextPixel() && selIter.nextPixel()) {
-            const bool opaque = cs->opacityU8(devIter.oldRawData()) >= 128;
-            *selIter.rawData() = opaque ? MAX_SELECTED : MIN_SELECTED;
-        }
+    image->addJob(traceStroke,
+                  new KisRunnableStrokeJobData(
+                      [device, rc, xRes, yRes, shapeHolder]() {
+                          *shapeHolder = KisLayerManager::traceDeviceToPathShape(device, rc, xRes, yRes);
+                      },
+                      KisStrokeJobData::BARRIER,
+                      KisStrokeJobData::EXCLUSIVE));
+    image->endStroke(traceStroke);
+
+    if (!m_view->blockUntilOperationsFinished(image)) {
+        return;
     }
 
-    // rawData() writes do not invalidate the outline cache; a fresh
-    // pixel selection reports a valid (empty) cache — invalidate it so
-    // the job below actually computes the outline (commit 3ff93727)
-    selection->pixelSelection()->invalidateOutlineCache();
-
-    // outline the selection into a document-space path
-    if (!selection->outlineCacheValid()) {
-        image->addSpontaneousJob(new KisUpdateOutlineJob(selection, false, Qt::transparent));
-        if (!m_view->blockUntilOperationsFinished(image)) {
-            return;
-        }
-    }
-
-    QPainterPath outline = selection->outlineCache();
-    if (outline.isEmpty()) {
+    KoPathShape *shape = *shapeHolder;
+    if (!shape) {
         m_view->showFloatingMessage(i18nc("@info:status", "Nothing to trace: the layer has no painted pixels"),
                                     QIcon(),
                                     2000,
@@ -933,24 +981,12 @@ void KisLayerManager::traceLayerToVector()
         return;
     }
 
-    const qreal xRes = image->xRes() > 0.0 ? image->xRes() : 1.0;
-    const qreal yRes = image->yRes() > 0.0 ? image->yRes() : 1.0;
-
-    // Prefer taking resolution from image xRes/yRes, falling back gracefully
-    // to coordinatesConverter when present without assuming canvasBase is non-null (D1).
-    QTransform transform;
-    if (m_view->canvasBase() && m_view->canvasBase()->coordinatesConverter()) {
-        transform = m_view->canvasBase()->coordinatesConverter()->imageToDocumentTransform();
-    } else {
-        transform = QTransform::fromScale(1.0 / xRes, 1.0 / yRes);
-    }
-
-    KoPathShape *shape = KoPathShape::createShapeFromPainterPath(transform.map(outline));
-    KIS_SAFE_ASSERT_RECOVER_RETURN(shape);
-    shape->setShapeId(KoPathShapeId);
-
-    // Copy fill rule from outline so nested/donut subpaths keep holes (D2)
-    shape->setFillRule(outline.fillRule());
+    // Ownership transfers to addShapeCmd/KoShapeCreateCommand below. Release
+    // the shape from the holder here: its deleter would otherwise delete the
+    // shape when this function returns, while the queued applicator command
+    // still needs it (the command executes asynchronously on a worker
+    // thread — use-after-free crash, Lane D follow-up).
+    *shapeHolder = nullptr;
 
     // Fill with the foreground color, no stroke.
     //

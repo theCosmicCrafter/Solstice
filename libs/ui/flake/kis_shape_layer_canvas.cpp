@@ -275,8 +275,13 @@ void KisShapeLayerCanvas::updateCanvas(const QRectF& rc)
 
 void KisShapeLayerCanvas::slotStartAsyncRepaint()
 {
+    // A document clone hands its image to the copied nodes before the image's
+    // root is assigned (KisImage's copy constructor holds a reference for the
+    // copy, so taking one here does not delete it). Do not schedule a repaint
+    // of an image without a root. KisNodeFacade::root() does not assert,
+    // unlike rootLayer().
     KisImageSP image = m_image;
-    if (!image || !m_parentLayer->image()) {
+    if (!image || !m_parentLayer->image() || image->root().isNull()) {
         return;
     }
 

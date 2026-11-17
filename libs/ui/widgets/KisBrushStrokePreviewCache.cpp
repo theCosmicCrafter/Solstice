@@ -19,6 +19,7 @@
 #include <QFutureWatcher>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QScopeGuard>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QtConcurrent>
@@ -52,7 +53,7 @@ struct KisBrushStrokePreviewCache::Private {
     QString activeKey;
     KisPaintOpPresetSP preset;
     quint64 generation = 0, activeGeneration = 0;
-    bool initialized = false, writing = false, diskBusy = false;
+    bool initialized = false, writing = false, diskBusy = false, processing = false;
 };
 
 QString KisBrushStrokePreviewCache::Request::id() const
@@ -151,6 +152,28 @@ void KisBrushStrokePreviewCache::invalidate()
     m_d->renderer.cancel();
     Q_EMIT previewReady();
 }
+void KisBrushStrokePreviewCache::presetChanged(const Request &request)
+{
+    /**
+     * The model reports a preset's row without roles for Reload Original
+     * Preset, among others. invalidate() there made every chooser look all
+     * its visible previews up again, a resource snapshot on the GUI thread
+     * and a PNG read each, although one preset was reloaded.
+     *
+     * A request is identified by the preset's saved checksum, and its key by
+     * that checksum and the checksums of the linked resources. A preset whose
+     * saved bytes changed is therefore asked for under a new request, and one
+     * whose bytes did not change keeps its key and image. Only a result that
+     * says "this preset could not be loaded" (the request's own id as key) is
+     * dropped, so that the preset is tried again.
+     */
+    const QString id = request.id();
+    if (m_d->keys.value(id) == id) {
+        m_d->keys.remove(id);
+        m_d->empty.remove(id);
+    }
+    Q_EMIT previewReady();
+}
 QString KisBrushStrokePreviewCache::cacheKey(KisPaintOpPresetSP preset, const QString &savedMd5)
 {
     QStringList dependencies;
@@ -186,6 +209,16 @@ void KisBrushStrokePreviewCache::prune(const QString &directory)
 }
 void KisBrushStrokePreviewCache::process()
 {
+    // GUI-thread entry points pump the event loop (busyWaitWithFeedback,
+    // KisSynchronizedConnectionBase::forceDeliverAllSynchronizedEvents),
+    // which can re-deliver this timer or a consumer mutation while an outer
+    // pass still iterates m_d. A re-entrant pass would race the outer one
+    // over the shared request/disk/renderer state. The periodic timer
+    // retries, so a skipped pass only delays the next preview slightly.
+    if (m_d->processing)
+        return;
+    m_d->processing = true;
+    const auto done = qScopeGuard([this]() { m_d->processing = false; });
     if (!m_d->initialized) {
         m_d->initialized = true;
         connect(KisPart::instance(), &KisPart::sigDocumentAdded, this, &KisBrushStrokePreviewCache::observeDocument);
@@ -193,13 +226,26 @@ void KisBrushStrokePreviewCache::process()
         for (const QString &type :
              {ResourceType::PaintOpPresets, ResourceType::Brushes, ResourceType::Patterns, ResourceType::Gradients}) {
             auto model = KisResourceModelProvider::resourceModel(type);
+            const bool presets = type == ResourceType::PaintOpPresets;
             connect(model,
                     &QAbstractItemModel::dataChanged,
                     this,
-                    [this](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
+                    [this, model, presets](const QModelIndex &topLeft,
+                                           const QModelIndex &bottomRight,
+                                           const QVector<int> &roles) {
                         // Unsaved edits only affect the dirty/thumbnail roles.
-                        if (roles.isEmpty() || roles.contains(Qt::UserRole + KisAbstractResourceModel::MD5))
+                        if (!roles.isEmpty() && !roles.contains(Qt::UserRole + KisAbstractResourceModel::MD5))
+                            return;
+                        // A brush tip, pattern or gradient may be linked by
+                        // any preset, so every key may be stale.
+                        const int rows = bottomRight.row() - topLeft.row() + 1;
+                        if (!presets || !topLeft.isValid() || rows > 64) {
                             invalidate();
+                            return;
+                        }
+                        // A preset's row only concerns that preset's preview.
+                        for (int row = topLeft.row(); row <= bottomRight.row(); ++row)
+                            presetChanged(Request::fromIndex(model->index(row, 0)));
                     });
             connect(model, &QAbstractItemModel::modelReset, this, &KisBrushStrokePreviewCache::invalidate);
             connect(model, &QAbstractItemModel::rowsRemoved, this, &KisBrushStrokePreviewCache::invalidate);
@@ -241,7 +287,11 @@ void KisBrushStrokePreviewCache::process()
         }
         m_d->preset.clear();
     }
-    for (const auto &requests : m_d->consumers) {
+    // Snapshot the pending requests: setRequests()/removeConsumer() can be
+    // delivered by a nested event pump (resourceSnapshot() below), and a
+    // rehash would dangle the reference.
+    const QList<QList<Request>> consumers = m_d->consumers.values();
+    for (const auto &requests : consumers) {
         for (auto it = requests.crbegin(); it != requests.crend(); ++it) {
             if (ready(*it))
                 continue;
@@ -260,7 +310,7 @@ void KisBrushStrokePreviewCache::process()
             }
             m_d->activeKey = cacheKey(m_d->preset, it->md5);
             m_d->keys[it->id()] = m_d->activeKey;
-            const auto path = m_d->directory + '/' + m_d->activeKey;
+            const QString path = m_d->directory + '/' + m_d->activeKey;
             m_d->diskBusy = true;
             m_d->disk.setFuture(QtConcurrent::run([path]() {
                 if (QFile::exists(path + ".none")) {
@@ -310,6 +360,13 @@ void KisBrushStrokePreviewCache::observeDocument(KisDocument *document)
 }
 void KisBrushStrokePreviewCache::finish(const QImage &image, bool cancelled)
 {
+    // Same nested-pump reentrancy as process(): the renderer's finished
+    // signal can arrive inside a busy-wait pump while process() is running.
+    // Defer instead of dropping — this result is a one-shot signal.
+    if (m_d->processing) {
+        QTimer::singleShot(0, this, [this, image, cancelled]() { finish(image, cancelled); });
+        return;
+    }
     if (cancelled || m_d->activeGeneration != m_d->generation || !wanted(m_d->active.id()))
         return;
     auto *locator = KisResourceLocator::instance();

@@ -43,6 +43,8 @@ private:
     void observeImage(KisImageSP image);
     void finish(const QImage &image, bool cancelled);
     bool wanted(const QString &id) const;
+    /// A change of one preset's row in the resource model (not of its links)
+    void presetChanged(const Request &request);
     struct Private;
     QScopedPointer<Private> m_d;
 };

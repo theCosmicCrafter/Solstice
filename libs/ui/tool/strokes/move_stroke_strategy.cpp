@@ -56,7 +56,15 @@ protected:
     QRect moveNodeCommon(const QPoint &offset) {
         const QPoint newOffset = m_initialOffset + offset;
 
-        QRect dirtyRect = m_node->projectionPlane()->tightUserVisibleBounds();
+        /**
+         * Solstice: a group's tight bounds are found by reading the pixels
+         * of its projection. Every update writes that projection again, and
+         * with the GPU engine its tiles are then on the GPU only: each move
+         * step read them back one by one. The loose bounds come from the
+         * tile extent (at most 63 pixels larger per side) and read nothing.
+         */
+        QRect dirtyRect = m_node->inherits("KisGroupLayer") ? m_node->projectionPlane()->looseUserVisibleBounds()
+                                                            : m_node->projectionPlane()->tightUserVisibleBounds();
 
         /**
          * Some layers, e.g. clones need an update to change extent(), so

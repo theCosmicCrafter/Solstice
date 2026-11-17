@@ -23,6 +23,7 @@
 
 #include <KoColorConversionTransformation.h>
 #include <KoColorSpace.h>
+#include <KoColorSpaceRegistry.h>
 
 #include <kis_debug.h>
 
@@ -132,7 +133,12 @@ bool KisGpuEngineUi::shouldOfferConversion(const KoColorSpace *colorSpace)
 
 bool KisGpuEngineUi::convertForGpu(KisImageSP image)
 {
-    const KoColorSpace *target = image ? KisGpuEngineSettings::conversionTarget(image->colorSpace()) : nullptr;
+    return convertForGpu(image, KisGpuEngineSettings::Convert);
+}
+
+bool KisGpuEngineUi::convertForGpu(KisImageSP image, KisGpuEngineSettings::ConvertPolicy policy)
+{
+    const KoColorSpace *target = image ? KisGpuEngineSettings::conversionTarget(image->colorSpace(), policy) : nullptr;
     if (!target) {
         return false;
     }
@@ -152,27 +158,28 @@ void KisGpuEngineUi::offerConversion(KisDocument *document, QWidget *parent)
     if (policy == KisGpuEngineSettings::Keep) {
         return;
     }
-    if (policy == KisGpuEngineSettings::Convert) {
-        convertForGpu(image);
+    if (policy == KisGpuEngineSettings::Convert || policy == KisGpuEngineSettings::Convert16) {
+        convertForGpu(image, policy);
         return;
     }
 
-    const KoColorSpace *target = KisGpuEngineSettings::conversionTarget(image->colorSpace());
     const QString documentName = document->path().isEmpty()
         ? i18n("This document")
         : QStringLiteral("\"%1\"").arg(QFileInfo(document->path()).fileName());
     QMessageBox box(QMessageBox::Question,
                     i18nc("@title:window", "GPU Engine"),
                     i18n("%1 uses the color space %2.\n\n"
-                         "The GPU engine only accelerates RGBA float documents. Convert this document to %3? "
+                         "The GPU engine only accelerates RGBA float documents. "
+                         "Convert this document to RGBA 16-bit or 32-bit float? "
                          "The conversion can be undone; saving keeps the new color space.\n\n"
                          "Documents that are not converted work as before, without GPU acceleration.",
                          documentName,
-                         image->colorSpace()->name(),
-                         target->name()),
+                         image->colorSpace()->name()),
                     QMessageBox::NoButton,
                     parent);
-    QPushButton *convert = box.addButton(i18n("Convert"), QMessageBox::AcceptRole);
+    QPushButton *convert16 = box.addButton(i18n("Convert to RGBA 16-bit float"), QMessageBox::AcceptRole);
+    convert16->setEnabled(KisGpuEngineSettings::conversionTarget(image->colorSpace(), KisGpuEngineSettings::Convert16));
+    QPushButton *convert = box.addButton(i18n("Convert to RGBA 32-bit float"), QMessageBox::AcceptRole);
     QPushButton *keep = box.addButton(i18n("Keep"), QMessageBox::RejectRole);
     box.setDefaultButton(convert);
     box.setEscapeButton(keep);
@@ -180,12 +187,15 @@ void KisGpuEngineUi::offerConversion(KisDocument *document, QWidget *parent)
     box.setCheckBox(remember);
     box.exec();
 
-    const bool accepted = box.clickedButton() == convert;
+    const bool accepted = box.clickedButton() == convert || box.clickedButton() == convert16;
+    const KisGpuEngineSettings::ConvertPolicy chosenPolicy = box.clickedButton() == convert16
+        ? KisGpuEngineSettings::Convert16
+        : (accepted ? KisGpuEngineSettings::Convert : KisGpuEngineSettings::Keep);
     if (remember->isChecked()) {
-        KisGpuEngineSettings::setConvertPolicy(accepted ? KisGpuEngineSettings::Convert : KisGpuEngineSettings::Keep);
+        KisGpuEngineSettings::setConvertPolicy(chosenPolicy);
     }
     if (accepted) {
-        convertForGpu(image);
+        convertForGpu(image, chosenPolicy);
     }
 }
 
@@ -249,10 +259,15 @@ KisGpuEngineSettingsWidget::KisGpuEngineSettingsWidget(QWidget *parent)
     : QGroupBox(i18n("GPU Engine (Vulkan)"), parent)
     , m_enabled(new QCheckBox(i18n("Use the GPU engine for RGBA float documents"), this))
     , m_brush(new QCheckBox(i18n("Paint brush strokes on the GPU"), this))
+    , m_unverifiedDevice(new QCheckBox(i18n("Also use it with graphics cards it was not verified with"), this))
     , m_convertPolicy(new QComboBox(this))
     , m_status(new QLabel(this))
 {
     m_convertPolicy->addItem(i18n("Ask"), int(KisGpuEngineSettings::Ask));
+    if (KisGpuEngineSettings::conversionTarget(KoColorSpaceRegistry::instance()->rgb8(),
+                                               KisGpuEngineSettings::Convert16)) {
+        m_convertPolicy->addItem(i18n("Convert to RGBA 16-bit float"), int(KisGpuEngineSettings::Convert16));
+    }
     m_convertPolicy->addItem(i18n("Convert to RGBA 32-bit float"), int(KisGpuEngineSettings::Convert));
     m_convertPolicy->addItem(i18n("Keep the color space"), int(KisGpuEngineSettings::Keep));
     m_status->setWordWrap(true);
@@ -260,18 +275,34 @@ KisGpuEngineSettingsWidget::KisGpuEngineSettingsWidget(QWidget *parent)
     QFormLayout *layout = new QFormLayout(this);
     layout->addRow(m_enabled);
     layout->addRow(m_brush);
-    // the brush uses the engine
+    layout->addRow(m_unverifiedDevice);
+    m_unverifiedDevice->setObjectName(QStringLiteral("gpuEngineUnverifiedDevice"));
+    m_status->setObjectName(QStringLiteral("gpuEngineStatus"));
+    m_unverifiedDevice->setToolTip(
+        i18n("The GPU engine is verified with NVIDIA Blackwell graphics cards (GeForce RTX 50 series and RTX PRO "
+             "Blackwell). With other graphics cards it is untested: results can differ from the CPU, and errors are "
+             "more likely."));
+    // the brush and the choice of graphics card belong to the engine
     connect(m_enabled, &QCheckBox::toggled, m_brush, &QWidget::setEnabled);
+    connect(m_enabled, &QCheckBox::toggled, m_unverifiedDevice, &QWidget::setEnabled);
     layout->addRow(i18n("Opening other documents:"), m_convertPolicy);
     layout->addRow(m_status);
 
     QString status;
 #ifdef HAVE_KRITA_GPU_ENGINE
     KisGpuTileBackend *backend = KisGpuTileBackend::existingInstance();
+    const QString unverifiedDevice =
+        !backend && KisGpuMergeBatch::isEnabled() ? KisGpuTileBackend::unverifiedDeviceName() : QString();
     if (backend && backend->hasFailed()) {
         status = i18n("Stopped after an error in this session.");
     } else if (backend) {
         status = i18n("Active on %1.", backend->context().deviceInfo().name);
+        if (!backend->context().deviceInfo().isVerified()) {
+            status += QLatin1Char(' ') + i18n("The GPU engine was not verified with this graphics card.");
+        }
+    } else if (!unverifiedDevice.isEmpty()) {
+        status = i18n("Not used: the GPU engine was not verified with %1. Check the option above to use it anyway.",
+                      unverifiedDevice);
     } else if (KisGpuMergeBatch::isEnabled()) {
         status = i18n("Enabled; starts with the first RGBA float document.");
     } else {
@@ -282,6 +313,7 @@ KisGpuEngineSettingsWidget::KisGpuEngineSettingsWidget(QWidget *parent)
     status = i18n("Not available: this build of Solstice has no Vulkan support.");
     m_enabled->setEnabled(false);
     m_brush->setEnabled(false);
+    m_unverifiedDevice->setEnabled(false);
     m_convertPolicy->setEnabled(false);
 #endif
     m_status->setText(status);
@@ -292,6 +324,12 @@ void KisGpuEngineSettingsWidget::load(bool requestDefault)
     // Solstice: the GPU engine is on by default (embedded kritarc defaults).
     m_enabled->setChecked(requestDefault ? true : KisGpuEngineSettings::enabledInConfig());
     m_brush->setChecked(requestDefault ? true : KisGpuEngineSettings::brushEnabledInConfig());
+    m_unverifiedDevice->setChecked(requestDefault ? false : KisGpuEngineSettings::unverifiedDeviceAllowedInConfig());
+#ifdef HAVE_KRITA_GPU_ENGINE
+    // toggled() is not emitted when the state stays as it was constructed
+    m_brush->setEnabled(m_enabled->isChecked());
+    m_unverifiedDevice->setEnabled(m_enabled->isChecked());
+#endif
     const int policy = requestDefault ? int(KisGpuEngineSettings::Ask) : int(KisGpuEngineSettings::convertPolicy());
     m_convertPolicy->setCurrentIndex(qMax(0, m_convertPolicy->findData(policy)));
 }
@@ -300,5 +338,6 @@ void KisGpuEngineSettingsWidget::save()
 {
     KisGpuEngineSettings::setEnabledInConfig(m_enabled->isChecked());
     KisGpuEngineSettings::setBrushEnabledInConfig(m_brush->isChecked());
+    KisGpuEngineSettings::setUnverifiedDeviceAllowedInConfig(m_unverifiedDevice->isChecked());
     KisGpuEngineSettings::setConvertPolicy(KisGpuEngineSettings::ConvertPolicy(m_convertPolicy->currentData().toInt()));
 }

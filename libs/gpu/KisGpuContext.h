@@ -42,6 +42,14 @@ struct KRITAGPU_EXPORT KisGpuDeviceInfo {
      * Blackwell (GB20x) generation. Blackwell is the only tested target.
      */
     bool isBlackwell() const;
+    /**
+     * The engine was verified with this kind of device: NVIDIA Blackwell,
+     * the only hardware it has been developed and tested on (user
+     * decision, 2026-11-12). Other devices that meet the requirements can
+     * run it, but only when the user asks for that
+     * (Options::requireVerifiedDevice).
+     */
+    bool isVerified() const;
     QString summary() const;
 };
 
@@ -74,6 +82,10 @@ public:
         /// Request the Win32 external memory/semaphore extensions needed for
         /// OpenGL interop. Missing extensions are reported, not fatal.
         bool requestInterop = true;
+        /// Refuse a device the engine was not verified with
+        /// (KisGpuDeviceInfo::isVerified()). The application sets this
+        /// unless the user allowed other devices; tests leave it off.
+        bool requireVerifiedDevice = false;
     };
 
     ~KisGpuContext();
@@ -81,8 +93,29 @@ public:
     KisGpuContext(const KisGpuContext &) = delete;
     KisGpuContext &operator=(const KisGpuContext &) = delete;
 
-    static std::unique_ptr<KisGpuContext> create(const Options &options, QString *errorMessage);
+    /**
+     * @param unverifiedDevice receives the selected device when it was
+     *        refused because of Options::requireVerifiedDevice (its name is
+     *        empty otherwise)
+     */
+    static std::unique_ptr<KisGpuContext>
+    create(const Options &options, QString *errorMessage, KisGpuDeviceInfo *unverifiedDevice = nullptr);
     static std::unique_ptr<KisGpuContext> create(QString *errorMessage);
+
+    /**
+     * The device create() would select, without creating a Vulkan device:
+     * for telling the user which graphics card the engine would run on
+     * before it starts. The name is empty when there is no usable device.
+     */
+    static KisGpuDeviceInfo probeDevice(QString *errorMessage = nullptr);
+
+    /**
+     * Whether the selected device @p info may run the engine when
+     * @p requireVerified is set. KRITA_GPU_TREAT_DEVICE_AS_UNVERIFIED=1
+     * makes every device count as unverified (development: to see the
+     * refusal on verified hardware).
+     */
+    static bool acceptsDevice(const KisGpuDeviceInfo &info, bool requireVerified);
 
     /**
      * Whether a physical device of @p type may run the engine. CPU devices

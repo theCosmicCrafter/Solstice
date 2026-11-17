@@ -1258,63 +1258,215 @@
       <attribute name="title">
        <string>Custom</string>
       </attribute>
-      <layout class="QVBoxLayout" name="customVerticalLayout">
+      <layout class="QVBoxLayout" name="customOuterLayout">
+       <property name="leftMargin"><number>0</number></property>
+       <property name="topMargin"><number>0</number></property>
+       <property name="rightMargin"><number>0</number></property>
+       <property name="bottomMargin"><number>0</number></property>
        <item>
-        <widget class="QCheckBox" name="chkColorPickFromAnywhere">
-         <property name="text">
-          <string>Enable Color Pick from Anywhere (Win+Shift+C)</string>
+        <widget class="QScrollArea" name="customScrollArea">
+         <property name="frameShape">
+          <enum>QFrame::Shape::NoFrame</enum>
          </property>
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <widget class="QWidget" name="customScrollAreaWidgetContents">
+          <layout class="QVBoxLayout" name="customVerticalLayout">
+           <item>
+            <widget class="QCheckBox" name="chkColorPickFromAnywhere">
+             <property name="text">
+              <string>Enable Color Pick from Anywhere (Win+Shift+C)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="chkDisableTopMenuShortcuts">
+             <property name="text">
+              <string>Disable top menu shortcuts</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="chkRestNoteEnabled">
+             <property name="toolTip">
+              <string>Shows the Rest Note docker (work and break timer) in Settings &gt; Dockers. Turning it on takes effect after restarting Solstice; turning it off stops the timer at once.</string>
+             </property>
+             <property name="text">
+              <string>Enable the Rest Note docker</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="grpForegroundColorSlots">
+             <property name="title">
+              <string>Foreground Color Shortcut Slots</string>
+             </property>
+             <layout class="QFormLayout" name="foregroundColorSlotsLayout">
+              <item row="0" column="0"><widget class="QLabel" name="lblForegroundColor1"><property name="text"><string>Foreground Color 1:</string></property></widget></item>
+              <item row="0" column="1"><widget class="KisColorButton" name="btnForegroundColor1"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
+              <item row="1" column="0"><widget class="QLabel" name="lblForegroundColor2"><property name="text"><string>Foreground Color 2:</string></property></widget></item>
+              <item row="1" column="1"><widget class="KisColorButton" name="btnForegroundColor2"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
+              <item row="2" column="0"><widget class="QLabel" name="lblForegroundColor3"><property name="text"><string>Foreground Color 3:</string></property></widget></item>
+              <item row="2" column="1"><widget class="KisColorButton" name="btnForegroundColor3"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
+              <item row="3" column="0"><widget class="QLabel" name="lblForegroundColor4"><property name="text"><string>Foreground Color 4:</string></property></widget></item>
+              <item row="3" column="1"><widget class="KisColorButton" name="btnForegroundColor4"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
+              <item row="4" column="0"><widget class="QLabel" name="lblForegroundColor5"><property name="text"><string>Foreground Color 5:</string></property></widget></item>
+              <item row="4" column="1"><widget class="KisColorButton" name="btnForegroundColor5"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
+              <item row="5" column="0"><widget class="QLabel" name="lblForegroundColor6"><property name="text"><string>Foreground Color 6:</string></property></widget></item>
+              <item row="5" column="1"><widget class="KisColorButton" name="btnForegroundColor6"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
+              <item row="6" column="0"><widget class="QLabel" name="lblForegroundColor7"><property name="text"><string>Foreground Color 7:</string></property></widget></item>
+              <item row="6" column="1"><widget class="KisColorButton" name="btnForegroundColor7"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
+              <item row="7" column="0"><widget class="QLabel" name="lblForegroundColor8"><property name="text"><string>Foreground Color 8:</string></property></widget></item>
+              <item row="7" column="1"><widget class="KisColorButton" name="btnForegroundColor8"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
+              <item row="8" column="0"><widget class="QLabel" name="lblForegroundColor9"><property name="text"><string>Foreground Color 9:</string></property></widget></item>
+              <item row="8" column="1"><widget class="KisColorButton" name="btnForegroundColor9"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="grpFastExportFolders">
+             <property name="title">
+              <string>Fast Image Export Folders</string>
+             </property>
+             <layout class="QVBoxLayout" name="fastExportFoldersLayout">
+              <item>
+               <widget class="QLabel" name="lblFastExportFolders">
+                <property name="text">
+                 <string>In Fast Image Export, Browse… starts in the selected folder, where you choose the export folder. Images are not exported to these folders directly.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QListWidget" name="lstFastExportFolders"/>
+              </item>
+              <item>
+               <layout class="QHBoxLayout" name="fastExportFolderButtonsLayout">
+                <item>
+                 <widget class="QPushButton" name="btnAddFastExportFolder">
+                  <property name="text">
+                   <string>Add…</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btnRemoveFastExportFolder">
+                  <property name="text">
+                   <string>Remove</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="fastExportFolderButtonsSpacer">
+                  <property name="orientation"><enum>Qt::Orientation::Horizontal</enum></property>
+                  <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
+                 </spacer>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="grpRenamePresets">
+             <property name="title">
+              <string>Rename Layer Presets</string>
+             </property>
+             <layout class="QVBoxLayout" name="renamePresetsLayout">
+              <item>
+               <widget class="QLabel" name="lblRenamePresets">
+                <property name="text">
+                 <string>Names shown by Rename Alternative, one per line: a layer name, or a layer name, a comma and a color (Blue, Green, Yellow, Orange, Brown, Red, Purple or Grey).</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <layout class="QFormLayout" name="renamePresetsFormLayout">
+                <item row="0" column="0">
+                 <widget class="QLabel" name="lblRenameGridColumns">
+                  <property name="text">
+                   <string>Popup grid columns:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="1">
+                 <widget class="QSpinBox" name="intRenameGridColumns">
+                  <property name="minimum"><number>1</number></property>
+                  <property name="maximum"><number>12</number></property>
+                  <property name="value"><number>3</number></property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="lblRenameDialogWidth">
+                  <property name="text">
+                   <string>Popup width:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QSpinBox" name="intRenameDialogWidth">
+                  <property name="suffix"><string> px</string></property>
+                  <property name="minimum"><number>240</number></property>
+                  <property name="maximum"><number>4000</number></property>
+                  <property name="value"><number>500</number></property>
+                 </widget>
+                </item>
+                <item row="2" column="0">
+                 <widget class="QLabel" name="lblRenameDialogHeight">
+                  <property name="text">
+                   <string>Popup height:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="1">
+                 <widget class="QSpinBox" name="intRenameDialogHeight">
+                  <property name="suffix"><string> px</string></property>
+                  <property name="minimum"><number>200</number></property>
+                  <property name="maximum"><number>4000</number></property>
+                  <property name="value"><number>800</number></property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <widget class="QPlainTextEdit" name="txtRenamePresets">
+                <property name="minimumSize">
+                 <size><width>0</width><height>160</height></size>
+                </property>
+                <property name="placeholderText">
+                 <string>sketch
+lineart, Blue</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblRenamePresetsFile">
+                <property name="textInteractionFlags">
+                 <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <spacer name="customVerticalSpacer">
+             <property name="orientation"><enum>Qt::Orientation::Vertical</enum></property>
+             <property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
         </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="chkDisableTopMenuShortcuts">
-         <property name="text">
-          <string>Disable top menu shortcuts</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="chkRestNoteEnabled">
-         <property name="toolTip">
-          <string>Shows the Rest Note docker (work and break timer) in Settings &gt; Dockers. Turning it on takes effect after restarting Solstice; turning it off stops the timer at once.</string>
-         </property>
-         <property name="text">
-          <string>Enable the Rest Note docker</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="grpForegroundColorSlots">
-         <property name="title">
-          <string>Foreground Color Shortcut Slots</string>
-         </property>
-         <layout class="QFormLayout" name="foregroundColorSlotsLayout">
-          <item row="0" column="0"><widget class="QLabel" name="lblForegroundColor1"><property name="text"><string>Foreground Color 1:</string></property></widget></item>
-          <item row="0" column="1"><widget class="KisColorButton" name="btnForegroundColor1"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
-          <item row="1" column="0"><widget class="QLabel" name="lblForegroundColor2"><property name="text"><string>Foreground Color 2:</string></property></widget></item>
-          <item row="1" column="1"><widget class="KisColorButton" name="btnForegroundColor2"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
-          <item row="2" column="0"><widget class="QLabel" name="lblForegroundColor3"><property name="text"><string>Foreground Color 3:</string></property></widget></item>
-          <item row="2" column="1"><widget class="KisColorButton" name="btnForegroundColor3"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
-          <item row="3" column="0"><widget class="QLabel" name="lblForegroundColor4"><property name="text"><string>Foreground Color 4:</string></property></widget></item>
-          <item row="3" column="1"><widget class="KisColorButton" name="btnForegroundColor4"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
-          <item row="4" column="0"><widget class="QLabel" name="lblForegroundColor5"><property name="text"><string>Foreground Color 5:</string></property></widget></item>
-          <item row="4" column="1"><widget class="KisColorButton" name="btnForegroundColor5"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
-          <item row="5" column="0"><widget class="QLabel" name="lblForegroundColor6"><property name="text"><string>Foreground Color 6:</string></property></widget></item>
-          <item row="5" column="1"><widget class="KisColorButton" name="btnForegroundColor6"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
-          <item row="6" column="0"><widget class="QLabel" name="lblForegroundColor7"><property name="text"><string>Foreground Color 7:</string></property></widget></item>
-          <item row="6" column="1"><widget class="KisColorButton" name="btnForegroundColor7"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
-          <item row="7" column="0"><widget class="QLabel" name="lblForegroundColor8"><property name="text"><string>Foreground Color 8:</string></property></widget></item>
-          <item row="7" column="1"><widget class="KisColorButton" name="btnForegroundColor8"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
-          <item row="8" column="0"><widget class="QLabel" name="lblForegroundColor9"><property name="text"><string>Foreground Color 9:</string></property></widget></item>
-          <item row="8" column="1"><widget class="KisColorButton" name="btnForegroundColor9"><property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Fixed"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <spacer name="customVerticalSpacer">
-         <property name="orientation"><enum>Qt::Orientation::Vertical</enum></property>
-         <property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property>
-        </spacer>
        </item>
       </layout>
      </widget>

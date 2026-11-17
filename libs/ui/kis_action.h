@@ -60,6 +60,7 @@ public:
         PIXEL_SELECTION_WITH_PIXELS = 0x20000, ///< Activate there is a raster selection active
         IMAGE_CAN_RESELECT          = 0x40000, ///< Activate there is a deselected selection in the image
         IMAGE_IS_WRITABLE           = 0x80000, ///< Activate KisDocument::isReadWrite() is active
+        ACTIVE_BRUSH_STROKE_LAYER = 0x100000, ///< Activate if the current node is a brush stroke layer (Solstice)
     };
     Q_DECLARE_FLAGS(ActivationFlags, ActivationFlag)
 

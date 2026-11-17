@@ -256,6 +256,12 @@ void KisActionManager::updateGUI()
             flags |= KisAction::ACTIVE_SHAPE_LAYER;
         }
 
+        if (layer && layer->inherits("KisBrushStrokeLayer")) {
+            // Solstice: actions that only make sense on a layer with a
+            // recorded stroke list (docs/agent/brush-stroke-layer-plan.md)
+            flags |= KisAction::ACTIVE_BRUSH_STROKE_LAYER;
+        }
+
         if (KisClipboard::instance()->hasLayers()) {
             flags |= KisAction::LAYERS_IN_CLIPBOARD;
         }
@@ -454,6 +460,9 @@ void KisActionManager::dumpActionFlags()
             }
             if (flags & KisAction::ACTIVE_SHAPE_LAYER) {
                 out << "    Active shape layer\n";
+            }
+            if (flags & KisAction::ACTIVE_BRUSH_STROKE_LAYER) {
+                out << "    Active brush stroke layer\n";
             }
             if (flags & KisAction::PIXELS_SELECTED) {
                 out << "    Pixels selected\n";

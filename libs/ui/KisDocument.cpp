@@ -66,6 +66,7 @@
 #include <QPainter>
 #include <QRect>
 #include <QScopedPointer>
+#include <QScopedValueRollback>
 #include <QSize>
 #include <QStringList>
 #include <QtGlobal>
@@ -398,6 +399,7 @@ public:
 
     QColor globalAssistantsColor;
     QList<KoColor> colorHistory;
+    QByteArray solsticeFastExportData;
 
     KisGridConfig gridConfig;
 
@@ -539,7 +541,8 @@ void KisDocument::Private::copyFromImpl(const Private &rhs, KisDocument *q, KisD
     // XXX: the display properties will be shared between different snapshots
     globalAssistantsColor = rhs.globalAssistantsColor;
     batchMode = rhs.batchMode;
-
+    // Saving works on a clone, which must keep the Fast Image Export settings.
+    solsticeFastExportData = rhs.solsticeFastExportData;
 
     if (rhs.linkedResourceStorage) {
         linkedResourceStorage = rhs.linkedResourceStorage->clone();
@@ -1191,6 +1194,21 @@ void KisDocument::Private::uploadLinkedResourcesFromLayersToStorage()
 
 KisDocument *KisDocument::Private::lockAndCloneImpl(bool fetchResourcesFromLayers)
 {
+    /**
+     * The event pumps below (processEvents, blockUntilOperationsFinished,
+     * the strippped locker's retry) can deliver timer events — e.g. another
+     * document's autosave — that re-enter this function on the GUI thread.
+     * A nested clone wires half-built images into shape-layer canvases and
+     * crashes in ~KisImagePrivate on nodes whose graph listener/image
+     * backlink is still unset. Serialize the clone: a re-entrant call fails
+     * like a busy lock, and the autosave path reschedules on failure.
+     */
+    static thread_local bool cloneInProgress = false;
+    if (cloneInProgress) {
+        return nullptr;
+    }
+    const QScopedValueRollback<bool> cloneGuard(cloneInProgress, true);
+
     // force update of all the asynchronous nodes before cloning
     QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
     KisLayerUtils::forceAllDelayedNodesUpdate(image->root());
@@ -2640,17 +2658,7 @@ bool KisDocument::newImage(const QString& name,
     documentInfo()->setAboutInfo("abstract", description);
 
     KisConfig cfg(false);
-    cfg.defImageWidth(width);
-    cfg.defImageHeight(height);
-    cfg.defImageResolution(imageResolution);
-    if (!cfg.useDefaultColorSpace())
-    {
-        cfg.defColorModel(image->colorSpace()->colorModelId().id());
-        cfg.setDefaultColorDepth(image->colorSpace()->colorDepthId().id());
-        cfg.defColorProfile(image->colorSpace()->profile()->name());
-    }
-
-    bool autopin = cfg.autoPinLayersToTimeline();
+    const bool autopin = cfg.autoPinLayersToTimeline();
 
     KisLayerSP bgLayer;
     if (bgStyle == KisConfig::RASTER_LAYER || bgStyle == KisConfig::FILL_LAYER) {
@@ -2920,4 +2928,14 @@ QRectF KisDocument::documentBounds() const
 void KisDocument::setColorHistory(const QList<KoColor> &colors)
 {
     d->colorHistory = colors;
+}
+
+QByteArray KisDocument::solsticeFastExportData() const
+{
+    return d->solsticeFastExportData;
+}
+
+void KisDocument::setSolsticeFastExportData(const QByteArray &data)
+{
+    d->solsticeFastExportData = data;
 }

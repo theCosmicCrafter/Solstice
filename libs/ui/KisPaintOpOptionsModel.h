@@ -131,19 +131,19 @@ private:
  * Holds the option states of one paint engine and keeps them synchronized
  * with the settings of the attached preset.
  *
- * - An option change writes only that option's keys to the preset. Keys the
- *   option wrote previously but no longer writes are removed.
+ * - After the initial rewrite, an option change writes its keys and those of
+ *   its transitive dependents. Previously owned keys no longer written are removed.
  * - The first write after a preset is attached or its settings are replaced
  *   rewrites all settings (as the legacy Brush Editor did). This drops legacy
  *   keys that are read but never written, such as Custom<id>/Curve<id>.
  * - Changes made by others (toolbar, uniform properties, locked options,
  *   reloads) arrive through KisPaintOpPresetUpdateProxy::sigSettingsKeysChanged()
- *   and update only the options that own the changed keys.
+ *   and update their owners and transitive dependents (all options for unknown keys).
  *
  * Reads and writes go through KisLockedPropertiesProxy, like the legacy
  * KisPaintOpSettingsWidget::setConfiguration()/writeConfiguration().
  *
- * See docs/agent/brush-option-shared-model-plan.md.
+ * See docs/agent/brush-option-shared-model.md.
  */
 class KRITAUI_EXPORT KisPaintOpOptionsModel : public QObject
 {
@@ -173,7 +173,8 @@ public:
      * Declares that the written (baked) data of option \p dependentId depends
      * on the state of option \p sourceId, e.g. the painting mode on the
      * masking brush. A change of the source then writes the dependent option
-     * too. Dependencies are followed transitively.
+     * too. External source changes also reread dependents. Dependencies are
+     * followed transitively.
      */
     void addDependency(const QString &dependentId, const QString &sourceId);
 

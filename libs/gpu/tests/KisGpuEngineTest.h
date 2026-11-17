@@ -26,6 +26,7 @@ private Q_SLOTS:
 
     void testDeviceInfo();
     void testSoftwareDevicesRefused();
+    void testUnverifiedDevicesNeedOptIn();
     void testTilePoolAllocation();
     void testUploadReadbackRoundTrip();
     void testEarlyMainFinish();

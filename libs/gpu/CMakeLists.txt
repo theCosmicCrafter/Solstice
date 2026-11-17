@@ -1,12 +1,21 @@
 # GPU engine (Solstice): Vulkan compute foundation.
-# See docs/agent/gpu-engine.md. The library is optional: without the Vulkan
-# SDK headers and glslc it is not built and nothing else depends on it yet.
+# See docs/agent/gpu-engine.md. kritagpu is required by default: a build
+# without it is not Solstice. Disable only explicitly with
+# -DKRITA_GPU_ENGINE=OFF for CPU-only builds.
+
+option(KRITA_GPU_ENGINE "Build the Solstice Vulkan GPU engine" ON)
+if(NOT KRITA_GPU_ENGINE)
+    message(STATUS "Solstice GPU engine: disabled by -DKRITA_GPU_ENGINE=OFF")
+    set(HAVE_KRITA_GPU_ENGINE OFF CACHE INTERNAL "kritagpu is built")
+    return()
+endif()
 
 find_package(Vulkan QUIET COMPONENTS glslc)
 if(NOT Vulkan_INCLUDE_DIRS OR NOT Vulkan_GLSLC_EXECUTABLE)
-    message(STATUS "Solstice GPU engine: Vulkan headers/glslc not found; kritagpu is not built")
-    set(HAVE_KRITA_GPU_ENGINE OFF CACHE INTERNAL "kritagpu is built")
-    return()
+    message(FATAL_ERROR
+        "Solstice GPU engine is required but the Vulkan SDK was not found. "
+        "Set VULKAN_SDK or pass -DVulkan_INCLUDE_DIR/-DVulkan_GLSLC_EXECUTABLE "
+        "(see docs/agent/vision-ml.md), or configure with -DKRITA_GPU_ENGINE=OFF.")
 endif()
 set(HAVE_KRITA_GPU_ENGINE ON CACHE INTERNAL "kritagpu is built")
 
@@ -60,16 +69,36 @@ kis_gpu_add_shader(kritagpu_SHADERS composite_over_stack_rgba32f shaders/composi
 kis_gpu_add_shader(kritagpu_SHADERS composite_over_stack_rgba16f shaders/composite_over_stack.comp DEFINES TILE_F16)
 kis_gpu_add_shader(kritagpu_SHADERS fill_tiles_rgba32f shaders/fill_tiles.comp)
 kis_gpu_add_shader(kritagpu_SHADERS fill_tiles_rgba16f shaders/fill_tiles.comp DEFINES TILE_F16)
+# Solstice: Clone Layer offsets (docs/agent/clone-layer.md)
+kis_gpu_add_shader(kritagpu_SHADERS copy_shifted_rgba32f shaders/copy_shifted.comp)
+kis_gpu_add_shader(kritagpu_SHADERS copy_shifted_rgba16f shaders/copy_shifted.comp DEFINES TILE_F16)
+# Solstice: transparency masks (docs/agent/gpu-engine.md, phase 4.113)
+kis_gpu_add_shader(kritagpu_SHADERS apply_coverage_rgba32f shaders/apply_coverage.comp)
+kis_gpu_add_shader(kritagpu_SHADERS apply_coverage_rgba16f shaders/apply_coverage.comp DEFINES TILE_F16)
 kis_gpu_add_shader(kritagpu_SHADERS composite_layers_rgba32f shaders/composite_layers.comp DEFINES BASIC_BLEND_ONLY
-    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl)
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl
+             ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_over.glsl)
 kis_gpu_add_shader(kritagpu_SHADERS composite_layers_rgba16f shaders/composite_layers.comp DEFINES TILE_F16 BASIC_BLEND_ONLY
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl
+             ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_over.glsl
              ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_half_brush.glsl)
 kis_gpu_add_shader(kritagpu_SHADERS composite_layers_extended_rgba32f shaders/composite_layers.comp
-    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl)
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl
+             ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_over.glsl)
 kis_gpu_add_shader(kritagpu_SHADERS composite_layers_extended_rgba16f shaders/composite_layers.comp DEFINES TILE_F16
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl
+             ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_over.glsl
              ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_half_brush.glsl)
+# Solstice: Stroke layer style (docs/agent/gpu-engine.md, phase 4.114)
+kis_gpu_add_shader(kritagpu_SHADERS composite_stroke_style_rgba32f shaders/composite_stroke_style.comp DEFINES BASIC_BLEND_ONLY
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl
+             ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_over.glsl)
+kis_gpu_add_shader(kritagpu_SHADERS composite_stroke_style_rgba16f shaders/composite_stroke_style.comp DEFINES TILE_F16 BASIC_BLEND_ONLY
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl
+             ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_over.glsl)
+# Solstice: filter layers (docs/agent/gpu-engine.md, phase 4.115)
+kis_gpu_add_shader(kritagpu_SHADERS color_transform_rgba32f shaders/color_transform.comp)
+kis_gpu_add_shader(kritagpu_SHADERS color_transform_rgba16f shaders/color_transform.comp DEFINES TILE_F16)
 kis_gpu_add_shader(kritagpu_SHADERS canvas_patches_f32_f32 shaders/canvas_patches.comp)
 kis_gpu_add_shader(kritagpu_SHADERS canvas_patches_f32_f16 shaders/canvas_patches.comp DEFINES DST_F16)
 kis_gpu_add_shader(kritagpu_SHADERS canvas_patches_f16_f32 shaders/canvas_patches.comp DEFINES SRC_F16)
@@ -79,6 +108,8 @@ kis_gpu_add_shader(kritagpu_SHADERS transform_pass_rgba16f shaders/transform_pas
 kis_gpu_add_shader(kritagpu_SHADERS grid_warp_claim shaders/grid_warp.comp DEFINES CLAIM)
 kis_gpu_add_shader(kritagpu_SHADERS grid_warp_resolve_rgba32f shaders/grid_warp.comp)
 kis_gpu_add_shader(kritagpu_SHADERS grid_warp_resolve_rgba16f shaders/grid_warp.comp DEFINES TILE_F16)
+kis_gpu_add_shader(kritagpu_SHADERS perspective_transform_rgba32f shaders/perspective_transform.comp)
+kis_gpu_add_shader(kritagpu_SHADERS perspective_transform_rgba16f shaders/perspective_transform.comp DEFINES TILE_F16)
 kis_gpu_add_shader(kritagpu_SHADERS separable_convolution_h_rgba32f shaders/separable_convolution.comp)
 kis_gpu_add_shader(kritagpu_SHADERS separable_convolution_h_rgba16f shaders/separable_convolution.comp DEFINES TILE_F16)
 kis_gpu_add_shader(kritagpu_SHADERS separable_convolution_v_rgba32f shaders/separable_convolution.comp DEFINES VERTICAL)
@@ -101,8 +132,13 @@ set(kritagpu_LIB_SRCS
     KisGpuCanvasPatchWriter.cpp
     KisGpuTransformPass.cpp
     KisGpuGridWarpPass.cpp
+    KisGpuPerspectivePass.cpp
     KisGpuSeparableConvolutionPass.cpp
     KisGpuMaskingCompositePass.cpp
+    KisGpuShiftedCopyPass.cpp
+    KisGpuCoveragePass.cpp
+    KisGpuStrokeStylePass.cpp
+    KisGpuColorTransformPass.cpp
 )
 
 if(WIN32)

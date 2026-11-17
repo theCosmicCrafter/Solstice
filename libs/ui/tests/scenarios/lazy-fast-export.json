@@ -1,0 +1,415 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "lazy-fast-export",
+  "description": "Fast Image Export writes the active document under a typed name next to it (PNG with the same pixels, JPEG at the same size) and Export Region writes exactly the selected area; the document keeps its file and stays unmodified; an invalid name and Export Region without a selection warn.",
+  "covers": "Lazy Tools Fast Image Export dialog: Name field, Export, Export Region, PNG/JPEG, warnings; documents opened in batch mode, so no format options dialog",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "preset": "b) Basic-5 Size Opacity",
+        "size": 30,
+        "opacity": 1,
+        "color": "#2040c0"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KritaShape/KisToolBrush"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 50,
+          "y": 150
+        },
+        "to": {
+          "x": 350,
+          "y": 150
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "document_export_png",
+      "args": {
+        "path": "lazy-export-source.png"
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    },
+    {
+      "call": "document_open",
+      "args": {
+        "path": "lazy-export-source.png"
+      },
+      "expect": {
+        "document.fileName": "lazy-export-source.png"
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "source": "projection"
+      },
+      "save": {
+        "source": "sha256"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "source": "projection",
+        "x": 100,
+        "y": 100,
+        "width": 200,
+        "height": 100
+      },
+      "save": {
+        "region": "sha256"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fast_image_export"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "className": "QComboBox",
+        "index": 2,
+        "value": "Same folder as the document"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "toolTip": "Optional file name without the extension. Used only for the active document.",
+        "value": "lazy-export-named"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Fast Image Export",
+        "text": "Export",
+        "async": true
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "window": "Fast Image Export"
+      },
+      "expectError": true
+    },
+    {
+      "call": "session_info",
+      "expect": {
+        "document.fileName": "lazy-export-source.png",
+        "document.modified": false
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fast_image_export"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "className": "QComboBox",
+        "index": 2,
+        "value": "Same folder as the document"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "toolTip": "Optional file name without the extension. Used only for the active document.",
+        "value": "bad/name"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Fast Image Export",
+        "text": "Export",
+        "async": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Fast Image Export",
+        "text": "OK"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Fast Image Export",
+        "text": "Export Region",
+        "async": true
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Fast Image Export",
+        "text": "OK"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Fast Image Export",
+        "text": "Cancel"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 100
+        },
+        "to": {
+          "x": 300,
+          "y": 200
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fast_image_export"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "className": "QComboBox",
+        "index": 2,
+        "value": "Same folder as the document"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "toolTip": "Optional file name without the extension. Used only for the active document.",
+        "value": "lazy-export-region"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Fast Image Export",
+        "text": "Export Region",
+        "async": true
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "window": "Fast Image Export"
+      },
+      "expectError": true
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "selection.active": true,
+        "selection.selectedPixels": 20000
+      }
+    },
+    {
+      "call": "session_info",
+      "save": {
+        "modified": "document.modified"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fast_image_export"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "className": "QComboBox",
+        "index": 2,
+        "value": "Same folder as the document"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "className": "QComboBox",
+        "index": 0,
+        "value": "JPEG"
+      }
+    },
+    {
+      "call": "ui_set",
+      "args": {
+        "window": "Fast Image Export",
+        "toolTip": "Optional file name without the extension. Used only for the active document.",
+        "value": "lazy-export-jpeg"
+      }
+    },
+    {
+      "call": "ui_click",
+      "args": {
+        "window": "Fast Image Export",
+        "text": "Export",
+        "async": true
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "ui_query",
+      "args": {
+        "window": "Fast Image Export"
+      },
+      "expectError": true
+    },
+    {
+      "call": "session_info",
+      "expect": {
+        "document.fileName": "lazy-export-source.png",
+        "document.modified": {
+          "equals": "$modified"
+        }
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    },
+    {
+      "call": "document_open",
+      "args": {
+        "path": "lazy-export-named.png"
+      },
+      "expect": {
+        "document.width": 400,
+        "document.height": 300
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "source": "projection"
+      },
+      "expect": {
+        "sha256": {
+          "equals": "$source"
+        }
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    },
+    {
+      "call": "document_open",
+      "args": {
+        "path": "lazy-export-region.png"
+      },
+      "expect": {
+        "document.width": 200,
+        "document.height": 100
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "source": "projection"
+      },
+      "expect": {
+        "sha256": {
+          "equals": "$region"
+        }
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    },
+    {
+      "call": "document_open",
+      "args": {
+        "path": "lazy-export-jpeg.jpg"
+      },
+      "expect": {
+        "document.width": 400,
+        "document.height": 300
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    }
+  ]
+}

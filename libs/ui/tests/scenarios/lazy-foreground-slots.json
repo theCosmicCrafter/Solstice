@@ -1,0 +1,241 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "lazy-foreground-slots",
+  "description": "The nine Set Foreground Color actions set their default colors (a scratch profile, where no slot was changed in Preferences).",
+  "covers": "Lazy Tools foreground color slots (set_foreground_color1-9, Solstice/ForegroundColor<n> defaults)",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#123456"
+      },
+      "expect": {
+        "color": "#123456"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "set_foreground_color1"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "colorRgb.0": {
+          "min": 0,
+          "max": 3
+        },
+        "colorRgb.1": {
+          "min": 0,
+          "max": 3
+        },
+        "colorRgb.2": {
+          "min": 0,
+          "max": 3
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "set_foreground_color2"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "colorRgb.0": {
+          "min": 252,
+          "max": 255
+        },
+        "colorRgb.1": {
+          "min": 252,
+          "max": 255
+        },
+        "colorRgb.2": {
+          "min": 252,
+          "max": 255
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "set_foreground_color3"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "colorRgb.0": {
+          "min": 235,
+          "max": 241
+        },
+        "colorRgb.1": {
+          "min": 47,
+          "max": 53
+        },
+        "colorRgb.2": {
+          "min": 48,
+          "max": 54
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "set_foreground_color4"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "colorRgb.0": {
+          "min": 252,
+          "max": 255
+        },
+        "colorRgb.1": {
+          "min": 167,
+          "max": 173
+        },
+        "colorRgb.2": {
+          "min": 60,
+          "max": 66
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "set_foreground_color5"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "colorRgb.0": {
+          "min": 244,
+          "max": 250
+        },
+        "colorRgb.1": {
+          "min": 226,
+          "max": 232
+        },
+        "colorRgb.2": {
+          "min": 58,
+          "max": 64
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "set_foreground_color6"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "colorRgb.0": {
+          "min": 148,
+          "max": 154
+        },
+        "colorRgb.1": {
+          "min": 199,
+          "max": 205
+        },
+        "colorRgb.2": {
+          "min": 60,
+          "max": 66
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "set_foreground_color7"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "colorRgb.0": {
+          "min": 88,
+          "max": 94
+        },
+        "colorRgb.1": {
+          "min": 170,
+          "max": 176
+        },
+        "colorRgb.2": {
+          "min": 215,
+          "max": 221
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "set_foreground_color8"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "colorRgb.0": {
+          "min": 188,
+          "max": 194
+        },
+        "colorRgb.1": {
+          "min": 103,
+          "max": 109
+        },
+        "colorRgb.2": {
+          "min": 206,
+          "max": 212
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "set_foreground_color9"
+      }
+    },
+    {
+      "call": "brush_set",
+      "expect": {
+        "colorRgb.0": {
+          "min": 115,
+          "max": 121
+        },
+        "colorRgb.1": {
+          "min": 116,
+          "max": 122
+        },
+        "colorRgb.2": {
+          "min": 111,
+          "max": 117
+        }
+      }
+    },
+    {
+      "call": "document_close",
+      "args": {
+        "all": true
+      }
+    }
+  ]
+}

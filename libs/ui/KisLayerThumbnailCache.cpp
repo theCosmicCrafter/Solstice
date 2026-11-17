@@ -13,8 +13,17 @@
 #include "KisRunnableStrokeJobUtils.h"
 #include "KisRunnableStrokeJobsInterface.h"
 
+#include <QFutureWatcher>
+#include <QtConcurrent>
+
+#include <limits>
 
 namespace {
+// Solstice: the sequence number of a provisional thumbnail. It never equals a
+// node's thumbnailSeqNo() (KisBaseNode returns -1), so the idle task always
+// regenerates it.
+constexpr int ProvisionalSeqNo = std::numeric_limits<int>::min();
+
 struct ThumbnailRecord {
     QImage image;
     int seqNo = -1;
@@ -225,12 +234,54 @@ void KisLayerThumbnailCache::notifyNodeRemoved(KisNodeSP node)
 
 void KisLayerThumbnailCache::notifyNodeAdded(KisNodeSP node)
 {
-    Q_UNUSED(node);
     m_d->cleanupDeletedNodes();
+    startProvisionalThumbnail(node);
 
     if (m_d->image && m_d->taskGuard.isValid()) {
         m_d->taskGuard.trigger();
     }
+}
+
+void KisLayerThumbnailCache::startProvisionalThumbnail(KisNodeSP node)
+{
+    /**
+     * Solstice: an added node has no thumbnail until the idle task runs, and
+     * that waits until the image is idle. After Duplicate Layer the node
+     * juggler keeps its stroke open for seconds (to merge repeated actions
+     * into one undo step), so the Layers docker showed an empty thumbnail
+     * meanwhile. Draw a provisional thumbnail right away on a worker thread,
+     * like the Overview's live update reads the image during strokes. It is
+     * stored with ProvisionalSeqNo, so the idle task still regenerates it
+     * (e.g. a duplicated group whose projection was still being updated).
+     */
+    if (!node || !node->parent() || node->isFakeNode())
+        return;
+    if (!m_d->image || node->image() != m_d->image)
+        return;
+    if (findRecord(m_d->cache, node) != m_d->cache.constEnd())
+        return;
+
+    const int maxSize = m_d->maxSize;
+    KisNodeWSP weakNode = node;
+    QFutureWatcher<QImage> *watcher = new QFutureWatcher<QImage>(this);
+    connect(watcher, &QFutureWatcher<QImage>::finished, this, [this, watcher, weakNode, maxSize]() {
+        watcher->deleteLater();
+        KisNodeSP node = weakNode.toStrongRef();
+        const QImage image = watcher->result();
+        if (!node || image.isNull() || maxSize != m_d->maxSize || node->image() != m_d->image)
+            return;
+
+        // A thumbnail from the idle task is newer: keep it.
+        auto it = findRecord(m_d->cache, node);
+        if (it != m_d->cache.constEnd() && it->seqNo != ProvisionalSeqNo)
+            return;
+
+        m_d->cache[node.data()] = {image, ProvisionalSeqNo, maxSize, node};
+        Q_EMIT sigLayerThumbnailUpdated(node);
+    });
+    watcher->setFuture(QtConcurrent::run([node, maxSize]() mutable {
+        return node->createPreferredThumbnail(maxSize, maxSize, Qt::KeepAspectRatio);
+    }));
 }
 
 void KisLayerThumbnailCache::clear()

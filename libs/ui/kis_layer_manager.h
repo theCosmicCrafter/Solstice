@@ -14,6 +14,7 @@
 #include "kis_types.h"
 #include "KisView.h"
 #include <filter/kis_filter_configuration.h>
+#include <kritaui_export.h>
 
 class KisViewManager;
 class KisNodeCommandsAdapter;
@@ -43,6 +44,7 @@ Q_SIGNALS:
 private:
 
     friend class KisNodeManager;
+    friend class KisLayerManagerTest;
 
     /**
      * Activate the specified layer. The layer may be 0.
@@ -94,12 +96,14 @@ private Q_SLOTS:
      *
      * Returns nullptr if device is null, bounds are empty, or the resulting outline is empty.
      */
-    static KoPathShape *traceDeviceToPathShape(KisPaintDeviceSP device,
+    static KRITAUI_EXPORT KoPathShape *traceDeviceToPathShape(KisPaintDeviceSP device,
                                                const QRect &bounds,
                                                qreal xRes,
                                                qreal yRes);
 
     KisLayerSP addPaintLayer(KisNodeSP activeNode);
+    /// Solstice: a paint layer clipped to the layer it is added above
+    KisLayerSP addClippingLayer(KisNodeSP activeNode);
     KisNodeSP addGroupLayer(KisNodeSP activeNode);
 
     KisNodeSP addCloneLayer(KisNodeList nodes);
@@ -114,7 +118,7 @@ private Q_SLOTS:
 
     KisNodeSP addFileLayer(KisNodeSP activeNode);
     /// Solstice: a paint layer that records its brush strokes
-    /// (docs/agent/brush-stroke-layer-plan.md)
+    /// (docs/agent/brush-stroke-layer.md)
     KisNodeSP addBrushStrokeLayer(KisNodeSP activeNode);
 
     void layerStyle();

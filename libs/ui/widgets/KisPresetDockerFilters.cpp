@@ -119,7 +119,7 @@ KisPresetDockerFilters::KisPresetDockerFilters(KisTagFilterResourceProxyModel *m
         connect(source,
                 &QAbstractItemModel::dataChanged,
                 this,
-                [this](const QModelIndex &, const QModelIndex &, const QList<int> &roles) {
+                [this](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
                     // Dirty flags and thumbnail updates do not change the facets.
                     if (roles.isEmpty() || roles.contains(Qt::DisplayRole)
                         || roles.contains(Qt::UserRole + KisAbstractResourceModel::MetaData)
@@ -205,7 +205,7 @@ QPair<QString, QString> KisPresetDockerFilters::groupOf(const QModelIndex &index
             index.data(Qt::UserRole + KisAbstractResourceModel::MetaData).toMap().value("paintopid").toString();
         const QString name = m_engineNames.value(engine);
         group = engine.isEmpty() || name.isEmpty() ? qMakePair(QString("2"), i18n("Unknown engine"))
-                                                   : qMakePair("1" + name, name);
+                                                   : qMakePair(QString("1" + name), name);
     } else {
         // A preset in several bundles is shown once, under the bundle whose
         // name sorts first.
@@ -218,7 +218,7 @@ QPair<QString, QString> KisPresetDockerFilters::groupOf(const QModelIndex &index
             if (bundle.isEmpty() || QString::localeAwareCompare(name, bundle) < 0)
                 bundle = name;
         }
-        group = bundle.isEmpty() ? qMakePair(QString("2"), i18n("Not in a bundle")) : qMakePair("1" + bundle, bundle);
+        group = bundle.isEmpty() ? qMakePair(QString("2"), i18n("Not in a bundle")) : qMakePair(QString("1" + bundle), bundle);
     }
     if (id >= 0)
         m_groupCache.insert(id, group);

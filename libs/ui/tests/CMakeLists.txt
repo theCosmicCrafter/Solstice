@@ -1,3 +1,11 @@
+kis_add_tests(KisAssetLibraryTest.cpp
+    LINK_LIBRARIES kritaui kritatestsdk)
+
+kis_add_tests(KisReferenceImageFiltersTest.cpp LINK_LIBRARIES kritaui kritatestsdk)
+
+kis_add_tests(KisLazyToolsTest.cpp
+    LINK_LIBRARIES kritaui kritatestsdk)
+
 kis_add_test(KisCanvasPaintTraceTest.cpp
     TEST_NAME KisCanvasPaintTraceTest LINK_LIBRARIES Qt${QT_MAJOR_VERSION}::Gui Qt${QT_MAJOR_VERSION}::Test)
 
@@ -7,6 +15,7 @@ kis_add_test(KisMenuMnemonicFilterTest.cpp ../utils/KisMenuMnemonicFilter.cpp
 kis_add_tests(
     kis_image_view_converter_test.cpp
     kis_shape_selection_test.cpp
+    kis_clipboard_test.cpp
     kis_coordinates_converter_test.cpp
     kis_grid_config_test.cpp
     kis_stabilized_events_sampler_test.cpp
@@ -24,6 +33,7 @@ kis_add_tests(
     kis_derived_resources_test.cpp
     kis_animation_frame_cache_test.cpp
     kis_shape_layer_test.cpp
+    kis_view_res_vector_compositor_test.cpp
     KisLayerManagerTest.cpp
     KisSafeDocumentLoaderTest.cpp
     KisSurfaceColorSpaceWrapperTest.cpp
@@ -127,11 +137,6 @@ krita_add_broken_unit_test(
     LINK_LIBRARIES kritaui kritatestsdk
     )
 
-krita_add_broken_unit_test( kis_clipboard_test.cpp
-    TEST_NAME KisClipboardTest
-    LINK_LIBRARIES kritaui kritatestsdk
-    )
-
 krita_add_broken_unit_test( freehand_stroke_test.cpp  $<TARGET_PROPERTY:kritatestsdk,SOURCE_DIR>/stroke_testing_utils.cpp
     TEST_NAME FreehandStrokeTest
     LINK_LIBRARIES kritaui kritatestsdk
@@ -216,14 +221,19 @@ target_link_libraries(KisBrushStrokePreviewTest kritamypaintop_static)
 kis_add_test(KisLayerThumbnailCacheTest.cpp
     TEST_NAME KisLayerThumbnailCacheTest LINK_LIBRARIES kritaui kritatestsdk)
 
+kis_add_test(KisPartCloseSessionTest.cpp
+    TEST_NAME KisPartCloseSessionTest LINK_LIBRARIES kritaui kritatestsdk)
+
 if(HAVE_KRITA_GPU_ENGINE AND WIN32)
+    kis_add_tests(KisGpuEngineUiTest.cpp
+        LINK_LIBRARIES kritaui kritatestsdk)
     kis_add_tests(KisCanvasUpdateBatcherTest.cpp
         LINK_LIBRARIES kritaui kritatestsdk)
     kis_add_tests(KisGpuFilterStrokeTest.cpp
         LINK_LIBRARIES kritaui kritatestsdk)
     kis_add_tests(KisGpuCanvasUploadTest.cpp
-        LINK_LIBRARIES kritaui kritatestsdk Qt${QT_MAJOR_VERSION}::OpenGL)
+        LINK_LIBRARIES kritaui kritatestsdk)
     if (QT_MAJOR_VERSION EQUAL 6)
-      target_link_libraries(KisGpuCanvasUploadTest Qt6::OpenGLWidgets)
+      target_link_libraries(KisGpuCanvasUploadTest Qt6::OpenGL Qt6::OpenGLWidgets)
     endif()
 endif()

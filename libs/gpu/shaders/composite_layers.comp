@@ -37,6 +37,7 @@
 
 #extension GL_GOOGLE_include_directive : require
 #include "composite_blend.glsl"
+#include "composite_over.glsl"
 #ifdef TILE_F16
 #include "composite_half_brush.glsl"
 #endif
@@ -63,12 +64,20 @@ layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer Add
     uint64_t addr[];
 };
 
+// A layer has its own tile table: tableWidth tiles per row, starting at
+// layerTiles[tableOffset]. The pixel at grid position p is pixel (p + bias) of
+// that table. bias is 0 for a layer on the destination grid; a layer shifted
+// by s (1..63 per axis, phase 4.112) has one more column and row, and
+// bias = 64 - s.
 struct LayerParams {
     float opacity;
     uint op;
     uint flags;
     uint channelMask;
     vec4 fill;
+    ivec2 bias;
+    uint tableOffset;
+    uint tableWidth;
 };
 
 layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer LayerTable
@@ -78,7 +87,7 @@ layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer La
 
 layout(push_constant) uniform Params
 {
-    AddressTable layerTiles; // layerCount * tileCount, layer-major; 0 = transparent tile
+    AddressTable layerTiles; // every layer's tile table (LayerParams); 0 = transparent tile
     AddressTable dstTiles; // tileCount
     LayerTable layers; // layerCount
     uint tileCount;
@@ -97,38 +106,6 @@ params;
 
 const uint PixelsPerTile = 64 * 64;
 const uint PixelsPerInvocation = PixelsPerTile / gl_WorkGroupSize.x;
-
-
-vec4 compositeOver(vec4 dst, vec4 src, float opacity, bool alphaLocked, float coverage, uint channels)
-{
-    const float srcAlpha = (src.a * opacity) * coverage;
-    if (srcAlpha == 0.0) {
-        return dst;
-    }
-    alphaLocked = alphaLocked || (channels & 8) == 0;
-
-    float newAlpha;
-    float srcBlend;
-    if (alphaLocked || dst.a == 1.0) {
-        newAlpha = dst.a;
-        srcBlend = srcAlpha;
-    } else if (dst.a == 0.0) {
-        newAlpha = srcAlpha;
-        srcBlend = 1.0;
-        // Scalar CPU Over clears hidden RGB when alpha is unlocked and
-        // only some color channels are enabled.
-        if ((channels & 7) != 7) dst = vec4(0.0);
-    } else {
-        newAlpha = dst.a + (1.0 - dst.a) * srcAlpha;
-        srcBlend = newAlpha == 0.0 ? 0.0 : srcAlpha / newAlpha;
-    }
-
-    vec3 color = srcBlend == 1.0 ? src.rgb : srcBlend * (src.rgb - dst.rgb) + dst.rgb;
-    if ((channels & 1) == 0) color.r = dst.r;
-    if ((channels & 2) == 0) color.g = dst.g;
-    if ((channels & 4) == 0) color.b = dst.b;
-    return vec4(color, newAlpha);
-}
 
 
 void main()
@@ -167,16 +144,39 @@ void main()
         }
         vec4 result = LOAD_PIXEL(dstTile.px[index]);
         for (uint layer = 0; layer < params.layerCount; layer++) {
-            const uint64_t address = params.layerTiles.addr[layer * params.tileCount + tile];
             const LayerParams info = params.layers.layers[layer];
+            const ivec2 source = position + info.bias;
+            const uint64_t address =
+                params.layerTiles.addr[info.tableOffset + uint(source.y >> 6) * info.tableWidth + uint(source.x >> 6)];
+            const uint sourceIndex = uint((source.y & 63) * 64 + (source.x & 63));
             if ((info.flags & FlagReplace) != 0) {
-                result = address == 0 ? info.fill : LOAD_PIXEL(TilePixels(address).px[index]);
+                const vec4 copied = address == 0 ? info.fill : LOAD_PIXEL(TilePixels(address).px[sourceIndex]);
+                if (info.channelMask == 0xf) {
+                    result = copied;
+                    continue;
+                }
+                // The Copy composite op at full opacity with channel flags
+                // (KoCompositeOpCopy2; the scalar KoOptimizedCompositeOpCopy128).
+                if ((info.channelMask & 8) == 0) {
+                    // alpha locked: a transparent source pixel changes nothing
+                    if (copied.a == 0.0) {
+                        continue;
+                    }
+                } else {
+                    if (result.a == 0.0) {
+                        result.rgb = vec3(0.0);
+                    }
+                    result.a = copied.a;
+                }
+                if ((info.channelMask & 1) != 0) result.r = copied.r;
+                if ((info.channelMask & 2) != 0) result.g = copied.g;
+                if ((info.channelMask & 4) != 0) result.b = copied.b;
                 continue;
             }
             if (address == 0 || outsideMask) {
                 continue;
             }
-            const vec4 src = LOAD_PIXEL(TilePixels(address).px[index]);
+            const vec4 src = LOAD_PIXEL(TilePixels(address).px[sourceIndex]);
             const bool alphaLocked = (info.flags & FlagAlphaLocked) != 0;
 #ifdef TILE_F16
             if ((info.flags & 2) != 0) {

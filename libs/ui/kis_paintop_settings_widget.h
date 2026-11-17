@@ -40,7 +40,7 @@ public:
      * Declares that the option states live in \p model instead of the option
      * widgets. The model then reads and writes the attached preset itself;
      * setConfiguration()/writeConfiguration() only touch other
-     * configurations. See docs/agent/brush-option-shared-model-plan.md.
+     * configurations. See docs/agent/brush-option-shared-model.md.
      */
     void setOptionsModel(KisPaintOpOptionsModel *model);
     KisPaintOpOptionsModel *optionsModel() const;

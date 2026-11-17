@@ -1,0 +1,117 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Krita contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Applies a coverage mask to tiles in place (Solstice: transparency masks,
+ * docs/agent/gpu-engine.md, phase 4.113). Every pixel inside the clip rect
+ * becomes what Krita's Copy composite op makes of it when it is copied
+ * through the mask onto a cleared pixel (KisMask::mergeInMaskInternal()):
+ *
+ *  - coverage 255: unchanged;
+ *  - coverage 0: cleared;
+ *  - in between: alpha times the coverage, the color recomputed from the
+ *    premultiplied values like the CPU does (RGBA F32:
+ *    KoOptimizedCompositeOpCopy128, which also clamps such colors to 1;
+ *    RGBA F16: KoCompositeOpCopy2 with a rounding to half after each step).
+ *
+ * One workgroup per tile. Compile with -DTILE_F16 for RGBA16F tiles.
+ */
+#version 460
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+
+#ifdef TILE_F16
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#define PIXEL f16vec4
+#else
+#define PIXEL vec4
+#endif
+
+layout(local_size_x = 256) in;
+
+layout(buffer_reference, std430, buffer_reference_align = 8) buffer TilePixels
+{
+    PIXEL px[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 8) readonly buffer AddressTable
+{
+    uint64_t addr[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer MaskBytes
+{
+    uint word[];
+};
+
+layout(push_constant) uniform Params
+{
+    AddressTable tiles; // tileCount, row-major over gridWidth columns
+    MaskBytes mask; // maskSize.x * maskSize.y coverage bytes, four per word
+    uint tileCount;
+    uint gridWidth;
+    ivec2 maskOrigin; // grid pixel of the first coverage byte
+    ivec2 maskSize;
+    ivec2 padding;
+    ivec4 clip; // x0, y0, x1, y1 (exclusive) in grid pixels
+}
+params;
+
+void main()
+{
+    const uint tile = gl_WorkGroupID.x;
+    if (tile >= params.tileCount) {
+        return;
+    }
+
+    const ivec2 tileOrigin = ivec2(int(tile % params.gridWidth), int(tile / params.gridWidth)) * 64;
+    TilePixels pixels = TilePixels(params.tiles.addr[tile]);
+
+    for (uint index = gl_LocalInvocationID.x; index < 64 * 64; index += gl_WorkGroupSize.x) {
+        const ivec2 position = tileOrigin + ivec2(int(index % 64), int(index / 64));
+        if (any(lessThan(position, params.clip.xy)) || any(greaterThanEqual(position, params.clip.zw))) {
+            continue;
+        }
+        const ivec2 p = position - params.maskOrigin;
+        if (any(lessThan(p, ivec2(0))) || any(greaterThanEqual(p, params.maskSize))) {
+            continue;
+        }
+        const uint maskIndex = uint(p.y * params.maskSize.x + p.x);
+        const uint coverage = (params.mask.word[maskIndex / 4] >> (8 * (maskIndex % 4))) & 255;
+        if (coverage == 255) {
+            continue;
+        }
+        if (coverage == 0) {
+            pixels.px[index] = PIXEL(0.0);
+            continue;
+        }
+
+#ifdef TILE_F16
+        // KoCompositeOpCopy2 on half channels: every assignment rounds.
+        const vec4 src = vec4(pixels.px[index]);
+        const float opacity = float(float16_t(float(coverage) / 255.0));
+        const float newAlpha = float(float16_t(src.a * opacity));
+        if (newAlpha == 0.0) {
+            pixels.px[index] = PIXEL(0.0);
+            continue;
+        }
+        const vec3 srcMult = vec3(f16vec3(src.rgb * src.a));
+        const vec3 blended = vec3(f16vec3(srcMult * opacity));
+        pixels.px[index] = PIXEL(vec4(blended / newAlpha, newAlpha));
+#else
+        // KoOptimizedCompositeOpCopy128 over a cleared destination.
+        const vec4 src = pixels.px[index];
+        precise float opacity = float(coverage) * (1.0 / 255.0);
+        precise float newAlpha = opacity * src.a;
+        if (newAlpha == 0.0) {
+            pixels.px[index] = PIXEL(0.0);
+            continue;
+        }
+        precise vec3 srcMult = src.rgb * src.a;
+        precise vec3 blended = opacity * srcMult;
+        precise vec3 color = blended / newAlpha;
+        pixels.px[index] = vec4(min(color, vec3(1.0)), newAlpha);
+#endif
+    }
+}

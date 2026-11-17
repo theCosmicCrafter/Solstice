@@ -9,6 +9,7 @@
 #include <KisResourceItemListView.h>
 #include <KisResourceLocator.h>
 #include <KisResourceModel.h>
+#include <KisResourceModelProvider.h>
 #include <KisResourceStorage.h>
 #include <KisStorageModel.h>
 #include <KisTagFilterResourceProxyModel.h>
@@ -742,6 +743,63 @@ private Q_SLOTS:
             QVERIFY(cache.preview(obsolete).isNull());
             QCOMPARE(QDir(directory.path()).entryList({"*.none"}, QDir::Files).size(), 0);
         }
+    }
+    void testPresetChangeKeepsOtherPreviews()
+    {
+        KisResourceModel model(ResourceType::PaintOpPresets);
+        QModelIndex first, second;
+        for (int i = 0; i < model.rowCount(); ++i) {
+            const auto index = model.index(i, 0);
+            auto preset = model.resourceForIndex(index).dynamicCast<KisPaintOpPreset>();
+            if (!preset || !preset->filename().startsWith("solstice-preview-test-"))
+                continue;
+            if (preset->paintOp().id() == "paintbrush")
+                first = index;
+            else if (preset->paintOp().id() == "sketchbrush")
+                second = index;
+        }
+        QVERIFY(first.isValid());
+        QVERIFY(second.isValid());
+        const auto firstRequest = KisBrushStrokePreviewCache::Request::fromIndex(first);
+        const auto secondRequest = KisBrushStrokePreviewCache::Request::fromIndex(second);
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        QObject consumer;
+        KisBrushStrokePreviewCache cache(directory.path());
+        cache.setRequests(&consumer, {firstRequest, secondRequest});
+        QTRY_VERIFY_WITH_TIMEOUT(cache.ready(firstRequest) && cache.ready(secondRequest), 30000);
+        QTRY_VERIFY_WITH_TIMEOUT(!cache.isBusy(), 15000);
+        const QImage firstPreview = cache.preview(firstRequest);
+        const QImage secondPreview = cache.preview(secondRequest);
+        QCOMPARE(firstPreview.size(), QSize(480, 160));
+        QCOMPARE(secondPreview.size(), QSize(480, 160));
+        QSignalSpy rendered(&cache, &KisBrushStrokePreviewCache::renderStarted);
+
+        // Reload Original Preset: the model reports the preset's row without
+        // roles. Its saved bytes are the same, so both previews stay, at
+        // once and without a new lookup.
+        auto preset = model.resourceForIndex(first);
+        QVERIFY(preset);
+        QVERIFY(model.reloadResource(preset));
+        QVERIFY(cache.ready(firstRequest));
+        QVERIFY(cache.ready(secondRequest));
+        QCOMPARE(cache.preview(firstRequest), firstPreview);
+        QCOMPARE(cache.preview(secondRequest), secondPreview);
+        QTest::qWait(300);
+        QVERIFY(cache.ready(firstRequest));
+        QVERIFY(cache.ready(secondRequest));
+        QCOMPARE(rendered.size(), 0);
+
+        // A brush tip may be linked by any preset: every preview is looked up
+        // again, and found on disk.
+        auto *brushes = KisResourceModelProvider::resourceModel(ResourceType::Brushes);
+        Q_EMIT brushes->dataChanged(QModelIndex(), QModelIndex());
+        QVERIFY(!cache.ready(firstRequest));
+        QVERIFY(!cache.ready(secondRequest));
+        QTRY_VERIFY_WITH_TIMEOUT(cache.ready(firstRequest) && cache.ready(secondRequest), 30000);
+        QCOMPARE(cache.preview(firstRequest), firstPreview);
+        QCOMPARE(cache.preview(secondRequest), secondPreview);
+        QCOMPARE(rendered.size(), 0);
     }
     void testNoPreviewCache()
     {

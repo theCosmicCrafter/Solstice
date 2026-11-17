@@ -21,6 +21,8 @@ class QPainter;
 class QRectF;
 class KoStore;
 class KisCoordinatesConverter;
+template<typename T>
+class QFutureWatcher;
 class KisCanvas2;
 
 /**
@@ -84,7 +86,25 @@ public:
 
     QImage getImage();
 
+    // Ordered native filter configurations; the original pixels stay untouched.
+    struct FilterEffect {
+        QString id;
+        QString configuration;
+        bool enabled = true;
+    };
+    QVector<FilterEffect> filterEffects() const;
+    bool filtersEnabled() const;
+    void setFilterEffects(const QVector<FilterEffect> &effects, bool enabled);
+    void previewFilterEffects(const QVector<FilterEffect> &effects, bool enabled);
+    static QImage renderFilterEffects(const QImage &source, const QVector<FilterEffect> &effects);
+
 private:
+    void ensureFilterCache();
+    QFutureWatcher<QImage> *m_filterWatcher = nullptr;
+    quint64 m_filterRevision = 0;
+    bool m_previewActive = false;
+    bool m_previewEnabled = true;
+    QVector<FilterEffect> m_previewEffects;
     struct Private;
     QSharedDataPointer<Private> d;
 };

@@ -321,6 +321,16 @@ public:
     bool smoothHighZoom(bool defaultValue = false) const;
     void setSmoothHighZoom(bool v) const;
 
+    /**
+     * Whether vector layers are re-composited at view resolution on the
+     * canvas (D7 fix, KisViewResVectorDecoration). Defaults to true; the
+     * KRITA_DISABLE_VIEW_RES_VECTORS environment variable force-disables
+     * it for debugging, and the "viewResVectorRendering" config entry
+     * overrides the default.
+     */
+    bool viewResVectorRendering(bool defaultValue = false) const;
+    void setViewResVectorRendering(bool v) const;
+
     quint32 guidesLineStyle(bool defaultValue = false) const;
     void setGuidesLineStyle(quint32 v) const;
     QColor guidesColor(bool defaultValue = false) const;
@@ -550,14 +560,14 @@ public:
     bool hidePopups(bool defaultValue = false) const;
     void setHidePopups(bool hidePopups);
 
-    int numDefaultLayers(bool defaultValue = false) const;
-    void setNumDefaultLayers(int num);
+    int numDefaultLayers(const QLatin1String &dialogType, bool defaultValue = false) const;
+    void setNumDefaultLayers(const QLatin1String &dialogType, int num);
 
-    quint8 defaultBackgroundOpacity(bool defaultValue = false) const;
-    void setDefaultBackgroundOpacity(quint8 value);
+    quint8 defaultBackgroundOpacity(const QLatin1String &dialogType, bool defaultValue = false) const;
+    void setDefaultBackgroundOpacity(const QLatin1String &dialogType, quint8 value);
 
-    QColor defaultBackgroundColor(bool defaultValue = false) const;
-    void setDefaultBackgroundColor(const QColor &value);
+    QColor defaultBackgroundColor(const QLatin1String &dialogType, bool defaultValue = false) const;
+    void setDefaultBackgroundColor(const QLatin1String &dialogType, const QColor &value);
 
     enum BackgroundStyle {
         RASTER_LAYER = 0,
@@ -565,8 +575,8 @@ public:
         FILL_LAYER = 2
     };
 
-    BackgroundStyle defaultBackgroundStyle(bool defaultValue = false) const;
-    void setDefaultBackgroundStyle(BackgroundStyle value);
+    BackgroundStyle defaultBackgroundStyle(const QLatin1String &dialogType, bool defaultValue = false) const;
+    void setDefaultBackgroundStyle(const QLatin1String &dialogType, BackgroundStyle value);
 
     int lineSmoothingType(bool defaultValue = false) const;
     void setLineSmoothingType(int value);
@@ -698,8 +708,6 @@ public:
     bool autoPinLayersToTimeline(bool defaultValue = false) const;
     void setAutoPinLayersToTimeline(bool value);
 
-    /// Whether "new paint layer" creates a KisBrushStrokeLayer instead
-    /// (ink-first workflows; Solstice)
     bool newPaintLayersAreBrushStrokeLayers(bool defaultValue = false) const;
     void setNewPaintLayersAreBrushStrokeLayers(bool value);
 
@@ -735,6 +743,9 @@ public:
 
     bool stabilizerDelayedPaint(bool defaultValue = false) const;
     void setStabilizerDelayedPaint(bool value);
+
+
+
 
     bool calculateAnimationCacheInBackground(bool defaultValue = false) const;
     void setCalculateAnimationCacheInBackground(bool value);

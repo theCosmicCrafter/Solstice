@@ -379,6 +379,15 @@ bool KisPart::exists()
 
 bool KisPart::closeSession(bool keepWindows)
 {
+    // Solstice: Qt keeps input away from windows behind a modal dialog, but
+    // File > Quit of another window (behind a window-modal dialog), an action
+    // triggered from code or a script still gets here. Closing the window
+    // would delete the dialog under its exec(), most often a stack object
+    // (heap corruption, 0xC0000374), so refuse as Qt does.
+    if (!keepWindows && QApplication::activeModalWidget()) {
+        return false;
+    }
+
     d->closingSession = true;
 
     Q_FOREACH(auto document, d->documents) {

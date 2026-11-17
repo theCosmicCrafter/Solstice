@@ -90,6 +90,10 @@ public:
     void eatOneMousePress();
     void setMaskSyntheticEvents(bool value);
     void resetCompressor();
+    /// Delivers the move the compressor still holds, then resets it. A
+    /// release calls it first, so the action ends where the pointer was
+    /// last moved to instead of one compressed move short.
+    void flushCompressedMove();
     void startBlockingTouch();
     void stopBlockingTouch();
     void restartTouchHoldTimer();

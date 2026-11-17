@@ -285,7 +285,8 @@ public:
     /**
      * Attempts to save the session and close all windows.
      * This may involve asking the user to save open files.
-     * @return false, if closing was cancelled by the user
+     * @return false, if closing was cancelled by the user, or, unless
+     * @p keepWindows is set, while a modal dialog is open
      */
     bool closeSession(bool keepWindows = false);
 

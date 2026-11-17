@@ -33,6 +33,7 @@
 #include "brushengine/kis_paintop_utils.h"
 #include "KisAsynchronousStrokeUpdateHelper.h"
 #include "KisBrushStrokeLayer.h"
+#include "kis_command_utils.h"
 #include <QRandomGenerator>
 #include <KisUsageLogger.h>
 
@@ -73,11 +74,14 @@ struct FreehandStrokeStrategy::Private
     std::mutex updateEntryMutex;
 
     // Solstice: the stroke recorded for a brush stroke layer
-    // (docs/agent/brush-stroke-layer-plan.md); not copied to level of
+    // (docs/agent/brush-stroke-layer.md); not copied to level of
     // detail clones
     KisBrushStrokeLayerSP recordingLayer;
     QSharedPointer<KisRecordedBrushStroke> recording;
     std::mutex recordingMutex;
+    /// the layer whose recorded change this stroke has begun and not yet
+    /// handed to its undo command (KisRecordedChangeScopeCommand)
+    KisBrushStrokeLayerSP recordedChangeLayer;
 };
 
 FreehandStrokeStrategy::FreehandStrokeStrategy(KisResourcesSnapshotSP resources,
@@ -113,6 +117,8 @@ FreehandStrokeStrategy::FreehandStrokeStrategy(const FreehandStrokeStrategy &rhs
 
 FreehandStrokeStrategy::~FreehandStrokeStrategy()
 {
+    endRecordedChange();
+
     KisStrokeSpeedMonitor::instance()->notifyStrokeFinished(m_d->efficiencyMeasurer.averageCursorSpeed(),
                                                             m_d->efficiencyMeasurer.averageRenderingSpeed(),
                                                             m_d->efficiencyMeasurer.averageFps(),
@@ -155,7 +161,10 @@ void FreehandStrokeStrategy::initRecording(const QVector<KisFreehandStrokeInfo *
 {
     KisResourcesSnapshotSP resources = m_d->resources;
     KisBrushStrokeLayer *layer = dynamic_cast<KisBrushStrokeLayer *>(resources->currentNode().data());
-    if (!layer || !layer->paintDevice() || !resources->currentPaintOpPreset()) {
+    // an animated layer's record is never drawn again (its frames differ);
+    // a through-layer erase is not part of the layer's own strokes
+    if (!layer || !layer->paintDevice() || layer->paintDevice()->keyframeChannel()
+        || !resources->currentPaintOpPreset() || !resources->throughLayerTargets().isEmpty()) {
         return;
     }
 
@@ -186,7 +195,11 @@ void FreehandStrokeStrategy::initRecording(const QVector<KisFreehandStrokeInfo *
         start.dabSeqNo = distance->currentDabSeqNo();
         stroke.starts << start;
     }
-    stroke.deviceOffset = QPoint(layer->paintDevice()->x(), layer->paintDevice()->y());
+    stroke.mirrorHorizontal = resources->mirrorMaskHorizontal();
+    stroke.mirrorVertical = resources->mirrorMaskVertical();
+    stroke.mirrorAxesCenter = resources->axesCenter();
+    // the device offset is read when the stroke starts (initStrokeCallback()):
+    // a stroke queued before this one may still move the layer
 
     // a known seed, so that the stroke can be drawn again the same way
     stroke.seed = int(QRandomGenerator::global()->bounded(1, std::numeric_limits<int>::max()));
@@ -210,13 +223,30 @@ void FreehandStrokeStrategy::recordJob(const Data &data)
         // a shape the stroke cannot draw again: not recorded at all
         KisUsageLogger::log(
             QStringLiteral("Brush stroke layer: a stroke with a job of type %1 is not recorded").arg(data.type));
+        // its pixels are not the record: the layer checks them
+        m_d->recordingLayer->markChangeUnrecorded();
         m_d->recording.reset();
         m_d->recordingLayer.clear();
     }
 }
 
+void FreehandStrokeStrategy::endRecordedChange()
+{
+    if (m_d->recordedChangeLayer) {
+        m_d->recordedChangeLayer->endRecordedChange();
+        m_d->recordedChangeLayer.clear();
+    }
+}
+
 void FreehandStrokeStrategy::initStrokeCallback()
 {
+    if (m_d->recording) {
+        KisPaintDeviceSP device = m_d->recordingLayer->paintDevice();
+        m_d->recording->deviceOffset = QPoint(device->x(), device->y());
+        // the stroke's pixel changes belong to its record
+        m_d->recordingLayer->beginRecordedChange();
+        m_d->recordedChangeLayer = m_d->recordingLayer;
+    }
     KisPainterBasedStrokeStrategy::initStrokeCallback();
     m_d->efficiencyMeasurer.notifyRenderingStarted();
 }
@@ -226,12 +256,41 @@ void FreehandStrokeStrategy::finishStrokeCallback()
     m_d->efficiencyMeasurer.notifyRenderingFinished();
 
     if (m_d->recording && !m_d->recording->jobs.isEmpty()) {
-        setAdditionalUndoCommand(new KisRecordBrushStrokeCommand(m_d->recordingLayer.data(), m_d->recording));
+        // the undo command closes the stroke's recorded change after the
+        // last of its pixels is merged, and brackets undo and redo
+        KisBrushStrokeLayer *layer = m_d->recordingLayer.data();
+        const bool scopeOpen = m_d->recordedChangeLayer == m_d->recordingLayer;
+        KisCommandUtils::CompositeCommand *command = new KisCommandUtils::CompositeCommand();
+        command->addCommand(
+            new KisRecordedChangeScopeCommand(layer, KisRecordedChangeScopeCommand::Opening, scopeOpen));
+        command->addCommand(new KisRecordBrushStrokeCommand(layer, m_d->recording));
+        setAdditionalUndoCommand(
+            command,
+            new KisRecordedChangeScopeCommand(layer, KisRecordedChangeScopeCommand::Closing, scopeOpen));
+        if (scopeOpen) {
+            m_d->recordedChangeLayer.clear();
+        }
     }
     m_d->recording.reset();
     m_d->recordingLayer.clear();
+    // not recorded: the rest of the stroke's changes are checked
+    endRecordedChange();
+
+    for (KisNodeSP node : m_d->resources->throughLayerTargets()) {
+        if (KisBrushStrokeLayer *layer = dynamic_cast<KisBrushStrokeLayer *>(node.data())) {
+            layer->markChangeUnrecorded();
+        }
+    }
 
     KisPainterBasedStrokeStrategy::finishStrokeCallback();
+}
+
+void FreehandStrokeStrategy::cancelStrokeCallback()
+{
+    m_d->recording.reset();
+    m_d->recordingLayer.clear();
+    KisPainterBasedStrokeStrategy::cancelStrokeCallback();
+    endRecordedChange();
 }
 
 
@@ -444,14 +503,14 @@ void FreehandStrokeStrategy::issueSetDirtySignals()
         KritaUtils::addJobSequential(jobs, [this, dirtyRects, dirtyId, traceDirtyRects]() {
             KisPaintTrace::FlowScope dirtyFlow(dirtyId);
             traceDirtyRects("dirty.submitted_rect", dirtyRects);
-            this->targetNode()->setDirty(dirtyRects);
+            this->updateStrokeNodes(dirtyRects);
         });
 
         runnableJobsInterface()->addRunnableJobs(jobs);
 
     } else {
         traceDirtyRects("dirty.submitted_rect", dirtyRects);
-        targetNode()->setDirty(dirtyRects);
+        updateStrokeNodes(dirtyRects);
     }
 
     //KisUpdateTimeMonitor::instance()->reportJobFinished(data, dirtyRects);

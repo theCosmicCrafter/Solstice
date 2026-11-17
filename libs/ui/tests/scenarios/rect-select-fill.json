@@ -1,0 +1,125 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "rect-select-fill",
+  "description": "A rectangular selection drawn with the mouse limits Fill with Foreground Color to exactly that rectangle.",
+  "covers": "Rectangular selection tool (vector selection), fill_selection_foreground_color, selection masking",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#ff0000"
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KisToolSelectRectangular"
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 100
+        },
+        "to": {
+          "x": 300,
+          "y": 200
+        }
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Select Rectangle",
+        "selection.active": true,
+        "selection.bounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        },
+        "selection.selectedPixels": 20000
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 2,
+        "activeLayer.exactBounds": {
+          "equals": {
+            "x": 100,
+            "y": 100,
+            "width": 200,
+            "height": 100
+          }
+        }
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "nonTransparentPixels": 20000,
+        "opaquePixels": 20000,
+        "meanColor": "#ff0000"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 100,
+        "y": 100,
+        "width": 200,
+        "height": 100
+      },
+      "expect": {
+        "opaquePixels": 20000
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "selection.active": false,
+        "undo.lastCommand": "Deselect"
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

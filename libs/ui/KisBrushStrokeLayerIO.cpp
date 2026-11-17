@@ -9,6 +9,7 @@
 #include <QDataStream>
 #include <QDomDocument>
 #include <QHash>
+#include <cmath>
 
 #include <KisGlobalResourcesInterface.h>
 #include <KisLocalStrokeResources.h>
@@ -26,9 +27,10 @@
 #include <kis_paintop_settings.h>
 #include <resources/KoSegmentGradient.h>
 #include <resources/KoStopGradient.h>
+#include <strokes/freehand_stroke.h>
 
 /**
- * The brush stroke file of a layer (docs/agent/brush-stroke-layer-plan.md):
+ * The brush stroke file of a layer (docs/agent/brush-stroke-layer.md):
  * a QDataStream of a header, the brush presets as XML, the resources as
  * their files (the presets' brush tips and textures, the strokes' patterns
  * and gradients), and the strokes, which refer to the presets, patterns and
@@ -38,7 +40,19 @@ namespace
 {
 const quint32 magic = 0x5342534c; // "SBSL"
 // 2: the start of each copy's dab spacing (KisRecordedBrushStroke::starts)
-const quint32 version = 2;
+// 3: the canvas mirror (KisRecordedBrushStroke::mirrorHorizontal and others)
+const quint32 version = 3;
+
+/// more copies of a stroke than any tool paints: damaged data
+const qint32 maximumStrokeInfoCount = 4096;
+
+/// A position a stroke can be drawn at: finite and within reach of any image
+/// (a damaged file would otherwise make the redraw cover a huge area)
+bool validPosition(const QPointF &point)
+{
+    const qreal limit = 1e7;
+    return std::isfinite(point.x()) && std::isfinite(point.y()) && qAbs(point.x()) < limit && qAbs(point.y()) < limit;
+}
 
 void prepare(QDataStream &stream)
 {
@@ -142,7 +156,7 @@ snapshotPreset(KisPaintOpPresetSP preset, const KisRecordedBrushStroke &stroke, 
 
     // the brush tips and textures saved in the file, which draw the stroke
     // as it was drawn even where they are not installed; the installed
-    // ones for those the file lacks (ABR brush tips cannot be saved)
+    // ones for those the file lacks or could not load
     KisResourcesInterfaceSP lookup = KisGlobalResourcesInterface::instance();
     if (!saved.isEmpty()) {
         QList<KoResourceSP> resources = saved;
@@ -304,6 +318,7 @@ bool KisBrushStrokeLayer::saveStrokes(const QVector<KisRecordedBrushStrokeSP> &s
         writeColor(stream, stroke.bgColor);
         stream << stroke.compositeOpId << stroke.opacity << stroke.effectiveZoom << qint32(stroke.seed)
                << qint32(stroke.strokeInfoCount) << stroke.deviceOffset;
+        stream << stroke.mirrorHorizontal << stroke.mirrorVertical << stroke.mirrorAxesCenter;
         stream << quint32(stroke.starts.size());
         for (const KisRecordedBrushStroke::Start &start : stroke.starts) {
             stream << start.hasLastDab << start.lastPosition << start.lastAngle << start.spacingUpdateInterval
@@ -370,20 +385,37 @@ bool KisBrushStrokeLayer::loadStrokes(QIODevice *device, QVector<KisRecordedBrus
             >> stroke->deviceOffset;
         stroke->seed = seed;
         stroke->strokeInfoCount = strokeInfoCount;
+        // the Multibrush tool paints up to 4 copies per brush in Snowflake
+        // mode (200) and any number in Copy Translate; the limit only
+        // guards against damaged data
+        if (stream.status() != QDataStream::Ok || strokeInfoCount < 1 || strokeInfoCount > maximumStrokeInfoCount) {
+            return false;
+        }
+        if (fileVersion >= 3) {
+            stream >> stroke->mirrorHorizontal >> stroke->mirrorVertical >> stroke->mirrorAxesCenter;
+        }
         if (fileVersion >= 2) {
             quint32 startCount = 0;
             stream >> startCount;
-            for (quint32 j = 0; j < startCount && j < 64 && stream.status() == QDataStream::Ok; j++) {
+            // one start per copy; none for strokes read from version 1
+            if (startCount > quint32(strokeInfoCount)) {
+                return false;
+            }
+            for (quint32 j = 0; j < startCount && stream.status() == QDataStream::Ok; j++) {
                 KisRecordedBrushStroke::Start start;
                 qint32 dabSeqNo = 0;
                 stream >> start.hasLastDab >> start.lastPosition >> start.lastAngle >> start.spacingUpdateInterval
                     >> start.timingUpdateInterval >> dabSeqNo;
                 start.dabSeqNo = dabSeqNo;
+                if (start.hasLastDab && !validPosition(start.lastPosition)) {
+                    return false;
+                }
                 stroke->starts << start;
             }
-            if (startCount > 64) {
-                stream.setStatus(QDataStream::ReadCorruptData);
-            }
+        }
+        if (!validPosition(QPointF(stroke->deviceOffset)) || !validPosition(stroke->mirrorAxesCenter)
+            || !std::isfinite(stroke->opacity) || !std::isfinite(stroke->effectiveZoom)) {
+            return false;
         }
 
         quint32 jobCount = 0;
@@ -392,11 +424,20 @@ bool KisBrushStrokeLayer::loadStrokes(QIODevice *device, QVector<KisRecordedBrus
             KisRecordedBrushStroke::Job job;
             qint32 type, strokeInfoId;
             stream >> type >> strokeInfoId;
+            if (stream.status() != QDataStream::Ok || strokeInfoId < 0 || strokeInfoId >= strokeInfoCount
+                || (type != FreehandStrokeStrategy::Data::POINT && type != FreehandStrokeStrategy::Data::LINE
+                    && type != FreehandStrokeStrategy::Data::CURVE)) {
+                return false;
+            }
             job.type = type;
             job.strokeInfoId = strokeInfoId;
             job.pi1 = readPaintInformation(stream);
             job.pi2 = readPaintInformation(stream);
             stream >> job.control1 >> job.control2;
+            if (!validPosition(job.pi1.pos()) || !validPosition(job.pi2.pos()) || !validPosition(job.control1)
+                || !validPosition(job.control2)) {
+                return false;
+            }
             stroke->jobs << job;
         }
 

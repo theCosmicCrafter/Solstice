@@ -13,8 +13,25 @@ class KisClipboardTest : public QObject
 {
     Q_OBJECT
 private Q_SLOTS:
-    void testRoundTrip();
     void testUnavailableBitmapSource();
+    void testLoadAdaptedFromLayers_data();
+    void testLoadAdaptedFromLayers();
+
+    void testLoadFromLayersStandalone_data();
+    void testLoadFromLayersStandalone();
+
+    void testLoadFromPngUrl();
+
+    void testLoadFromKraUrl_data();
+    void testLoadFromKraUrl();
+
+    void testLoadFromPngClipboard();
+
+    void testLoadFromCloneLayer_data();
+    void testLoadFromCloneLayer();
+
+    void testCopyLayerWithMask_data();
+    void testCopyLayerWithMask();
 };
 
 #endif /* __KIS_CLIPBOARD_TEST_H */

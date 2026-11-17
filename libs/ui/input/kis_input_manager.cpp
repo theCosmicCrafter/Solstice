@@ -442,6 +442,7 @@ bool KisInputManager::eventFilterImpl(QEvent * event)
         if (d->touchHasBlockedPressEvents) break;
 
         QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        d->flushCompressedMove();
         retval = d->matcher.buttonReleased(mouseEvent->button(), mouseEvent);
         event->setAccepted(retval);
         break;
@@ -735,6 +736,7 @@ bool KisInputManager::eventFilterImpl(QEvent * event)
         d->debugEvent<QTabletEvent, false>(event);
 
         QTabletEvent *tabletEvent = static_cast<QTabletEvent*>(event);
+        d->flushCompressedMove();
         retval = d->matcher.buttonReleased(tabletEvent->button(), tabletEvent);
         retval = true;
         event->setAccepted(true);

@@ -1480,10 +1480,10 @@ void KisPaintopBox::slotGuiChangedCurrentPreset() // Called only when UI is chan
 
         // Solstice: every engine's editor keeps its options in a model,
         // attached to the current preset by setCurrentPaintop(), which writes
-        // each change itself, one option at a time; only the Brush Editor's
-        // own keys are written here (docs/agent/brush-option-shared-model-plan.md,
-        // phase 5). Clearing the preset and rewriting every option is no
-        // longer a path for normal edits; it remains a safety net for an
+        // each change and its dependents after the initial rewrite; only the
+        // Brush Editor's own keys are written here
+        // (docs/agent/brush-option-shared-model.md). Clearing the preset and
+        // rewriting every option remains a safety net here for an
         // editor without a model or not attached to the current preset.
         KisPaintOpOptionsModel *model = optionsModelFor(m_optionWidget);
         if (!model || !model->isAttachedTo(preset->settings().data())) {

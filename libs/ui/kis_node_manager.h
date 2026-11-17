@@ -226,6 +226,14 @@ public Q_SLOTS:
     void saveNodeAsImage();
     void saveVectorLayerAsImage();
 
+    /// Draws the active brush stroke layer's recorded strokes again,
+    /// replacing its content (Solstice, docs/agent/brush-stroke-layer-plan.md)
+    void rerenderBrushStrokes();
+
+    /// Drops the active brush stroke layer's recorded strokes, keeping the
+    /// pixels
+    void forgetBrushStrokes();
+
     void slotSplitAlphaIntoMask();
     void slotSplitAlphaWrite();
     void slotSplitAlphaSaveMerged();
@@ -234,6 +242,9 @@ public Q_SLOTS:
     void toggleVisibility();
     void toggleAlphaLock();
     void toggleInheritAlpha();
+    /// Solstice: Clipping Mask
+    void toggleClipping();
+    void createClippingLayer();
 
     /** Open a dialog to change layer's fast color overlay mask properties. */
     void colorOverlayMaskProperties(KisNodeSP node);
@@ -248,7 +259,7 @@ public Q_SLOTS:
 
     void cutLayersToClipboard();
     void copyLayersToClipboard();
-    void pasteLayersFromClipboard(bool changeOffset = false, QPointF offset = QPointF(), KisProcessingApplicator *applicator = nullptr);
+    void pasteLayersFromClipboard(std::optional<QPoint> preferredClipCenter = std::nullopt, KisProcessingApplicator *applicator = nullptr);
 
     void createQuickGroup();
     void createQuickClippingGroup();

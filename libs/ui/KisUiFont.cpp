@@ -101,7 +101,7 @@ QFont normalFont()
         // Solstice: the bundled Cantarell is the default UI font, at the
         // system font's size. Text it has no glyphs for (Japanese, ...)
         // falls back to the system fonts.
-        if (QFontDatabase::families().contains(QStringLiteral("Cantarell"))) {
+        if (QFontDatabase().families().contains(QStringLiteral("Cantarell"))) {
             font.setFamily(QStringLiteral("Cantarell"));
         }
     }

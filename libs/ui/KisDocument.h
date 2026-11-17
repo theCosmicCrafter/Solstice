@@ -667,6 +667,13 @@ public:
     void setColorHistory(const QList<KoColor> &colors);
     QList<KoColor> colorHistory();
 
+    // Solstice: Fast Image Export settings saved with this document, as the
+    // XML of KisLazyToolsFastExportPresets (empty when there are none). The
+    // .kra keeps them in solstice/fastexport.xml. Setting them does not mark
+    // the document modified.
+    QByteArray solsticeFastExportData() const;
+    void setSolsticeFastExportData(const QByteArray &data);
+
     /**
      * Get existing reference images layer or null if none exists.
      */

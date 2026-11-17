@@ -393,6 +393,12 @@ void KisPresetChooser::slotResourceWasSelected(KoResourceSP resource)
 
 void KisPresetChooser::slotCurrentPresetChanged()
 {
+    // Solstice: this only repaints the current item (its dirty mark and
+    // thumbnail). A hidden view paints all its items when it is shown, so
+    // it need not search its rows for the item on every setting change.
+    if (!m_chooser->itemView()->isVisible())
+        return;
+
     KoResourceSP currentResource = m_chooser->currentResource();
     if (!currentResource) return;
 

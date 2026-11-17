@@ -713,6 +713,14 @@ void KisInputManager::Private::resetCompressor() {
     moveEventCompressor.stop();
 }
 
+void KisInputManager::Private::flushCompressedMove()
+{
+    if (compressedMoveEvent) {
+        (void)handleCompressedTabletEvent(compressedMoveEvent.data());
+    }
+    resetCompressor();
+}
+
 void KisInputManager::Private::startBlockingTouch()
 {
     eventEater.startBlockingTouch();

@@ -114,6 +114,7 @@ Q_SIGNALS:
     void sigSettingsChanged();
 
 private:
+
     friend class KisPrescaledProjectionTest;
 
     KisPrescaledProjection(const KisPrescaledProjection &);

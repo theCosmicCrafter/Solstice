@@ -191,7 +191,7 @@ bool KisCategorizedItemDelegate::editorEvent(QEvent *event,
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease
         || event->type() == QEvent::MouseButtonDblClick) {
         const QMouseEvent *mouse = static_cast<QMouseEvent *>(event);
-        if (eyeRect.contains(mouse->position().toPoint())) {
+        if (eyeRect.contains(mouse->pos())) {
             if (event->type() == QEvent::MouseButtonRelease && mouse->button() == Qt::LeftButton
                 && index.data(__CategorizedListModelBase::isShowableInToolOptionsRole).toBool()) {
                 const bool shown = index.data(__CategorizedListModelBase::isShownInToolOptionsRole).toBool();
