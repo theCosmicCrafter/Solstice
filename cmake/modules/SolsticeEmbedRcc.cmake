@@ -7,7 +7,7 @@
 # the 16-byte aligned array `const unsigned char <symbol>[]` in a generated
 # source file, whose path is stored in <out_var>. The data can be mounted at
 # any resource path at runtime with QResource::registerResource(data, mapRoot)
-# (docs/agent/settings-location.md: kritarc defaults).
+# (docs/agent/settings-location.md: KConfig names and embedded defaults).
 
 set(SOLSTICE_EMBED_RCC_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/SolsticeEmbedRccToCpp.cmake")
 

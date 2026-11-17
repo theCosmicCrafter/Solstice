@@ -1,0 +1,1684 @@
+[
+ {
+  "file": "libs/ui/CMakeLists.txt",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "libs/ui/KisApplication.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            // Solstice: Fusion with flat common controls (ui-modernization-plan.md)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/KisBrushStrokeLayer.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <QApplication>"
+   ],
+   [
+    "#include <QPointer>",
+    "#include <QThreadPool>",
+    "#include <QTimer>",
+    "#include <QtMath>",
+    "#include <algorithm>"
+   ],
+   [
+    "#include <KisAsynchronousStrokeUpdateHelper.h>",
+    "#include <KisDocument.h>",
+    "#include <KisMainWindow.h>",
+    "#include <KisPart.h>",
+    "#include <KisUsageLogger.h>",
+    "#include <KisView.h>",
+    "#include <KoCanvasResourceProvider.h>",
+    "#include <KoColorSpace.h>",
+    "#include <KoCompositeOpRegistry.h>",
+    "#include <kis_command_utils.h>",
+    "#include <kis_debug.h>",
+    "#include <kis_distance_information.h>",
+    "#include <kis_floating_message.h>",
+    "#include <kis_global.h>"
+   ],
+   [
+    "#include <kis_layer_utils.h>"
+   ],
+   [
+    "#include <kis_painter.h>",
+    "#include <kis_paintop_preset.h>",
+    "#include <kis_paintop_settings.h>",
+    "#include <kis_pixel_selection.h>",
+    "#include <kis_resources_snapshot.h>",
+    "#include <kis_selection.h>",
+    "#include <kis_selection_filters.h>",
+    "#include <kis_transaction.h>",
+    "#include <klocalizedstring.h>",
+    "#include <strokes/KisFreehandStrokeInfo.h>",
+    "#include <strokes/freehand_stroke.h>"
+   ],
+   [
+    "    m_generation.ref();",
+    "    requestRecordCheck();"
+   ],
+   [
+    "/**",
+    " * Checks in the background whether the pixels of brush stroke layers are",
+    " * still their recorded strokes, once their image is idle after a change, and",
+    " * tells the user when a layer stops matching (it will be scaled as pixels) or",
+    " * matches again. Lives in the GUI thread; the checks draw the record again",
+    " * in a thread of its own, one layer at a time.",
+    " */",
+    "class KisBrushStrokeLayerMonitor : public QObject"
+   ],
+   [
+    "/// showImageMessage() from any thread; plain values only (see",
+    "/// KisBrushStrokeLayerMonitor::process())",
+    "void postImageMessage(const void *image, const QString &message)"
+   ],
+   [
+    "void KisBrushStrokeLayer::setRecordState(RecordState state, const QString &difference)"
+   ]
+  ],
+  "suspect_lines": 46
+ },
+ {
+  "file": "libs/ui/KisBrushStrokeLayer.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * at another resolution. See docs/agent/brush-stroke-layer-plan.md."
+   ],
+   [
+    " * on it. See docs/agent/brush-stroke-layer-plan.md."
+   ],
+   [
+    "    /// record together"
+   ],
+   [
+    "     * layer's file in a .kra, KisBrushStrokeLayerIO.cpp). The brush tips",
+    "     * are not embedded; patterns and gradients are."
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "libs/ui/KisBrushStrokeLayerIO.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * The brush stroke file of a layer (docs/agent/brush-stroke-layer-plan.md):"
+   ],
+   [
+    "const quint32 version = 2;"
+   ],
+   [
+    "    // ones for those the file lacks (ABR brush tips cannot be saved)"
+   ],
+   [
+    "            for (quint32 j = 0; j < startCount && j < 64 && stream.status() == QDataStream::Ok; j++) {"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/ui/KisDocument.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    ""
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/KisGpuEngineUi.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    const KoColorSpace *target = image ? KisGpuEngineSettings::conversionTarget(image->colorSpace()) : nullptr;"
+   ],
+   [
+    "    if (policy == KisGpuEngineSettings::Convert) {",
+    "        convertForGpu(image);"
+   ],
+   [
+    "    const KoColorSpace *target = KisGpuEngineSettings::conversionTarget(image->colorSpace());"
+   ],
+   [
+    "                         \"The GPU engine only accelerates RGBA float documents. Convert this document to %3? \""
+   ],
+   [
+    "                         image->colorSpace()->name(),",
+    "                         target->name()),"
+   ],
+   [
+    "    QPushButton *convert = box.addButton(i18n(\"Convert\"), QMessageBox::AcceptRole);"
+   ],
+   [
+    "    const bool accepted = box.clickedButton() == convert;"
+   ],
+   [
+    "        KisGpuEngineSettings::setConvertPolicy(accepted ? KisGpuEngineSettings::Convert : KisGpuEngineSettings::Keep);"
+   ],
+   [
+    "        convertForGpu(image);"
+   ],
+   [
+    "    // the brush uses the engine"
+   ]
+  ],
+  "suspect_lines": 12
+ },
+ {
+  "file": "libs/ui/KisImportExportManager.cpp",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "libs/ui/KisLayerThumbnailCache.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    Q_UNUSED(node);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/KisMainWindow.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // Solstice: Fusion with flat common controls (ui-modernization-plan.md)"
+   ],
+   [
+    "    // Solstice interface (docs/agent/ui-modernization-plan.md, phase 2):"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/ui/KisPaintOpOptionsModel.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * - An option change writes only that option's keys to the preset. Keys the",
+    " *   option wrote previously but no longer writes are removed."
+   ],
+   [
+    " *   and update only the options that own the changed keys."
+   ],
+   [
+    " * See docs/agent/brush-option-shared-model-plan.md."
+   ],
+   [
+    "     * too. Dependencies are followed transitively."
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "libs/ui/KisPart.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "     * @return false, if closing was cancelled by the user"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/KisReferenceImage.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            cachedImage = KritaUtils::convertQImageToGrayA(image);"
+   ],
+   [
+    "                gc2.drawImage(QPoint(), image);"
+   ],
+   [
+    "            cachedImage = image;"
+   ],
+   [
+    "{}"
+   ],
+   [
+    "{}"
+   ],
+   [
+    "    const auto sz = KisClipboard::instance()->clipSize();",
+    "    KisPaintDeviceSP clip = KisClipboard::instance()->clip({0, 0, sz.width(), sz.height()}, true);",
+    "    return fromPaintDevice(clip, converter, nullptr);"
+   ]
+  ],
+  "suspect_lines": 8
+ },
+ {
+  "file": "libs/ui/KisRemoteFileFetcher.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <kritaui_export.h>",
+    ""
+   ],
+   [
+    "class KRITAUI_EXPORT KisRemoteFileFetcher : public QObject"
+   ]
+  ],
+  "suspect_lines": 3
+ },
+ {
+  "file": "libs/ui/KisSolsticeLazyTools.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <QCheckBox>",
+    "#include <QComboBox>"
+   ],
+   [
+    "#include <QDialogButtonBox>",
+    "#include <QDir>",
+    "#include <QFile>",
+    "#include <QFileDialog>",
+    "#include <QFileInfo>",
+    "#include <QFormLayout>"
+   ],
+   [
+    "#include <QGroupBox>"
+   ],
+   [
+    "#include <QHash>"
+   ],
+   [
+    "#include <QLineEdit>"
+   ],
+   [
+    "#include <QSpinBox>",
+    "#include <QTextStream>"
+   ],
+   [
+    "#include <KoResourcePaths.h>"
+   ],
+   [
+    "#include \"kis_node_view_color_scheme.h\"",
+    "#include \"kis_properties_configuration.h\""
+   ],
+   [
+    "    (new FastExportDialog(m_viewManager))->show();"
+   ],
+   [
+    "    RenameLayerDialog dialog(m_viewManager);",
+    "    dialog.move(QCursor::pos());",
+    "    dialog.exec();"
+   ]
+  ],
+  "suspect_lines": 20
+ },
+ {
+  "file": "libs/ui/KisView.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            nodes = KisMimeData::loadNodesFastAndRecenter(*forcedCenter, event->mimeData(), kisimage, kritaShapeController, copyNode);"
+   ],
+   [
+    "            nodes = KisMimeData::loadNodesFast(event->mimeData(), kisimage, kritaShapeController, copyNode);"
+   ],
+   [
+    "            KisPaintDeviceSP clip = KisClipboard::instance()->clipFromBoardContentsWithData(qimage, urls, QRect(), true, -1, false, source);",
+    "            if (clip) {"
+   ],
+   [
+    "            KisPaintDeviceSP clip = KisClipboard::instance()-> clipFromBoardContentsWithData(qimage, urls, QRect(), true);",
+    "            if (clip) {"
+   ]
+  ],
+  "suspect_lines": 6
+ },
+ {
+  "file": "libs/ui/KisViewManager.cpp",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "libs/ui/KisViewManager.h",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "libs/ui/KisWelcomeAssetLibraryWidget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <KoResourcePaths.h>",
+    "#include <KoStore.h>",
+    "#include <kconfiggroup.h>"
+   ],
+   [
+    "#include <ksharedconfig.h>",
+    "",
+    "#include <kis_file_layer.h>",
+    "#include <kis_group_layer.h>",
+    "#include <kis_image.h>",
+    "#include <kis_import_catcher.h>",
+    "#include <kis_node_commands_adapter.h>",
+    "#include <kis_node_manager.h>"
+   ],
+   [
+    "#include <QCache>"
+   ],
+   [
+    "#include <QDirIterator>"
+   ],
+   [
+    "#include <QImageReader>"
+   ],
+   [
+    "#include <QJsonArray>",
+    "#include <QJsonDocument>"
+   ],
+   [
+    "#include <QPainter>"
+   ],
+   [
+    "        , thumbnailCache(64 * 1024)"
+   ],
+   [
+    "        if (!requireDocument(i18n(\"Insert as New Layer\")))",
+    "            return;",
+    "        new KisImportCatcher(path,",
+    "                             mainWindow->viewManager(),",
+    "                             QFileInfo(path).suffix().compare(QStringLiteral(\"svg\"), Qt::CaseInsensitive) == 0",
+    "                                 ? QStringLiteral(\"KisShapeLayer\")",
+    "                                 : QStringLiteral(\"KisPaintLayer\"));"
+   ],
+   [
+    "        if (!requireDocument(i18n(\"Insert as New File Layer\")))",
+    "            return;",
+    "        KisViewManager *view = mainWindow->viewManager();",
+    "        const QFileInfo info(path);",
+    "        KisLayerSP layer = new KisFileLayer(view->image(),",
+    "                                            info.absolutePath(),",
+    "                                            info.fileName(),",
+    "                                            KisFileLayer::None,",
+    "                                            QStringLiteral(\"Bicubic\"),",
+    "                                            info.completeBaseName(),",
+    "                                            255);",
+    "        KisNodeSP active = view->activeNode();",
+    "        KisNodeSP parent = active && active->parent() ? active->parent() : KisNodeSP(view->image()->rootLayer());",
+    "        KisNodeCommandsAdapter adapter(view);",
+    "        adapter.addNode(layer, parent, active);",
+    "        view->nodeManager()->slotNonUiActivatedNode(layer);"
+   ],
+   [
+    "    Settings settings;",
+    "    QCache<QString, QPixmap> thumbnailCache;"
+   ],
+   [
+    "    d->settings.load();"
+   ]
+  ],
+  "suspect_lines": 44
+ },
+ {
+  "file": "libs/ui/actions/KisPasteActionFactories.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    bool pasteAtCursorPosition = flags.testFlag(PasteAtCursor);"
+   ],
+   [
+    "    const QRect fittingBounds =",
+    "        pasteAtCursorPosition ? QRect() : image->bounds();",
+    ""
+   ],
+   [
+    "            view->nodeManager()->pasteLayersFromClipboard(pasteAtCursorPosition,",
+    "                                                          offsetTopLeft,"
+   ],
+   [
+    "            view->nodeManager()->pasteLayersFromClipboard(pasteAtCursorPosition,",
+    "                                                          offsetTopLeft);"
+   ],
+   [
+    "    KisTimeSpan range;",
+    "    KisPaintDeviceSP clip = KisClipboard::instance()->clip(fittingBounds, true, -1, &range);"
+   ],
+   [
+    "    if (clip) {"
+   ],
+   [
+    "            const QPointF imagePos = view->canvasBase()->coordinatesConverter()->documentToImage(docPos);",
+    "",
+    "            const QPoint offset =",
+    "                (imagePos - QRectF(clip->exactBounds()).center()).toPoint();",
+    "",
+    "            clip->setX(clip->x() + offset.x());",
+    "            clip->setY(clip->y() + offset.y());"
+   ],
+   [
+    "    KisPaintDeviceSP clip = KisClipboard::instance()->clip(QRect(), true);",
+    "    if (!clip) return;",
+    "",
+    "    QRect rect = clip->exactBounds();",
+    "    if (rect.isEmpty()) return;"
+   ],
+   [
+    "                                    rect.width(),",
+    "                                    rect.height(),",
+    "                                    clip->colorSpace(),"
+   ],
+   [
+    "                              OPACITY_OPAQUE_U8, clip->colorSpace());"
+   ],
+   [
+    "    KisPainter::copyAreaOptimized(QPoint(), clip, layer->paintDevice(), rect);"
+   ]
+  ],
+  "suspect_lines": 28
+ },
+ {
+  "file": "libs/ui/actions/kis_selection_action_factories.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "namespace ActionHelper {"
+   ],
+   [
+    "            if (node->inherits(\"KisShapeLayer\") || node->inherits(\"KisFileLayer\")) {"
+   ],
+   [
+    "                    ActionHelper::trimDevice(view, node->paintDevice(), flags.testFlag(SharpClip), range);"
+   ],
+   [
+    "        KisImageSP tempImage = ActionHelper::makeImage(view, nodes);",
+    "        KisClipboard::instance()->setLayers(nodes, tempImage);"
+   ],
+   [
+    "        KisProcessingApplicator *ap = beginAction(view, actionName);"
+   ],
+   [
+    "    ActionHelper::trimDevice(view, dev);"
+   ],
+   [
+    "    KisImageSP tempImage = ActionHelper::makeImage(view, nodes);",
+    "    KisClipboard::instance()->setLayers(nodes, tempImage);"
+   ],
+   [
+    "    KisProcessingApplicator *ap = beginAction(view, kundo2_i18n(\"Copy Merged\"));"
+   ]
+  ],
+  "suspect_lines": 10
+ },
+ {
+  "file": "libs/ui/canvas/KisCanvasState.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    return qFuzzyCompare(zoom, other.zoom) &&",
+    "           qFuzzyCompare(effectiveZoom, other.effectiveZoom) &&",
+    "           zoomMode == other.zoomMode &&",
+    "           qFuzzyCompare(rotation, other.rotation) &&",
+    "           mirrorHorizontally == other.mirrorHorizontally &&",
+    "           mirrorVertically == other.mirrorVertically &&",
+    "           documentOffset == other.documentOffset &&",
+    "           documentOffsetF == other.documentOffsetF &&",
+    "           viewportOffsetF == other.viewportOffsetF &&",
+    "           minimumOffset == other.minimumOffset &&",
+    "           maximumOffset == other.maximumOffset &&",
+    "           canvasSize == other.canvasSize &&",
+    "           qFuzzyCompare(minimumZoom, other.minimumZoom) &&",
+    "           qFuzzyCompare(maximumZoom, other.maximumZoom) &&",
+    "           imageRectInWidgetPixels == other.imageRectInWidgetPixels;"
+   ]
+  ],
+  "suspect_lines": 15
+ },
+ {
+  "file": "libs/ui/canvas/kis_canvas_controller.cpp",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "libs/ui/canvas/kis_prescaled_projection.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    std::tuple<qreal,qreal> transformations() const {",
+    "        return {zoom, rotation};"
+   ],
+   [
+    "    bool operator==(const RelevantCanvasState& other) const {",
+    "        return qFuzzyCompare(zoom, other.zoom) &&",
+    "               qFuzzyCompare(rotation, other.rotation) &&",
+    "               viewportOffsetF == other.viewportOffsetF;"
+   ],
+   [
+    "    bool operator!=(const RelevantCanvasState& other) const {"
+   ],
+   [
+    "    static RelevantCanvasState fromCanvasState(const KisCanvasState &state) {",
+    "        return {state.effectiveZoom, state.rotation, state.viewportOffsetF};"
+   ],
+   [
+    "    KisCoordinatesConverter *coordinatesConverter {0};"
+   ],
+   [
+    "    QImage newImage = QImage(m_d->viewportSize, QImage::Format_ARGB32);"
+   ],
+   [
+    "        copyQImage(alignedOffset.x(), alignedOffset.y(), &newImage, m_d->prescaledQImage);"
+   ],
+   [
+    "    if (m_d->prescaledQImage.isNull() ||",
+    "        m_d->prescaledQImage.size() != m_d->viewportSize) {"
+   ],
+   [
+    "        m_d->prescaledQImage = QImage(m_d->viewportSize, QImage::Format_ARGB32);"
+   ],
+   [
+    "    const int borderSize = BORDER_SIZE(qMax(info->scaleX, info->scaleY));"
+   ],
+   [
+    "    if (SCALE_MORE_OR_EQUAL_TO(info->scaleX, info->scaleY, 1.0)) {",
+    "        // Note: QPainter canvas backend does not have an explicit NearestFilterMode setting",
+    "        // like the OpenGL canvas renderer; it only switches between SmoothPixmapTransform",
+    "        // and nearest (no hint) based on zoom scale and smoothHighZoom.",
+    "        if (SCALE_LESS_THAN(info->scaleX, info->scaleY, 2.0) || m_d->smoothHighZoom) {",
+    "            dbgRender << \"smoothHighZoom\" << Qt::endl;"
+   ],
+   [
+    "        // a crap result compared to QImage's smoothscale",
+    "        patch.preScale(info->viewportRect);"
+   ]
+  ],
+  "suspect_lines": 24
+ },
+ {
+  "file": "libs/ui/canvas/kis_prescaled_projection.h",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "libs/ui/canvas/kis_qpainter_canvas.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    gc.setRenderHint(QPainter::SmoothPixmapTransform, true);"
+   ],
+   [
+    "    gc.drawImage(viewportRect, m_d->prescaledProjection->prescaledQImage(),",
+    "                 viewportRect);"
+   ]
+  ],
+  "suspect_lines": 3
+ },
+ {
+  "file": "libs/ui/dialogs/KisDlgCreateNewDocument.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    int w = cfg.defImageWidth();",
+    "    int h = cfg.defImageHeight();",
+    "    const double resolution = cfg.defImageResolution();",
+    "    const QString colorModel = cfg.defColorModel();",
+    "    const QString colorDepth = cfg.defaultColorDepth();",
+    "    const QString colorProfile = cfg.defColorProfile();"
+   ],
+   [
+    "        new KisCustomImageWidget(this, w, h, resolution, colorModel, colorDepth, colorProfile, i18n(\"Unnamed\")),"
+   ],
+   [
+    "        new KisImageFromClipboardWidget(this, 0, 0, resolution, colorModel, colorDepth, colorProfile, i18n(\"Unnamed\")),"
+   ]
+  ],
+  "suspect_lines": 8
+ },
+ {
+  "file": "libs/ui/dialogs/kis_dlg_preferences.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    m_page->radioWintab->setChecked(!cfg.useWin8PointerInput(true));",
+    "    m_page->radioWin8PointerInput->setChecked(cfg.useWin8PointerInput(true));"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/ui/flake/kis_shape_controller.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        KisSelectionSP selection = canvas->viewManager()->selection();",
+    "        if (selection) {",
+    "            KisSelectionComponent* shapeSelectionComponent = selection->shapeSelection();"
+   ],
+   [
+    "            if (!shapeSelectionComponent) {",
+    "                shapeSelectionComponent = new KisShapeSelection(this, selection);",
+    "                resultCommand->addCommand(selection->convertToVectorSelection(shapeSelectionComponent));"
+   ],
+   [
+    "            KisShapeSelection * shapeSelection = static_cast<KisShapeSelection*>(shapeSelectionComponent);",
+    "            resultParent = shapeSelection;"
+   ],
+   [
+    "    } else {"
+   ]
+  ],
+  "suspect_lines": 9
+ },
+ {
+  "file": "libs/ui/flake/kis_shape_layer.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    void setResolution(qreal xRes, qreal yRes) {"
+   ],
+   [
+    "        model->setResolution(image()->xRes() * 72.0, image()->yRes() * 72.0);"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/ui/forms/wdgdisplaysettings.ui",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "       <item row=\"7\" column=\"0\" colspan=\"2\">"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/forms/wdggeneralsettings.ui",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "      <layout class=\"QVBoxLayout\" name=\"customVerticalLayout\">"
+   ],
+   [
+    "        <widget class=\"QCheckBox\" name=\"chkColorPickFromAnywhere\">",
+    "         <property name=\"text\">",
+    "          <string>Enable Color Pick from Anywhere (Win+Shift+C)</string>"
+   ],
+   [
+    "       </item>",
+    "       <item>",
+    "        <widget class=\"QCheckBox\" name=\"chkDisableTopMenuShortcuts\">",
+    "         <property name=\"text\">",
+    "          <string>Disable top menu shortcuts</string>",
+    "         </property>",
+    "        </widget>",
+    "       </item>",
+    "       <item>",
+    "        <widget class=\"QCheckBox\" name=\"chkRestNoteEnabled\">",
+    "         <property name=\"toolTip\">",
+    "          <string>Shows the Rest Note docker (work and break timer) in Settings &gt; Dockers. Turning it on takes effect after restarting Solstice; turning it off stops the timer at once.</string>",
+    "         </property>",
+    "         <property name=\"text\">",
+    "          <string>Enable the Rest Note docker</string>",
+    "         </property>",
+    "        </widget>",
+    "       </item>",
+    "       <item>",
+    "        <widget class=\"QGroupBox\" name=\"grpForegroundColorSlots\">",
+    "         <property name=\"title\">",
+    "          <string>Foreground Color Shortcut Slots</string>",
+    "         </property>",
+    "         <layout class=\"QFormLayout\" name=\"foregroundColorSlotsLayout\">",
+    "          <item row=\"0\" column=\"0\"><widget class=\"QLabel\" name=\"lblForegroundColor1\"><property name=\"text\"><string>Foreground Color 1:</string></property></widget></item>",
+    "          <item row=\"0\" column=\"1\"><widget class=\"KisColorButton\" name=\"btnForegroundColor1\"><property name=\"sizePolicy\"><sizepolicy hsizetype=\"Fixed\" vsizetype=\"Fixed\"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>",
+    "          <item row=\"1\" column=\"0\"><widget class=\"QLabel\" name=\"lblForegroundColor2\"><property name=\"text\"><string>Foreground Color 2:</string></property></widget></item>",
+    "          <item row=\"1\" column=\"1\"><widget class=\"KisColorButton\" name=\"btnForegroundColor2\"><property name=\"sizePolicy\"><sizepolicy hsizetype=\"Fixed\" vsizetype=\"Fixed\"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>",
+    "          <item row=\"2\" column=\"0\"><widget class=\"QLabel\" name=\"lblForegroundColor3\"><property name=\"text\"><string>Foreground Color 3:</string></property></widget></item>",
+    "          <item row=\"2\" column=\"1\"><widget class=\"KisColorButton\" name=\"btnForegroundColor3\"><property name=\"sizePolicy\"><sizepolicy hsizetype=\"Fixed\" vsizetype=\"Fixed\"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>",
+    "          <item row=\"3\" column=\"0\"><widget class=\"QLabel\" name=\"lblForegroundColor4\"><property name=\"text\"><string>Foreground Color 4:</string></property></widget></item>",
+    "          <item row=\"3\" column=\"1\"><widget class=\"KisColorButton\" name=\"btnForegroundColor4\"><property name=\"sizePolicy\"><sizepolicy hsizetype=\"Fixed\" vsizetype=\"Fixed\"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>",
+    "          <item row=\"4\" column=\"0\"><widget class=\"QLabel\" name=\"lblForegroundColor5\"><property name=\"text\"><string>Foreground Color 5:</string></property></widget></item>",
+    "          <item row=\"4\" column=\"1\"><widget class=\"KisColorButton\" name=\"btnForegroundColor5\"><property name=\"sizePolicy\"><sizepolicy hsizetype=\"Fixed\" vsizetype=\"Fixed\"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>",
+    "          <item row=\"5\" column=\"0\"><widget class=\"QLabel\" name=\"lblForegroundColor6\"><property name=\"text\"><string>Foreground Color 6:</string></property></widget></item>",
+    "          <item row=\"5\" column=\"1\"><widget class=\"KisColorButton\" name=\"btnForegroundColor6\"><property name=\"sizePolicy\"><sizepolicy hsizetype=\"Fixed\" vsizetype=\"Fixed\"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>",
+    "          <item row=\"6\" column=\"0\"><widget class=\"QLabel\" name=\"lblForegroundColor7\"><property name=\"text\"><string>Foreground Color 7:</string></property></widget></item>",
+    "          <item row=\"6\" column=\"1\"><widget class=\"KisColorButton\" name=\"btnForegroundColor7\"><property name=\"sizePolicy\"><sizepolicy hsizetype=\"Fixed\" vsizetype=\"Fixed\"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>",
+    "          <item row=\"7\" column=\"0\"><widget class=\"QLabel\" name=\"lblForegroundColor8\"><property name=\"text\"><string>Foreground Color 8:</string></property></widget></item>",
+    "          <item row=\"7\" column=\"1\"><widget class=\"KisColorButton\" name=\"btnForegroundColor8\"><property name=\"sizePolicy\"><sizepolicy hsizetype=\"Fixed\" vsizetype=\"Fixed\"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>",
+    "          <item row=\"8\" column=\"0\"><widget class=\"QLabel\" name=\"lblForegroundColor9\"><property name=\"text\"><string>Foreground Color 9:</string></property></widget></item>",
+    "          <item row=\"8\" column=\"1\"><widget class=\"KisColorButton\" name=\"btnForegroundColor9\"><property name=\"sizePolicy\"><sizepolicy hsizetype=\"Fixed\" vsizetype=\"Fixed\"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property></widget></item>",
+    "         </layout>",
+    "        </widget>",
+    "       </item>",
+    "       <item>",
+    "        <spacer name=\"customVerticalSpacer\">",
+    "         <property name=\"orientation\"><enum>Qt::Orientation::Vertical</enum></property>",
+    "         <property name=\"sizeHint\" stdset=\"0\"><size><width>20</width><height>40</height></size></property>",
+    "        </spacer>"
+   ]
+  ],
+  "suspect_lines": 54
+ },
+ {
+  "file": "libs/ui/kis_clipboard.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    bool hasClip{};",
+    "    bool pushedClipboard{};"
+   ],
+   [
+    "KisPaintDeviceSP KisClipboard::clipFromKritaLayers(const KoColorSpace *cs) const"
+   ],
+   [
+    "    const QMimeData *data = KisClipboard::instance()->layersMimeData();"
+   ],
+   [
+    "    if (!data) {"
+   ],
+   [
+    "    const KisMimeData *mimedata = qobject_cast<const KisMimeData *>(data);",
+    "    if (!mimedata) return 0;"
+   ],
+   [
+    "    KisNodeList nodes = mimedata->nodes();"
+   ],
+   [
+    "    return nullptr;"
+   ],
+   [
+    "KisPaintDeviceSP KisClipboard::clipFromBoardContents(const QMimeData *cbData,",
+    "                                                     const QRect &imageBounds,",
+    "                                                     bool showPopup,",
+    "                                                     int pasteBehaviourOverride,",
+    "                                                     bool useClipboardFallback,",
+    "                                                     QPair<bool, PasteFormatBehaviour> source) const"
+   ],
+   [
+    "        int behaviour = pasteBehaviourOverride;"
+   ],
+   [
+    "        if (pasteBehaviourOverride == -1) {"
+   ],
+   [
+    "        clip = new KisPaintDevice(cs);",
+    "        Q_CHECK_PTR(clip);",
+    "        clip->convertFromQImage(qimage, profile);"
+   ],
+   [
+    "            clip = fetchImageByURL(*url);"
+   ],
+   [
+    "    if (!d->pushedClipboard) {",
+    "        const QMimeData *cbData = d->clipboard->mimeData();",
+    "        d->hasClip = d->clipboard->mimeData()->hasImage()",
+    "                || (cbData && cbData->hasFormat(\"application/x-krita-selection\"));"
+   ],
+   [
+    "    d->pushedClipboard = false;"
+   ],
+   [
+    "QSize KisClipboard::clipSize() const"
+   ],
+   [
+    "void KisClipboard::setLayers(KisNodeList nodes, KisImageSP image, bool forceCopy)"
+   ],
+   [
+    "    QMimeData *data = KisMimeData::mimeForLayersDeepCopy(nodes, image, forceCopy);"
+   ],
+   [
+    "KisPaintDeviceSP KisClipboard::fetchImageByURL(const QUrl &originalUrl) const"
+   ],
+   [
+    "            return result;"
+   ],
+   [
+    "            return result;"
+   ],
+   [
+    "            result = new KisPaintDevice(*doc->image()->projection());"
+   ],
+   [
+    "    return result;"
+   ]
+  ],
+  "suspect_lines": 34
+ },
+ {
+  "file": "libs/ui/kis_clipboard.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "     * Sets the clipboard to the contents of the specified paint device; also",
+    "     * set the system clipboard to a QImage representation of the specified",
+    "     * paint device."
+   ],
+   [
+    "     * @param dev The paint device that will be stored on the clipboard",
+    "     * @param topLeft a hint about the place where the clip should be pasted by default"
+   ],
+   [
+    "    void setClip(KisPaintDeviceSP dev, const QPoint& topLeft);",
+    "",
+    "    void setClip(KisPaintDeviceSP dev, const QPoint& topLeft, const KisTimeSpan &range);"
+   ],
+   [
+    "     * Get the contents of the clipboard in the form of a paint device."
+   ],
+   [
+    "    KisPaintDeviceSP clip(const QRect &imageBounds,",
+    "                          bool showPopup,",
+    "                          int overridePasteBehaviour = -1,",
+    "                          KisTimeSpan *clipRange = nullptr) const;"
+   ],
+   [
+    "    KisPaintDeviceSP clipFromKritaLayers(const KoColorSpace *cs) const;"
+   ],
+   [
+    "    KisPaintDeviceSP clipFromBoardContents(const QMimeData *data,",
+    "                          const QRect &imageBounds,",
+    "                          bool showPopup,",
+    "                          int overridePasteBehaviour = -1,",
+    "                          bool useClipboardFallback = false,",
+    "                          QPair<bool, PasteFormatBehaviour> source = {",
+    "                              false,",
+    "                              PasteFormatBehaviour::PASTE_FORMAT_ASK}) const;",
+    "",
+    "    //A function to allow for caching the clipboard data",
+    "    KisPaintDeviceSP clipFromBoardContentsWithData("
+   ],
+   [
+    "        const QRect &imageBounds,"
+   ],
+   [
+    "        bool useClipboardFallback = false,"
+   ],
+   [
+    "    QImage getImageWithFallback(const QMimeData *cbData, bool useClipboardFallback = false) const;"
+   ],
+   [
+    "    QSize clipSize() const;"
+   ],
+   [
+    "    void setLayers(KisNodeList nodes, KisImageSP image, bool forceCopy = false);"
+   ],
+   [
+    "    KisPaintDeviceSP",
+    "    clipFromKritaSelection(const QMimeData *data, const QRect &imageBounds, KisTimeSpan *clipRange) const;",
+    "",
+    "    KisPaintDeviceSP fetchImageByURL(const QUrl &originalUrl) const;",
+    ""
+   ]
+  ],
+  "suspect_lines": 35
+ },
+ {
+  "file": "libs/ui/kis_config.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    return defaultValue ? 300.0 : m_cfg.readEntry(\"preferredVectorImportResolution\", 300.0);"
+   ],
+   [
+    "int KisConfig::numDefaultLayers(bool defaultValue) const"
+   ],
+   [
+    "    return (defaultValue ? 2 : m_cfg.readEntry(\"NumberOfLayersForNewImage\", 2));"
+   ],
+   [
+    "void KisConfig::setNumDefaultLayers(int num)"
+   ],
+   [
+    "    m_cfg.writeEntry(\"NumberOfLayersForNewImage\", num);"
+   ],
+   [
+    "quint8 KisConfig::defaultBackgroundOpacity(bool defaultValue) const"
+   ],
+   [
+    "  return (defaultValue ? (int)OPACITY_OPAQUE_U8 : m_cfg.readEntry(\"BackgroundOpacityForNewImage\", (int)OPACITY_OPAQUE_U8));"
+   ],
+   [
+    "void KisConfig::setDefaultBackgroundOpacity(quint8 value)"
+   ],
+   [
+    "  m_cfg.writeEntry(\"BackgroundOpacityForNewImage\", (int)value);"
+   ],
+   [
+    "QColor KisConfig::defaultBackgroundColor(bool defaultValue) const"
+   ],
+   [
+    "  return (defaultValue ? QColor(Qt::white) : m_cfg.readEntry(\"BackgroundColorForNewImage\", QColor(Qt::white)));"
+   ],
+   [
+    "void KisConfig::setDefaultBackgroundColor(const QColor &value)"
+   ],
+   [
+    "  m_cfg.writeEntry(\"BackgroundColorForNewImage\", value);"
+   ],
+   [
+    "KisConfig::BackgroundStyle KisConfig::defaultBackgroundStyle(bool defaultValue) const"
+   ],
+   [
+    "  return (KisConfig::BackgroundStyle)(defaultValue ? RASTER_LAYER : m_cfg.readEntry(\"BackgroundStyleForNewImage\", (int)RASTER_LAYER));"
+   ],
+   [
+    "void KisConfig::setDefaultBackgroundStyle(KisConfig::BackgroundStyle value)"
+   ],
+   [
+    "  m_cfg.writeEntry(\"BackgroundStyleForNewImage\", (int)value);"
+   ]
+  ],
+  "suspect_lines": 17
+ },
+ {
+  "file": "libs/ui/kis_config.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    int numDefaultLayers(bool defaultValue = false) const;",
+    "    void setNumDefaultLayers(int num);"
+   ],
+   [
+    "    quint8 defaultBackgroundOpacity(bool defaultValue = false) const;",
+    "    void setDefaultBackgroundOpacity(quint8 value);"
+   ],
+   [
+    "    QColor defaultBackgroundColor(bool defaultValue = false) const;",
+    "    void setDefaultBackgroundColor(const QColor &value);"
+   ],
+   [
+    "    BackgroundStyle defaultBackgroundStyle(bool defaultValue = false) const;",
+    "    void setDefaultBackgroundStyle(BackgroundStyle value);"
+   ],
+   [
+    "    /// Whether \"new paint layer\" creates a KisBrushStrokeLayer instead",
+    "    /// (ink-first workflows; Solstice)"
+   ]
+  ],
+  "suspect_lines": 10
+ },
+ {
+  "file": "libs/ui/kis_layer_manager.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <KisImageBarrierLock.h>"
+   ],
+   [
+    "#include <kis_iterator_ng.h>"
+   ],
+   [
+    "    // Size guard (D3): If the layer exceeds 64 megapixels (e.g. 8K x 8K), warn the user",
+    "    // because synchronous tracing on the UI thread under image barrier lock may take",
+    "    // noticeable time and freeze responsiveness."
+   ],
+   [
+    "            i18n(\"The layer is very large (%1 megapixels). Tracing it to vector may take significant time and make Krita temporarily unresponsive. Do you want to continue?\","
+   ],
+   [
+    "    // Build a selection from the layer's alpha (Select Opaque semantics,",
+    "    // processed with KisSequentialIterator for speed)."
+   ],
+   [
+    "        KisImageBarrierLock lock(image);",
+    "        KisSequentialConstIterator devIter(device, rc);",
+    "        KisSequentialIterator selIter(pixelSelection, rc);"
+   ]
+  ],
+  "suspect_lines": 11
+ },
+ {
+  "file": "libs/ui/kis_layer_manager.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "class KoPathShape;"
+   ],
+   [
+    "    static KoPathShape *traceDeviceToPathShape(KisPaintDeviceSP device,"
+   ],
+   [
+    "    /// (docs/agent/brush-stroke-layer-plan.md)"
+   ]
+  ],
+  "suspect_lines": 3
+ },
+ {
+  "file": "libs/ui/kis_mimedata.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "KisMimeData::KisMimeData(QList<KisNodeSP> nodes, KisImageSP image, bool forceCopy)"
+   ],
+   [
+    "    Q_FOREACH (KisNodeSP node, nodes) {",
+    "        m_copiedBounds |= KisLayerUtils::recursiveTightNodeVisibleBounds(node);"
+   ],
+   [
+    "KisDocument *createDocument(QList<KisNodeSP> nodes, KisImageSP srcImage, const QRect &copiedBounds)"
+   ],
+   [
+    "    KisDocument *doc = KisPart::instance()->createTemporaryDocument();",
+    "    QRect rc = copiedBounds;"
+   ],
+   [
+    "    QRect offset(0, 0, rc.width(), rc.height());",
+    "    rc |= offset;"
+   ],
+   [
+    "    if (rc.isEmpty() && srcImage) {",
+    "        rc = srcImage->bounds();"
+   ],
+   [
+    "    KisImageSP image = new KisImage(0, rc.width(), rc.height(), nodes.first()->colorSpace(), nodes.first()->name());",
+    "    image->setAllowMasksOnRootNode(true);"
+   ],
+   [
+    "    if (srcImage) {",
+    "        image->setResolution(srcImage->xRes(), srcImage->yRes());"
+   ],
+   [
+    "        KisConfig cfg(true);"
+   ],
+   [
+    "        QScopedPointer<KisDocument> doc(createDocument(m_nodes, m_image, m_copiedBounds));"
+   ],
+   [
+    "        return doc->image()->projection()->convertToQImage(displayConfig.profile,",
+    "                                                           displayConfig.intent,",
+    "                                                           displayConfig.conversionFlags);"
+   ],
+   [
+    "        QByteArray ba = serializeToByteArray(m_nodes, m_image, m_copiedBounds);",
+    "        return ba;"
+   ],
+   [
+    "    if (nodes.isEmpty() && data->hasFormat(\"application/x-krita-node-internal-pointer\")) {"
+   ],
+   [
+    "        qint64 imagePointerValue = root.attribute(\"image_pointer_value\").toLongLong();",
+    "        sourceImage = reinterpret_cast<KisImage*>(imagePointerValue);"
+   ],
+   [
+    "    KisMimeData* data = new KisMimeData(sortedNodes, image, forceCopy);"
+   ],
+   [
+    "QMimeData* KisMimeData::mimeForLayersDeepCopy(const KisNodeList &nodes, KisImageSP image, bool forceCopy)"
+   ],
+   [
+    "    KisMimeData* data = new KisMimeData(sortedNodes, image, forceCopy);"
+   ],
+   [
+    "KisNodeList KisMimeData::loadNodesFastAndRecenter(const QPoint &preferredCenter, const QMimeData *data, KisImageSP image, KisShapeController *shapeController, bool &copyNode)"
+   ],
+   [
+    "    KisNodeList nodes = loadNodesFast(data, image, shapeController, copyNode);"
+   ],
+   [
+    "                                   bool changeOffset,",
+    "                                   QPointF offset,"
+   ],
+   [
+    "    QList<KisNodeSP> nodes = loadNodesFast(data, image, shapeController, copyNode /* IN-OUT */);"
+   ],
+   [
+    "    if (changeOffset) {"
+   ],
+   [
+    "            KisLayerUtils::recursiveApplyNodes(node, [offset] (KisNodeSP node){"
+   ]
+  ],
+  "suspect_lines": 34
+ },
+ {
+  "file": "libs/ui/kis_mimedata.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    KisMimeData(QList<KisNodeSP> nodes, KisImageSP image, bool forceCopy = false);"
+   ],
+   [
+    "    static QMimeData* mimeForLayersDeepCopy(const KisNodeList &nodes, KisImageSP image, bool forceCopy);"
+   ],
+   [
+    "                                 bool changeOffset = false,",
+    "                                 QPointF offset = QPointF(),"
+   ],
+   [
+    "    QRect m_copiedBounds;"
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "libs/ui/kis_node_manager.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    KisClipboard::instance()->setLayers(nodes, m_d->view->image(), false);"
+   ],
+   [
+    "    KisClipboard::instance()->setLayers(nodes, m_d->view->image(), true);"
+   ],
+   [
+    "void KisNodeManager::pasteLayersFromClipboard(bool changeOffset, QPointF offset, KisProcessingApplicator *applicator)"
+   ],
+   [
+    "                                  changeOffset,",
+    "                                  offset,"
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "libs/ui/kis_node_manager.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    void pasteLayersFromClipboard(bool changeOffset = false, QPointF offset = QPointF(), KisProcessingApplicator *applicator = nullptr);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/kis_node_model.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    KisNodeList nodes = KisMimeData::loadNodesFast(data, m_d->image, m_d->shapeController, copyNode);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/kis_paintop_box.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        // each change itself, one option at a time; only the Brush Editor's",
+    "        // own keys are written here (docs/agent/brush-option-shared-model-plan.md,",
+    "        // phase 5). Clearing the preset and rewriting every option is no",
+    "        // longer a path for normal edits; it remains a safety net for an"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/ui/kis_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        // that reaches the preset (docs/agent/brush-option-shared-model-plan.md,",
+    "        // phase 5)"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/ui/kis_paintop_settings_widget.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "     * configurations. See docs/agent/brush-option-shared-model-plan.md."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/opengl/KisOpenGLCanvasRenderer.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/opengl/kis_opengl_shader_loader.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "   {FragmentColor, \"fragColor\"}"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/opengl/kis_opengl_shader_loader.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "               TexelSize, Texture0, Texture1, FixedLodLevel, FragmentColor };"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/operations/kis_operation.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "KisProcessingApplicator* KisOperation::beginAction(KisViewManager *view, const KUndo2MagicString &actionName) {"
+   ],
+   [
+    "                                        KisProcessingApplicator::NONE,"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/ui/operations/kis_operation.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    KisProcessingApplicator* beginAction(KisViewManager *view, const KUndo2MagicString &actionName);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/tests/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "krita_add_broken_unit_test( kis_clipboard_test.cpp",
+    "    TEST_NAME KisClipboardTest",
+    "    LINK_LIBRARIES kritaui kritatestsdk",
+    "    )",
+    ""
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "libs/ui/tests/kis_clipboard_test.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <simpletest.h>"
+   ],
+   [
+    "void KisClipboardTest::testRoundTrip()"
+   ],
+   [
+    "    KisPaintDeviceSP newDev;",
+    "    QPoint errorPoint;"
+   ],
+   [
+    "    QRect fillRect(10,10,20,20);",
+    "    KoColor pixel(Qt::red, cs);",
+    "    dev->fill(fillRect.x(),fillRect.y(),",
+    "              fillRect.width(), fillRect.height(), pixel.data());"
+   ],
+   [
+    "    QCOMPARE(dev->exactBounds(), fillRect);",
+    "    KisClipboard::instance()->setClip(dev, QPoint());",
+    "    newDev = KisClipboard::instance()->clip(QRect(), false);",
+    "    QCOMPARE(newDev->exactBounds().size(), fillRect.size());",
+    "    newDev->setX(dev->x());",
+    "    newDev->setY(dev->y());",
+    "    QVERIFY(TestUtil::comparePaintDevices(errorPoint, dev, newDev));"
+   ],
+   [
+    "    QPoint offset(100,100);",
+    "    dev->setX(offset.x());",
+    "    dev->setY(offset.y());"
+   ],
+   [
+    "    QCOMPARE(dev->exactBounds(), fillRect.translated(offset));",
+    "    KisClipboard::instance()->setClip(dev, QPoint());",
+    "    newDev = KisClipboard::instance()->clip(QRect(), true);",
+    "    QCOMPARE(newDev->exactBounds().size(), fillRect.translated(offset).size());",
+    "    newDev->setX(dev->x());",
+    "    newDev->setY(dev->y());",
+    "    QVERIFY(TestUtil::comparePaintDevices(errorPoint, dev, newDev));"
+   ],
+   [
+    "    const KisPaintDeviceSP clip ="
+   ],
+   [
+    "                                                                QRect(),"
+   ],
+   [
+    "                                                                false,"
+   ],
+   [
+    "    QVERIFY(!clip);"
+   ],
+   [
+    "SIMPLE_TEST_MAIN(KisClipboardTest)"
+   ]
+  ],
+  "suspect_lines": 30
+ },
+ {
+  "file": "libs/ui/tests/kis_clipboard_test.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    void testRoundTrip();"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/tests/kis_prescaled_projection_test.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <kis_config_notifier.h>"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/tool/kis_tool.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    /// records only brush tool strokes (docs/agent/brush-stroke-layer-plan.md)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/tool/strokes/freehand_stroke.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // (docs/agent/brush-stroke-layer-plan.md); not copied to level of"
+   ],
+   [
+    "    if (!layer || !layer->paintDevice() || !resources->currentPaintOpPreset()) {"
+   ],
+   [
+    "    stroke.deviceOffset = QPoint(layer->paintDevice()->x(), layer->paintDevice()->y());"
+   ],
+   [
+    "        setAdditionalUndoCommand(new KisRecordBrushStrokeCommand(m_d->recordingLayer.data(), m_d->recording));"
+   ],
+   [
+    "            this->targetNode()->setDirty(dirtyRects);"
+   ],
+   [
+    "        targetNode()->setDirty(dirtyRects);"
+   ]
+  ],
+  "suspect_lines": 6
+ },
+ {
+  "file": "libs/ui/tool/strokes/freehand_stroke.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // (docs/agent/brush-stroke-layer-plan.md)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/tool/strokes/kis_painter_based_stroke_strategy.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            KisRunnableStrokeJobData *sequential = new KisRunnableStrokeJobData(",
+    "                [wrapped]() {",
+    "                    wrapped->run();",
+    "                },",
+    "                KisStrokeJobData::SEQUENTIAL,",
+    "                job->exclusivity());"
+   ],
+   [
+    "            painter->setOpacityToUnit();"
+   ],
+   [
+    "        KisNodeSP node = m_resources->currentNode();"
+   ],
+   [
+    "        KUndo2Command *autoKeyframeCommand =",
+    "            KisAutoKey::tryAutoCreateDuplicatedFrame(node->paintDevice(),",
+    "                                                     KisAutoKey::AllowBlankMode |",
+    "                                                         KisAutoKey::SupportsLod);",
+    "        if (autoKeyframeCommand) {",
+    "            m_autokeyCommand.reset(autoKeyframeCommand);"
+   ],
+   [
+    "        bool hasIndirectPainting = supportsIndirectPainting() && m_resources->needsIndirectPainting();",
+    "        const QString indirectCompositeOp = m_resources->indirectPaintingCompositeOp();"
+   ],
+   [
+    "                indirect->setTemporaryTarget(targetDevice);"
+   ],
+   [
+    "                indirect->setTemporaryCompositeOp(m_resources->compositeOpId());",
+    "                indirect->setTemporaryOpacity(m_resources->opacity());",
+    "                indirect->setTemporarySelection(selection);"
+   ],
+   [
+    "                QBitArray channelLockFlags = m_resources->channelLockFlags();",
+    "                indirect->setTemporaryChannelFlags(channelLockFlags);"
+   ],
+   [
+    "            if (auto *indirect = dynamic_cast<KisIndirectPaintingSupport *>(node.data())) {",
+    "                indirect->setTemporaryTargetPaintedOnCpu(!m_gpuMasking);"
+   ],
+   [
+    "        indirect->mergeToLayerThreaded(node,",
+    "                               parentCommand.data(),",
+    "                               KUndo2MagicString(),",
+    "                               -1,",
+    "                               &jobs);"
+   ],
+   [
+    "            [parentCommand, undoAdapter] () {"
+   ],
+   [
+    "void KisPainterBasedStrokeStrategy::setAdditionalUndoCommand(KUndo2Command *command)"
+   ],
+   [
+    "            indirect->setTemporaryTarget(nullptr);",
+    "            node->setDirty(region);"
+   ],
+   [
+    "    KisNodeSP node = m_resources->currentNode();",
+    "    KisIndirectPaintingSupport *indirect =",
+    "        dynamic_cast<KisIndirectPaintingSupport*>(node.data());"
+   ],
+   [
+    "    if(indirect && indirect->hasTemporaryTarget()) {",
+    "        m_finalMergeSuspender = indirect->trySuspendFinalMerge();",
+    "        indirect->setTemporaryTarget(nullptr);"
+   ],
+   [
+    "    KisNodeSP node = m_resources->currentNode();",
+    "    KisIndirectPaintingSupport *indirect =",
+    "        dynamic_cast<KisIndirectPaintingSupport*>(node.data());"
+   ],
+   [
+    "    if(indirect) {",
+    "        // todo: don't ask about paint device",
+    "        // todo:change to an assert",
+    "        if (node->paintDevice() != m_targetDevice) {",
+    "            indirect->setTemporaryTarget(m_targetDevice);",
+    "            indirect->setTemporaryCompositeOp(m_resources->compositeOpId());",
+    "            indirect->setTemporaryOpacity(m_resources->opacity());",
+    "            indirect->setTemporarySelection(m_activeSelection);"
+   ],
+   [
+    "            QBitArray channelLockFlags = m_resources->channelLockFlags();",
+    "            indirect->setTemporaryChannelFlags(channelLockFlags);",
+    "            // Solstice (GPU engine): see initStrokeCallback()",
+    "            indirect->setTemporaryTargetPaintedOnCpu(m_maskingBrushRenderer && !m_gpuMasking);"
+   ],
+   [
+    "    m_finalMergeSuspender.clear();"
+   ]
+  ],
+  "suspect_lines": 55
+ },
+ {
+  "file": "libs/ui/tool/strokes/kis_painter_based_stroke_strategy.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "     * brush stroke layer, docs/agent/brush-stroke-layer-plan.md). Call it"
+   ],
+   [
+    "    /// stroke layer). Call it before finishStrokeCallback().",
+    "    void setAdditionalUndoCommand(KUndo2Command *command);"
+   ],
+   [
+    "    KisIndirectPaintingSupport::FinalMergeSuspenderSP m_finalMergeSuspender;"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/ui/tool/strokes/move_stroke_strategy.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        QRect dirtyRect = m_node->projectionPlane()->tightUserVisibleBounds();"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/widgets/KisBrushStrokePreviewCache.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                    [this](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {"
+   ],
+   [
+    "                        if (roles.isEmpty() || roles.contains(Qt::UserRole + KisAbstractResourceModel::MD5))"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/ui/widgets/kis_custom_image_widget.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include \"widgets/kis_cmb_idlist.h\""
+   ],
+   [
+    "KisCustomImageWidget::KisCustomImageWidget(QWidget* parent, qint32 defWidth, qint32 defHeight, double resolution, const QString& defColorModel, const QString& defColorDepth, const QString& defColorProfile, const QString& imageName)"
+   ],
+   [
+    "    KisConfig cfg(true);",
+    "    intNumLayers->setValue(cfg.numDefaultLayers());",
+    "    KoColor bcol(KoColorSpaceRegistry::instance()->rgb8());",
+    "    bcol.fromQColor(cfg.defaultBackgroundColor());",
+    "    cmbColor->setColor(bcol);",
+    "    setBackgroundOpacity(cfg.defaultBackgroundOpacity());",
+    "",
+    "    KisConfig::BackgroundStyle bgStyle = cfg.defaultBackgroundStyle();"
+   ],
+   [
+    "    KisConfig cfg(true);",
+    "    cfg.setNumDefaultLayers(intNumLayers->value());",
+    "    cfg.setDefaultBackgroundOpacity(backgroundOpacity());",
+    "    cfg.setDefaultBackgroundColor(cmbColor->color().toQColor());",
+    "    cfg.setDefaultBackgroundStyle(bgStyle);"
+   ]
+  ],
+  "suspect_lines": 15
+ },
+ {
+  "file": "libs/ui/widgets/kis_custom_image_widget.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "     * @param defWidth The defined width",
+    "     * @param defHeight The defined height",
+    "     * @param resolution The image resolution",
+    "     * @param defColorModel The defined color model",
+    "     * @param defColorDepth The defined color depth",
+    "     * @param defColorProfile The defined color profile"
+   ],
+   [
+    "    KisCustomImageWidget(QWidget *parent, qint32 defWidth, qint32 defHeight, double resolution, const QString & defColorModel, const QString & defColorDepth, const QString & defColorProfile, const QString & imageName);"
+   ],
+   [
+    "    void createImage();"
+   ],
+   [
+    "    "
+   ],
+   [
+    ""
+   ]
+  ],
+  "suspect_lines": 10
+ },
+ {
+  "file": "libs/ui/widgets/kis_filter_selector_widget.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    if (d->uiFilterSelector.chkRememberPreset->isChecked()) {"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/ui/widgets/kis_image_from_clipboard_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "KisImageFromClipboardWidget::KisImageFromClipboardWidget(QWidget* parent, qint32 defWidth, qint32 defHeight, double resolution, const QString& defColorModel, const QString& defColorDepth, const QString& defColorProfile, const QString& imageName)",
+    "    : KisCustomImageWidget(parent, defWidth, defHeight, resolution, defColorModel, defColorDepth, defColorProfile, imageName)"
+   ],
+   [
+    "    KisPaintDeviceSP clip = KisClipboard::instance()->clip(QRect(), true);",
+    "    if (!clip) {"
+   ],
+   [
+    "            const QRect r = clip->exactBounds();",
+    "            KisImportCatcher::adaptClipToImageColorSpace(clip, image);",
+    "",
+    "            KisPainter::copyAreaOptimized(QPoint(), clip, layer->paintDevice(), r);"
+   ]
+  ],
+  "suspect_lines": 8
+ },
+ {
+  "file": "libs/ui/widgets/kis_image_from_clipboard_widget.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include \"kis_global.h\"",
+    "#include \"kis_properties_configuration.h\""
+   ],
+   [
+    "     * @param defWidth The defined width",
+    "     * @param defHeight The defined height",
+    "     * @param resolution The image resolution",
+    "     * @param defColorModel The defined color model",
+    "     * @param defColorDepth The defined color depth",
+    "     * @param defColorProfile The defined color profile"
+   ],
+   [
+    "    KisImageFromClipboardWidget(QWidget *parent, qint32 defWidth, qint32 defHeight, double resolution, const QString & defColorModel, const QString & defColorDepth, const QString & defColorProfile, const QString & imageName);"
+   ],
+   [
+    "    void createImage();"
+   ]
+  ],
+  "suspect_lines": 10
+ }
+]

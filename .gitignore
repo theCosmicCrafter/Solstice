@@ -52,6 +52,7 @@ env
 env_deactivate
 krita-deps-management/
 tests/e2e/_last_run_stderr.log
+build-tools/toolchains/*.local.json
 
 # Test-run artifacts from ai_diffusion util.py (IS_MOCK path)
 plugins/python/.appdata/

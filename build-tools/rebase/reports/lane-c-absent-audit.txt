@@ -1,0 +1,203 @@
+=== libs/ui/KisApplication.cpp (1)
+    // Solstice: Fusion with flat common controls (ui-modernization-plan.md)
+=== libs/ui/KisBrushStrokeLayer.cpp (131)
+    #include <KisAsynchronousStrokeUpdateHelper.h>
+    #include <strokes/KisFreehandStrokeInfo.h>
+    #include <strokes/freehand_stroke.h>
+    * Checks in the background whether the pixels of brush stroke layers are
+    * still their recorded strokes, once their image is idle after a change, and
+    class KisBrushStrokeLayerMonitor : public QObject
+    static KisBrushStrokeLayerMonitor *instance()
+    static KisBrushStrokeLayerMonitor *monitor = new KisBrushStrokeLayerMonitor();
+    KisBrushStrokeLayerMonitor()
+    KisBrushStrokeLayer *layer = dynamic_cast<KisBrushStrokeLayer *>(node.data());
+    // a brush stroke or a redraw keeps the record and the pixels
+    && layer->recordState() != KisBrushStrokeLayer::RecordState::Unknown) {
+    KisBrushStrokeLayer *layer = static_cast<KisBrushStrokeLayer *>(node.data());
+    const QVector<KisRecordedBrushStrokeSP> strokes = layer->strokes();
+    KisBrushStrokeLayerMonitor *self = this;
+    m_pool.start([self, layer, pixels, strokes, generation]() {
+    const bool matching = KisBrushStrokeLayer::strokesMatchPixels(strokes, pixels, &difference);
+    void finished(KisBrushStrokeLayer *layer, int generation, bool matching, const QString &difference)
+    layer->setRecordState(matching ? KisBrushStrokeLayer::RecordState::Matching
+    : KisBrushStrokeLayer::RecordState::NotMatching,
+    /// KisBrushStrokeLayerMonitor::process())
+    void KisBrushStrokeLayer::requestRecordCheck()
+    KisBrushStrokeLayerMonitor *monitor = KisBrushStrokeLayerMonitor::instance();
+    void KisBrushStrokeLayer::setRecordState(RecordState state, const QString &difference)
+    KisUsageLogger::log(QStringLiteral("Brush stroke layer \"%1\": its pixels are no longer its %2 recorded "
+    "strokes (%3); scaling will transform the pixels")
+    .arg(strokes().size())
+    "\"%1\" no longer matches its recorded brush strokes: an edit other than the brush "
+    message = i18nc("floating message", "\"%1\" matches its recorded brush strokes again.", name());
+    * Keeps a stroke's brush texture under the stroke when the stroke is drawn
+    * moving). The texture is anchored to the canvas, not to the stroke: the
+    * draws its strokes again over another part of the pattern. A random
+    * offset (chosen per stroke) cannot follow.
+    // where the canvas origin of the stroke goes
+    void drawStroke(KisImageSP image,
+    const KisRecordedBrushStroke &stroke,
+    KisPaintOpPresetSP preset = stroke.preset->clone().dynamicCast<KisPaintOpPreset>();
+    provider.setResource(KoCanvasResource::ForegroundColor, QVariant::fromValue(stroke.fgColor));
+    provider.setResource(KoCanvasResource::BackgroundColor, QVariant::fromValue(stroke.bgColor));
+    provider.setResource(KoCanvasResource::Opacity, stroke.opacity);
+    provider.setResource(KoCanvasResource::CurrentCompositeOp, stroke.compositeOpId);
+    provider.setResource(KoCanvasResource::CurrentEffectiveCompositeOp, stroke.compositeOpId);
+    provider.setResource(KoCanvasResource::EffectiveZoom, stroke.effectiveZoom);
+    if (stroke.pattern) {
+    provider.setResource(KoCanvasResource::CurrentPattern, QVariant::fromValue(stroke.pattern));
+    if (stroke.gradient) {
+    provider.setResource(KoCanvasResource::CurrentGradient, QVariant::fromValue(stroke.gradient));
+    resources->setOpacity(stroke.opacity);
+    resources->setFGColorOverride(stroke.fgColor);
+    resources->setBGColorOverride(stroke.bgColor);
+    // each copy's dab spacing starts as it did when the stroke was drawn
+    QVector<KisFreehandStrokeInfo *> strokeInfos;
+    for (int i = 0; i < qMax(1, stroke.strokeInfoCount); i++) {
+    const KisRecordedBrushStroke::Start start =
+    i < stroke.starts.size() ? stroke.starts[i] : KisRecordedBrushStroke::Start();
+    strokeInfos << new KisFreehandStrokeInfo(KisDistanceInformation(map(start.lastPosition),
+    strokeInfos << new KisFreehandStrokeInfo(
+    FreehandStrokeStrategy *strategy =
+    new FreehandStrokeStrategy(resources, strokeInfos, kundo2_noi18n("redraw brush stroke"));
+    strategy->setPreviewRandomSeed(stroke.seed);
+    // as the stroke was drawn: its dabs one after another
+    KisStrokeId id = image->startStroke(strategy);
+    for (const KisRecordedBrushStroke::Job &job : stroke.jobs) {
+    case FreehandStrokeStrategy::Data::POINT:
+    image->addJob(id, new FreehandStrokeStrategy::Data(job.strokeInfoId, pi1));
+    case FreehandStrokeStrategy::Data::LINE:
+    image->addJob(id, new FreehandStrokeStrategy::Data(job.strokeInfoId, pi1, pi2));
+    case FreehandStrokeStrategy::Data::CURVE:
+    new FreehandStrokeStrategy::Data(job.strokeInfoId, pi1, map(job.control1), map(job.control2), pi2));
+    image->addJob(id, new KisAsynchronousStrokeUpdateHelper::UpdateData(true));
+    image->endStroke(id);
+    KisPaintDeviceSP KisBrushStrokeLayer::renderStrokes(const QVector<KisRecordedBrushStrokeSP> &strokes,
+    "brush stroke layer redraw");
+    for (const KisRecordedBrushStrokeSP &stroke : strokes) {
+    if (stroke && stroke->preset) {
+    drawStroke(image, layer, *stroke, QPointF(deviceOffset - stroke->deviceOffset), transform);
+    *difference = QStringLiteral("the layer is empty, the redrawn strokes are not");
+    /// Replaces the layer's strokes; undo restores the previous ones. A redraw
+    class SetStrokesCommand : public KUndo2Command
+    SetStrokesCommand(KisBrushStrokeLayer *layer,
+    const QVector<KisRecordedBrushStrokeSP> &before,
+    const QVector<KisRecordedBrushStrokeSP> &after,
+    m_layer->setStrokes(m_after);
+    m_layer->setStrokes(m_before);
+    KisBrushStrokeLayerSP m_layer;
+    QVector<KisRecordedBrushStrokeSP> m_before;
+    QVector<KisRecordedBrushStrokeSP> m_after;
+    /// Where @p stroke lies relative to @p mask (selection values 0-255): the
+    /// Move Tool cuts the selected part of each pixel, so a stroke moves whole
+    SelectionCoverage selectionCoverage(const KisRecordedBrushStrokeSP &stroke,
+    const QPointF shift(deviceOffset - stroke->deviceOffset);
+    for (const KisRecordedBrushStroke::Job &job : stroke->jobs) {
+    if (job.type == FreehandStrokeStrategy::Data::CURVE) {
+    const qreal margin = stroke->preset->settings()->paintOpSize() + 4.0;
+    // near the edge: the pixels the stroke covers when drawn alone
+    KisBrushStrokeLayer::renderStrokes({stroke}, colorSpace, rough | QRect(0, 0, 1, 1), deviceOffset);
+    bool KisBrushStrokeLayer::strokesMatchPixels(const QVector<KisRecordedBrushStrokeSP> &strokes,
+    KisPaintDeviceSP current = renderStrokes(strokes, original->colorSpace(), bounds | QRect(0, 0, 1, 1), offset);
+    KUndo2Command *KisBrushStrokeLayer::createSelectionMoveCommand(KisPaintDeviceSP mask, const QPoint &offset)
+    const QVector<KisRecordedBrushStrokeSP> recorded = strokes();
+    QVector<KisRecordedBrushStrokeSP> staying;
+    QVector<KisRecordedBrushStrokeSP> moving;
+    for (const KisRecordedBrushStrokeSP &stroke : recorded) {
+    switch (selectionCoverage(stroke, deviceOffset, mask, maskBounds, device->colorSpace())) {
+    staying << stroke;
+    moving << stroke;
+    "Brush stroke layer \"%1\": a recorded stroke crosses the edge of the moved selection; "
+    const QVector<KisRecordedBrushStrokeSP> after =
+    staying + transformedStrokes(moving, deviceOffset, QTransform::fromTranslate(offset.x(), offset.y()));
+    return new SetStrokesCommand(this, recorded, after, false);
+    QVector<KisRecordedBrushStrokeSP>
+    KisBrushStrokeLayer::transformedStrokes(const QVector<KisRecordedBrushStrokeSP> &strokes,
+    QVector<KisRecordedBrushStrokeSP> result;
+    for (const KisRecordedBrushStrokeSP &stroke : strokes) {
+    QSharedPointer<KisRecordedBrushStroke> mapped(new KisRecordedBrushStroke(*stroke));
+    const QPointF shift(deviceOffset - stroke->deviceOffset);
+    for (KisRecordedBrushStroke::Job &job : mapped->jobs) {
+    for (KisRecordedBrushStroke::Start &start : mapped->starts) {
+    mapped->preset = stroke->preset->clone().dynamicCast<KisPaintOpPreset>();
+    KUndo2Command *KisBrushStrokeLayer::createTransformRedrawCommand(const QTransform &transform,
+    const QVector<KisRecordedBrushStrokeSP> recorded = strokes();
+    // where the layer holds just its recorded strokes
+    KisPaintDeviceSP current = renderStrokes(recorded, colorSpace, bounds | QRect(0, 0, 1, 1), offset);
+    "Brush stroke layer \"%1\": its pixels are not its %2 recorded strokes (%3); "
+    const QVector<KisRecordedBrushStrokeSP> mapped = transformedStrokes(recorded, offset, transform);
+    KisPaintDeviceSP redrawn = renderStrokes(mapped, colorSpace, mappedBounds | QRect(0, 0, 1, 1), offset);
+    KisUsageLogger::log(QStringLiteral("Brush stroke layer \"%1\": drawn again except where its pixels are not "
+    "its %2 recorded strokes (%3); that part is transformed as pixels")
+    "brush strokes: that part was scaled as pixels.",
+    command->setText(kundo2_i18n("Redraw Brush Strokes"));
+    command->addCommand(new SetStrokesCommand(this, recorded, mapped, true));
+=== libs/ui/KisBrushStrokeLayer.h (3)
+    * at another resolution. See docs/agent/brush-stroke-layer-plan.md.
+    * on it. See docs/agent/brush-stroke-layer-plan.md.
+    * layer's file in a .kra, KisBrushStrokeLayerIO.cpp). The brush tips
+=== libs/ui/KisBrushStrokeLayerIO.cpp (1)
+    * The brush stroke file of a layer (docs/agent/brush-stroke-layer-plan.md):
+=== libs/ui/KisMainWindow.cpp (2)
+    // Solstice: Fusion with flat common controls (ui-modernization-plan.md)
+    // Solstice interface (docs/agent/ui-modernization-plan.md, phase 2):
+=== libs/ui/KisSolsticeLazyTools.cpp (14)
+    .filePath(QStringLiteral("lazy_tools/config/name_color_list.txt"));
+    const int columns = qMax(1, cfg.readEntry<int>("Solstice/RenameGridColumns", 3));
+    resize(qMax(240, cfg.readEntry<int>("Solstice/RenameDialogWidth", 500)),
+    qMax(200, cfg.readEntry<int>("Solstice/RenameDialogHeight", 800)));
+    cfg.writeEntry("Solstice/RenameDialogWidth", width());
+    cfg.writeEntry("Solstice/RenameDialogHeight", height());
+    m_folder = new QLineEdit(cfg.readEntry<QString>("Solstice/FastExportFolder", QString()), this);
+    m_pngCompression->setValue(cfg.readEntry<int>("Solstice/FastExportPngCompression", 6));
+    m_pngAlpha->setChecked(cfg.readEntry<bool>("Solstice/FastExportPngAlpha", true));
+    m_jpegQuality->setValue(cfg.readEntry<int>("Solstice/FastExportJpegQuality", 90));
+    cfg.writeEntry("Solstice/FastExportFolder", m_folder->text().trimmed());
+    cfg.writeEntry("Solstice/FastExportPngCompression", m_pngCompression->value());
+    cfg.writeEntry("Solstice/FastExportPngAlpha", m_pngAlpha->isChecked());
+    cfg.writeEntry("Solstice/FastExportJpegQuality", m_jpegQuality->value());
+=== libs/ui/canvas/kis_prescaled_projection.cpp (8)
+    bool KisPrescaledProjection::smoothHighZoom() const
+    return m_d->smoothHighZoom;
+    void KisPrescaledProjection::setSmoothHighZoom(bool value)
+    if (m_d->smoothHighZoom != value) {
+    m_d->smoothHighZoom = value;
+    // and nearest (no hint) based on zoom scale and smoothHighZoom.
+    if (SCALE_LESS_THAN(info->scaleX, info->scaleY, 2.0) || m_d->smoothHighZoom) {
+    dbgRender << "smoothHighZoom" << Qt::endl;
+=== libs/ui/kis_config.h (2)
+    /// Whether "new paint layer" creates a KisBrushStrokeLayer instead
+    /// (ink-first workflows; Solstice)
+=== libs/ui/kis_layer_manager.h (2)
+    static KoPathShape *traceDeviceToPathShape(KisPaintDeviceSP device,
+    /// (docs/agent/brush-stroke-layer-plan.md)
+=== libs/ui/opengl/KisOpenGLCanvasRenderer.cpp (4)
+    bool smoothHighZoom{false};
+    // wins over smoothHighZoom so pixel-art workflows retain crisp pixels.
+    if (d->filterMode != KisOpenGL::NearestFilterMode && d->smoothHighZoom) {
+    d->smoothHighZoom = cfg.smoothHighZoom();
+=== libs/ui/tests/kis_prescaled_projection_test.cpp (9)
+    void KisPrescaledProjectionTest::testSmoothHighZoomToggle()
+    // When smoothHighZoom is enabled, SmoothPixmapTransform should be present in renderHints at scale >= 2.0
+    KisConfig(false).setSmoothHighZoom(true);
+    QCOMPARE(t.projection.smoothHighZoom(), true);
+    // When smoothHighZoom is disabled, SmoothPixmapTransform should be absent at scale >= 2.0
+    KisConfig(false).setSmoothHighZoom(false);
+    QCOMPARE(t.projection.smoothHighZoom(), false);
+    KisConfig(false).setSmoothHighZoom(true);
+    QCOMPARE(t.projection.smoothHighZoom(), true);
+=== libs/ui/tool/kis_tool.h (1)
+    /// records only brush tool strokes (docs/agent/brush-stroke-layer-plan.md)
+=== libs/ui/tool/strokes/freehand_stroke.cpp (3)
+    // (docs/agent/brush-stroke-layer-plan.md); not copied to level of
+    stroke.deviceOffset = QPoint(layer->paintDevice()->x(), layer->paintDevice()->y());
+    setAdditionalUndoCommand(new KisRecordBrushStrokeCommand(m_d->recordingLayer.data(), m_d->recording));
+=== libs/ui/tool/strokes/freehand_stroke.h (1)
+    // (docs/agent/brush-stroke-layer-plan.md)
+=== libs/ui/tool/strokes/kis_painter_based_stroke_strategy.cpp (3)
+    KisRunnableStrokeJobData *sequential = new KisRunnableStrokeJobData(
+    KisStrokeJobData::SEQUENTIAL,
+    void KisPainterBasedStrokeStrategy::setAdditionalUndoCommand(KUndo2Command *command)
+=== libs/ui/tool/strokes/kis_painter_based_stroke_strategy.h (2)
+    * brush stroke layer, docs/agent/brush-stroke-layer-plan.md). Call it
+    /// stroke layer). Call it before finishStrokeCallback().

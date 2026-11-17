@@ -1,0 +1,60 @@
+{
+ "op": "merge",
+ "lane": "f",
+ "results": [
+  {
+   "file": "cmake/modules/SolsticeEmbedRcc.cmake",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1523
+  },
+  {
+   "file": "krita/CMakeLists.txt",
+   "conflicts": 1,
+   "tracked": true,
+   "bytes": 17376
+  },
+  {
+   "file": "krita/krita.action",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 131268
+  },
+  {
+   "file": "krita/kritamenu.action",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 78112
+  },
+  {
+   "file": "krita/main.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 48032
+  },
+  {
+   "file": "packaging/windows/package-complete.py",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 33627
+  },
+  {
+   "file": "plugins/python/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4277
+  },
+  {
+   "file": "plugins/python/assignprofiledialog/assignprofiledialog.py",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2163
+  },
+  {
+   "file": "plugins/python/channels2layers/channels2layers.py",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 61090
+  }
+ ]
+}

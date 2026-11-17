@@ -1,0 +1,1390 @@
+[
+ {
+  "file": "plugins/dockers/animation/KisAnimTimelineFramesModel.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        *dataMoved = !copyFrames;"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/dockers/assetlibrary/AssetLibraryDock.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <KoResourcePaths.h>",
+    "#include <KoStore.h>",
+    "#include <kconfiggroup.h>",
+    "#include <kis_file_layer.h>",
+    "#include <kis_group_layer.h>",
+    "#include <kis_image.h>",
+    "#include <kis_import_catcher.h>",
+    "#include <kis_node_commands_adapter.h>",
+    "#include <kis_node_manager.h>"
+   ],
+   [
+    "#include <ksharedconfig.h>"
+   ],
+   [
+    "#include <QDirIterator>"
+   ],
+   [
+    "#include <QImageReader>"
+   ],
+   [
+    "#include <QJsonArray>",
+    "#include <QJsonDocument>"
+   ],
+   [
+    "    , m_thumbnailCache(64 * 1024)"
+   ],
+   [
+    "        m_folderList->setCurrentRow(0);"
+   ],
+   [
+    "    m_sections = collectSections();"
+   ],
+   [
+    "    if (!m_settings.autoColumns)",
+    "        return std::max(1, m_settings.columns);",
+    "    const int tileWidth = m_settings.thumbnailSize + 24;",
+    "    return std::max(1, (std::max(1, m_scroll->viewport()->width() - 8) + 10) / (tileWidth + 10));"
+   ],
+   [
+    "    m_settings.save();"
+   ]
+  ],
+  "suspect_lines": 22
+ },
+ {
+  "file": "plugins/dockers/assetlibrary/AssetLibraryDock.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <QCache>"
+   ],
+   [
+    "#include <QJsonObject>"
+   ],
+   [
+    "    QVector<Section> collectSections() const;",
+    "    QStringList extensions() const;"
+   ],
+   [
+    "    QCache<QString, QPixmap> m_thumbnailCache;"
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "plugins/dockers/compositiondocker/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "set(KRITA_COMPOSITIONDOCKER_SOURCES compositionmodel.cpp compositiondocker.cpp compositiondocker_dock.cpp )"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/dockers/compositiondocker/compositiondocker_dock.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    moveUpButton->setToolTip(i18n(\"Move Composition Up\"));",
+    "    moveDownButton->setToolTip(i18n(\"Move Composition Down\"));"
+   ],
+   [
+    "    connect( compositionView, SIGNAL(doubleClicked(QModelIndex)),",
+    "             this, SLOT(activated(QModelIndex)) );"
+   ],
+   [
+    "    m_model->setCompositions(QList<KisLayerCompositionSP>());"
+   ],
+   [
+    "    composition->apply();"
+   ],
+   [
+    "    compositionView->setCurrentIndex(m_model->index(image->compositions().count()-1, 0));"
+   ],
+   [
+    "    if (m_model && m_canvas && m_canvas->viewManager() && m_canvas->viewManager()->image()) {",
+    "        m_model->setCompositions(m_canvas->viewManager()->image()->compositions());"
+   ],
+   [
+    "        if (keyEvent->key() == Qt::Key_Up || keyEvent->key() == Qt::Key_Down) {"
+   ],
+   [
+    "        activated(index);"
+   ],
+   [
+    "    if (m_canvas && m_canvas->viewManager() && m_canvas->viewManager()->image() && index.isValid()) {"
+   ]
+  ],
+  "suspect_lines": 12
+ },
+ {
+  "file": "plugins/dockers/compositiondocker/compositionmodel.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "",
+    "CompositionModel::~CompositionModel()"
+   ],
+   [
+    "",
+    "QVariant CompositionModel::data(const QModelIndex& index, int role) const"
+   ],
+   [
+    "    return false;"
+   ],
+   [
+    "",
+    "",
+    "QVariant CompositionModel::headerData(int /*section*/, Qt::Orientation /*orientation*/, int /*role*/) const"
+   ],
+   [
+    "    return i18n(\"Composition\");"
+   ],
+   [
+    "",
+    "",
+    "int CompositionModel::rowCount(const QModelIndex& /*parent*/) const"
+   ],
+   [
+    "    return m_compositions.count();"
+   ],
+   [
+    "",
+    "int CompositionModel::columnCount(const QModelIndex& /*parent*/) const"
+   ],
+   [
+    "    return 2;"
+   ],
+   [
+    "",
+    "Qt::ItemFlags CompositionModel::flags(const QModelIndex& /*index*/) const"
+   ],
+   [
+    "    Qt::ItemFlags flags = Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable;"
+   ],
+   [
+    "",
+    "KisLayerCompositionSP CompositionModel::compositionFromIndex(const QModelIndex& index)"
+   ],
+   [
+    "    if(index.isValid()) {",
+    "        return m_compositions.at(index.row());"
+   ],
+   [
+    "    beginResetModel();"
+   ],
+   [
+    ""
+   ]
+  ],
+  "suspect_lines": 25
+ },
+ {
+  "file": "plugins/dockers/compositiondocker/compositionmodel.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    ",
+    "// public Q_SLOTS:",
+    "//     void clear();"
+   ]
+  ],
+  "suspect_lines": 3
+ },
+ {
+  "file": "plugins/dockers/compositiondocker/wdgcompositiondocker.ui",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    <widget class=\"QListView\" name=\"compositionView\">"
+   ],
+   [
+    "   <item row=\"1\" column=\"0\">"
+   ],
+   [
+    "   <item row=\"1\" column=\"5\">"
+   ],
+   [
+    "   <item row=\"1\" column=\"1\">"
+   ],
+   [
+    "   <item row=\"1\" column=\"2\">"
+   ],
+   [
+    "   <item row=\"1\" column=\"3\">"
+   ],
+   [
+    "   <item row=\"1\" column=\"4\">"
+   ]
+  ],
+  "suspect_lines": 7
+ },
+ {
+  "file": "plugins/dockers/layerdocker/LayerBox.cpp",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "plugins/dockers/layerdocker/NodeDelegate.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            list[1] = OptionalProperty(&(*it));"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/dockers/overview/overviewwidget.cc",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "plugins/dockers/palettedocker/palettedocker_dock.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        connect(colorSet->undoStack(), SIGNAL(canUndoChanged(bool)), m_ui->bnUndo, SLOT(setEnabled(bool)));"
+   ],
+   [
+    "        connect(colorSet->undoStack(), SIGNAL(canRedoChanged(bool)), m_ui->bnRedo, SLOT(setEnabled(bool)));"
+   ],
+   [
+    "        connect(m_ui->bnUndo, SIGNAL(clicked()), this, SLOT(undo()));",
+    "        connect(m_ui->bnRedo, SIGNAL(clicked()), this, SLOT(redo()));",
+    ""
+   ],
+   [
+    "    m_currentColorSet->setLocked(locked);"
+   ],
+   [
+    "    m_ui->bnAdd->setEnabled(!locked);",
+    "    m_ui->bnRename->setEnabled(!locked);",
+    "    m_ui->bnRemove->setEnabled(!locked);",
+    "    m_ui->bnEditPalette->setEnabled(!locked);",
+    "    m_ui->bnSavePalette->setEnabled(!locked);",
+    "    m_ui->paletteView->setAllowModification(!locked);"
+   ]
+  ],
+  "suspect_lines": 12
+ },
+ {
+  "file": "plugins/dockers/quickaccess/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "target_link_libraries(kritaquickaccesscore PUBLIC Qt${QT_MAJOR_VERSION}::Core)"
+   ],
+   [
+    "target_link_libraries(kritaquickaccessdocker kritaui kritaquickaccesscore)"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAccessDock.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include \"QuickAccessLegacyImporter.h\""
+   ],
+   [
+    "#include \"QuickColorSelectorDock.h\""
+   ],
+   [
+    "#include <QCursor>"
+   ],
+   [
+    "#include <QDialogButtonBox>"
+   ],
+   [
+    "#include <QFileInfo>",
+    "#include <QFormLayout>",
+    "#include <QFrame>",
+    "#include <QGridLayout>"
+   ],
+   [
+    "#include <QJsonDocument>",
+    "#include <QLabel>"
+   ],
+   [
+    "#include <QMouseEvent>"
+   ],
+   [
+    "#include <QRubberBand>",
+    "#include <QScrollArea>",
+    "#include <QShortcut>",
+    "#include <QSizePolicy>",
+    "#include <QSpinBox>",
+    "#include <QStyleOptionButton>",
+    "#include <QStylePainter>"
+   ],
+   [
+    "#include <QTimer>"
+   ],
+   [
+    "QuickAccessDock::~QuickAccessDock() = default;"
+   ],
+   [
+    "void QuickAccessDock::buildPopupHeader(QWidget *root)"
+   ],
+   [
+    "    auto *bar = new PopupDragBar(this, root);",
+    "    auto *header = new QHBoxLayout(bar);",
+    "    header->setContentsMargins(0, 0, 0, 0);",
+    "    header->setSpacing(2);",
+    "    header->addStretch();",
+    "",
+    "    m_popupPinButton = new QToolButton(bar);",
+    "    m_popupPinButton->setCheckable(true);",
+    "    m_popupPinButton->setAutoRaise(true);",
+    "    const QString unpinnedIcon = bundledIconPath(QStringLiteral(\"system_icons\"), QStringLiteral(\"pin_unpinned.png\"));",
+    "    m_popupPinButton->setIcon(unpinnedIcon.isEmpty() ? QIcon::fromTheme(QStringLiteral(\"window-pin\"))",
+    "                                                     : QIcon(unpinnedIcon));",
+    "    if (m_popupPinButton->icon().isNull())",
+    "        m_popupPinButton->setText(QStringLiteral(\"P\"));",
+    "    m_popupPinButton->setToolTip(i18nc(\"@info:tooltip\", \"Keep popup open after selecting an item\"));",
+    "    m_popupPinButton->setFixedSize(22, 22);",
+    "    m_popupPinButton->setIconSize(QSize(16, 16));",
+    "    connect(m_popupPinButton, &QToolButton::toggled, this, &QuickAccessDock::setPopupPinned);",
+    "    header->addWidget(m_popupPinButton);",
+    "",
+    "    auto *closeButton = new QToolButton(bar);",
+    "    closeButton->setAutoRaise(true);",
+    "    const QString closeIcon = bundledIconPath(QStringLiteral(\"system_icons\"), QStringLiteral(\"circle-xmark.png\"));",
+    "    closeButton->setIcon(closeIcon.isEmpty() ? QIcon::fromTheme(QStringLiteral(\"window-close\")) : QIcon(closeIcon));",
+    "    if (closeButton->icon().isNull())",
+    "        closeButton->setText(QStringLiteral(\"\u00d7\"));",
+    "    closeButton->setToolTip(i18nc(\"@info:tooltip\", \"Close\"));",
+    "    closeButton->setFixedSize(22, 22);",
+    "    closeButton->setIconSize(QSize(16, 16));",
+    "    connect(closeButton, &QToolButton::clicked, this, &QWidget::close);",
+    "    header->addWidget(closeButton);",
+    "",
+    "    if (auto *layout = qobject_cast<QVBoxLayout *>(root->layout()))",
+    "        layout->addWidget(bar);"
+   ],
+   [
+    "    KConfigGroup config = KSharedConfig::openConfig()->group(QStringLiteral(\"QuickAccess\"));",
+    "    QuickAccessSettingsDialog::Settings current;",
+    "    if (QuickAccess::Grid *grid = activeGrid())",
+    "        current.columns = grid->columns;",
+    "    current.dockerIconSize = config.readEntry(\"DockerIconSize\", DefaultIconSize);",
+    "    current.headerButtonColor = QColor(config.readEntry(\"HeaderButtonColor\", QStringLiteral(\"#828282\")));",
+    "    current.headerButtonFontColor = QColor(config.readEntry(\"HeaderButtonFontColor\", QStringLiteral(\"#ffffff\")));",
+    "    current.activeTabFontSize = config.readEntry(\"ActiveTabFontSize\", 12);",
+    "    current.activeTabFontColor = QColor(config.readEntry(\"ActiveTabFontColor\", QStringLiteral(\"#ffffff\")));",
+    "    current.activeTabBackgroundColor = QColor(config.readEntry(\"ActiveTabBackgroundColor\", QStringLiteral(\"#3f3f3f\")));",
+    "    current.inactiveTabFontSize = config.readEntry(\"InactiveTabFontSize\", 12);",
+    "    current.inactiveTabFontColor = QColor(config.readEntry(\"InactiveTabFontColor\", QStringLiteral(\"#a0a0a0\")));",
+    "    current.inactiveTabBackgroundColor =",
+    "        QColor(config.readEntry(\"InactiveTabBackgroundColor\", QStringLiteral(\"#2b2b2b\")));",
+    "    current.dialogWidth = config.readEntry(\"SettingsDialogWidth\", DefaultSettingsDialogWidth);",
+    "    current.dialogHeight = config.readEntry(\"SettingsDialogHeight\", DefaultSettingsDialogHeight);",
+    "    const KConfigGroup gestureConfig = KSharedConfig::openConfig()->group(QStringLiteral(\"QuickAccessGesture\"));",
+    "    current.gestureEnabled = gestureConfig.readEntry(\"Enabled\", true);",
+    "    current.hueSvcEnabled = config.readEntry(\"HueSVCEnabled\", true);",
+    "    current.quickAdjustEnabled = config.readEntry(\"QuickAdjustEnabled\", true);",
+    "    current.popupIconSize = config.readEntry(\"PopupIconSize\", DefaultIconSize);",
+    "    const KConfigGroup hueConfig = KSharedConfig::openConfig()->group(QStringLiteral(\"QuickAccessHueSVC\"));",
+    "    current.rgbDisplayMode = hueConfig.readEntry(\"RgbDisplayMode\", QStringLiteral(\"percentage\"));",
+    "    current.huePopupWidth = hueConfig.readEntry(\"PopupWidth\", 350);",
+    "    current.huePopupHeight = hueConfig.readEntry(\"PopupHeight\", 600);",
+    "    current.hueControlsWidth = hueConfig.readEntry(\"ControlsPanelWidth\", 220);",
+    "    current.hueControlsFontSize = hueConfig.readEntry(\"ControlsPanelFontSize\", 16);",
+    "    const KConfigGroup adjustConfig = KSharedConfig::openConfig()->group(QStringLiteral(\"QuickAccessAdjust\"));",
+    "    current.sizeSliderEnabled = adjustConfig.readEntry(\"SizeSliderEnabled\", true);",
+    "    current.opacitySliderEnabled = adjustConfig.readEntry(\"OpacitySliderEnabled\", true);",
+    "    current.flowSliderEnabled = adjustConfig.readEntry(\"FlowSliderEnabled\", true);",
+    "    current.layerOpacitySliderEnabled = adjustConfig.readEntry(\"LayerOpacitySliderEnabled\", true);",
+    "    current.colorHistoryEnabled = adjustConfig.readEntry(\"ColorHistoryEnabled\", true);",
+    "    current.colorHistoryTotal = adjustConfig.readEntry(\"ColorHistoryTotal\", 14);",
+    "    current.colorHistoryIconSize = adjustConfig.readEntry(\"ColorHistoryIconSize\", 30);",
+    "    current.brushHistoryEnabled = adjustConfig.readEntry(\"BrushHistoryEnabled\", true);",
+    "    current.brushHistoryTotal = adjustConfig.readEntry(\"BrushHistoryTotal\", 14);",
+    "    current.brushHistoryIconSize = adjustConfig.readEntry(\"BrushHistoryIconSize\", 34);",
+    "    current.altEraseKey = adjustConfig.readEntry(\"AltEraseKey\", QString());",
+    "    current.preserveAlphaKey = adjustConfig.readEntry(\"PreserveAlphaKey\", QString());",
+    "    current.selectOutlineKey = adjustConfig.readEntry(\"SelectOutlineKey\", QString());",
+    "    current.toolOptionsEnabled = adjustConfig.readEntry(\"ToolOptionsEnabled\", false);",
+    "    current.toolOptionsPosition = adjustConfig.readEntry(\"ToolOptionsPosition\", QStringLiteral(\"left_align_top\"));",
+    "    current.blendModes = adjustConfig.readEntry(\"BlendModes\", current.blendModes);",
+    "    const QJsonDocument brushSets =",
+    "        QJsonDocument::fromJson(adjustConfig.readEntry(\"TempBrushSets\", QStringLiteral(\"[]\")).toUtf8());",
+    "    current.tempBrushSets = brushSets.isArray() ? brushSets.array() : QJsonArray();"
+   ],
+   [
+    "    config.writeEntry(\"DockerIconSize\", updated.dockerIconSize);",
+    "    config.writeEntry(\"HeaderButtonColor\", updated.headerButtonColor.name(QColor::HexArgb));",
+    "    config.writeEntry(\"HeaderButtonFontColor\", updated.headerButtonFontColor.name(QColor::HexArgb));",
+    "    config.writeEntry(\"ActiveTabFontSize\", updated.activeTabFontSize);",
+    "    config.writeEntry(\"ActiveTabFontColor\", updated.activeTabFontColor.name(QColor::HexArgb));",
+    "    config.writeEntry(\"ActiveTabBackgroundColor\", updated.activeTabBackgroundColor.name(QColor::HexArgb));",
+    "    config.writeEntry(\"InactiveTabFontSize\", updated.inactiveTabFontSize);",
+    "    config.writeEntry(\"InactiveTabFontColor\", updated.inactiveTabFontColor.name(QColor::HexArgb));",
+    "    config.writeEntry(\"InactiveTabBackgroundColor\", updated.inactiveTabBackgroundColor.name(QColor::HexArgb));",
+    "    config.writeEntry(\"SettingsDialogWidth\", updated.dialogWidth);",
+    "    config.writeEntry(\"SettingsDialogHeight\", updated.dialogHeight);",
+    "    config.writeEntry(\"PopupIconSize\", updated.popupIconSize);",
+    "    config.writeEntry(\"HueSVCEnabled\", updated.hueSvcEnabled);",
+    "    config.writeEntry(\"QuickAdjustEnabled\", updated.quickAdjustEnabled);",
+    "    KConfigGroup gestureWrite = KSharedConfig::openConfig()->group(QStringLiteral(\"QuickAccessGesture\"));",
+    "    gestureWrite.writeEntry(\"Enabled\", updated.gestureEnabled);",
+    "    gestureWrite.sync();",
+    "    KConfigGroup hueWrite = KSharedConfig::openConfig()->group(QStringLiteral(\"QuickAccessHueSVC\"));",
+    "    hueWrite.writeEntry(\"RgbDisplayMode\", updated.rgbDisplayMode);",
+    "    hueWrite.writeEntry(\"PopupWidth\", updated.huePopupWidth);",
+    "    hueWrite.writeEntry(\"PopupHeight\", updated.huePopupHeight);",
+    "    hueWrite.writeEntry(\"ControlsPanelWidth\", updated.hueControlsWidth);",
+    "    hueWrite.writeEntry(\"ControlsPanelFontSize\", updated.hueControlsFontSize);",
+    "    hueWrite.sync();",
+    "    KConfigGroup adjustWrite = KSharedConfig::openConfig()->group(QStringLiteral(\"QuickAccessAdjust\"));",
+    "    adjustWrite.writeEntry(\"SizeSliderEnabled\", updated.sizeSliderEnabled);",
+    "    adjustWrite.writeEntry(\"OpacitySliderEnabled\", updated.opacitySliderEnabled);",
+    "    adjustWrite.writeEntry(\"FlowSliderEnabled\", updated.flowSliderEnabled);",
+    "    adjustWrite.writeEntry(\"LayerOpacitySliderEnabled\", updated.layerOpacitySliderEnabled);",
+    "    adjustWrite.writeEntry(\"ColorHistoryEnabled\", updated.colorHistoryEnabled);",
+    "    adjustWrite.writeEntry(\"ColorHistoryTotal\", updated.colorHistoryTotal);",
+    "    adjustWrite.writeEntry(\"ColorHistoryIconSize\", updated.colorHistoryIconSize);",
+    "    adjustWrite.writeEntry(\"BrushHistoryEnabled\", updated.brushHistoryEnabled);",
+    "    adjustWrite.writeEntry(\"BrushHistoryTotal\", updated.brushHistoryTotal);",
+    "    adjustWrite.writeEntry(\"BrushHistoryIconSize\", updated.brushHistoryIconSize);",
+    "    adjustWrite.writeEntry(\"AltEraseKey\", updated.altEraseKey);",
+    "    adjustWrite.writeEntry(\"PreserveAlphaKey\", updated.preserveAlphaKey);",
+    "    adjustWrite.writeEntry(\"SelectOutlineKey\", updated.selectOutlineKey);",
+    "    adjustWrite.writeEntry(\"ToolOptionsEnabled\", updated.toolOptionsEnabled);",
+    "    adjustWrite.writeEntry(\"ToolOptionsPosition\", updated.toolOptionsPosition);",
+    "    adjustWrite.writeEntry(\"BlendModes\", updated.blendModes);",
+    "    adjustWrite.writeEntry(\"TempBrushSets\",",
+    "                           QString::fromUtf8(QJsonDocument(updated.tempBrushSets).toJson(QJsonDocument::Compact)));",
+    "    adjustWrite.sync();",
+    "    config.sync();"
+   ],
+   [
+    "    auto itemIt = std::find_if(grid->items.begin(), grid->items.end(), [&itemId](const QuickAccess::Item &item) {"
+   ],
+   [
+    "    if (itemIt == grid->items.end() || itemIt->type == QuickAccess::ItemType::Brush)"
+   ],
+   [
+    "",
+    "    QuickAccess::Item &item = *itemIt;",
+    "    QDialog dialog(this);",
+    "    dialog.setWindowTitle(i18nc(\"@title:window\", \"Quick Access Item Properties\"));",
+    "    dialog.setMinimumWidth(320);",
+    "    auto *root = new QVBoxLayout(&dialog);",
+    "    auto *form = new QFormLayout();",
+    "    root->addLayout(form);",
+    "",
+    "    QLineEdit *textEdit = nullptr;",
+    "    QSpinBox *valueSpin = nullptr;",
+    "    QSpinBox *fontSize = nullptr;",
+    "    QPushButton *background = nullptr;",
+    "    QPushButton *foreground = nullptr;",
+    "    QPushButton *swatch = nullptr;",
+    "    QLineEdit *iconEdit = nullptr;",
+    "    QLineEdit *scriptEdit = nullptr;",
+    "    QString aliasCategory;",
+    "    QString aliasId;",
+    "    QJsonObject values = item.payload;",
+    "",
+    "    if (item.type == QuickAccess::ItemType::Action) {",
+    "        aliasCategory = QStringLiteral(\"actions\");",
+    "        aliasId = item.payload.value(QStringLiteral(\"action_id\")).toString();",
+    "        values = aliasFor(m_document, aliasCategory, aliasId);",
+    "    } else if (item.type == QuickAccess::ItemType::DockerToggle) {",
+    "        aliasCategory = QStringLiteral(\"dockers\");",
+    "        aliasId = item.payload.value(QStringLiteral(\"docker_id\")).toString();",
+    "        values = aliasFor(m_document, aliasCategory, aliasId);"
+   ],
+   [
+    "    if (!grid)",
+    "        return;",
+    "    auto itemIt = std::find_if(grid->items.begin(), grid->items.end(), [&itemId](const QuickAccess::Item &item) {",
+    "        return item.id == itemId;",
+    "    });",
+    "    if (itemIt == grid->items.end() || itemIt->type != QuickAccess::ItemType::Brush)",
+    "        return;",
+    "",
+    "    QDialog dialog(this);",
+    "    dialog.setWindowTitle(i18nc(\"@title:window\", \"Quick Access Item Properties\"));",
+    "    dialog.setMinimumWidth(320);",
+    "    auto *root = new QVBoxLayout(&dialog);",
+    "    auto *form = new QFormLayout();",
+    "    root->addLayout(form);",
+    "    auto *nameLabel = new QLabel(itemIt->payload.value(QStringLiteral(\"brush_name\")).toString(), &dialog);",
+    "    form->addRow(i18nc(\"@label\", \"Brush:\"), nameLabel);",
+    "    auto *display = new QComboBox(&dialog);",
+    "    display->addItem(i18nc(\"@item:inlistbox\", \"Stroke Preview\"), BrushDisplayStroke);",
+    "    display->addItem(i18nc(\"@item:inlistbox\", \"Icon\"), BrushDisplayIcon);",
+    "    const bool stroke = showsStrokePreview(*itemIt);",
+    "    display->setCurrentIndex(stroke ? 0 : 1);",
+    "    display->setToolTip(i18n(\"A stroke preview uses two cells; an icon uses one.\"));",
+    "    form->addRow(i18nc(\"@label:listbox\", \"Display:\"), display);",
+    "    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);",
+    "    root->addWidget(buttons);",
+    "    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);",
+    "    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);",
+    "    if (dialog.exec() != QDialog::Accepted)",
+    "        return;",
+    "",
+    "    const bool newStroke = display->currentData().toString() == BrushDisplayStroke;",
+    "    if (newStroke == stroke)",
+    "        return;",
+    "    // A stroke preview takes two cells, an icon one; neighbours are pushed",
+    "    // aside as when an item is resized in the grid editor.",
+    "    const int columnSpan = newStroke ? qMin(2, grid->columns) : 1;",
+    "    // The display decides the span when items are normalized, so it is set",
+    "    // before resizing.",
+    "    QList<QuickAccess::Item> items = grid->items;",
+    "    for (QuickAccess::Item &item : items) {",
+    "        if (item.id == itemId)",
+    "            item.payload.insert(BrushDisplayKey, newStroke ? BrushDisplayStroke : BrushDisplayIcon);"
+   ]
+  ],
+  "suspect_lines": 220
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAccessDock.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "class QRubberBand;"
+   ],
+   [
+    "protected:",
+    "    /// Ctrl + left-drag on an item moves it in its grid (see attachItemDrag()).",
+    "    bool eventFilter(QObject *watched, QEvent *event) override;",
+    ""
+   ],
+   [
+    "    /// Ctrl + left-drag moves the item without the Grid Edit dialog.",
+    "    void attachItemDrag(QWidget *widget, const QuickAccess::Item &item);",
+    "    /// The active grid cell (row, column) a Ctrl-drag of @p item points at.",
+    "    QPoint dragTarget(const QuickAccess::Item &item, const QPoint &globalPosition) const;",
+    "    void cancelItemDrag();"
+   ],
+   [
+    "    // Ctrl + left-drag of an item: its id, the press position, the target frame.",
+    "    QString m_dragItemId;",
+    "    QPoint m_dragStart;",
+    "    QPointer<QRubberBand> m_dragHighlight;"
+   ]
+  ],
+  "suspect_lines": 14
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAccessGesture.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "",
+    "#include <KisMainWindow.h>",
+    "#include <KisPart.h>",
+    "#include <KisResourceModel.h>",
+    "#include <KisResourceServerProvider.h>",
+    "#include <KisViewManager.h>",
+    "#include <KoResource.h>",
+    "#include <kactioncollection.h>"
+   ],
+   [
+    "#include <kis_action.h>",
+    "#include <kis_action_manager.h>",
+    "#include <klocalizedstring.h>"
+   ],
+   [
+    "",
+    "#include <QAction>"
+   ],
+   [
+    "#include <QCheckBox>"
+   ],
+   [
+    "#include <QDialogButtonBox>",
+    "#include <QDockWidget>",
+    "#include <QFileInfo>",
+    "#include <QFormLayout>",
+    "#include <QFrame>",
+    "#include <QGridLayout>"
+   ],
+   [
+    "#include <QLabel>"
+   ],
+   [
+    "#include <QPixmap>"
+   ],
+   [
+    "#include <QPushButton>",
+    "#include <QSet>",
+    "#include <QSizePolicy>"
+   ],
+   [
+    "#include <QTabWidget>"
+   ],
+   [
+    "#include <QTimer>",
+    "#include <QToolButton>",
+    "#include <QVBoxLayout>"
+   ],
+   [
+    "",
+    "#include <algorithm>"
+   ],
+   [
+    "const QStringList Directions{QStringLiteral(\"left_up\"),",
+    "                             QStringLiteral(\"up\"),",
+    "                             QStringLiteral(\"right_up\"),",
+    "                             QStringLiteral(\"left\"),",
+    "                             QStringLiteral(\"center\"),",
+    "                             QStringLiteral(\"right\"),",
+    "                             QStringLiteral(\"left_down\"),",
+    "                             QStringLiteral(\"down\"),",
+    "                             QStringLiteral(\"right_down\")};",
+    ""
+   ],
+   [
+    "            if (m_showPreview)",
+    "                showPreview(page, m_startPosition);"
+   ]
+  ],
+  "suspect_lines": 43
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAccessGesture.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <QDialog>"
+   ],
+   [
+    "class QCheckBox;",
+    "class QFrame;"
+   ],
+   [
+    "class QPushButton;",
+    "class QSpinBox;",
+    "class QTabWidget;"
+   ],
+   [
+    "    void showPreview(const QJsonObject &page, const QPoint &position);"
+   ]
+  ],
+  "suspect_lines": 7
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAccessGridEditDialog.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "",
+    "#include <QApplication>"
+   ],
+   [
+    "#include <QFileInfo>",
+    "#include <QFrame>",
+    "#include <QIcon>"
+   ],
+   [
+    "#include <QMouseEvent>",
+    "#include <QPainter>",
+    "#include <QPushButton>",
+    "#include <QRubberBand>"
+   ],
+   [
+    ""
+   ],
+   [
+    "constexpr int CellSize = 42;",
+    "constexpr int CellSpacing = 4;",
+    "constexpr int CellStep = CellSize + CellSpacing;",
+    "constexpr int CanvasMargin = 4;",
+    "constexpr int VisibleRows = 10;",
+    "constexpr int ResizeHandleWidth = 8;",
+    "constexpr int SeparatorEdgeMargin = 5;"
+   ]
+  ],
+  "suspect_lines": 17
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAccessLegacyImporter.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            *error = QStringLiteral(\"Could not read '%1': %2\").arg(path, file.errorString());"
+   ],
+   [
+    "            *error = QStringLiteral(\"Could not parse '%1': %2\").arg(path, parseError.errorString());"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAccessModel.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            *error = QStringLiteral(\"A quick-access item has no id.\");"
+   ],
+   [
+    "            *error = QStringLiteral(\"Item '%1' has an unsupported type.\").arg(parsed.id);"
+   ],
+   [
+    "            *error = QStringLiteral(\"A quick-access grid has no id.\");"
+   ],
+   [
+    "            *error = QStringLiteral(\"A quick-access tab has no id.\");"
+   ],
+   [
+    "            *error = QStringLiteral(\"Unsupported quick-access format version %1.\").arg(version);"
+   ],
+   [
+    "            *error = QStringLiteral(\"A quick-access profile must contain at least one tab.\");"
+   ]
+  ],
+  "suspect_lines": 6
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAccessProfileRepository.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            *error = QStringLiteral(\"Could not create profile directory '%1'.\").arg(info.absolutePath());"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAccessSettingsDialog.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <QColor>"
+   ],
+   [
+    "#include <QJsonArray>",
+    "#include <QStringList>"
+   ]
+  ],
+  "suspect_lines": 3
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAdjustDock.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <QFormLayout>"
+   ],
+   [
+    "#include <QGroupBox>",
+    "#include <QGuiApplication>"
+   ],
+   [
+    "#include <QLabel>",
+    "#include <QPixmap>"
+   ],
+   [
+    "#include <QScreen>",
+    "#include <QScrollArea>"
+   ],
+   [
+    "#include <QStyle>"
+   ],
+   [
+    "    connect(m_toolOptionsToggle, &QToolButton::toggled, this, &QuickAdjustDock::setToolOptionsPadVisible);",
+    "    setToolOptionsPadVisible(m_toolOptionsToggle->isChecked());"
+   ],
+   [
+    "    m_syncTimer->start();"
+   ],
+   [
+    "    returnToolOptionsDocker();"
+   ],
+   [
+    "        ensureToolOptionsPad();"
+   ],
+   [
+    "    positionToolOptionsPad();"
+   ],
+   [
+    "    positionToolOptionsPad();"
+   ],
+   [
+    "        setToolOptionsPadVisible(true);"
+   ],
+   [
+    "    if (m_toolOptionsPad)",
+    "        m_toolOptionsPad->hide();"
+   ],
+   [
+    "    resizeToolOptionsPad();"
+   ]
+  ],
+  "suspect_lines": 19
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAdjustDock.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "class QLabel;"
+   ],
+   [
+    "    void updateStatusButtons();"
+   ],
+   [
+    "    void ensureToolOptionsPad();",
+    "    void setToolOptionsPadVisible(bool visible);",
+    "    void resizeToolOptionsPad();",
+    "    void positionToolOptionsPad();",
+    "    void returnToolOptionsDocker();"
+   ],
+   [
+    "    QPointer<QDockWidget> m_toolOptionsDocker;",
+    "    QPointer<QWidget> m_toolOptionsPad;",
+    "    QPointer<QWidget> m_borrowedToolOptions;",
+    "    QPointer<QWidget> m_toolOptionsPlaceholder;",
+    "    bool m_toolOptionsDockerWasVisible{false};"
+   ]
+  ],
+  "suspect_lines": 12
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickAdjustKeyController.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "bool QuickAdjustKeyController::eventFilter(QObject *, QEvent *event)"
+   ],
+   [
+    "        if (m_mode == Mode::None && !textEditorHasFocus())"
+   ],
+   [
+    "    KisMainWindow *window = KisPart::instance()->currentMainwindow();",
+    "    return window && window->viewManager() ? window->viewManager()->canvasResourceProvider() : nullptr;"
+   ],
+   [
+    "    KisMainWindow *window = KisPart::instance()->currentMainwindow();",
+    "    if (!window || !window->viewManager())"
+   ],
+   [
+    "    if (KisPaintopBox *paintOpBox = window->viewManager()->paintOpBox()) {"
+   ],
+   [
+    "    if (KisCanvasResourceProvider *provider = window->viewManager()->canvasResourceProvider()) {"
+   ],
+   [
+    "        if (KisMainWindow *window = KisPart::instance()->currentMainwindow()) {"
+   ],
+   [
+    "                    window->viewManager()->actionManager()->actionByName(QStringLiteral(\"KisToolSelectOutline\")))"
+   ],
+   [
+    "            if (KisMainWindow *window = KisPart::instance()->currentMainwindow()) {"
+   ],
+   [
+    "                        window->viewManager()->actionManager()->actionByName(QStringLiteral(\"KritaShape/KisToolBrush\")))"
+   ]
+  ],
+  "suspect_lines": 12
+ },
+ {
+  "file": "plugins/dockers/quickaccess/QuickColorSelectorDock.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    m_selector->slotSetColorSpace(m_canvas->displayColorConverter()->nodeColorSpace());"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/dockers/restnote/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "target_link_libraries(kritarestnotedocker kritaui)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/dockers/restnote/RestNoteDock.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <KoResourcePaths.h>"
+   ],
+   [
+    "#include <QCheckBox>",
+    "#include <QDialog>",
+    "#include <QDialogButtonBox>",
+    "#include <QDir>"
+   ],
+   [
+    "#include <QFile>"
+   ],
+   [
+    "#include <QFormLayout>"
+   ],
+   [
+    "#include <QGroupBox>"
+   ],
+   [
+    "#include <QJsonDocument>"
+   ],
+   [
+    "#include <QPainter>",
+    "#include <QPainterPath>"
+   ],
+   [
+    "#include <QSpinBox>"
+   ],
+   [
+    "#include <QVariantAnimation>"
+   ],
+   [
+    "    m_remaining = m_config.workSeconds();",
+    "    m_microRemaining = m_config.microIntervalSeconds();",
+    "    m_lastActivity = QDateTime::currentDateTime();"
+   ],
+   [
+    "        m_state = State::Running;",
+    "        m_remaining = m_config.workSeconds();",
+    "        m_microRemaining = m_config.microIntervalSeconds();",
+    "        m_lastActivity = QDateTime::currentDateTime();"
+   ],
+   [
+    "        if (m_state == State::Running || m_state == State::Idle) {",
+    "            m_state = State::Paused;",
+    "        } else if (m_state == State::Paused) {",
+    "            m_state = State::Running;",
+    "            m_lastActivity = QDateTime::currentDateTime();",
+    "        } else if (m_state == State::MicroBreak) {",
+    "            if (auto *toast = dynamic_cast<MicroToast *>(m_microToast.data()))",
+    "                toast->cancel();"
+   ],
+   [
+    "            m_state = State::Paused;"
+   ],
+   [
+    "        m_state = State::Running;",
+    "        m_remaining = m_config.workSeconds();",
+    "        m_microRemaining = m_config.microIntervalSeconds();",
+    "        m_lastActivity = QDateTime::currentDateTime();"
+   ],
+   [
+    "        if (m_state != State::Break)"
+   ],
+   [
+    "        m_lastActivity = QDateTime::currentDateTime();"
+   ],
+   [
+    "    const int value = std::max(0, m_remaining);"
+   ],
+   [
+    "    m_pauseButton->setEnabled(m_state != State::Break);",
+    "    if (m_state == State::Paused)"
+   ],
+   [
+    "    switch (m_state) {"
+   ],
+   [
+    "    if (m_state == State::Idle) {"
+   ],
+   [
+    "    } else if (m_state == State::Break) {"
+   ],
+   [
+    "    } else if (m_state == State::MicroBreak) {"
+   ],
+   [
+    "        const int micro = std::max(0, m_microRemaining);"
+   ],
+   [
+    "    if (auto *toast = dynamic_cast<MicroToast *>(m_microToast.data()))",
+    "        toast->cancel();"
+   ],
+   [
+    "    m_microRemaining = m_config.microIntervalSeconds();",
+    "    m_remaining = 0;",
+    "    m_state = State::Break;",
+    "    m_overlay = new BreakOverlay(m_config, mainWindowHost(), [this]() {"
+   ],
+   [
+    "    m_state = State::Running;",
+    "    m_remaining = m_config.workSeconds();",
+    "    m_microRemaining = m_config.microIntervalSeconds();",
+    "    m_lastActivity = QDateTime::currentDateTime();"
+   ],
+   [
+    "void RestNoteDock::maybeStartMicroBreak()"
+   ],
+   [
+    "    m_microRemaining = m_config.microIntervalSeconds();",
+    "    if (m_state == State::MicroBreak)",
+    "        m_state = State::Running;"
+   ],
+   [
+    "    if (auto *toast = dynamic_cast<MicroToast *>(m_microToast.data()))",
+    "        toast->cancel();"
+   ],
+   [
+    "",
+    "    m_config.workMinutes = work->value();",
+    "    m_config.breakMinutes = rest->value();",
+    "    m_config.microEnabled = microEnabled->isChecked();",
+    "    m_config.microIntervalMinutes = interval->value();",
+    "    m_config.microDurationSeconds = duration->value();",
+    "    m_config.microSkipThresholdSeconds = skip->value();",
+    "    m_config.idleEnabled = idleEnabled->isChecked();",
+    "    m_config.idleThresholdSeconds = idleThreshold->value();",
+    "    m_config.overlayTitleFontSize = overlayTitle->value();",
+    "    m_config.overlayMessageFontSize = overlayMessage->value();",
+    "    m_config.overlaySkipFontSize = overlaySkip->value();",
+    "    m_config.toastMargin = margin->value();",
+    "    m_config.toastWidth = toastWidth->value();",
+    "    m_config.toastHeight = toastHeight->value();",
+    "    m_config.toastTitleFontSize = toastTitle->value();",
+    "    m_config.toastMessageFontSize = toastMessage->value();"
+   ]
+  ],
+  "suspect_lines": 76
+ },
+ {
+  "file": "plugins/dockers/restnote/RestNoteDock.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <QDateTime>"
+   ],
+   [
+    "#include <QJsonObject>"
+   ],
+   [
+    "    void maybeStartMicroBreak();"
+   ],
+   [
+    "    State m_state{State::Running};",
+    "    int m_remaining{0};",
+    "    int m_microRemaining{0};",
+    "    QDateTime m_lastActivity;"
+   ]
+  ],
+  "suspect_lines": 7
+ },
+ {
+  "file": "plugins/dockers/textproperties/TextPropertiesDock.cpp",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "plugins/dockers/textproperties/qml/CollapsibleGroupProperty.qml",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    spacing: columnSpacing;"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/dockers/textproperties/qml/TextPropertyBase.qml",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                topPadding: parent.padding;"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/extensions/pykrita/plugin/PythonPluginManager.cpp",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "plugins/extensions/pykrita/plugin/krita/__init__.py",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    ""
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/extensions/qmic/QMic.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    if (this->viewManager()->blockUntilOperationsFinished(this->viewManager()->image())) {",
+    "        auto image = std::make_shared<KisImageInterface>(this->viewManager().data());"
+   ],
+   [
+    "    m_qmicAction->setEnabled(true);",
+    "    m_againAction->setEnabled(true);"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "plugins/extensions/qmic/kis_qmic_import_tools.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        const bool visibility = (inputMode == InputLayerMode::AllInvisible);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/extensions/qmic/kis_qmic_interface.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    KisViewManager *m_viewManager{nullptr};"
+   ],
+   [
+    "    KIS_ASSERT(p->m_viewManager);"
+   ],
+   [
+    "    if (!p->m_viewManager)"
+   ],
+   [
+    "    KisSelectionSP selection = p->m_viewManager->image()->globalSelection();"
+   ],
+   [
+    "        KisNodeListSP nodes =",
+    "            KisQmicImportTools::inputNodes(p->m_viewManager->image(),",
+    "                                           p->m_inputMode,",
+    "                                           p->m_viewManager->activeNode());"
+   ],
+   [
+    "                const QSize layerSize = activeLayer->exactBounds().size();",
+    "                const QSize imageSize = activeLayer->image()->bounds().size();",
+    "                size = size.expandedTo(layerSize).expandedTo(imageSize);"
+   ],
+   [
+    "                    const QSize layerSize = node->exactBounds().size();",
+    "                    const QSize imageSize = node->image()->bounds().size();",
+    "                    size = size.expandedTo(layerSize).expandedTo(imageSize);"
+   ],
+   [
+    "    if (!p->m_viewManager)"
+   ],
+   [
+    "    if (!p->m_viewManager->image()->tryBarrierLock(true)) return {};"
+   ],
+   [
+    "    KisImageBarrierLock lock(p->m_viewManager->image(), std::adopt_lock);"
+   ],
+   [
+    "    KisNodeListSP nodes =",
+    "        KisQmicImportTools::inputNodes(p->m_viewManager->image(),",
+    "                                       p->m_inputMode,",
+    "                                       p->m_viewManager->activeNode());"
+   ],
+   [
+    "            KisSelectionSP selection = p->m_viewManager->image()->globalSelection();"
+   ],
+   [
+    "            const QRect cropRect = [&]() {",
+    "                if (selection) {",
+    "                    return selection->selectedExactRect();",
+    "                } else {",
+    "                    // XXX: This is a lie, see gmic_qt_get_image_size as to why",
+    "                    const QRect nodeBounds = node->exactBounds();",
+    "                    const QRect imageBounds = node->image()->bounds();"
+   ],
+   [
+    "            dbgPlugins << \"Converting node\" << node->name() << cropRect;"
+   ],
+   [
+    "            const QRectF mappedRect = KisAlgebra2D::mapToRect(cropRect).mapRect(rc);",
+    "            const QRect resultRect = mappedRect.toAlignedRect();",
+    "            const QString noParenthesisName(KisQmicSimpleConvertor::nameToGMicName(node->name()));",
+    "            const auto translatedMode = KisQmicSimpleConvertor::blendingModeToString(node->compositeOpId());"
+   ],
+   [
+    "            const QString name = QString(\"mode(%1),opacity(%2),pos(%3,%4),name(%5)\")",
+    "                               .arg(translatedMode)",
+    "                               .arg(node->percentOpacity())",
+    "                               .arg(cropRect.x())",
+    "                               .arg(cropRect.y())",
+    "                               .arg(noParenthesisName);"
+   ],
+   [
+    "            auto m = KisQMicImageSP::create(name, resultRect.width(), resultRect.height(), 4);"
+   ],
+   [
+    "        p->m_outputMode = OutputMode::InPlace;"
+   ],
+   [
+    "    if (!p->m_viewManager)"
+   ],
+   [
+    "        KisNodeSP rootNode = p->m_viewManager->image()->root();",
+    "        KisNodeListSP mappedLayers =",
+    "            KisQmicImportTools::inputNodes(p->m_viewManager->image(),",
+    "                                           p->m_inputMode,",
+    "                                           p->m_viewManager->activeNode());"
+   ],
+   [
+    "        KisProcessingApplicator applicator(p->m_viewManager->image(),"
+   ],
+   [
+    "        KisSelectionSP selection = p->m_viewManager->image()->globalSelection();"
+   ],
+   [
+    "            layerSize = QRect(0, 0, p->m_viewManager->image()->width(), p->m_viewManager->image()->height());"
+   ],
+   [
+    "        applicator.applyCommand(",
+    "            new KisQmicSynchronizeLayersCommand(mappedLayers,",
+    "                                                layers,",
+    "                                                p->m_viewManager->image(),",
+    "                                                layerSize,",
+    "                                                selection),",
+    "            KisStrokeJobData::SEQUENTIAL,",
+    "            KisStrokeJobData::EXCLUSIVE);"
+   ]
+  ],
+  "suspect_lines": 59
+ },
+ {
+  "file": "plugins/extensions/qmic/kis_qmic_interface.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        , m_data(new float[width * height * spectrum])"
+   ],
+   [
+    "        return m_width * m_height * m_spectrum * sizeof(float);"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/extensions/qmic/kis_qmic_simple_convertor.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#define SCALE_FROM_FLOAT(v)                                                    \\",
+    "    KoColorSpaceMaths<float, _channel_type_>::scaleToA(v)"
+   ],
+   [
+    "void KisQmicSimpleConvertor::convertFromGmicFast(const KisQMicImage &gmicImage,",
+    "                                                 KisPaintDeviceSP dst,",
+    "                                                 float gmicUnitValue)"
+   ],
+   [
+    "void KisQmicSimpleConvertor::convertToGmicImageFast(KisPaintDeviceSP dev,",
+    "                                                    KisQMicImage &gmicImage,",
+    "                                                    QRect rc)"
+   ]
+  ],
+  "suspect_lines": 8
+ },
+ {
+  "file": "plugins/extensions/qmic/kis_qmic_synchronize_layers_command.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include <KisDocument.h>",
+    "#include <KisMainWindow.h>",
+    "#include <KisPart.h>",
+    "#include <KisViewManager.h>"
+   ],
+   [
+    "#include <kis_node_manager.h>",
+    "#include <kis_node_selection_adapter.h>"
+   ],
+   [
+    "#include <kis_surrogate_undo_adapter.h>"
+   ],
+   [
+    "    QVector<KisImageCommand *> m_imageCommands;",
+    "    KisSurrogateUndoAdapter m_undoAdapter;",
+    "    bool m_firstRedo;"
+   ],
+   [
+    "KisQmicSynchronizeLayersCommand::KisQmicSynchronizeLayersCommand(",
+    "    KisNodeListSP nodes,",
+    "    QVector<KisQMicImageSP> images,",
+    "    KisImageWSP image,",
+    "    const QRect &dstRect,",
+    "    KisSelectionSP selection)"
+   ],
+   [
+    "    , d(new Private{std::move(nodes),",
+    "                    std::move(images),",
+    "                    image,",
+    "                    dstRect,",
+    "                    selection})"
+   ],
+   [
+    "    KisNodeManager *nodeManager = [&]() -> KisNodeManager * {",
+    "        KisMainWindow *mainWin = KisPart::instance()->currentMainwindow();",
+    "        if (!mainWin)",
+    "            return nullptr;",
+    "        KisViewManager *viewManager = mainWin->viewManager();",
+    "        if (!viewManager)",
+    "            return nullptr;",
+    "        if (viewManager->document()->image() != d->m_image)",
+    "            return nullptr;",
+    "        return viewManager->nodeManager();",
+    "    }();",
+    "",
+    "    if (!nodeManager)",
+    "        return;",
+    "",
+    "    auto *selectOldLayer = new KisLayerUtils::KeepNodesSelectedCommand(",
+    "        nodeManager->selectedNodes(),",
+    "        nodeManager->selectedNodes(),",
+    "        nodeManager->activeNode(),",
+    "        nodeManager->activeNode(),",
+    "        d->m_image,",
+    "        false);"
+   ],
+   [
+    "        transaction.commit(&d->m_undoAdapter);"
+   ],
+   [
+    "    auto *selectNewLayer = new KisLayerUtils::KeepNodesSelectedCommand(",
+    "        nodeManager->selectedNodes(),",
+    "        {currentNode},",
+    "        nodeManager->activeNode(),",
+    "        currentNode,",
+    "        d->m_image,",
+    "        true);"
+   ],
+   [
+    "    d->m_undoAdapter.undoAll();",
+    "    d->m_newNodes->clear();"
+   ]
+  ],
+  "suspect_lines": 53
+ },
+ {
+  "file": "plugins/extensions/qmic/kis_qmic_synchronize_layers_command.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                                    KisSelectionSP selection = nullptr);"
+   ]
+  ],
+  "suspect_lines": 1
+ }
+]

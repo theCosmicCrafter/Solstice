@@ -1,0 +1,1638 @@
+{
+ "op": "copy",
+ "lane": "a",
+ "results": [
+  {
+   "file": "build-tools/gmic/README.md",
+   "copied": 1768
+  },
+  {
+   "file": "build-tools/gmic/build-runtime.py",
+   "copied": 4307
+  },
+  {
+   "file": "build-tools/gmic/runtime-patches.json",
+   "copied": 3381
+  },
+  {
+   "file": "build-tools/gmic/runtime.lock.json",
+   "copied": 429
+  },
+  {
+   "file": "build-tools/github-actions/build-windows.ps1",
+   "copied": 6440
+  },
+  {
+   "file": "krita/pics/svg/dark_clipping-enabled.svg",
+   "copied": 396
+  },
+  {
+   "file": "krita/pics/svg/light_clipping-enabled.svg",
+   "copied": 396
+  },
+  {
+   "file": "krita/pics/tools/SVG/16/dark_krita_tool_remove_dust.svg",
+   "copied": 357
+  },
+  {
+   "file": "krita/pics/tools/SVG/16/dark_krita_tool_through_layer_eraser.svg",
+   "copied": 347
+  },
+  {
+   "file": "krita/pics/tools/SVG/16/light_krita_tool_remove_dust.svg",
+   "copied": 357
+  },
+  {
+   "file": "krita/pics/tools/SVG/16/light_krita_tool_through_layer_eraser.svg",
+   "copied": 347
+  },
+  {
+   "file": "krita/pics/svg/svg-icons.qrc",
+   "copied": 25026
+  },
+  {
+   "file": "krita/pics/tools/SVG/16/tools-svg-16-icons.qrc",
+   "copied": 4815
+  },
+  {
+   "file": "libs/flake/tests/TestKoToolManager.cpp",
+   "copied": 11906
+  },
+  {
+   "file": "libs/gpu/KisGpuColorTransformPass.cpp",
+   "copied": 6619
+  },
+  {
+   "file": "libs/gpu/KisGpuColorTransformPass.h",
+   "copied": 3773
+  },
+  {
+   "file": "libs/gpu/KisGpuCoveragePass.cpp",
+   "copied": 3886
+  },
+  {
+   "file": "libs/gpu/KisGpuCoveragePass.h",
+   "copied": 1947
+  },
+  {
+   "file": "libs/gpu/KisGpuShiftedCopyPass.cpp",
+   "copied": 4027
+  },
+  {
+   "file": "libs/gpu/KisGpuShiftedCopyPass.h",
+   "copied": 2054
+  },
+  {
+   "file": "libs/gpu/KisGpuStrokeStylePass.cpp",
+   "copied": 5817
+  },
+  {
+   "file": "libs/gpu/KisGpuStrokeStylePass.h",
+   "copied": 2900
+  },
+  {
+   "file": "libs/gpu/shaders/apply_coverage.comp",
+   "copied": 4137
+  },
+  {
+   "file": "libs/gpu/shaders/color_transform.comp",
+   "copied": 18855
+  },
+  {
+   "file": "libs/gpu/shaders/composite_over.glsl",
+   "copied": 1352
+  },
+  {
+   "file": "libs/gpu/shaders/composite_stroke_style.comp",
+   "copied": 8187
+  },
+  {
+   "file": "libs/gpu/shaders/copy_shifted.comp",
+   "copied": 3039
+  },
+  {
+   "file": "libs/image/KisClipStackLayer.cpp",
+   "copied": 2003
+  },
+  {
+   "file": "libs/image/KisClipStackLayer.h",
+   "copied": 1649
+  },
+  {
+   "file": "libs/image/KisDustDetector.cpp",
+   "copied": 13245
+  },
+  {
+   "file": "libs/image/KisDustDetector.h",
+   "copied": 4636
+  },
+  {
+   "file": "libs/image/brushengine/KisMinimumDabSize.h",
+   "copied": 1659
+  },
+  {
+   "file": "libs/image/gpu/KisGpuColorReferenceTables.cpp",
+   "copied": 14546
+  },
+  {
+   "file": "libs/image/gpu/KisGpuColorTransform.cpp",
+   "copied": 6244
+  },
+  {
+   "file": "libs/image/gpu/KisGpuColorTransform.h",
+   "copied": 5769
+  },
+  {
+   "file": "libs/image/tests/KisClippingTest.cpp",
+   "copied": 23731
+  },
+  {
+   "file": "libs/image/tests/KisCloneLayerBenchmark.cpp",
+   "copied": 13794
+  },
+  {
+   "file": "libs/image/tests/KisDustDetectorTest.cpp",
+   "copied": 10543
+  },
+  {
+   "file": "libs/image/tests/KisFilterLayerBenchmark.cpp",
+   "copied": 16144
+  },
+  {
+   "file": "libs/image/tests/KisLayerCompositionTest.cpp",
+   "copied": 5119
+  },
+  {
+   "file": "libs/image/tests/KisLayerStyleBenchmark.cpp",
+   "copied": 10502
+  },
+  {
+   "file": "libs/image/tests/KisMaskedLayerBenchmark.cpp",
+   "copied": 11030
+  },
+  {
+   "file": "libs/image/tests/KisMoveLayerBenchmark.cpp",
+   "copied": 13536
+  },
+  {
+   "file": "libs/pigment/tests/data/gimp_fuzz.gpl",
+   "copied": 160
+  },
+  {
+   "file": "libs/pigment/tests/data/gimp_v1.gpl",
+   "copied": 3313
+  },
+  {
+   "file": "libs/pigment/tests/data/gimp_v2.gpl",
+   "copied": 3217
+  },
+  {
+   "file": "libs/ui/KisReferenceFilterTemplates.cpp",
+   "copied": 5468
+  },
+  {
+   "file": "libs/ui/KisReferenceFilterTemplates.h",
+   "copied": 889
+  },
+  {
+   "file": "libs/ui/KisReferenceImageFilters.cpp",
+   "copied": 14371
+  },
+  {
+   "file": "libs/ui/KisReferenceImageFilters.h",
+   "copied": 338
+  },
+  {
+   "file": "libs/ui/assetlibrary/KisAssetLibraryBrowser.cpp",
+   "copied": 5609
+  },
+  {
+   "file": "libs/ui/assetlibrary/KisAssetLibraryBrowser.h",
+   "copied": 1232
+  },
+  {
+   "file": "libs/ui/assetlibrary/KisAssetLibraryOperations.cpp",
+   "copied": 3293
+  },
+  {
+   "file": "libs/ui/assetlibrary/KisAssetLibraryOperations.h",
+   "copied": 792
+  },
+  {
+   "file": "libs/ui/assetlibrary/KisAssetLibrarySettings.cpp",
+   "copied": 8175
+  },
+  {
+   "file": "libs/ui/assetlibrary/KisAssetLibrarySettings.h",
+   "copied": 2748
+  },
+  {
+   "file": "libs/ui/brushstrokelayer/KisBrushStrokeLayerMonitor.cpp",
+   "copied": 9846
+  },
+  {
+   "file": "libs/ui/brushstrokelayer/KisBrushStrokeLayerPrivate.h",
+   "copied": 847
+  },
+  {
+   "file": "libs/ui/brushstrokelayer/KisBrushStrokeLayerReplay.cpp",
+   "copied": 10389
+  },
+  {
+   "file": "libs/ui/brushstrokelayer/KisBrushStrokeLayerTransform.cpp",
+   "copied": 22859
+  },
+  {
+   "file": "libs/ui/lazytools/KisLazyToolsFastExport.cpp",
+   "copied": 11098
+  },
+  {
+   "file": "libs/ui/lazytools/KisLazyToolsFastExport.h",
+   "copied": 4517
+  },
+  {
+   "file": "libs/ui/lazytools/KisLazyToolsFastExportDialog.cpp",
+   "copied": 39538
+  },
+  {
+   "file": "libs/ui/lazytools/KisLazyToolsFastExportDialog.h",
+   "copied": 1010
+  },
+  {
+   "file": "libs/ui/lazytools/KisLazyToolsFastExportPresets.cpp",
+   "copied": 22149
+  },
+  {
+   "file": "libs/ui/lazytools/KisLazyToolsFastExportPresets.h",
+   "copied": 5276
+  },
+  {
+   "file": "libs/ui/lazytools/KisLazyToolsRenameDialog.cpp",
+   "copied": 5227
+  },
+  {
+   "file": "libs/ui/lazytools/KisLazyToolsRenameDialog.h",
+   "copied": 638
+  },
+  {
+   "file": "libs/ui/lazytools/KisLazyToolsRenamePresets.cpp",
+   "copied": 3910
+  },
+  {
+   "file": "libs/ui/lazytools/KisLazyToolsRenamePresets.h",
+   "copied": 1049
+  },
+  {
+   "file": "libs/ui/tests/KisAssetLibraryTest.cpp",
+   "copied": 16763
+  },
+  {
+   "file": "libs/ui/tests/KisGpuEngineUiTest.cpp",
+   "copied": 9194
+  },
+  {
+   "file": "libs/ui/tests/KisLazyToolsTest.cpp",
+   "copied": 63349
+  },
+  {
+   "file": "libs/ui/tests/KisPartCloseSessionTest.cpp",
+   "copied": 1933
+  },
+  {
+   "file": "libs/ui/tests/KisReferenceImageFiltersTest.cpp",
+   "copied": 9027
+  },
+  {
+   "file": "libs/ui/tests/scenarios/lazy-fast-export-presets.json",
+   "copied": 4573
+  },
+  {
+   "file": "libs/ui/tests/scenarios/lazy-fast-export.json",
+   "copied": 8319
+  },
+  {
+   "file": "libs/ui/tests/scenarios/lazy-foreground-slots.json",
+   "copied": 4409
+  },
+  {
+   "file": "libs/ui/tests/scenarios/lazy-rename-layer.json",
+   "copied": 3147
+  },
+  {
+   "file": "libs/ui/tests/scenarios/lazy-selection-masks.json",
+   "copied": 4132
+  },
+  {
+   "file": "libs/ui/tests/scenarios/rect-select-fill.json",
+   "copied": 2425
+  },
+  {
+   "file": "libs/ui/tool/KisThroughLayerEraserTargets.cpp",
+   "copied": 1575
+  },
+  {
+   "file": "libs/ui/tool/KisThroughLayerEraserTargets.h",
+   "copied": 1190
+  },
+  {
+   "file": "libs/ui/utils/KisShowInFileExplorer.cpp",
+   "copied": 1676
+  },
+  {
+   "file": "libs/ui/utils/KisShowInFileExplorer.h",
+   "copied": 767
+  },
+  {
+   "file": "libs/flake/tests/CMakeLists.txt",
+   "copied": 2359
+  },
+  {
+   "file": "libs/gpu/tests/KisGpuEngineTest.cpp",
+   "copied": 41121
+  },
+  {
+   "file": "libs/gpu/tests/KisGpuEngineTest.h",
+   "copied": 1073
+  },
+  {
+   "file": "libs/image/filter/kis_color_transformation_configuration.cc",
+   "copied": 3229
+  },
+  {
+   "file": "libs/image/filter/kis_color_transformation_configuration.h",
+   "copied": 1938
+  },
+  {
+   "file": "libs/image/filter/kis_color_transformation_filter.cc",
+   "copied": 2967
+  },
+  {
+   "file": "libs/image/filter/kis_color_transformation_filter.h",
+   "copied": 1971
+  },
+  {
+   "file": "libs/image/filter/kis_filter.cc",
+   "copied": 4646
+  },
+  {
+   "file": "libs/image/filter/kis_filter.h",
+   "copied": 4673
+  },
+  {
+   "file": "libs/image/gpu/KisGpuEngineSettings.h",
+   "copied": 3051
+  },
+  {
+   "file": "libs/image/gpu/KisGpuTileBackend.h",
+   "copied": 7480
+  },
+  {
+   "file": "libs/image/kis_adjustment_layer.cc",
+   "copied": 4664
+  },
+  {
+   "file": "libs/image/kis_adjustment_layer.h",
+   "copied": 3249
+  },
+  {
+   "file": "libs/image/kis_clone_layer.cpp",
+   "copied": 9417
+  },
+  {
+   "file": "libs/image/kis_filter_mask.cpp",
+   "copied": 9377
+  },
+  {
+   "file": "libs/image/kis_filter_mask.h",
+   "copied": 2926
+  },
+  {
+   "file": "libs/image/kis_group_layer.h",
+   "copied": 4149
+  },
+  {
+   "file": "libs/image/kis_image.h",
+   "copied": 45766
+  },
+  {
+   "file": "libs/image/kis_layer.h",
+   "copied": 16660
+  },
+  {
+   "file": "libs/image/kis_layer_properties_icons.cpp",
+   "copied": 8281
+  },
+  {
+   "file": "libs/image/kis_layer_properties_icons.h",
+   "copied": 2685
+  },
+  {
+   "file": "libs/image/kis_lock_free_cache.h",
+   "copied": 6500
+  },
+  {
+   "file": "libs/image/kis_mask.cc",
+   "copied": 17943
+  },
+  {
+   "file": "libs/image/kis_paint_device_cache.h",
+   "copied": 6613
+  },
+  {
+   "file": "libs/image/kis_projection_leaf.h",
+   "copied": 2805
+  },
+  {
+   "file": "libs/image/kis_selection_based_layer.cpp",
+   "copied": 11943
+  },
+  {
+   "file": "libs/image/layerstyles/kis_layer_style_projection_plane.h",
+   "copied": 2864
+  },
+  {
+   "file": "libs/image/tests/CMakeLists.txt",
+   "copied": 6207
+  },
+  {
+   "file": "libs/image/tests/KisGpuPaintDeviceTest.cpp",
+   "copied": 133391
+  },
+  {
+   "file": "libs/image/tests/kis_adjustment_layer_test.cpp",
+   "copied": 5758
+  },
+  {
+   "file": "libs/image/tests/kis_adjustment_layer_test.h",
+   "copied": 471
+  },
+  {
+   "file": "libs/image/tests/kis_group_layer_test.cpp",
+   "copied": 4701
+  },
+  {
+   "file": "libs/image/tests/kis_group_layer_test.h",
+   "copied": 410
+  },
+  {
+   "file": "libs/image/tests/kis_paint_device_test.cpp",
+   "copied": 91503
+  },
+  {
+   "file": "libs/image/tests/kis_paint_device_test.h",
+   "copied": 2100
+  },
+  {
+   "file": "libs/image/tiles3/kis_tile.cc",
+   "copied": 9911
+  },
+  {
+   "file": "libs/image/tiles3/kis_tile.h",
+   "copied": 6446
+  },
+  {
+   "file": "libs/image/tiles3/tests/kis_tiled_data_manager_test.cpp",
+   "copied": 36366
+  },
+  {
+   "file": "libs/image/tiles3/tests/kis_tiled_data_manager_test.h",
+   "copied": 1679
+  },
+  {
+   "file": "libs/pigment/KoColorConversionCache.h",
+   "copied": 2751
+  },
+  {
+   "file": "libs/resources/KisResourceCacheDb.h",
+   "copied": 9512
+  },
+  {
+   "file": "libs/resources/tests/TestResourceCacheDb.cpp",
+   "copied": 11504
+  },
+  {
+   "file": "libs/resources/tests/TestResourceCacheDb.h",
+   "copied": 522
+  },
+  {
+   "file": "libs/resources/tests/TestResourceModel.cpp",
+   "copied": 14537
+  },
+  {
+   "file": "libs/resources/tests/TestResourceModel.h",
+   "copied": 1153
+  },
+  {
+   "file": "libs/ui/KisDocument.h",
+   "copied": 25164
+  },
+  {
+   "file": "libs/ui/KisGpuEngineUi.h",
+   "copied": 3360
+  },
+  {
+   "file": "libs/ui/KisLayerThumbnailCache.h",
+   "copied": 1274
+  },
+  {
+   "file": "libs/ui/KisPaletteEditor.cpp",
+   "copied": 21486
+  },
+  {
+   "file": "libs/ui/KisPart.cpp",
+   "copied": 19886
+  },
+  {
+   "file": "libs/ui/KisReferenceImage.h",
+   "copied": 3474
+  },
+  {
+   "file": "libs/ui/KisSolsticeLazyTools.h",
+   "copied": 856
+  },
+  {
+   "file": "libs/ui/KisWelcomePageWidget.cpp",
+   "copied": 32844
+  },
+  {
+   "file": "libs/ui/input/kis_input_manager.cpp",
+   "copied": 38886
+  },
+  {
+   "file": "libs/ui/input/kis_input_manager_p.cpp",
+   "copied": 28635
+  },
+  {
+   "file": "libs/ui/input/kis_input_manager_p.h",
+   "copied": 6296
+  },
+  {
+   "file": "libs/ui/kis_selection_decoration.cc",
+   "copied": 8873
+  },
+  {
+   "file": "libs/ui/tests/KisBrushStrokePreviewTest.cpp",
+   "copied": 46185
+  },
+  {
+   "file": "libs/ui/tests/KisLayerThumbnailCacheTest.cpp",
+   "copied": 10430
+  },
+  {
+   "file": "libs/ui/tool/kis_resources_snapshot.cpp",
+   "copied": 17809
+  },
+  {
+   "file": "libs/ui/tool/kis_resources_snapshot.h",
+   "copied": 4197
+  },
+  {
+   "file": "libs/ui/tool/kis_tool_freehand_helper.cpp",
+   "copied": 39876
+  },
+  {
+   "file": "libs/ui/tool/kis_tool_freehand_helper.h",
+   "copied": 5458
+  },
+  {
+   "file": "libs/ui/tool/kis_tool_utils.cpp",
+   "copied": 20650
+  },
+  {
+   "file": "libs/ui/tool/kis_tool_utils.h",
+   "copied": 5929
+  },
+  {
+   "file": "libs/ui/widgets/KisBrushStrokePreviewCache.h",
+   "copied": 1784
+  },
+  {
+   "file": "libs/ui/widgets/kis_paintop_presets_editor.cpp",
+   "copied": 44151
+  },
+  {
+   "file": "libs/ui/widgets/kis_preset_chooser.cpp",
+   "copied": 18294
+  },
+  {
+   "file": "plugins/dockers/compositiondocker/CompositionDocumentState.cpp",
+   "copied": 4430
+  },
+  {
+   "file": "plugins/dockers/compositiondocker/CompositionDocumentState.h",
+   "copied": 1385
+  },
+  {
+   "file": "plugins/dockers/compositiondocker/tests/CMakeLists.txt",
+   "copied": 338
+  },
+  {
+   "file": "plugins/dockers/compositiondocker/tests/CompositionWorkflowTest.cpp",
+   "copied": 8814
+  },
+  {
+   "file": "plugins/dockers/layerdocker/tests/scenarios/color-label-controls.json",
+   "copied": 4209
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessDockPopups.cpp",
+   "copied": 8850
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessDockWidgets.cpp",
+   "copied": 16566
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGestureDialog.cpp",
+   "copied": 14302
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGestureDialog.h",
+   "copied": 1165
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGesturePresentation.cpp",
+   "copied": 4163
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGesturePresentation.h",
+   "copied": 503
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGesturePreview.cpp",
+   "copied": 2613
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGesturePreview.h",
+   "copied": 432
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGridCanvas.cpp",
+   "copied": 5666
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGridCanvas.h",
+   "copied": 1341
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGridEditMetrics.h",
+   "copied": 517
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGridEditOperations.cpp",
+   "copied": 2716
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGridEditOperations.h",
+   "copied": 777
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGridItemButton.cpp",
+   "copied": 16254
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGridItemButton.h",
+   "copied": 1594
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessItemDragController.cpp",
+   "copied": 5122
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessItemDragController.h",
+   "copied": 1336
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessItemPresentation.cpp",
+   "copied": 3494
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessItemPresentation.h",
+   "copied": 1432
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessItemProperties.cpp",
+   "copied": 15882
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessItemProperties.h",
+   "copied": 674
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessProfileLoader.cpp",
+   "copied": 3941
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessProfileLoader.h",
+   "copied": 669
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessSettings.h",
+   "copied": 2181
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessSettingsStore.cpp",
+   "copied": 14637
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessSettingsStore.h",
+   "copied": 705
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAdjustDockHistory.cpp",
+   "copied": 6339
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAdjustToolOptionsPad.cpp",
+   "copied": 8239
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAdjustToolOptionsPad.h",
+   "copied": 1631
+  },
+  {
+   "file": "plugins/dockers/quickaccess/tests/QuickAccessConfigTest.cpp",
+   "copied": 14414
+  },
+  {
+   "file": "plugins/dockers/quickaccess/tests/QuickAccessGridEditTest.cpp",
+   "copied": 11734
+  },
+  {
+   "file": "plugins/dockers/quickaccess/tests/QuickAccessInteractionTest.cpp",
+   "copied": 15661
+  },
+  {
+   "file": "plugins/dockers/quickaccess/tests/QuickAccessItemPropertiesTest.cpp",
+   "copied": 12433
+  },
+  {
+   "file": "plugins/dockers/quickaccess/tests/QuickAdjustDockTest.cpp",
+   "copied": 13948
+  },
+  {
+   "file": "plugins/dockers/quickaccess/tests/QuickAdjustKeyControllerTest.cpp",
+   "copied": 5674
+  },
+  {
+   "file": "plugins/dockers/quickaccess/tests/scenarios/huesvc-values.json",
+   "copied": 2677
+  },
+  {
+   "file": "plugins/dockers/quickaccess/tests/scenarios/quick-access-brush-item.json",
+   "copied": 1753
+  },
+  {
+   "file": "plugins/dockers/quickaccess/tests/scenarios/quick-adjust-controls.json",
+   "copied": 5094
+  },
+  {
+   "file": "plugins/dockers/restnote/RestNoteConfig.cpp",
+   "copied": 3818
+  },
+  {
+   "file": "plugins/dockers/restnote/RestNoteConfig.h",
+   "copied": 939
+  },
+  {
+   "file": "plugins/dockers/restnote/RestNoteNotifications.cpp",
+   "copied": 10409
+  },
+  {
+   "file": "plugins/dockers/restnote/RestNoteNotifications.h",
+   "copied": 650
+  },
+  {
+   "file": "plugins/dockers/restnote/RestNoteSettingsDialog.cpp",
+   "copied": 5855
+  },
+  {
+   "file": "plugins/dockers/restnote/RestNoteSettingsDialog.h",
+   "copied": 432
+  },
+  {
+   "file": "plugins/dockers/restnote/RestNoteTimer.cpp",
+   "copied": 2800
+  },
+  {
+   "file": "plugins/dockers/restnote/RestNoteTimer.h",
+   "copied": 1403
+  },
+  {
+   "file": "plugins/dockers/restnote/tests/CMakeLists.txt",
+   "copied": 296
+  },
+  {
+   "file": "plugins/dockers/restnote/tests/RestNoteCoreTest.cpp",
+   "copied": 12177
+  },
+  {
+   "file": "plugins/dockers/restnote/tests/RestNoteWidgetsTest.cpp",
+   "copied": 11052
+  },
+  {
+   "file": "plugins/extensions/qmic/KisQmicRgbConverter.h",
+   "copied": 5441
+  },
+  {
+   "file": "plugins/extensions/qmic/tests/KisQmicIntegrationTest.cpp",
+   "copied": 27366
+  },
+  {
+   "file": "plugins/extensions/testcontrol/CMakeLists.txt",
+   "copied": 870
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlCanvasTools.cpp",
+   "copied": 58800
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlCanvasTools.h",
+   "copied": 3442
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlDocumentTools.cpp",
+   "copied": 21823
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlDocumentTools.h",
+   "copied": 1668
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlHttpServer.cpp",
+   "copied": 9522
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlHttpServer.h",
+   "copied": 3112
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlImageCompare.cpp",
+   "copied": 2033
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlImageCompare.h",
+   "copied": 1291
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlInputInjector.cpp",
+   "copied": 12785
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlInputInjector.h",
+   "copied": 6918
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlMcpServer.cpp",
+   "copied": 8866
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlMcpServer.h",
+   "copied": 2784
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlPaths.cpp",
+   "copied": 2909
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlPaths.h",
+   "copied": 1067
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlPlugin.cpp",
+   "copied": 3505
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlPlugin.h",
+   "copied": 1125
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlSpontaneous.h",
+   "copied": 1015
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlSupport.cpp",
+   "copied": 4694
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlSupport.h",
+   "copied": 1841
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlTiming.cpp",
+   "copied": 3069
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlTiming.h",
+   "copied": 2202
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlUiTools.cpp",
+   "copied": 19426
+  },
+  {
+   "file": "plugins/extensions/testcontrol/TestControlUiTools.h",
+   "copied": 1903
+  },
+  {
+   "file": "plugins/extensions/testcontrol/kritatestcontrol.json",
+   "copied": 198
+  },
+  {
+   "file": "plugins/extensions/testcontrol/tests/CMakeLists.txt",
+   "copied": 1733
+  },
+  {
+   "file": "plugins/extensions/testcontrol/tests/TestControlImageCompareTest.cpp",
+   "copied": 3301
+  },
+  {
+   "file": "plugins/extensions/testcontrol/tests/TestControlInputInjectorTest.cpp",
+   "copied": 21063
+  },
+  {
+   "file": "plugins/extensions/testcontrol/tests/TestControlPathsTest.cpp",
+   "copied": 4689
+  },
+  {
+   "file": "plugins/extensions/testcontrol/tests/TestControlProtocolTest.cpp",
+   "copied": 14589
+  },
+  {
+   "file": "plugins/extensions/testcontrol/tests/TestControlTimingTest.cpp",
+   "copied": 3948
+  },
+  {
+   "file": "plugins/filters/blur/KisLensBlurHighlights.cpp",
+   "copied": 8216
+  },
+  {
+   "file": "plugins/filters/blur/KisLensBlurHighlights.h",
+   "copied": 742
+  },
+  {
+   "file": "plugins/filters/blur/tests/CMakeLists.txt",
+   "copied": 309
+  },
+  {
+   "file": "plugins/filters/blur/tests/KisLensBlurFilterTest.cpp",
+   "copied": 23459
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/CMakeLists.txt",
+   "copied": 1238
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisChromaticAberrationConfigWidget.cpp",
+   "copied": 4734
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisChromaticAberrationConfigWidget.h",
+   "copied": 928
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisChromaticAberrationFilter.cpp",
+   "copied": 7201
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisChromaticAberrationFilter.h",
+   "copied": 996
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisColorFilter.cpp",
+   "copied": 13216
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisColorFilter.h",
+   "copied": 1212
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisColorFilterConfigWidget.cpp",
+   "copied": 9990
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisColorFilterConfigWidget.h",
+   "copied": 931
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisColorReferenceConfigWidget.cpp",
+   "copied": 18200
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisColorReferenceConfigWidget.h",
+   "copied": 1783
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisColorReferenceFilter.cpp",
+   "copied": 8849
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisColorReferenceFilter.h",
+   "copied": 1869
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisColorReferenceResources.cpp",
+   "copied": 12138
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisColorReferenceResources.h",
+   "copied": 1479
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisCpuEffectKernels.h",
+   "copied": 1208
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisCpuPlaneBlur.cpp",
+   "copied": 9725
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisCpuPlaneBlur.h",
+   "copied": 1296
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisCrystalConfigWidget.cpp",
+   "copied": 4982
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisCrystalConfigWidget.h",
+   "copied": 885
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisCrystalFilter.cpp",
+   "copied": 4337
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisCrystalFilter.h",
+   "copied": 946
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisCrystalLattice.cpp",
+   "copied": 6753
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisCrystalLattice.h",
+   "copied": 1601
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisDropShadowConfigWidget.cpp",
+   "copied": 8099
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisDropShadowConfigWidget.h",
+   "copied": 755
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisDropShadowFilter.cpp",
+   "copied": 9386
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisDropShadowFilter.h",
+   "copied": 1060
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisEffectColorSampler.h",
+   "copied": 4614
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisFilmConfigWidget.cpp",
+   "copied": 7523
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisFilmConfigWidget.h",
+   "copied": 1141
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisFilmFilter.cpp",
+   "copied": 11402
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisFilmFilter.h",
+   "copied": 1388
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisFilmGrainConfigWidget.cpp",
+   "copied": 2596
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisFilmGrainConfigWidget.h",
+   "copied": 657
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisFilmGrainFilter.cpp",
+   "copied": 5141
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisFilmGrainFilter.h",
+   "copied": 748
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisGlowConfigWidget.cpp",
+   "copied": 2901
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisGlowConfigWidget.h",
+   "copied": 581
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisGlowFilter.cpp",
+   "copied": 8229
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisGlowFilter.h",
+   "copied": 923
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisLineArtConfigWidget.cpp",
+   "copied": 3556
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisLineArtConfigWidget.h",
+   "copied": 672
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisLineArtFilter.cpp",
+   "copied": 9198
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisLineArtFilter.h",
+   "copied": 1048
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisPencilConfigWidget.cpp",
+   "copied": 5929
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisPencilConfigWidget.h",
+   "copied": 791
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisPencilFilter.cpp",
+   "copied": 11713
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisPencilFilter.h",
+   "copied": 939
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisRemoveDustConfigWidget.cpp",
+   "copied": 4647
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisRemoveDustConfigWidget.h",
+   "copied": 765
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisRemoveDustFilter.cpp",
+   "copied": 4336
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisRemoveDustFilter.h",
+   "copied": 1356
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisSharpnessConfigWidget.cpp",
+   "copied": 1879
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisSharpnessConfigWidget.h",
+   "copied": 591
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisSharpnessFilter.cpp",
+   "copied": 8027
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/KisSharpnessFilter.h",
+   "copied": 1322
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/SolsticeEffectsPlugin.cpp",
+   "copied": 1804
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/kritasolsticeeffectsfilter.json",
+   "copied": 180
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/CMakeLists.txt",
+   "copied": 462
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisChromaticAberrationFilterTest.cpp",
+   "copied": 16187
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisColorFilterTest.cpp",
+   "copied": 19054
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisColorReferenceFilterTest.cpp",
+   "copied": 31259
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisCrystalFilterTest.cpp",
+   "copied": 20546
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisDropShadowFilterTest.cpp",
+   "copied": 20986
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisFilmFilterTest.cpp",
+   "copied": 21218
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisFilmGrainFilterTest.cpp",
+   "copied": 10489
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisGlowFilterTest.cpp",
+   "copied": 25967
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisLineArtFilterTest.cpp",
+   "copied": 22962
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisPencilFilterTest.cpp",
+   "copied": 21939
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisRemoveDustFilterTest.cpp",
+   "copied": 6925
+  },
+  {
+   "file": "plugins/filters/solsticeeffects/tests/KisSharpnessFilterTest.cpp",
+   "copied": 17767
+  },
+  {
+   "file": "plugins/impex/libkra/tests/KisClippingKraTest.cpp",
+   "copied": 3212
+  },
+  {
+   "file": "plugins/impex/libkra/tests/KisMoveDocumentBenchmark.cpp",
+   "copied": 8855
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/KisBrushMinimumOnePixelTest.cpp",
+   "copied": 12461
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/KisGpuProjectionStressTest.cpp",
+   "copied": 18727
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/KisThroughLayerEraserTest.cpp",
+   "copied": 18276
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/scenarios/brush-stroke-undo.json",
+   "copied": 4834
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/scenarios/eraser-stroke.json",
+   "copied": 2827
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/scenarios/pressure-stroke.expected.json",
+   "copied": 196
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/scenarios/pressure-stroke.json",
+   "copied": 7313
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/scenarios/pressure-stroke.refs/linux-cpu/pressure-stroke.png",
+   "copied": 4421
+  },
+  {
+   "file": "plugins/python/assignprofiledialog/assignprofiledialog.action",
+   "copied": 532
+  },
+  {
+   "file": "plugins/python/channels2layers/channels2layers.action",
+   "copied": 522
+  },
+  {
+   "file": "plugins/python/colorspace/colorspace.action",
+   "copied": 496
+  },
+  {
+   "file": "plugins/python/documenttools/documenttools.action",
+   "copied": 505
+  },
+  {
+   "file": "plugins/python/exportlayers/exportlayers.action",
+   "copied": 502
+  },
+  {
+   "file": "plugins/python/filtermanager/filtermanager.action",
+   "copied": 505
+  },
+  {
+   "file": "plugins/python/highpass/highpass.action",
+   "copied": 497
+  },
+  {
+   "file": "plugins/python/krita_script_starter/krita_script_starter.action",
+   "copied": 523
+  },
+  {
+   "file": "plugins/python/scripter/scripter.action",
+   "copied": 494
+  },
+  {
+   "file": "plugins/tools/basictools/KisToolThroughLayerEraser.cpp",
+   "copied": 4197
+  },
+  {
+   "file": "plugins/tools/basictools/KisToolThroughLayerEraser.h",
+   "copied": 1718
+  },
+  {
+   "file": "plugins/tools/basictools/tests/scenarios/through-layer-eraser.json",
+   "copied": 12476
+  },
+  {
+   "file": "plugins/tools/selectiontools/tests/scenarios/contiguous-select.json",
+   "copied": 2366
+  },
+  {
+   "file": "plugins/tools/selectiontools/tests/scenarios/ellipse-select.json",
+   "copied": 1500
+  },
+  {
+   "file": "plugins/tools/selectiontools/tests/scenarios/outline-select.json",
+   "copied": 4049
+  },
+  {
+   "file": "plugins/tools/selectiontools/tests/scenarios/polygon-select.json",
+   "copied": 2361
+  },
+  {
+   "file": "plugins/tools/selectiontools/tests/scenarios/selection-modifiers.json",
+   "copied": 6836
+  },
+  {
+   "file": "plugins/tools/tool_enclose_and_fill/KisToolRemoveDust.action",
+   "copied": 528
+  },
+  {
+   "file": "plugins/tools/tool_enclose_and_fill/KisToolRemoveDust.cpp",
+   "copied": 30353
+  },
+  {
+   "file": "plugins/tools/tool_enclose_and_fill/KisToolRemoveDust.h",
+   "copied": 4057
+  },
+  {
+   "file": "plugins/tools/tool_enclose_and_fill/KisToolRemoveDustFactory.h",
+   "copied": 869
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/scenarios/puppet-mixed-devices.json",
+   "copied": 7815
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/scenarios/puppet-pin-delete.json",
+   "copied": 7489
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/scenarios/puppet-pin-drag.json",
+   "copied": 4209
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/scenarios/puppet-quick-apply.json",
+   "copied": 22135
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/scenarios/puppet-reset.json",
+   "copied": 3276
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/scenarios/puppet-show-mesh.json",
+   "copied": 7547
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/scenarios/puppet-unlock-identity.json",
+   "copied": 5091
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/scenarios/transform-move.json",
+   "copied": 3894
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/scenarios/transform-quick-release.json",
+   "copied": 5322
+  },
+  {
+   "file": "plugins/dockers/advancedcolorselector/kis_color_selector_base.cpp",
+   "copied": 15828
+  },
+  {
+   "file": "plugins/dockers/advancedcolorselector/kis_color_selector_triangle.cpp",
+   "copied": 5993
+  },
+  {
+   "file": "plugins/dockers/compositiondocker/compositiondocker_dock.h",
+   "copied": 1768
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAdjustKeyController.h",
+   "copied": 1392
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickColorSelectorDock.h",
+   "copied": 3300
+  },
+  {
+   "file": "plugins/dockers/quickaccess/tests/CMakeLists.txt",
+   "copied": 2923
+  },
+  {
+   "file": "plugins/dockers/recorder/recorder_writer.cpp",
+   "copied": 21884
+  },
+  {
+   "file": "plugins/dockers/textproperties/TextPropertiesDock.h",
+   "copied": 1202
+  },
+  {
+   "file": "plugins/extensions/CMakeLists.txt",
+   "copied": 761
+  },
+  {
+   "file": "plugins/extensions/qmic/QMic.h",
+   "copied": 642
+  },
+  {
+   "file": "plugins/extensions/qmic/tests/CMakeLists.txt",
+   "copied": 442
+  },
+  {
+   "file": "plugins/filters/CMakeLists.txt",
+   "copied": 1148
+  },
+  {
+   "file": "plugins/filters/blur/CMakeLists.txt",
+   "copied": 672
+  },
+  {
+   "file": "plugins/filters/blur/wdg_lens_blur.ui",
+   "copied": 4496
+  },
+  {
+   "file": "plugins/filters/colorsfilters/kis_desaturate_filter.cpp",
+   "copied": 3651
+  },
+  {
+   "file": "plugins/filters/colorsfilters/kis_desaturate_filter.h",
+   "copied": 1661
+  },
+  {
+   "file": "plugins/filters/colorsfilters/kis_perchannel_filter.cpp",
+   "copied": 7342
+  },
+  {
+   "file": "plugins/filters/colorsfilters/kis_perchannel_filter.h",
+   "copied": 2308
+  },
+  {
+   "file": "plugins/filters/posterize/posterize.cpp",
+   "copied": 7029
+  },
+  {
+   "file": "plugins/filters/posterize/posterize.h",
+   "copied": 2577
+  },
+  {
+   "file": "plugins/impex/libkra/kis_kra_loader.cpp",
+   "copied": 58752
+  },
+  {
+   "file": "plugins/impex/libkra/kis_kra_loader.h",
+   "copied": 4988
+  },
+  {
+   "file": "plugins/impex/libkra/kis_kra_saver.h",
+   "copied": 2735
+  },
+  {
+   "file": "plugins/impex/libkra/kis_kra_savexml_visitor.cpp",
+   "copied": 16884
+  },
+  {
+   "file": "plugins/impex/libkra/kra_converter.cpp",
+   "copied": 16323
+  },
+  {
+   "file": "plugins/impex/libkra/tests/CMakeLists.txt",
+   "copied": 717
+  },
+  {
+   "file": "plugins/impex/png/tests/kis_png_test.cpp",
+   "copied": 7851
+  },
+  {
+   "file": "plugins/impex/png/tests/kis_png_test.h",
+   "copied": 436
+  },
+  {
+   "file": "plugins/impex/psd/psd_loader.cpp",
+   "copied": 31983
+  },
+  {
+   "file": "plugins/impex/psd/tests/kis_psd_test.cpp",
+   "copied": 30743
+  },
+  {
+   "file": "plugins/impex/psd/tests/kis_psd_test.h",
+   "copied": 1084
+  },
+  {
+   "file": "plugins/paintops/libpaintop/kis_brush_based_paintop.cpp",
+   "copied": 8971
+  },
+  {
+   "file": "plugins/paintops/libpaintop/kis_brush_based_paintop.h",
+   "copied": 3425
+  },
+  {
+   "file": "plugins/paintops/roundmarker/kis_roundmarkerop.h",
+   "copied": 1419
+  },
+  {
+   "file": "plugins/tools/basictools/CMakeLists.txt",
+   "copied": 1455
+  },
+  {
+   "file": "plugins/tools/basictools/default_tools.cc",
+   "copied": 1974
+  },
+  {
+   "file": "plugins/tools/basictools/kis_tool_brush.cc",
+   "copied": 28081
+  },
+  {
+   "file": "plugins/tools/basictools/kis_tool_brush.h",
+   "copied": 5450
+  },
+  {
+   "file": "plugins/tools/basictools/kis_tool_gradient.cc",
+   "copied": 11552
+  },
+  {
+   "file": "plugins/tools/basictools/tests/move_selection_stroke_test.cpp",
+   "copied": 8191
+  },
+  {
+   "file": "plugins/tools/basictools/tests/move_selection_stroke_test.h",
+   "copied": 436
+  },
+  {
+   "file": "plugins/tools/defaulttool/referenceimagestool/ToolReferenceImages.cpp",
+   "copied": 14969
+  },
+  {
+   "file": "plugins/tools/tool_enclose_and_fill/KisToolEncloseAndFillPlugin.cpp",
+   "copied": 842
+  },
+  {
+   "file": "plugins/tools/tool_transform2/kis_mesh_transform_strategy.cpp",
+   "copied": 34075
+  },
+  {
+   "file": "plugins/tools/tool_transform2/kis_mesh_transform_strategy.h",
+   "copied": 2145
+  },
+  {
+   "file": "plugins/tools/tool_transform2/kis_transform_strategy_base.cpp",
+   "copied": 2463
+  },
+  {
+   "file": "plugins/tools/tool_transform2/kis_transform_strategy_base.h",
+   "copied": 2298
+  },
+  {
+   "file": "plugins/tools/tool_transform2/kis_warp_transform_strategy.h",
+   "copied": 3525
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/test_animated_transform_parameters.cpp",
+   "copied": 11393
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tests/test_animated_transform_parameters.h",
+   "copied": 486
+  },
+  {
+   "file": "plugins/tools/tools.action",
+   "copied": 6765
+  },
+  {
+   "file": "packaging/linux/appimage/krita-apprun/test-root/usr/libstdcpp-fallback/libstdc++.so.6",
+   "copied": 19
+  }
+ ]
+}

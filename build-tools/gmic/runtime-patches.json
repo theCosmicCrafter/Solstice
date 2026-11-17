@@ -1,0 +1,47 @@
+[
+  {
+    "file": "gmic-qt/src/Globals.h",
+    "before": "#ifdef _GMIC_USE_HOSTED_SETTINGS_\n#ifdef Q_OS_MACOS\n#define GMIC_SETTINGS(x) QSettings x(GMIC_QT_ORGANISATION_DOMAIN, GMIC_QT_APPLICATION_NAME)\n#define GMIC_SETTINGS_INLINE QSettings(GMIC_QT_ORGANISATION_DOMAIN, GMIC_QT_APPLICATION_NAME)\n#else\n#define GMIC_SETTINGS(x) QSettings x(GMIC_QT_ORGANISATION_NAME, GMIC_QT_APPLICATION_NAME)\n#define GMIC_SETTINGS_INLINE QSettings(GMIC_QT_ORGANISATION_NAME, GMIC_QT_APPLICATION_NAME)\n#endif",
+    "after": "#ifdef _GMIC_USE_HOSTED_SETTINGS_\n#define GMIC_SETTINGS(x) QSettings x(qEnvironmentVariable(\"SOLSTICE_GMIC_SETTINGS\"), QSettings::IniFormat)\n#define GMIC_SETTINGS_INLINE QSettings(qEnvironmentVariable(\"SOLSTICE_GMIC_SETTINGS\"), QSettings::IniFormat)"
+  },
+  {
+    "file": "gmic-qt/src/Host/KritaPlugin/host.cpp",
+    "before": "const QString ApplicationName = QStringLiteral(\"Krita\");",
+    "after": "const QString ApplicationName = QStringLiteral(\"Solstice\");"
+  },
+  {
+    "file": "gmic-qt/src/Host/KritaPlugin/gmicqttoolplugin.cpp",
+    "before": "#include <QSettings>",
+    "after": "#include <QSettings>\n#include <QScopeGuard>"
+  },
+  {
+    "file": "gmic-qt/src/Host/KritaPlugin/gmicqttoolplugin.cpp",
+    "before": "  GmicQtHost::iface = i;",
+    "after": "  GmicQtHost::iface = i;\n  const auto cleanup = qScopeGuard([] {\n    GmicQtHost::sharedMemorySegments.clear();\n    GmicQtHost::iface.reset();\n  });"
+  },
+  {
+    "file": "gmic-qt/src/Host/KritaPlugin/host.cpp",
+    "before": "#include <QFileDialog>",
+    "after": "#include <QFileDialog>\n#include <QMessageBox>\n#include <exception>"
+  },
+  {
+    "file": "gmic-qt/src/Host/KritaPlugin/host.cpp",
+    "before": "  for (uint i = 0; i < images.size(); ++i) {",
+    "after": "  try {\n  for (uint i = 0; i < images.size(); ++i) {"
+  },
+  {
+    "file": "gmic-qt/src/Host/KritaPlugin/host.cpp",
+    "before": "  iface->gmic_qt_output_images(static_cast<int>(mode), layers);",
+    "after": "  iface->gmic_qt_output_images(static_cast<int>(mode), layers);\n  } catch (const std::exception &error) {\n    sharedMemorySegments.clear();\n    QMessageBox::warning(nullptr, QObject::tr(\"G'MIC\"), QString::fromUtf8(error.what()));\n  }"
+  },
+  {
+    "file": "gmic-qt/src/Host/KritaPlugin/host.cpp",
+    "before": "    gmic_image<float> gimg = images.at(i);",
+    "after": "    const gmic_image<float> &gimg = images.at(i);\n    if (!gimg._data || !gimg._depth) {\n      throw std::length_error(\"Empty G'MIC output image\");\n    }"
+  },
+  {
+    "file": "gmic-qt/src/Host/KritaPlugin/host.cpp",
+    "before": "      const auto slice = gimg.get_slice(0);\n\n      const auto length = slice._width * slice._height * slice._spectrum * sizeof(float);\n      std::memcpy(m->m_data, slice._data, length);",
+    "after": "      // Copy directly into the host-owned buffer. Keep the first-z-slice\n      // semantics for volumes, whose channel planes are separated by depth.\n      const size_t planeSize = size_t(gimg._width) * gimg._height;\n      if (gimg._depth == 1) {\n        std::memcpy(m->m_data, gimg._data, m->size());\n      } else {\n        for (unsigned int c = 0; c < gimg._spectrum; ++c) {\n          std::memcpy(m->m_data + c * planeSize,\n                      gimg._data + size_t(c) * planeSize * gimg._depth,\n                      planeSize * sizeof(float));\n        }\n      }"
+  }
+]

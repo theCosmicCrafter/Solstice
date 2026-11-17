@@ -1,0 +1,372 @@
+{
+ "op": "merge",
+ "lane": "b",
+ "results": [
+  {
+   "file": "libs/brush/KisAbrParser.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2278
+  },
+  {
+   "file": "libs/brush/KisAbrPresetConverter.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2055
+  },
+  {
+   "file": "libs/brush/KisAbrStorage.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 10512
+  },
+  {
+   "file": "libs/brush/kis_abr_brush_collection.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 11834
+  },
+  {
+   "file": "libs/brush/kis_abr_brush_collection.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3296
+  },
+  {
+   "file": "libs/brush/tests/TestAbrParser.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 12444
+  },
+  {
+   "file": "libs/flake/KoToolManager.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 30087
+  },
+  {
+   "file": "libs/global/KisSolsticeProfile.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 16873
+  },
+  {
+   "file": "libs/global/KisSolsticeProfile.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4209
+  },
+  {
+   "file": "libs/global/tests/KisSolsticeProfileTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 11006
+  },
+  {
+   "file": "libs/gpu/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9853
+  },
+  {
+   "file": "libs/gpu/KisGpuContext.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 27164
+  },
+  {
+   "file": "libs/gpu/KisGpuContext.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 7706
+  },
+  {
+   "file": "libs/gpu/KisGpuLayerCompositor.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 11006
+  },
+  {
+   "file": "libs/gpu/KisGpuLayerCompositor.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 7324
+  },
+  {
+   "file": "libs/gpu/shaders/composite_layers.comp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8219
+  },
+  {
+   "file": "libs/image/CMakeLists.txt",
+   "conflicts": 1,
+   "tracked": true,
+   "bytes": 15653
+  },
+  {
+   "file": "libs/image/KisPuppetTransformWorker.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 38163
+  },
+  {
+   "file": "libs/image/KisPuppetTransformWorker.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6162
+  },
+  {
+   "file": "libs/image/KisRedrawableLayerInterface.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1718
+  },
+  {
+   "file": "libs/image/commands/kis_node_property_list_command.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 12285
+  },
+  {
+   "file": "libs/image/gpu/KisGpuEngineSettings.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3423
+  },
+  {
+   "file": "libs/image/gpu/KisGpuMergeBatch.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 10124
+  },
+  {
+   "file": "libs/image/gpu/KisGpuMergeBatch.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4110
+  },
+  {
+   "file": "libs/image/gpu/KisGpuProjectionCompositor.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 46989
+  },
+  {
+   "file": "libs/image/gpu/KisGpuProjectionCompositor.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9740
+  },
+  {
+   "file": "libs/image/gpu/KisGpuTileAccess.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 25794
+  },
+  {
+   "file": "libs/image/gpu/KisGpuTileBackend.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 24034
+  },
+  {
+   "file": "libs/image/kis_async_merger.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 20069
+  },
+  {
+   "file": "libs/image/kis_filter_strategy.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8030
+  },
+  {
+   "file": "libs/image/kis_group_layer.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 12533
+  },
+  {
+   "file": "libs/image/kis_image.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 91390
+  },
+  {
+   "file": "libs/image/kis_layer.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 37415
+  },
+  {
+   "file": "libs/image/kis_layer_composition.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9683
+  },
+  {
+   "file": "libs/image/kis_layer_composition.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2490
+  },
+  {
+   "file": "libs/image/kis_layer_projection_plane.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3442
+  },
+  {
+   "file": "libs/image/kis_layer_utils.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 103261
+  },
+  {
+   "file": "libs/image/kis_paint_device.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 84540
+  },
+  {
+   "file": "libs/image/kis_paint_layer.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 15971
+  },
+  {
+   "file": "libs/image/kis_perspectivetransform_worker.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 11156
+  },
+  {
+   "file": "libs/image/kis_processing_applicator.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 16608
+  },
+  {
+   "file": "libs/image/kis_processing_applicator.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5057
+  },
+  {
+   "file": "libs/image/kis_projection_leaf.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 17621
+  },
+  {
+   "file": "libs/image/layerstyles/kis_layer_style_projection_plane.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 21702
+  },
+  {
+   "file": "libs/image/processing/kis_transform_processing_visitor.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9277
+  },
+  {
+   "file": "libs/image/tests/KisGpuBrushTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 150725
+  },
+  {
+   "file": "libs/image/tests/KisGpuProjectionTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 124758
+  },
+  {
+   "file": "libs/image/tests/KisPuppetTransformWorkerTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 18694
+  },
+  {
+   "file": "libs/image/tiles3/KisTiledExtentManager.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8714
+  },
+  {
+   "file": "libs/libkis/Selection.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8559
+  },
+  {
+   "file": "libs/pigment/KoColorConversionCache.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6112
+  },
+  {
+   "file": "libs/pigment/resources/KoColorSet.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 83190
+  },
+  {
+   "file": "libs/pigment/tests/TestKoColorSet.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 26928
+  },
+  {
+   "file": "libs/psd/psd_layer_section.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 51984
+  },
+  {
+   "file": "libs/resources/KisResourceCacheDb.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 102660
+  },
+  {
+   "file": "libs/resources/KisResourceModel.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 39098
+  },
+  {
+   "file": "libs/widgets/KisPaletteChooser.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5813
+  },
+  {
+   "file": "libs/widgets/KisPaletteModel.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 14894
+  },
+  {
+   "file": "libs/widgets/KoDockWidgetTitleBar.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1727
+  },
+  {
+   "file": "libs/widgetutils/KisSolsticeStyle.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2189
+  },
+  {
+   "file": "libs/widgetutils/xmlgui/kcheckaccelerators.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 10246
+  }
+ ]
+}

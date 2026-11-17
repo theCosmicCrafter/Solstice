@@ -1,0 +1,252 @@
+{
+ "op": "merge",
+ "lane": "d",
+ "results": [
+  {
+   "file": "plugins/dockers/animation/KisAnimTimelineFramesModel.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 39228
+  },
+  {
+   "file": "plugins/dockers/assetlibrary/AssetLibraryDock.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 25720
+  },
+  {
+   "file": "plugins/dockers/assetlibrary/AssetLibraryDock.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3164
+  },
+  {
+   "file": "plugins/dockers/compositiondocker/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 485
+  },
+  {
+   "file": "plugins/dockers/compositiondocker/compositiondocker_dock.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 22758
+  },
+  {
+   "file": "plugins/dockers/compositiondocker/compositionmodel.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9182
+  },
+  {
+   "file": "plugins/dockers/compositiondocker/compositionmodel.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2075
+  },
+  {
+   "file": "plugins/dockers/compositiondocker/wdgcompositiondocker.ui",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2328
+  },
+  {
+   "file": "plugins/dockers/layerdocker/LayerBox.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 55214
+  },
+  {
+   "file": "plugins/dockers/layerdocker/NodeDelegate.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 56993
+  },
+  {
+   "file": "plugins/dockers/overview/overviewwidget.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 13065
+  },
+  {
+   "file": "plugins/dockers/palettedocker/palettedocker_dock.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 18556
+  },
+  {
+   "file": "plugins/dockers/quickaccess/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2528
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessDock.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 30770
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessDock.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4165
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGesture.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6062
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGesture.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1334
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessGridEditDialog.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 14155
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessLegacyImporter.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3165
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessModel.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9453
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessProfileRepository.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1865
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAccessSettingsDialog.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2416
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAdjustDock.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 24615
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAdjustDock.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3586
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickAdjustKeyController.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 7561
+  },
+  {
+   "file": "plugins/dockers/quickaccess/QuickColorSelectorDock.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 20470
+  },
+  {
+   "file": "plugins/dockers/restnote/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 939
+  },
+  {
+   "file": "plugins/dockers/restnote/RestNoteDock.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 10866
+  },
+  {
+   "file": "plugins/dockers/restnote/RestNoteDock.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1924
+  },
+  {
+   "file": "plugins/dockers/textproperties/TextPropertiesDock.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3046
+  },
+  {
+   "file": "plugins/dockers/textproperties/qml/CollapsibleGroupProperty.qml",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1791
+  },
+  {
+   "file": "plugins/dockers/textproperties/qml/TextPropertyBase.qml",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3255
+  },
+  {
+   "file": "plugins/extensions/pykrita/plugin/PythonPluginManager.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 14933
+  },
+  {
+   "file": "plugins/extensions/pykrita/plugin/krita/__init__.py",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2805
+  },
+  {
+   "file": "plugins/extensions/qmic/QMic.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5028
+  },
+  {
+   "file": "plugins/extensions/qmic/kis_qmic_import_tools.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 7542
+  },
+  {
+   "file": "plugins/extensions/qmic/kis_qmic_interface.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 11902
+  },
+  {
+   "file": "plugins/extensions/qmic/kis_qmic_interface.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2478
+  },
+  {
+   "file": "plugins/extensions/qmic/kis_qmic_simple_convertor.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 24705
+  },
+  {
+   "file": "plugins/extensions/qmic/kis_qmic_synchronize_layers_command.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 10166
+  },
+  {
+   "file": "plugins/extensions/qmic/kis_qmic_synchronize_layers_command.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1238
+  }
+ ]
+}

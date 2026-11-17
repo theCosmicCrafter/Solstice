@@ -118,11 +118,11 @@ set(krita_splash_qrc splash.qrc)
 # make a change that applies to all systems, remove any conditions. The version
 # you specify should always be one higher than any version number you see here,
 # no matter what you're doing. Do not re-use versions.
-set(KRITA5_XMLGUI_VERSION 548)
+set(KRITA5_XMLGUI_VERSION 550)
 
 # After updating the version number properly, put the new hash that the CMake
 # error lists as the "actual hash" here.
-set(krita5_xmlgui_hash_expected "1f4e3e0332e0d94c8f4dd4fd8ba66b2c")
+set(krita5_xmlgui_hash_expected "d9a36382d6d04a4d4f22223937c78e47")
 
 # You can stop reading now, the stuff that follows doesn't need to be modified.
 # ==============================================================================
@@ -299,6 +299,11 @@ if (WIN32)
         ${CMAKE_CURRENT_BINARY_DIR}/versioninfo.rc
         ${KRITA_MANIFEST_SRC}
     )
+    if(KRITAUI_ASAN)
+        # The ASan runtime DLL must be loaded at process start, before any
+        # instrumented module (e.g. libkritaui) is mapped.
+        target_link_options(krita_windows_stub_exe PRIVATE -fsanitize=address -shared-libsan)
+    endif()
     target_link_libraries(krita_windows_stub_exe PRIVATE krita)
     if (QT_MAJOR_VERSION STREQUAL "6")
         target_link_libraries(krita_windows_stub_exe PRIVATE Qt6::EntryPointPrivate)
@@ -319,6 +324,7 @@ if (WIN32)
 
     add_executable(krita_windows_stub_com
         windows_stub_main.cpp
+        ${krita_windows_stub_ICONS_SRCS}
         ${CMAKE_CURRENT_BINARY_DIR}/versioninfo.rc
         ${KRITA_MANIFEST_SRC}
     )

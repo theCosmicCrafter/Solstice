@@ -1,0 +1,1037 @@
+[
+ {
+  "file": "libs/brush/KisAbrParser.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * Every size and offset is checked against the data: a damaged file gives",
+    " * what could be read and warnings, never a crash. See",
+    " * docs/agent/abr-import-plan.md (Solstice)."
+   ],
+   [
+    "    /// The largest tip edge read, in pixels (Photoshop's largest brush is",
+    "    /// 5000 pixels)"
+   ],
+   [
+    "    /// The most tip data decoded from one file"
+   ],
+   [
+    "    /// or no tips and no presets)"
+   ]
+  ],
+  "suspect_lines": 7
+ },
+ {
+  "file": "libs/brush/KisAbrPresetConverter.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * patterns. Settings Solstice has no counterpart for are counted in",
+    " * `unsupported`. See docs/agent/abr-import-plan.md, phase 4."
+   ],
+   [
+    "    /// folders it is in (empty at the top level). See phase 5 of",
+    "    /// docs/agent/abr-import-plan.md."
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/brush/KisAbrStorage.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            // (docs/agent/abr-import-plan.md, phase 5)"
+   ],
+   [
+    "            // Solstice: the file's patterns (docs/agent/abr-import-plan.md)"
+   ],
+   [
+    "    /// Solstice: the brush tips or the patterns (docs/agent/abr-import-plan.md)"
+   ],
+   [
+    "    // docs/agent/abr-import-plan.md"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/brush/kis_abr_brush_collection.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * 6 and later (docs/agent/abr-import-plan.md)"
+   ],
+   [
+    "    // Solstice: read with KisAbrParser (docs/agent/abr-import-plan.md)"
+   ],
+   [
+    "    // (docs/agent/abr-import-plan.md, phase 4)"
+   ],
+   [
+    "        // the folders of the Brushes panel (phase 5): the hierarchy lists"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/brush/kis_abr_brush_collection.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    /// (`<identifier>.pat`); docs/agent/abr-import-plan.md"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/brush/tests/TestAbrParser.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * KisAbrParser (docs/agent/abr-import-plan.md, phase 2): versions, 16-bit"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/flake/KoToolManager.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        if (controller->canvas() == canvas)",
+    "            return d->canvasData->allTools.value(id);"
+   ],
+   [
+    "    // if no such inputDevice for this canvas, then simply fallback to first one",
+    "    switchCanvasData(canvasses.value(newCanvas).first());"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/global/KisSolsticeProfile.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            setError(error, QStringLiteral(\"Could not create %1\").arg(QDir::toNativeSeparators(dir)));"
+   ],
+   [
+    "            setError(error, QStringLiteral(\"Could not copy %1\").arg(QDir::toNativeSeparators(file)));"
+   ],
+   [
+    "    // Solstice defaults (docs/agent/settings-location.md, phase 4): a new"
+   ],
+   [
+    "        setError(error, QStringLiteral(\"Could not write the profile marker\"));"
+   ],
+   [
+    "                setError(error, QStringLiteral(\"Could not copy %1\").arg(QDir::toNativeSeparators(source)));"
+   ],
+   [
+    "            setError(error, QStringLiteral(\"Could not copy %1\").arg(QDir::toNativeSeparators(source)));"
+   ],
+   [
+    "        setError(error, QStringLiteral(\"Could not write the profile marker\"));"
+   ],
+   [
+    "        setError(error, QStringLiteral(\"Could not clear %1\").arg(QDir::toNativeSeparators(plan.targetDir)));"
+   ],
+   [
+    "                 QStringLiteral(\"Not enough free space: %1 MB needed, %2 MB available\")"
+   ],
+   [
+    "                     cancelled ? QStringLiteral(\"Cancelled\")",
+    "                               : QStringLiteral(\"Could not copy %1\").arg(QDir::toNativeSeparators(relative)));"
+   ],
+   [
+    "        setError(error, QStringLiteral(\"Could not write the profile marker\"));"
+   ]
+  ],
+  "suspect_lines": 12
+ },
+ {
+  "file": "libs/global/KisSolsticeProfile.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * The Krita files (KisSolsticePaths::legacyConfigDir() and",
+    " * legacyResourceDir()) are only read, never changed."
+   ],
+   [
+    " * Copies @p plan. @p progress receives the bytes copied so far and returns",
+    " * false to cancel. On success the profile is marked Ready; on failure or",
+    " * cancel the target folder is removed and @p error says why."
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "libs/global/tests/KisSolsticeProfileTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    QCOMPARE(error, QStringLiteral(\"Cancelled\"));"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/gpu/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl)"
+   ],
+   [
+    "    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/composite_blend.glsl)"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/gpu/KisGpuContext.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "std::unique_ptr<KisGpuContext> KisGpuContext::create(const Options &options, QString *errorMessage)"
+   ],
+   [
+    "    if (!d->createInstance(options, errorMessage) || !d->selectPhysicalDevice(errorMessage)",
+    "        || !d->createDevice(options, errorMessage)) {"
+   ],
+   [
+    "    if (!d->info.isBlackwell()) {",
+    "        warnKrita << \"GPU engine: device is not an NVIDIA Blackwell GPU; this configuration is untested\";"
+   ],
+   [
+    "    waitInfo.pValues = &value;"
+   ],
+   [
+    "    quint64 value = 0;"
+   ]
+  ],
+  "suspect_lines": 7
+ },
+ {
+  "file": "libs/gpu/KisGpuContext.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    static std::unique_ptr<KisGpuContext> create(const Options &options, QString *errorMessage);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/gpu/KisGpuLayerCompositor.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "static_assert(sizeof(LayerParams) == 32, \"must match the shader LayerParams struct\");"
+   ],
+   [
+    "    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(layerTiles.size() == tileCount * layers.size(), false);",
+    "    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(gridWidth > 0, false);"
+   ],
+   [
+    "    // Consecutive runs share the tables and submission; only their offsets and",
+    "    // pipeline change. Each run observes the preceding run's destination writes."
+   ],
+   [
+    "        constants.layerTiles = m_tables->deviceAddress() + VkDeviceSize(first) * tileCount * sizeof(VkDeviceAddress);"
+   ]
+  ],
+  "suspect_lines": 6
+ },
+ {
+  "file": "libs/gpu/KisGpuLayerCompositor.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "     * @param layerTiles layer-major, layerTiles[layer * tileCount + tile]; 0 skips the tile"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/gpu/shaders/composite_layers.comp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    AddressTable layerTiles; // layerCount * tileCount, layer-major; 0 = transparent tile"
+   ],
+   [
+    "            const uint64_t address = params.layerTiles.addr[layer * params.tileCount + tile];"
+   ],
+   [
+    "                result = address == 0 ? info.fill : LOAD_PIXEL(TilePixels(address).px[index]);"
+   ],
+   [
+    "            const vec4 src = LOAD_PIXEL(TilePixels(address).px[index]);"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/image/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    gpu/KisGpuMaskingWorker.cpp)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/image/KisPuppetTransformWorker.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        QPolygonF cell = srcPolygon;",
+    "        if (toImage) {",
+    "            for (QPointF &point : cell)",
+    "                point = toImage(point);"
+   ],
+   [
+    "        if (!worker.touchesArtwork(cell))",
+    "            return;",
+    "        if (filterOrder && worker.ownerAt(cell.boundingRect().center()) != order)",
+    "            return;"
+   ],
+   [
+    "        if (!worker.touchesArtwork(srcPolygon))"
+   ],
+   [
+    "    return columns > 0 && rows > 0 && solid.size() == 2 * columns * rows"
+   ],
+   [
+    "    bool ok = true;"
+   ],
+   [
+    "        ok = ok && good;"
+   ],
+   [
+    "    mesh.columns = parts[6].toInt(&ok);",
+    "    if (ok)",
+    "        mesh.rows = parts[7].toInt(&ok);",
+    "    if (ok)",
+    "        mesh.expansion = parts[8].toInt(&ok);",
+    "    if (!ok || mesh.columns <= 0 || mesh.rows <= 0 || mesh.columns > 4096 || mesh.rows > 4096)"
+   ],
+   [
+    "    m_hasSolid = m_mesh.isValid() && m_mesh.solid.count(true) > 0;"
+   ],
+   [
+    "    if (solver.info() != Eigen::Success)"
+   ],
+   [
+    "            OrderFilterOp<KisGpuGridWarpWorker::Recorder> filterOp{recorder, *this, 0, false, {}};"
+   ],
+   [
+    "        OrderFilterOp<GridIterationTools::PaintDevicePolygonOp> filterOp{polygonOp, *this, 0, false, {}};"
+   ],
+   [
+    "        GroupRecordersOp groupOp{*this, levels, recorders};"
+   ],
+   [
+    "            OrderFilterOp<GridIterationTools::PaintDevicePolygonOp> filterOp{polygonOp, *this, levels[i], true, {}};"
+   ],
+   [
+    "    // The preview grid is in thumbnail space; cells are tested in image space."
+   ],
+   [
+    "        OrderFilterOp<GridIterationTools::QImagePolygonOp> filterOp{polygonOp, *this, 0, false, thumbToImage};"
+   ],
+   [
+    "        OrderFilterOp<GridIterationTools::QImagePolygonOp> filterOp{polygonOp, *this, level, true, thumbToImage};"
+   ]
+  ],
+  "suspect_lines": 27
+ },
+ {
+  "file": "libs/image/KisPuppetTransformWorker.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "     * Equal orders (or none) render in one pass, like before orders existed."
+   ],
+   [
+    "    bool m_hasSolid = false; ///< no solid triangle: render every cell"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/image/KisRedrawableLayerInterface.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * docs/agent/brush-stroke-layer-plan.md). KisTransformProcessingVisitor asks"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/image/commands/kis_node_property_list_command.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    const QRect oldExtent = m_node->projectionPlane()->tightUserVisibleBounds();"
+   ],
+   [
+    "        doUpdate(propsBefore, m_node->sectionModelProperties(), oldExtent | m_node->projectionPlane()->tightUserVisibleBounds());"
+   ],
+   [
+    "    const QRect oldExtent = m_node->projectionPlane()->tightUserVisibleBounds();"
+   ],
+   [
+    "        doUpdate(propsBefore, m_node->sectionModelProperties(), oldExtent | m_node->projectionPlane()->tightUserVisibleBounds());"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/image/gpu/KisGpuEngineSettings.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    return value == int(Convert) || value == int(Keep) ? ConvertPolicy(value) : Ask;"
+   ],
+   [
+    "    const QString depth = Float32BitsColorDepthID.id();"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/image/gpu/KisGpuMergeBatch.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    KIS_SAFE_ASSERT_RECOVER_NOOP(m_entries.isEmpty() && \"GPU merge batch destroyed without flush()\");"
+   ],
+   [
+    "    KisGpuBlendOp op;",
+    "    if (!KisGpuProjectionCompositor::blendOpForCompositeOp(layer->compositeOpId(), &op)) {"
+   ],
+   [
+    "    if (!(*device->colorSpace() == *projection->colorSpace()) || (device->x() - projection->x()) % TileSize",
+    "        || (device->y() - projection->y()) % TileSize) {"
+   ],
+   [
+    "    if (!m_entries.isEmpty() && (m_projection != projection || m_rect != rect)) {"
+   ],
+   [
+    "void KisGpuMergeBatch::flush()"
+   ],
+   [
+    "    if (m_entries.isEmpty()) {"
+   ],
+   [
+    "    QString error;",
+    "    done = KisGpuProjectionCompositor::composite(m_projection, m_rect, layers, &error);",
+    "    if (done) {",
+    "        s_gpuCompositeCount++;",
+    "    } else {",
+    "        warnImage << \"GPU projection failed, compositing on the CPU:\" << error;"
+   ],
+   [
+    "    if (!done) {"
+   ]
+  ],
+  "suspect_lines": 15
+ },
+ {
+  "file": "libs/image/gpu/KisGpuMergeBatch.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    /// Composites every deferred leaf: on the GPU, or on the CPU if the GPU fails.",
+    "    void flush();"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/image/gpu/KisGpuProjectionCompositor.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        // layer's extent stay 0 (skipped), like KisLayerProjectionPlane."
+   ],
+   [
+    "        QVector<VkDeviceAddress> placed(tileCount, 0);"
+   ],
+   [
+    "                const int gridCol = origin.x() / TileSize;",
+    "                const int gridRow = origin.y() / TileSize;",
+    "                KIS_SAFE_ASSERT_RECOVER(gridCol >= 0 && gridRow >= 0 && gridCol < grid.width()",
+    "                                        && gridRow < grid.height())"
+   ],
+   [
+    "                placed[gridRow * grid.width() + gridCol] = addresses[row * layerGrid.width() + col];"
+   ]
+  ],
+  "suspect_lines": 7
+ },
+ {
+  "file": "libs/image/gpu/KisGpuProjectionCompositor.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        /// only leading layers may replace."
+   ],
+   [
+    "     * F16) and an offset that differs from the projection's by a multiple of",
+    "     * 64 pixels in both directions. Only tiles inside a layer's extent are",
+    "     * read, matching KisLayerProjectionPlane (which clips to the extent)."
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/image/gpu/KisGpuTileAccess.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                entry.tileData = entry.tile->tileData();"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/image/gpu/KisGpuTileBackend.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        std::unique_ptr<KisGpuContext> context = KisGpuContext::create(&error);"
+   ],
+   [
+    "            return;"
+   ],
+   [
+    "        s_instance = new KisGpuTileBackend(std::move(context));"
+   ],
+   [
+    "            KisTileData *td = tile->tileData();"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/image/kis_async_merger.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            m_gpuBatch.flush();"
+   ],
+   [
+    "            parentOriginal->clear(rect);"
+   ],
+   [
+    "    Q_UNUSED(topmostLeaf);"
+   ],
+   [
+    "        KisPainter::copyAreaOptimized(rect.topLeft(), m_currentProjection, m_finalProjection, rect);"
+   ],
+   [
+    "    m_gpuBatch.flush();"
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "libs/image/kis_filter_strategy.cc",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "libs/image/kis_group_layer.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    Private()"
+   ],
+   [
+    "        , x(0)",
+    "        , y(0)"
+   ],
+   [
+    "    qint32 x;",
+    "    qint32 y;"
+   ],
+   [
+    "    m_d(new Private())"
+   ],
+   [
+    "    m_d(new Private())"
+   ],
+   [
+    "    m_d->x = rhs.m_d->x;",
+    "    m_d->y = rhs.m_d->y;"
+   ],
+   [
+    "        dev->setX(this->x());",
+    "        dev->setY(this->y());"
+   ],
+   [
+    "    return m_d->paintDevice ? m_d->paintDevice->x() : m_d->x;"
+   ],
+   [
+    "    return m_d->paintDevice ? m_d->paintDevice->y() : m_d->y;"
+   ]
+  ],
+  "suspect_lines": 13
+ },
+ {
+  "file": "libs/image/kis_image.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "",
+    "",
+    "    m_d->compositions.clear();",
+    "",
+    "    Q_FOREACH (KisLayerCompositionSP comp, rhs.m_d->compositions) {",
+    "        m_d->compositions << toQShared(new KisLayerComposition(*comp, this));"
+   ],
+   [
+    "    m_d->compositions.append(composition);"
+   ],
+   [
+    "    m_d->compositions.removeAll(composition);"
+   ],
+   [
+    "    if (index >= m_d->compositions.size() -1) {"
+   ]
+  ],
+  "suspect_lines": 9
+ },
+ {
+  "file": "libs/image/kis_layer.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            disableAlphaChannel(property.state.toBool());"
+   ],
+   [
+    "    return",
+    "        this->compositeOpId() == otherLayer->compositeOpId() &&",
+    "        this->opacity() == otherLayer->opacity() &&",
+    "        this->channelFlags() == otherLayer->channelFlags() &&",
+    "        !this->layerStyle() && !otherLayer->layerStyle() &&",
+    "        (this->colorSpace() == otherLayer->colorSpace() ||",
+    "         *this->colorSpace() == *otherLayer->colorSpace());"
+   ],
+   [
+    "        prevLayer->projectionPlane()->apply(&gc, prevLayerProjectionExtent | imageSP->bounds());"
+   ],
+   [
+    "            this->projectionPlane()->apply(&gc, layerProjectionExtent | imageSP->bounds());"
+   ]
+  ],
+  "suspect_lines": 10
+ },
+ {
+  "file": "libs/image/kis_layer_composition.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        bool result = visitAll(layer);"
+   ],
+   [
+    "                node->setVisible(m_layerComposition->m_visibilityMap[node->uuid()]);"
+   ],
+   [
+    "    : m_image(otherImage ? otherImage : rhs.m_image),",
+    "      m_name(rhs.m_name),",
+    "      m_exportEnabled(rhs.m_exportEnabled)"
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "libs/image/kis_layer_composition.h",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "libs/image/kis_layer_projection_plane.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    if (m_d->layer->compositeOpId() != COMPOSITE_COPY &&",
+    "        m_d->layer->compositeOpId() != COMPOSITE_DESTINATION_IN  &&",
+    "        m_d->layer->compositeOpId() != COMPOSITE_DESTINATION_ATOP) {"
+   ],
+   [
+    "    painter->setCompositeOpId(m_d->layer->compositeOpId());"
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/image/kis_layer_utils.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                node->projectionPlane()->apply(&gc, rc);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/image/kis_paint_device.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        endRect = Impl::calculateExactBoundsImpl(this, startRect, endRect, compareOp);"
+   ],
+   [
+    "        endRect = Impl::calculateExactBoundsImpl(this, startRect, endRect, compareOp);"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/image/kis_paint_layer.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        KisPainter::copyAreaOptimized(rect.topLeft(), original, projection, rect);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/image/kis_perspectivetransform_worker.cpp",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "libs/image/kis_processing_applicator.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            new StrategyWithStatusPromise(name, m_image.data());"
+   ],
+   [
+    "    if (!m_nodes.isEmpty()) {"
+   ],
+   [
+    "    if (!m_nodes.isEmpty()) {"
+   ]
+  ],
+  "suspect_lines": 3
+ },
+ {
+  "file": "libs/image/kis_processing_applicator.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        NO_IMAGE_UPDATES = 0x8"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/image/kis_projection_leaf.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    if (Private::isSelectionMask(m_d->node)) {"
+   ],
+   [
+    "    if (overlayLeaf && m_d->isTopmostNode()) {"
+   ],
+   [
+    "    KisNodeSP node = m_d->node->nextSibling();"
+   ],
+   [
+    "    return (bool)!m_d->node->parent();"
+   ],
+   [
+    "    return (bool)qobject_cast<const KisGroupLayer*>(m_d->node.data());"
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "libs/image/layerstyles/kis_layer_style_projection_plane.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        Q_FOREACH (const KisAbstractProjectionPlaneSP plane, m_d->allStyles()) {",
+    "            plane->recalculate(rect, filthyNode, flags);"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/image/processing/kis_transform_processing_visitor.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // (docs/agent/brush-stroke-layer-plan.md)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/image/tests/KisGpuBrushTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        const bool previewGpu = !previewFailure && previewPath != \"offset\" && previewPath != \"integer\";"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/image/tests/KisGpuProjectionTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " *    paint exclusion, moved by (10, 7)     (unaligned: CPU)"
+   ],
+   [
+    "    const KoColorSpace *target = KisGpuEngineSettings::conversionTarget(rgb8);"
+   ],
+   [
+    "    QCOMPARE(target->colorDepthId(), Float32BitsColorDepthID);"
+   ],
+   [
+    "    QVERIFY(!KisGpuEngineSettings::conversionTarget(rgbaFloat()));",
+    "    QVERIFY(!KisGpuEngineSettings::conversionTarget(rgbaFloat(true)));",
+    "    const KoColorSpace *labTarget = KisGpuEngineSettings::conversionTarget(registry->lab16());"
+   ]
+  ],
+  "suspect_lines": 6
+ },
+ {
+  "file": "libs/image/tests/KisPuppetTransformWorkerTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        // Current behaviour (hinge side unconstrained): 558 gap pixels."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/image/tiles3/KisTiledExtentManager.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    QWriteLocker lock(&m_extentLock);"
+   ],
+   [
+    "    QWriteLocker lock(&m_extentLock);"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/libkis/Selection.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "#include \"kis_iterator_ng.h\""
+   ],
+   [
+    "    KisPaintDeviceSP dev = node->node()->paintDevice();",
+    "    KisPaintDeviceSP clip = new KisPaintDevice(dev->colorSpace());",
+    "    KisPaintDeviceSP selectionProjection = d->selection->projection();"
+   ],
+   [
+    "    const KoColorSpace *cs = clip->colorSpace();",
+    "    const KoColorSpace *selCs = d->selection->projection()->colorSpace();"
+   ],
+   [
+    "    QRect rc = d->selection->selectedExactRect();"
+   ],
+   [
+    "    KisPaintDeviceSP src = KisClipboard::instance()->clip(QRect(), false);"
+   ]
+  ],
+  "suspect_lines": 8
+ },
+ {
+  "file": "libs/pigment/KoColorConversionCache.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    QThreadStorage<FastPathCacheItem*> fastStorage;"
+   ],
+   [
+    "    FastPathCacheItem *cacheItem =",
+    "        d->fastStorage.localData();"
+   ],
+   [
+    "    cacheItem = 0;"
+   ],
+   [
+    "    QList< CachedTransformation* > cachedTransfos = d->cache.values(key);",
+    "    if (cachedTransfos.size() != 0) {",
+    "        Q_FOREACH (CachedTransformation* ct, cachedTransfos) {",
+    "            ct->transfo->setSrcColorSpace(src);",
+    "            ct->transfo->setDstColorSpace(dst);"
+   ],
+   [
+    "        cacheItem = new FastPathCacheItem(key, KoCachedColorConversionTransformation(ct));"
+   ],
+   [
+    "    d->fastStorage.setLocalData(0);"
+   ],
+   [
+    "KoCachedColorConversionTransformation::KoCachedColorConversionTransformation(const KoCachedColorConversionTransformation& rhs)"
+   ],
+   [
+    "    Q_ASSERT(m_transfo->use > 0);",
+    "    m_transfo->use.deref();"
+   ]
+  ],
+  "suspect_lines": 14
+ },
+ {
+  "file": "libs/pigment/resources/KoColorSet.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    if (data.isEmpty() || data.isNull() || data.length() < 50) {"
+   ],
+   [
+    "    quint32 index = 0;",
+    ""
+   ],
+   [
+    "    // translated name will be in a tooltip, here don't translate",
+    "    colorSet->setName(lines[1].split(\":\")[1].trimmed());"
+   ],
+   [
+    "            r = qBound(0, a[0].toInt(), 255);",
+    "            g = qBound(0, a[1].toInt(), 255);",
+    "            b = qBound(0, a[2].toInt(), 255);"
+   ]
+  ],
+  "suspect_lines": 8
+ },
+ {
+  "file": "libs/pigment/tests/TestKoColorSet.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    KoColorSet set(QString(FILES_DATA_DIR)+ \"/gimp.gpl\");",
+    "    QVERIFY(set.load(KisGlobalResourcesInterface::instance()));",
+    "    QCOMPARE(set.paletteType(), KoColorSet::GPL);"
+   ],
+   [
+    "    QCOMPARE(set.colorCount(), 17);"
+   ],
+   [
+    "    set.setFilename(\"test.gpl\");",
+    "    QVERIFY(set.save());",
+    "    QVERIFY(set.filename() == \"test.gpl\");",
+    "    QCOMPARE(set.paletteType(), KoColorSet::GPL);"
+   ],
+   [
+    "    KoColorSet set2(\"test.gpl\");",
+    "    QVERIFY(set2.load(KisGlobalResourcesInterface::instance()));",
+    "    QCOMPARE(set2.paletteType(), KoColorSet::GPL);"
+   ]
+  ],
+  "suspect_lines": 11
+ },
+ {
+  "file": "libs/psd/psd_layer_section.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                const quint8 nodeClipping = 0;"
+   ],
+   [
+    "                const quint8 nodeClipping = 0;"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/resources/KisResourceCacheDb.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "// in a new profile (docs/agent/settings-location.md, phase 4)."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/resources/KisResourceModel.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    if (!d->resourcesQuery.first()) {",
+    "        return QModelIndex();"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/widgets/KisPaletteChooser.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    Q_EMIT sigExportPalette(palette);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/widgets/KisPaletteModel.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    KisSwatchGroup::SwatchInfo info = colorSet()->getClosestSwatchInfo(compare);",
+    "    return createIndex(indexRowForInfo(info), info.column, colorSet()->getGroup(info.group).data());"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "libs/widgets/KoDockWidgetTitleBar.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "     * Solstice interface (docs/agent/ui-modernization-plan.md, phase 2): a",
+    "     * title band with a separator line and more padding. Off by default; the",
+    "     * main window sets it from the \"Solstice/ModernInterface\" setting before",
+    "     * and after creating dockers, and title bars created later follow it."
+   ]
+  ],
+  "suspect_lines": 4
+ },
+ {
+  "file": "libs/widgetutils/KisSolsticeStyle.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * The \"Solstice\" widget style (docs/agent/ui-modernization-plan.md, phase 3):"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "libs/widgetutils/xmlgui/kcheckaccelerators.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        const bool autoCheck = cg.readEntry(\"AutoCheckAccelerators\", true);"
+   ]
+  ],
+  "suspect_lines": 1
+ }
+]

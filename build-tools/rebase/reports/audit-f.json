@@ -1,0 +1,145 @@
+[
+ {
+  "file": "cmake/modules/SolsticeEmbedRcc.cmake",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/settings-location.md: kritarc defaults)."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "krita/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "set(KRITA5_XMLGUI_VERSION 548)"
+   ],
+   [
+    "set(krita5_xmlgui_hash_expected \"1f4e3e0332e0d94c8f4dd4fd8ba66b2c\")"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "krita/krita.action",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "      <icon></icon>"
+   ],
+   [
+    "      <icon></icon>"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "krita/kritamenu.action",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "krita/main.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    const bool japanese = solsticeUseJapanese();"
+   ],
+   [
+    "            showSolsticeProfileError((solsticeUseJapanese()",
+    "                                          ? QStringLiteral(\"Krita \u306e\u8a2d\u5b9a\u3092\u30b3\u30d4\u30fc\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f\u3002\\n%1\")",
+    "                                          : QStringLiteral(\"Could not copy the Krita settings.\\n%1\"))"
+   ],
+   [
+    "        showSolsticeProfileError((solsticeUseJapanese()",
+    "                                      ? QStringLiteral(\"Solstice \u306e\u30d5\u30a9\u30eb\u30c0\u30fc\u3092\u4f5c\u6210\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f\u3002\\n%1\")",
+    "                                      : QStringLiteral(\"Could not create Solstice's folders.\\n%1\"))"
+   ],
+   [
+    "    const bool japanese = solsticeUseJapanese();"
+   ],
+   [
+    "    QProgressDialog dialog(japanese ? QStringLiteral(\"Krita \u306e\u30ea\u30bd\u30fc\u30b9\u3092 Solstice \u306b\u30b3\u30d4\u30fc\u3057\u3066\u3044\u307e\u3059\u2026\")",
+    "                                    : QStringLiteral(\"Copying Krita's resources to Solstice\u2026\"),",
+    "                           japanese ? QStringLiteral(\"\u30ad\u30e3\u30f3\u30bb\u30eb\") : QStringLiteral(\"Cancel\"),"
+   ],
+   [
+    "                         (japanese ? QStringLiteral(\"Krita \u306e\u8a2d\u5b9a\u306e\u5f15\u304d\u7d99\u304e\u3092\u4e2d\u6b62\u3057\u307e\u3057\u305f\u3002\\n%1\\n\\n\"",
+    "                                                    \"\u6b21\u56de\u306e\u8d77\u52d5\u6642\u306b\u3082\u3046\u4e00\u5ea6\u78ba\u8a8d\u3057\u307e\u3059\u3002\")",
+    "                                   : QStringLiteral(\"Importing the Krita profile was stopped.\\n%1\\n\\n\"",
+    "                                                    \"Solstice asks again next time.\"))"
+   ]
+  ],
+  "suspect_lines": 15
+ },
+ {
+  "file": "packaging/windows/package-complete.py",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    ""
+   ],
+   [
+    "    pycache = f\"{d[0]}\\\\__pycache__\"",
+    "    if os.path.isdir(pycache):",
+    "        logger.debug(f\"Deleting Python cache {pycache}\")",
+    "        shutil.rmtree(pycache)"
+   ],
+   [
+    "    logger.info(\"Deleting unnecessary Python packages\")"
+   ],
+   [
+    "if os.environ.get('KRITACI_SKIP_SPLIT_DEBUG', '0').lower() not in ['true', '1', 'on']:"
+   ],
+   [
+    "if os.environ.get('KRITACI_SKIP_DEBUG_PACKAGE', '0').lower() not in ['true', '1', 'on']:"
+   ]
+  ],
+  "suspect_lines": 8
+ },
+ {
+  "file": "plugins/python/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    plugin_importer/plugin_importer.action",
+    "    mutator/mutator.action"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/python/assignprofiledialog/assignprofiledialog.py",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        action = window.createAction(\"assing_profile_to_image\","
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/python/channels2layers/channels2layers.py",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        # always ensure that final preview width and/or height is lower or equal than OUTPUT_PREVIEW_MAXSIZE"
+   ],
+   [
+    "            rect.setWidth(int(imageRatio * OUTPUT_PREVIEW_MAXSIZE))"
+   ],
+   [
+    "            rect.setHeight(int(OUTPUT_PREVIEW_MAXSIZE / imageRatio))"
+   ],
+   [
+    "",
+    "        document.rootNode().addChildNode(parentGroupLayer, originalLayer)",
+    "        self.progressNext(pProgress)"
+   ]
+  ],
+  "suspect_lines": 6
+ }
+]

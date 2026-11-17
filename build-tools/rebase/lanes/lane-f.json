@@ -1,0 +1,66 @@
+{
+ "copy": [],
+ "merge": [
+  [
+   "cmake/modules/SolsticeEmbedRcc.cmake",
+   1,
+   1
+  ],
+  [
+   "krita/CMakeLists.txt",
+   3,
+   2
+  ],
+  [
+   "krita/krita.action",
+   38,
+   110
+  ],
+  [
+   "krita/kritamenu.action",
+   13,
+   14
+  ],
+  [
+   "krita/main.cc",
+   48,
+   44
+  ],
+  [
+   "packaging/windows/package-complete.py",
+   35,
+   28
+  ],
+  [
+   "plugins/python/CMakeLists.txt",
+   22,
+   11
+  ],
+  [
+   "plugins/python/assignprofiledialog/assignprofiledialog.py",
+   1,
+   1
+  ],
+  [
+   "plugins/python/channels2layers/channels2layers.py",
+   6,
+   19
+  ]
+ ],
+ "keep": [
+  "krita/data/shaders/highq_downscale.frag",
+  "krita/krita5.xmlgui",
+  "krita/windows_stub_main.cpp"
+ ],
+ "dirty_merge": [
+  "krita/CMakeLists.txt",
+  "krita/krita.action",
+  "packaging/windows/package-complete.py"
+ ],
+ "summary": {
+  "copy": 0,
+  "merge": 9,
+  "keep": 3,
+  "dirty_merge": 3
+ }
+}

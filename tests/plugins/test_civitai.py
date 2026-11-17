@@ -35,7 +35,7 @@ def _import_civitai():
 
 @pytest.fixture(scope="module")
 def civitai():
-    pytest.importorskip("PyQt6")
+    pytest.importorskip("PyQt6.QtNetwork")
     return _import_civitai()
 
 

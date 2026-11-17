@@ -178,19 +178,8 @@ namespace
 // Solstice profile: the first start asks whether to import the Krita profile
 // (docs/agent/settings-location.md). The question comes before Qt starts,
 // because the display, language and main configuration are read before the
-// application exists; the texts are built in, in English and Japanese.
-
-bool solsticeUseJapanese()
-{
-    if (KisSolsticeProfile::legacyLanguage().startsWith(QLatin1String("ja"))) {
-        return true;
-    }
-#ifdef Q_OS_WIN
-    return PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_JAPANESE;
-#else
-    return false;
-#endif
-}
+// application exists; the texts are built in, in English, Japanese and
+// Simplified Chinese (KisSolsticeProfile::builtInText()).
 
 void showSolsticeProfileError(const QString &message)
 {
@@ -212,28 +201,33 @@ enum class SolsticeProfileChoice {
 
 SolsticeProfileChoice askImportKritaProfile(qint64 resourceBytes)
 {
-    const bool japanese = solsticeUseJapanese();
+    using KisSolsticeProfile::builtInText;
     const QString size = QString::number(double(resourceBytes) / (1024.0 * 1024.0 * 1024.0), 'f', 1);
-    QString text;
-    if (japanese) {
-        text = QStringLiteral(
-                   "Krita の設定とリソースが見つかりました。\n\n"
-                   "Solstice に引き継ぎますか？\n\n"
-                   "はい: Krita の設定、ブラシ、ワークスペースなどを Solstice 用のフォルダーにコピーします%1。"
-                   "Krita のファイルは変更しません。\n"
-                   "いいえ: Solstice の初期設定で始めます。\n"
-                   "キャンセル: 今回は起動しません。次回の起動時にもう一度確認します。")
-                   .arg(resourceBytes > 0 ? QStringLiteral("（約 %1 GB）").arg(size) : QString());
-    } else {
-        text = QStringLiteral(
-                   "Krita settings and resources were found.\n\n"
-                   "Do you want to use them in Solstice?\n\n"
-                   "Yes: copy Krita's settings, brushes, workspaces and other resources to Solstice's own "
-                   "folder%1. Krita's files are not changed.\n"
-                   "No: start with Solstice's default settings.\n"
-                   "Cancel: do not start now; Solstice asks again next time.")
-                   .arg(resourceBytes > 0 ? QStringLiteral(" (about %1 GB)").arg(size) : QString());
-    }
+    const QString sizeText = resourceBytes > 0
+        ? builtInText(QStringLiteral(" (about %1 GB)"), QStringLiteral("（約 %1 GB）"), QStringLiteral("（约 %1 GB）"))
+              .arg(size)
+        : QString();
+    const QString text =
+        builtInText(
+            QStringLiteral("Krita settings and resources were found.\n\n"
+                           "Do you want to use them in Solstice?\n\n"
+                           "Yes: copy Krita's settings, brushes, workspaces and other resources to Solstice's own "
+                           "folder%1. Krita's files are not changed.\n"
+                           "No: start with Solstice's default settings.\n"
+                           "Cancel: do not start now; Solstice asks again next time."),
+            QStringLiteral("Krita の設定とリソースが見つかりました。\n\n"
+                           "Solstice に引き継ぎますか？\n\n"
+                           "はい: Krita の設定、ブラシ、ワークスペースなどを Solstice 用のフォルダーにコピーします%1。"
+                           "Krita のファイルは変更しません。\n"
+                           "いいえ: Solstice の初期設定で始めます。\n"
+                           "キャンセル: 今回は起動しません。次回の起動時にもう一度確認します。"),
+            QStringLiteral("找到了 Krita 的设置和资源。\n\n"
+                           "要在 Solstice 中继续使用它们吗？\n\n"
+                           "是：将 Krita 的设置、笔刷、工作区等资源复制到 Solstice 自己的文件夹%1。"
+                           "Krita 的文件不会被更改。\n"
+                           "否：使用 Solstice 的默认设置启动。\n"
+                           "取消：本次不启动；下次启动时会再次询问。"))
+            .arg(sizeText);
 #ifdef Q_OS_WIN
     switch (MessageBoxW(nullptr,
                         reinterpret_cast<LPCWSTR>(text.utf16()),
@@ -277,9 +271,9 @@ bool prepareSolsticeProfile(int argc, char **argv)
                 return true;
             }
             abandonImport();
-            showSolsticeProfileError((solsticeUseJapanese()
-                                          ? QStringLiteral("Krita の設定をコピーできませんでした。\n%1")
-                                          : QStringLiteral("Could not copy the Krita settings.\n%1"))
+            showSolsticeProfileError(builtInText(QStringLiteral("Could not copy the Krita settings.\n%1"),
+                                                 QStringLiteral("Krita の設定をコピーできませんでした。\n%1"),
+                                                 QStringLiteral("无法复制 Krita 的设置。\n%1"))
                                          .arg(error));
             return false;
         case SolsticeProfileChoice::Fresh:
@@ -287,9 +281,9 @@ bool prepareSolsticeProfile(int argc, char **argv)
         }
     }
     if (!createFreshProfile(&error)) {
-        showSolsticeProfileError((solsticeUseJapanese()
-                                      ? QStringLiteral("Solstice のフォルダーを作成できませんでした。\n%1")
-                                      : QStringLiteral("Could not create Solstice's folders.\n%1"))
+        showSolsticeProfileError(builtInText(QStringLiteral("Could not create Solstice's folders.\n%1"),
+                                             QStringLiteral("Solstice のフォルダーを作成できませんでした。\n%1"),
+                                             QStringLiteral("无法创建 Solstice 的文件夹。\n%1"))
                                      .arg(error));
         return false;
     }
@@ -304,11 +298,11 @@ bool finishSolsticeImport()
     if (state() != State::Importing) {
         return true;
     }
-    const bool japanese = solsticeUseJapanese();
     const ResourceCopyPlan plan = planResourceCopy();
-    QProgressDialog dialog(japanese ? QStringLiteral("Krita のリソースを Solstice にコピーしています…")
-                                    : QStringLiteral("Copying Krita's resources to Solstice…"),
-                           japanese ? QStringLiteral("キャンセル") : QStringLiteral("Cancel"),
+    QProgressDialog dialog(builtInText(QStringLiteral("Copying Krita's resources to Solstice…"),
+                                       QStringLiteral("Krita のリソースを Solstice にコピーしています…"),
+                                       QStringLiteral("正在将 Krita 的资源复制到 Solstice…")),
+                           builtInText(QStringLiteral("Cancel"), QStringLiteral("キャンセル"), QStringLiteral("取消")),
                            0,
                            1000);
     dialog.setWindowTitle(QStringLiteral("Solstice"));
@@ -337,10 +331,12 @@ bool finishSolsticeImport()
     abandonImport();
     QMessageBox::warning(nullptr,
                          QStringLiteral("Solstice"),
-                         (japanese ? QStringLiteral("Krita の設定の引き継ぎを中止しました。\n%1\n\n"
-                                                    "次回の起動時にもう一度確認します。")
-                                   : QStringLiteral("Importing the Krita profile was stopped.\n%1\n\n"
-                                                    "Solstice asks again next time."))
+                         builtInText(QStringLiteral("Importing the Krita profile was stopped.\n%1\n\n"
+                                                    "Solstice asks again next time."),
+                                     QStringLiteral("Krita の設定の引き継ぎを中止しました。\n%1\n\n"
+                                                    "次回の起動時にもう一度確認します。"),
+                                     QStringLiteral("已中止导入 Krita 的设置。\n%1\n\n"
+                                                    "下次启动时会再次询问。"))
                              .arg(error));
     return false;
 }

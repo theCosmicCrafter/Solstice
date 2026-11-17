@@ -77,6 +77,12 @@ if ($Stage -eq 'configure') {
 } elseif ($Stage -eq 'build') {
     Invoke-Logged cmake @('--build', $Build, '--parallel', "$Jobs") 'build.log'
     Invoke-Logged cmake @('--install', $Build) 'install.log'
+    # Build the CPU runtime against this job's installed Qt/QMic ABI.
+    Invoke-Logged $Python @(
+        (Join-Path $Source 'build-tools/gmic/build-runtime.py'),
+        '--work', (Join-Path $Root 'gmic'), '--install', $Install,
+        '--deps', $Deps, '--compiler-bin', $CompilerBin, '--jobs', "$Jobs"
+    ) 'gmic-build.log'
     foreach ($Required in @('bin/solstice.exe', 'bin/solstice.com', 'bin/solstice-launcher.exe', 'bin/krita.dll', 'bin/libkritagpu.dll')) {
         if (-not (Test-Path (Join-Path $Install $Required))) { throw "Missing output: $Required" }
     }
@@ -107,6 +113,7 @@ Commit: $env:GITHUB_SHA
 Run: https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
 GPU engine: compiled; GPU runtime and interactive tests were not run.
 Dependency versions and source revisions: windows-dependencies.lock.json
+G'MIC CPU runtime: 3.7.4.1; pinned source and Solstice patches in share/gmic/source
 Explorer thumbnails: shellex\register-thumbnails.cmd (Krita Shell Extension 1.2.4d, MIT)
 "@ | Set-Content -Path (Join-Path $PackageDir 'BUILD-INFO.txt') -Encoding utf8
     Get-ChildItem -LiteralPath $PackageDir -Filter '*.zip' | ForEach-Object {

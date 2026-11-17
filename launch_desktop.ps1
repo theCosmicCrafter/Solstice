@@ -62,7 +62,7 @@ public class DesktopLauncher {
             IntPtr.Zero,
             IntPtr.Zero,
             false,
-            0,
+            0x00000200, /* CREATE_NEW_PROCESS_GROUP */
             IntPtr.Zero,
             workDir,
             ref si,

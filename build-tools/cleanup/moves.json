@@ -1,0 +1,44 @@
+[
+  {
+    "src": "plugins/python/moss.rej",
+    "dst": "patches/moss.rej",
+    "category": "patches",
+    "confidence": "high"
+  },
+  {
+    "src": "plugins/python/moss_plugin.diff",
+    "dst": "patches/moss_plugin.diff",
+    "category": "patches",
+    "confidence": "high"
+  },
+  {
+    "src": "plugins/python/moss_pr.diff",
+    "dst": "patches/moss_pr.diff",
+    "category": "patches",
+    "confidence": "high"
+  },
+  {
+    "src": "plugins/python/.appdata",
+    "dst": "caches/plugins-python-appdata",
+    "category": "caches",
+    "confidence": "high"
+  },
+  {
+    "src": "tests/e2e/_last_run_stderr.log",
+    "dst": "caches/tests-e2e/_last_run_stderr.log",
+    "category": "caches",
+    "confidence": "high"
+  },
+  {
+    "src": "nul",
+    "dst": "misc/nul",
+    "category": "misc",
+    "confidence": "high"
+  },
+  {
+    "src": "test.tif",
+    "dst": "misc/test.tif",
+    "category": "misc",
+    "confidence": "high"
+  }
+]

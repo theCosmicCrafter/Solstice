@@ -1,0 +1,10 @@
+{
+  "version": "3.7.4.1",
+  "url": "https://github.com/vanyossi/gmic/releases/download/v3.7.4.1/gmic-3.7.4.1.tar.gz",
+  "sha256": "15674b544264fbc3f020be6fae27477aee6ac49316416f538e578a18ddb23879",
+  "directory": "gmic-v3.7.4.1",
+  "host": "krita-plugin",
+  "interfaceVersion": "0x05010001",
+  "cpu": ["OpenMP", "FFTW3"],
+  "resources": ["gmic_cluts.gmz", "gmic_denoise_cnn.gmz", "gmic_lightleaks.gmz", "gmic_scale2x_cnn.gmz"]
+}

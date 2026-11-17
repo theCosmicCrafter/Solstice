@@ -20,6 +20,7 @@
         <file>dark_krita_tool_measure.svg</file>
         <file>dark_krita_tool_move.svg</file>
         <file>dark_krita_tool_multihand.svg</file>
+        <file>dark_krita_tool_through_layer_eraser.svg</file>
         <file>dark_krita_tool_polygon.svg</file>
         <file>dark_krita_tool_rectangle.svg</file>
         <file>dark_krita_tool_transform.svg</file>
@@ -58,6 +59,7 @@
         <file>light_krita_tool_measure.svg</file>
         <file>light_krita_tool_move.svg</file>
         <file>light_krita_tool_multihand.svg</file>
+        <file>light_krita_tool_through_layer_eraser.svg</file>
         <file>light_krita_tool_polygon.svg</file>
         <file>light_krita_tool_rectangle.svg</file>
         <file>light_krita_tool_transform.svg</file>
@@ -88,6 +90,8 @@
         <file>light_krita_tool_lazybrush.svg</file>
         <file>dark_krita_tool_smart_patch.svg</file>
         <file>light_krita_tool_smart_patch.svg</file>
+        <file>dark_krita_tool_remove_dust.svg</file>
+        <file>light_krita_tool_remove_dust.svg</file>
         <file>light_krita_tool_assistant.svg</file>
         <file>dark_krita_tool_assistant.svg</file>
         <file>dark_krita_tool_reference_images.svg</file>

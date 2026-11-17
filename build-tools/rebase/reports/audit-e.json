@@ -1,0 +1,1174 @@
+[
+ {
+  "file": "plugins/filters/blur/kis_lens_blur_filter.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    ""
+   ],
+   [
+    "KisConfigWidget * KisLensBlurFilter::createConfigurationWidget(QWidget* parent, const KisPaintDeviceSP, bool) const"
+   ],
+   [
+    "    return new KisWdgLensBlur(parent);"
+   ],
+   [
+    "    Eigen::Matrix<qreal, Eigen::Dynamic, Eigen::Dynamic> irisKernel(kernelHeight, kernelWidth);"
+   ],
+   [
+    "            irisKernel(j, i) = qRed(kernelRepresentation.pixel(i, j));"
+   ],
+   [
+    "    // apply convolution"
+   ],
+   [
+    "    KisConvolutionKernelSP kernel = KisConvolutionKernel::fromMatrix(irisKernel, 0, irisKernel.sum());"
+   ]
+  ],
+  "suspect_lines": 7
+ },
+ {
+  "file": "plugins/filters/blur/kis_wdg_lens_blur.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            if (m_shapeTranslations[value.toString()] == m_widget->irisShapeCombo->itemText(i)) {"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/impex/heif/HeifExport.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    sliderQuality->setValue(qreal(cfg->getInt(\"quality\", 90)));"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/impex/libkra/kis_kra_saver.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    if (!image->compositions().isEmpty()) {"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/impex/libkra/kis_kra_tags.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "// strokes in a file beside its pixels (docs/agent/brush-stroke-layer-plan.md)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/impex/png/kis_png_export.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    chkForceSRGB->setChecked(cfg->getBool(\"forceSRGB\", false));"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/impex/webp/kis_wdg_options_webp.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    quality->setValue(cfg->getDouble(\"quality\", 90.0));"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/metadata/exif/kis_exif_io.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    const Exiv2::DataValue *dvalue = dynamic_cast<const Exiv2::DataValue *>(&*value);",
+    "    Q_ASSERT(dvalue);"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/colorsmudge/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/colorsmudge/kis_colorsmudgeop.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    qreal scale = m_sizeOption.apply(info);"
+   ],
+   [
+    "    const qreal scale = m_sizeOption.apply(info) * KisLodTransform::lodToScale(painter()->device());"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/colorsmudge/kis_colorsmudgeop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4)"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/colorsmudge/tests/KisColorSmudgeParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Color Smudge editor"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/curvebrush/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/curvebrush/kis_curve_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/curvebrush/tests/KisCurveParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Curve editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/brush/kis_brushop.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    qreal scale = m_sizeOption.apply(info);"
+   ],
+   [
+    "    const qreal scale = m_sizeOption.apply(info) * KisLodTransform::lodToScale(painter()->device());"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/brush/kis_brushop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 2b). The brush tip is read first: the masking brush reads with",
+    "    // its size."
+   ]
+  ],
+  "suspect_lines": 3
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/brush/tests/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# the brush stroke layer with the Transform Tool's stroke"
+   ],
+   [
+    "    LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritatooltransform_static kritaui kritatestsdk"
+   ],
+   [
+    "    ${CMAKE_BINARY_DIR}/plugins/tools/tool_transform2)"
+   ]
+  ],
+  "suspect_lines": 3
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/brush/tests/KisAbrPresetTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * Phase 4 of docs/agent/abr-import-plan.md: an ABR file's brush presets"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/brush/tests/KisBrushStrokeLayerTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * Stage 2a of the brush stroke layer plan (docs/agent/brush-stroke-layer-plan.md):"
+   ],
+   [
+    "                 const QPointF &shift = QPointF())"
+   ],
+   [
+    "    provider.setResource(KoCanvasResource::MirrorHorizontal, false);",
+    "    provider.setResource(KoCanvasResource::MirrorVertical, false);"
+   ],
+   [
+    "    resources->setMirroring(false, false);"
+   ]
+  ],
+  "suspect_lines": 5
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/brush/tests/KisBrushStrokeLayerTransformTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-stroke-layer-plan.md): a free transform that only"
+   ],
+   [
+    "    ToolTransformArgs args;"
+   ],
+   [
+    "        [&](TransformTransactionProperties, ToolTransformArgs initial, void *) {",
+    "            args = initial;"
+   ],
+   [
+    "    KisStrokeId id = image->startStroke(strategy);"
+   ],
+   [
+    "        image->cancelStroke(id);"
+   ]
+  ],
+  "suspect_lines": 6
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/brush/tests/KisBrushStrokeReplayTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * Stage 1 of the brush stroke layer plan (docs/agent/brush-stroke-layer-plan.md):"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/brush/tests/KisBrushTipOptionParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the brush tip and masking"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/brush/tests/KisCloneParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Clone editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/brush/tests/KisPaintOpParityTestUtils.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): an engine's editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/duplicate/kis_duplicateop.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    qreal scale = m_sizeOption.apply(info);"
+   ],
+   [
+    "    return effectiveSpacing(m_sizeOption.apply(info));"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/defaultpaintops/duplicate/kis_duplicateop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/deform/kis_deform_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // only that option (docs/agent/brush-option-shared-model-plan.md)."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/experiment/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/experiment/kis_experiment_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/experiment/tests/KisExperimentParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Shape (Experiment) editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/filterop/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/filterop/kis_filterop.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    qreal scale = m_sizeOption.apply(info);"
+   ],
+   [
+    "    const qreal scale = m_sizeOption.apply(info) * KisLodTransform::lodToScale(painter()->device());"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/filterop/kis_filterop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/filterop/tests/KisFilterOpParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Filter editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/gridbrush/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/gridbrush/kis_grid_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/gridbrush/tests/KisGridParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Grid editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/hairy/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/hairy/kis_hairy_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/hairy/tests/KisHairyParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Bristle (Hairy) editor"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/hatching/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/hatching/kis_hatching_paintop.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    const double scale = additionalScale * m_sizeOption.apply(info);"
+   ],
+   [
+    "    const qreal scale = KisLodTransform::lodToScale(painter()->device()) * m_sizeOption.apply(info);"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/hatching/kis_hatching_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/hatching/tests/KisHatchingParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Hatching editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/KisBrushBasedOptionStates.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md, phase 2b)."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/KisBrushTipOptionData.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md, phase 2a)."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/KisFilterOptionModel.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    /// in KisPaintOpOptionsModel (docs/agent/brush-option-shared-model-plan.md)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/KisMaskingBrushOption.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    /// KisMaskingBrushOptionData (docs/agent/brush-option-shared-model-plan.md)."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/KisMaskingBrushOption.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    /// model (docs/agent/brush-option-shared-model-plan.md, phase 2a)."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/KisPaintOpOptionStateUtils.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * instead of the widget. See docs/agent/brush-option-shared-model-plan.md."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/KisStandardOptionData.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "// (docs/agent/brush-option-shared-model-plan.md, phase 2b)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/kis_brush_based_paintop_options_widget.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    /// shared options model (docs/agent/brush-option-shared-model-plan.md)."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/kis_brush_option_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    /// model can hold it (docs/agent/brush-option-shared-model-plan.md)."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/kis_brush_option_widget.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    /// model (docs/agent/brush-option-shared-model-plan.md, phase 2a)."
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/libpaintop/kis_clipboard_brush_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        pd = m_clipboard->clip(QRect(0, 0, 0, 0), false);     //Weird! Don't know how this works!"
+   ],
+   [
+    "            QRect rc = pd->exactBounds();"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/mypaint/MyPaintPaintOpSettingsWidget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4). Every curve option patches only its own part of the shared"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/mypaint/tests/KisMyPaintParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the MyPaint editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/particle/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/particle/kis_particle_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/particle/tests/KisParticleParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Particle editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/roundmarker/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/roundmarker/kis_roundmarkerop.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    const qreal scale = m_sizeOption.apply(info) * lodScale;"
+   ],
+   [
+    "    const qreal diameter = m_markerOption.diameter * m_sizeOption.apply(info) * lodScale;"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/roundmarker/kis_roundmarkerop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/roundmarker/tests/KisRoundMarkerParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Quick Brush editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/sketch/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/sketch/kis_sketch_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/sketch/tests/KisSketchParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Sketch editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/spray/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/spray/kis_spray_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4). The spray shape page shows its size relative to the spray"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/spray/tests/KisSprayParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Spray editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/tangentnormal/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "# (docs/agent/brush-option-shared-model-plan.md, phase 4)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/paintops/tangentnormal/kis_tangent_normal_paintop.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    qreal scale    = m_sizeOption.apply(info);"
+   ],
+   [
+    "    qreal scale = m_sizeOption.apply(info) * KisLodTransform::lodToScale(painter()->device());"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/tangentnormal/kis_tangent_normal_paintop_settings_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,",
+    "    // phase 4); no option's written data depends on another"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/paintops/tangentnormal/tests/KisTangentNormalParityTest.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    " * (docs/agent/brush-option-shared-model-plan.md): the Tangent Normal editor must"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/tools/basictools/kis_tool_move.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "bool KisToolMove::startStrokeImpl(MoveToolMode mode, const QPoint *pos)"
+   ],
+   [
+    "            new MoveSelectionStrokeStrategy(paintLayer,",
+    "                                            selection,",
+    "                                            image.data(),",
+    "                                            image.data());"
+   ],
+   [
+    "    KIS_SAFE_ASSERT_RECOVER_RETURN(m_strokeId);"
+   ],
+   [
+    "        startAction(event, MoveGroup);"
+   ],
+   [
+    "void KisToolMove::startAction(KoPointerEvent *event, MoveToolMode mode)"
+   ],
+   [
+    "    if (startStrokeImpl(mode, &pos)) {"
+   ]
+  ],
+  "suspect_lines": 9
+ },
+ {
+  "file": "plugins/tools/basictools/kis_tool_move.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    void startAction(KoPointerEvent *event, MoveToolMode mode);"
+   ],
+   [
+    "    bool startStrokeImpl(MoveToolMode mode, const QPoint *pos);"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/tools/basictools/strokes/move_selection_stroke_strategy.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                                                         KisStrokeUndoFacade *undoFacade)",
+    "    : KisStrokeStrategyUndoCommandBased(kundo2_i18n(\"Move Selection\"), false, undoFacade),"
+   ],
+   [
+    "      m_updatesFacade(updatesFacade)"
+   ],
+   [
+    "      m_updatesFacade(rhs.m_updatesFacade)"
+   ],
+   [
+    "    KisTransaction cutTransaction(name(), paintDevice);",
+    "    paintDevice->clearSelection(m_selection);",
+    "    runAndSaveCommand(KUndo2CommandSP(cutTransaction.endAndTake()),",
+    "                      KisStrokeJobData::SEQUENTIAL,",
+    "                      KisStrokeJobData::NORMAL);"
+   ],
+   [
+    "    // pixels; the selection has moved already, so look where it was",
+    "    if (KisBrushStrokeLayer *strokeLayer = dynamic_cast<KisBrushStrokeLayer *>(m_paintLayer.data())) {"
+   ],
+   [
+    "        if (KUndo2Command *recordCommand = strokeLayer->createSelectionMoveCommand(mask, m_finalOffset)) {"
+   ]
+  ],
+  "suspect_lines": 12
+ },
+ {
+  "file": "plugins/tools/basictools/strokes/move_selection_stroke_strategy.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                                KisStrokeUndoFacade *undoFacade);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/tools/defaulttool/defaulttool/DefaultTool.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        , m_selection(parent->koSelection())"
+   ],
+   [
+    "    QPointer<KoSelection> m_selection;"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/tools/tool_enclose_and_fill/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "install( FILES KisToolEncloseAndFill.action DESTINATION  ${KDE_INSTALL_DATADIR}/krita/actions)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/tools/tool_transform2/kis_tool_transform.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        // Builds the mesh; the stroke renders with it from now on."
+   ],
+   [
+    "        commitChanges();"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/tools/tool_transform2/kis_tool_transform_config_widget.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            \"What a click on a pin does. Alt-click always deletes a pin.\\n\""
+   ],
+   [
+    "            {\"\\u2191\\u2191\","
+   ],
+   [
+    "            {\"\\u2191\", i18n(\"Bring the selected pins' parts forward\"), ToolTransformArgs::PuppetOrderForward},",
+    "            {\"\\u2193\", i18n(\"Send the selected pins' parts backward\"), ToolTransformArgs::PuppetOrderBackward},",
+    "            {\"\\u2193\\u2193\", i18n(\"Send the selected pins' parts to the back\"), ToolTransformArgs::PuppetOrderToBack},"
+   ],
+   [
+    "            i18n(\"Click the canvas to add pins. Alt-click a pin to delete it. \""
+   ]
+  ],
+  "suspect_lines": 6
+ },
+ {
+  "file": "plugins/tools/tool_transform2/kis_transform_utils.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        config.createPuppetWorker().run(srcDevice, dstDevice);"
+   ],
+   [
+    "        result = config.createPuppetWorker().approxChangeRect(rc) | rc;"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/tools/tool_transform2/kis_warp_transform_strategy.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "        const qreal rotationRadius = 2.4 * handleRadius;"
+   ],
+   [
+    "        // Puppet: Alt or the \"Delete pin\" click action deletes; Shift or Ctrl"
+   ],
+   [
+    "        || puppetWorkerRotations != currentArgs.puppetRotations()) {"
+   ],
+   [
+    "            const qreal angle = KisAlgebra2D::angleBetweenVectors(oldDirection, newDirection);"
+   ],
+   [
+    "    return m_d->shouldCloseTheCage() ||",
+    "        m_d->currentArgs.isEditingTransformPoints();"
+   ],
+   [
+    "        return true;"
+   ]
+  ],
+  "suspect_lines": 7
+ },
+ {
+  "file": "plugins/tools/tool_transform2/strokes/inplace_transform_stroke_strategy.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    // (a copy-on-write copy, so the tool reads its own tiles)."
+   ],
+   [
+    "            const QList<KisPaintDeviceSP> caches = m_d->devicesCacheHash.values();"
+   ],
+   [
+    "    redrawRecordedStrokes(mutatedJobs);"
+   ],
+   [
+    "void InplaceTransformStrokeStrategy::redrawRecordedStrokes(QVector<KisStrokeJobData *> &mutatedJobs)"
+   ],
+   [
+    "    // (docs/agent/brush-stroke-layer-plan.md)"
+   ],
+   [
+    "        KritaUtils::addJobSequential(mutatedJobs, [this, node, redrawable]() {"
+   ],
+   [
+    "            if (m_d->currentTransformArgs.mode() != ToolTransformArgs::FREE_TRANSFORM)"
+   ],
+   [
+    "            const QTransform transform = KisTransformUtils::MatricesPack(m_d->currentTransformArgs).finalTransform();"
+   ],
+   [
+    "            const ToolTransformArgs args = m_d->currentTransformArgs;"
+   ]
+  ],
+  "suspect_lines": 9
+ },
+ {
+  "file": "plugins/tools/tool_transform2/strokes/inplace_transform_stroke_strategy.h",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    void redrawRecordedStrokes(QVector<KisStrokeJobData *> &mutatedJobs);"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/tools/tool_transform2/strokes/transform_stroke_strategy.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                // instead (docs/agent/brush-stroke-layer-plan.md)"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/tools/tool_transform2/tool_transform_args.cc",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    m_puppetRotations.resize(qMin(m_origPoints.size(), m_transfPoints.size()));",
+    "    m_puppetOrders.resize(m_puppetRotations.size());"
+   ]
+  ],
+  "suspect_lines": 2
+ },
+ {
+  "file": "plugins/visionml/README.md",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ },
+ {
+  "file": "plugins/visionml/src/CMakeLists.txt",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "            -Wno-unused-parameter -Wno-missing-prototypes -Wno-undef"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/visionml/src/VisionML.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    for (const QString &folder : {QStringLiteral(\"sam\"), QStringLiteral(\"birefnet\"), QStringLiteral(\"migan\")}) {"
+   ],
+   [
+    "        throw std::runtime_error(\"Model file not found: \" + modelName(task).toStdString());"
+   ],
+   [
+    "        throw std::runtime_error(\"Unsupported image format for conversion to QImage\");"
+   ]
+  ],
+  "suspect_lines": 3
+ },
+ {
+  "file": "plugins/visionml/src/inpaint/InpaintTool.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "                throw std::runtime_error(\"Unsupported mask color space: \" + maskCS->id().toStdString());"
+   ]
+  ],
+  "suspect_lines": 1
+ },
+ {
+  "file": "plugins/visionml/src/segmentation/SegmentationToolHelper.cpp",
+  "status": "SUSPECT",
+  "suspect_hunks": [
+   [
+    "    m_bounds = inputImage->exactBounds();"
+   ],
+   [
+    "        noWork |= helper.tryDeselectCurrentSelection(QRectF(region), options.action);"
+   ],
+   [
+    "                    return nullptr; // Early out when there was no input image to process."
+   ],
+   [
+    "                    QPoint point = prompt.toPoint() - bounds.topLeft();"
+   ],
+   [
+    "                    QRect rect = prompt.toRect().intersected(bounds).translated(-bounds.topLeft());"
+   ],
+   [
+    "                selection->writeBytes(mask.data.get(), imageBounds(bounds.topLeft(), mask.extent));"
+   ],
+   [
+    "                                                           report = &m_errorReporter,",
+    "                                                           inputImage,",
+    "                                                           image,",
+    "                                                           strokeId,",
+    "                                                           region,",
+    "                                                           polygon,",
+    "                                                           selection,",
+    "                                                           options,",
+    "                                                           isColorLabeledMode,",
+    "                                                           cursorLock]() mutable -> KUndo2Command * {"
+   ],
+   [
+    "            visp::image_data matte = shared->removeBackground(inputImg.view);"
+   ],
+   [
+    "                selection->writeBytes(reinterpret_cast<const quint8 *>(bytes.constData()), maskRect);"
+   ]
+  ],
+  "suspect_lines": 18
+ },
+ {
+  "file": "plugins/visionml/src/segmentation/SegmentationToolHelper.h",
+  "status": "OK",
+  "suspect_hunks": [],
+  "suspect_lines": 0
+ }
+]

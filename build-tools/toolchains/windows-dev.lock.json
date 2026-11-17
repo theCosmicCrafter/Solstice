@@ -1,0 +1,110 @@
+{
+  "comment": "Pinned local development toolchain for Solstice (Windows x64). Verified by check-local-toolchains.py. CI-only equivalents live in build-tools/github-actions/windows-dependencies.lock.json. cuda/tensorrt/rust gate megaplan phases per docs/agent/devops-environments.md.",
+  "updated": "2026-11-15",
+  "tools": [
+    {
+      "id": "git",
+      "name": "Git for Windows",
+      "required": true,
+      "gates": "all",
+      "version": { "min": "2.40.0" },
+      "probe": { "kind": "command", "run": "git --version", "regex": "git version ([0-9.]+)" }
+    },
+    {
+      "id": "cmake",
+      "name": "CMake",
+      "required": true,
+      "gates": "all",
+      "version": { "min": "3.28.0" },
+      "probe": { "kind": "command", "run": "cmake --version", "regex": "cmake version ([0-9.]+)" }
+    },
+    {
+      "id": "ninja",
+      "name": "Ninja",
+      "required": true,
+      "gates": "all",
+      "version": { "min": "1.11.0" },
+      "probe": { "kind": "command", "run": "ninja --version", "regex": "([0-9.]+)" }
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "required": true,
+      "gates": "all",
+      "version": { "exact-major-minor": "3.13" },
+      "probe": { "kind": "command", "run": "python --version", "regex": "Python ([0-9.]+)" }
+    },
+    {
+      "id": "llvm-mingw",
+      "name": "LLVM-MinGW (ucrt-x86_64)",
+      "required": true,
+      "gates": "all",
+      "version": { "exact-string": "20251118" },
+      "probe": {
+        "kind": "command",
+        "run": "clang++ --version",
+        "regex": "clang version ([0-9.]+)",
+        "note": "verify the toolchain root matches <toolchain-root> from env.bat; release tag 20251118 ships clang 21"
+      }
+    },
+    {
+      "id": "vulkan-sdk",
+      "name": "Vulkan SDK (glslc/dxc)",
+      "required": true,
+      "gates": "all",
+      "version": { "exact-string": "1.4.357.0" },
+      "probe": {
+        "kind": "env-regex",
+        "env": "VULKAN_SDK",
+        "regex": "([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)",
+        "note": "Windows SDKs install to C:\\VulkanSDK\\<version>; glslc.exe/dxc.exe ship inside its Bin dir"
+      }
+    },
+    {
+      "id": "cuda",
+      "name": "CUDA Toolkit",
+      "required": false,
+      "gates": "megaplan-phase-3 (librediffusion sm_120)",
+      "version": { "min": "13.0.0" },
+      "probe": { "kind": "command", "run": "nvcc --version", "regex": "release ([0-9.]+)" }
+    },
+    {
+      "id": "tensorrt",
+      "name": "NVIDIA TensorRT",
+      "required": false,
+      "gates": "megaplan-phase-3 (librediffusion engines — upstream certifies TRT Enterprise 11.x cuda-13.x, engines are TRT-major-locked; 10.x on this machine is too old), phase-5 nvngx_vsr concepts",
+      "version": { "min": "11.0.0" },
+      "probe": {
+        "kind": "command",
+        "run": "trtexec --version",
+        "regex": "TensorRT v([0-9]+)",
+        "fallback-env": "TENSORRT_DIR",
+        "note": "set TENSORRT_DIR to the SDK root if trtexec is not on PATH"
+      }
+    },
+    {
+      "id": "rust",
+      "name": "Rust stable + cargo",
+      "required": false,
+      "gates": "megaplan-phase-4 (C-FFI crates: vectorcraft, craft-ai-integrations, craft-libs)",
+      "version": { "min": "1.85.0" },
+      "probe": { "kind": "command", "run": "rustc --version", "regex": "rustc ([0-9.]+)" }
+    },
+    {
+      "id": "cbindgen",
+      "name": "cbindgen",
+      "required": false,
+      "gates": "megaplan-phase-4",
+      "version": { "min": "0.28.0" },
+      "probe": { "kind": "command", "run": "cbindgen --version", "regex": "cbindgen ([0-9.]+)" }
+    },
+    {
+      "id": "ffmpeg-dev",
+      "name": "FFmpeg (runtime/bin)",
+      "required": false,
+      "gates": "media tooling, optional",
+      "version": { "min": "7.0.0" },
+      "probe": { "kind": "command", "run": "ffmpeg -version", "regex": "ffmpeg version ([0-9.]+)" }
+    }
+  ]
+}

@@ -1,0 +1,576 @@
+{
+ "op": "merge",
+ "lane": "e",
+ "results": [
+  {
+   "file": "plugins/filters/blur/kis_lens_blur_filter.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9374
+  },
+  {
+   "file": "plugins/filters/blur/kis_wdg_lens_blur.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3915
+  },
+  {
+   "file": "plugins/impex/heif/HeifExport.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 27587
+  },
+  {
+   "file": "plugins/impex/libkra/kis_kra_saver.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 33774
+  },
+  {
+   "file": "plugins/impex/libkra/kis_kra_tags.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6556
+  },
+  {
+   "file": "plugins/impex/png/kis_png_export.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8540
+  },
+  {
+   "file": "plugins/impex/webp/kis_wdg_options_webp.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9892
+  },
+  {
+   "file": "plugins/metadata/exif/kis_exif_io.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 31510
+  },
+  {
+   "file": "plugins/paintops/colorsmudge/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1800
+  },
+  {
+   "file": "plugins/paintops/colorsmudge/kis_colorsmudgeop.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 10260
+  },
+  {
+   "file": "plugins/paintops/colorsmudge/kis_colorsmudgeop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 14977
+  },
+  {
+   "file": "plugins/paintops/colorsmudge/tests/KisColorSmudgeParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 13099
+  },
+  {
+   "file": "plugins/paintops/curvebrush/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1101
+  },
+  {
+   "file": "plugins/paintops/curvebrush/kis_curve_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4139
+  },
+  {
+   "file": "plugins/paintops/curvebrush/tests/KisCurveParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4345
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/kis_brushop.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 25541
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/kis_brushop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 15980
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3349
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/KisAbrPresetTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 23816
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/KisBrushStrokeLayerTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 64510
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/KisBrushStrokeLayerTransformTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 16179
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/KisBrushStrokeReplayTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9475
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/KisBrushTipOptionParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 27253
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/KisCloneParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5414
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/brush/tests/KisPaintOpParityTestUtils.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6399
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/duplicate/kis_duplicateop.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9600
+  },
+  {
+   "file": "plugins/paintops/defaultpaintops/duplicate/kis_duplicateop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6851
+  },
+  {
+   "file": "plugins/paintops/deform/kis_deform_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3971
+  },
+  {
+   "file": "plugins/paintops/experiment/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1205
+  },
+  {
+   "file": "plugins/paintops/experiment/kis_experiment_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2384
+  },
+  {
+   "file": "plugins/paintops/experiment/tests/KisExperimentParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4186
+  },
+  {
+   "file": "plugins/paintops/filterop/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 844
+  },
+  {
+   "file": "plugins/paintops/filterop/kis_filterop.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6027
+  },
+  {
+   "file": "plugins/paintops/filterop/kis_filterop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4989
+  },
+  {
+   "file": "plugins/paintops/filterop/tests/KisFilterOpParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5823
+  },
+  {
+   "file": "plugins/paintops/gridbrush/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1191
+  },
+  {
+   "file": "plugins/paintops/gridbrush/kis_grid_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3183
+  },
+  {
+   "file": "plugins/paintops/gridbrush/tests/KisGridParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4207
+  },
+  {
+   "file": "plugins/paintops/hairy/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1290
+  },
+  {
+   "file": "plugins/paintops/hairy/kis_hairy_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5537
+  },
+  {
+   "file": "plugins/paintops/hairy/tests/KisHairyParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5322
+  },
+  {
+   "file": "plugins/paintops/hatching/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1303
+  },
+  {
+   "file": "plugins/paintops/hatching/kis_hatching_paintop.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8442
+  },
+  {
+   "file": "plugins/paintops/hatching/kis_hatching_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8368
+  },
+  {
+   "file": "plugins/paintops/hatching/tests/KisHatchingParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5300
+  },
+  {
+   "file": "plugins/paintops/libpaintop/KisBrushBasedOptionStates.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3846
+  },
+  {
+   "file": "plugins/paintops/libpaintop/KisBrushTipOptionData.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3856
+  },
+  {
+   "file": "plugins/paintops/libpaintop/KisFilterOptionModel.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1045
+  },
+  {
+   "file": "plugins/paintops/libpaintop/KisMaskingBrushOption.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 11834
+  },
+  {
+   "file": "plugins/paintops/libpaintop/KisMaskingBrushOption.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1655
+  },
+  {
+   "file": "plugins/paintops/libpaintop/KisPaintOpOptionStateUtils.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4128
+  },
+  {
+   "file": "plugins/paintops/libpaintop/KisStandardOptionData.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 11438
+  },
+  {
+   "file": "plugins/paintops/libpaintop/kis_brush_based_paintop_options_widget.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1342
+  },
+  {
+   "file": "plugins/paintops/libpaintop/kis_brush_option_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8645
+  },
+  {
+   "file": "plugins/paintops/libpaintop/kis_brush_option_widget.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2003
+  },
+  {
+   "file": "plugins/paintops/libpaintop/kis_clipboard_brush_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5844
+  },
+  {
+   "file": "plugins/paintops/mypaint/MyPaintPaintOpSettingsWidget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8376
+  },
+  {
+   "file": "plugins/paintops/mypaint/tests/KisMyPaintParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5547
+  },
+  {
+   "file": "plugins/paintops/particle/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1219
+  },
+  {
+   "file": "plugins/paintops/particle/kis_particle_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3288
+  },
+  {
+   "file": "plugins/paintops/particle/tests/KisParticleParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4343
+  },
+  {
+   "file": "plugins/paintops/roundmarker/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1200
+  },
+  {
+   "file": "plugins/paintops/roundmarker/kis_roundmarkerop.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6016
+  },
+  {
+   "file": "plugins/paintops/roundmarker/kis_roundmarkerop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3164
+  },
+  {
+   "file": "plugins/paintops/roundmarker/tests/KisRoundMarkerParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4262
+  },
+  {
+   "file": "plugins/paintops/sketch/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1150
+  },
+  {
+   "file": "plugins/paintops/sketch/kis_sketch_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6529
+  },
+  {
+   "file": "plugins/paintops/sketch/tests/KisSketchParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4552
+  },
+  {
+   "file": "plugins/paintops/spray/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1498
+  },
+  {
+   "file": "plugins/paintops/spray/kis_spray_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6132
+  },
+  {
+   "file": "plugins/paintops/spray/tests/KisSprayParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5822
+  },
+  {
+   "file": "plugins/paintops/tangentnormal/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1424
+  },
+  {
+   "file": "plugins/paintops/tangentnormal/kis_tangent_normal_paintop.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8340
+  },
+  {
+   "file": "plugins/paintops/tangentnormal/kis_tangent_normal_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8843
+  },
+  {
+   "file": "plugins/paintops/tangentnormal/tests/KisTangentNormalParityTest.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5218
+  },
+  {
+   "file": "plugins/tools/basictools/kis_tool_move.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 27710
+  },
+  {
+   "file": "plugins/tools/basictools/kis_tool_move.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5742
+  },
+  {
+   "file": "plugins/tools/basictools/strokes/move_selection_stroke_strategy.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9247
+  },
+  {
+   "file": "plugins/tools/basictools/strokes/move_selection_stroke_strategy.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2096
+  },
+  {
+   "file": "plugins/tools/defaulttool/defaulttool/DefaultTool.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 91724
+  },
+  {
+   "file": "plugins/tools/tool_enclose_and_fill/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 754
+  },
+  {
+   "file": "plugins/tools/tool_transform2/kis_tool_transform.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 58453
+  },
+  {
+   "file": "plugins/tools/tool_transform2/kis_tool_transform_config_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 55913
+  },
+  {
+   "file": "plugins/tools/tool_transform2/kis_transform_utils.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 32396
+  },
+  {
+   "file": "plugins/tools/tool_transform2/kis_warp_transform_strategy.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 46587
+  },
+  {
+   "file": "plugins/tools/tool_transform2/strokes/inplace_transform_stroke_strategy.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 52743
+  },
+  {
+   "file": "plugins/tools/tool_transform2/strokes/inplace_transform_stroke_strategy.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6723
+  },
+  {
+   "file": "plugins/tools/tool_transform2/strokes/transform_stroke_strategy.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 36063
+  },
+  {
+   "file": "plugins/tools/tool_transform2/tool_transform_args.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 34289
+  },
+  {
+   "file": "plugins/visionml/README.md",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1719
+  },
+  {
+   "file": "plugins/visionml/src/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2135
+  },
+  {
+   "file": "plugins/visionml/src/VisionML.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 22011
+  },
+  {
+   "file": "plugins/visionml/src/inpaint/InpaintTool.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 13277
+  },
+  {
+   "file": "plugins/visionml/src/segmentation/SegmentationToolHelper.cpp",
+   "conflicts": 2,
+   "tracked": true,
+   "bytes": 25192
+  },
+  {
+   "file": "plugins/visionml/src/segmentation/SegmentationToolHelper.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2227
+  }
+ ]
+}

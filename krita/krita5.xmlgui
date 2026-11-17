@@ -317,6 +317,9 @@ xsi:schemaLocation="http://www.kde.org/standards/kxmlgui/1.0  http://www.kde.org
       <Action name="merge_selected_layers"/>
       <Separator/>
       <Action name="layer_style"/>
+      <Separator/>
+      <Action name="rerender_brush_strokes"/>
+      <Action name="forget_brush_strokes"/>
 
     </Menu>
     <Menu name="Select">
@@ -325,6 +328,8 @@ xsi:schemaLocation="http://www.kde.org/standards/kxmlgui/1.0  http://www.kde.org
       <Action name="deselect"/>
       <Action name="reselect"/>
       <Action name="invert_selection"/>
+      <Separator/>
+      <Action name="ai_diffusion_generative_fill"/>
       <Separator/>
       <Action name="selectionscale"/>
       <Action name="edit_selection"/>

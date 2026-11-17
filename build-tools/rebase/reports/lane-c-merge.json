@@ -1,0 +1,408 @@
+{
+ "op": "merge",
+ "lane": "c",
+ "results": [
+  {
+   "file": "libs/ui/CMakeLists.txt",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 26003
+  },
+  {
+   "file": "libs/ui/KisApplication.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 54191
+  },
+  {
+   "file": "libs/ui/KisBrushStrokeLayer.cpp",
+   "conflicts": 2,
+   "tracked": true,
+   "bytes": 20232
+  },
+  {
+   "file": "libs/ui/KisBrushStrokeLayer.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 11723
+  },
+  {
+   "file": "libs/ui/KisBrushStrokeLayerIO.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 19225
+  },
+  {
+   "file": "libs/ui/KisDocument.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 99390
+  },
+  {
+   "file": "libs/ui/KisGpuEngineUi.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 13288
+  },
+  {
+   "file": "libs/ui/KisImportExportManager.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 34393
+  },
+  {
+   "file": "libs/ui/KisLayerThumbnailCache.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9516
+  },
+  {
+   "file": "libs/ui/KisMainWindow.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 132377
+  },
+  {
+   "file": "libs/ui/KisPaintOpOptionsModel.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 7662
+  },
+  {
+   "file": "libs/ui/KisPart.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9180
+  },
+  {
+   "file": "libs/ui/KisReferenceImage.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 17272
+  },
+  {
+   "file": "libs/ui/KisRemoteFileFetcher.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 974
+  },
+  {
+   "file": "libs/ui/KisSolsticeLazyTools.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 16485
+  },
+  {
+   "file": "libs/ui/KisView.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 54992
+  },
+  {
+   "file": "libs/ui/KisViewManager.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 67454
+  },
+  {
+   "file": "libs/ui/KisViewManager.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 8453
+  },
+  {
+   "file": "libs/ui/KisWelcomeAssetLibraryWidget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 23956
+  },
+  {
+   "file": "libs/ui/actions/KisPasteActionFactories.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 14950
+  },
+  {
+   "file": "libs/ui/actions/kis_selection_action_factories.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 23065
+  },
+  {
+   "file": "libs/ui/canvas/KisCanvasState.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2625
+  },
+  {
+   "file": "libs/ui/canvas/kis_canvas_controller.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 22256
+  },
+  {
+   "file": "libs/ui/canvas/kis_prescaled_projection.cpp",
+   "conflicts": 4,
+   "tracked": true,
+   "bytes": 18588
+  },
+  {
+   "file": "libs/ui/canvas/kis_prescaled_projection.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 4777
+  },
+  {
+   "file": "libs/ui/canvas/kis_qpainter_canvas.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 7975
+  },
+  {
+   "file": "libs/ui/dialogs/KisDlgCreateNewDocument.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1701
+  },
+  {
+   "file": "libs/ui/dialogs/kis_dlg_preferences.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 126359
+  },
+  {
+   "file": "libs/ui/flake/kis_shape_controller.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9464
+  },
+  {
+   "file": "libs/ui/flake/kis_shape_layer.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 24868
+  },
+  {
+   "file": "libs/ui/forms/wdgdisplaysettings.ui",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 21375
+  },
+  {
+   "file": "libs/ui/forms/wdggeneralsettings.ui",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 78165
+  },
+  {
+   "file": "libs/ui/kis_clipboard.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 16205
+  },
+  {
+   "file": "libs/ui/kis_clipboard.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5530
+  },
+  {
+   "file": "libs/ui/kis_config.cc",
+   "conflicts": 1,
+   "tracked": true,
+   "bytes": 89941
+  },
+  {
+   "file": "libs/ui/kis_config.h",
+   "conflicts": 1,
+   "tracked": true,
+   "bytes": 33735
+  },
+  {
+   "file": "libs/ui/kis_layer_manager.cc",
+   "conflicts": 3,
+   "tracked": true,
+   "bytes": 50348
+  },
+  {
+   "file": "libs/ui/kis_layer_manager.h",
+   "conflicts": 1,
+   "tracked": true,
+   "bytes": 4600
+  },
+  {
+   "file": "libs/ui/kis_mimedata.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 26224
+  },
+  {
+   "file": "libs/ui/kis_mimedata.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6039
+  },
+  {
+   "file": "libs/ui/kis_node_manager.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 67257
+  },
+  {
+   "file": "libs/ui/kis_node_manager.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 9699
+  },
+  {
+   "file": "libs/ui/kis_node_model.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 29796
+  },
+  {
+   "file": "libs/ui/kis_paintop_box.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 69433
+  },
+  {
+   "file": "libs/ui/kis_paintop_settings_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 14553
+  },
+  {
+   "file": "libs/ui/kis_paintop_settings_widget.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 3628
+  },
+  {
+   "file": "libs/ui/opengl/KisOpenGLCanvasRenderer.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 44193
+  },
+  {
+   "file": "libs/ui/opengl/kis_opengl_shader_loader.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 7610
+  },
+  {
+   "file": "libs/ui/opengl/kis_opengl_shader_loader.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2547
+  },
+  {
+   "file": "libs/ui/operations/kis_operation.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1237
+  },
+  {
+   "file": "libs/ui/operations/kis_operation.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1080
+  },
+  {
+   "file": "libs/ui/tests/CMakeLists.txt",
+   "conflicts": 1,
+   "tracked": true,
+   "bytes": 8752
+  },
+  {
+   "file": "libs/ui/tests/kis_clipboard_test.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 24628
+  },
+  {
+   "file": "libs/ui/tests/kis_clipboard_test.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 823
+  },
+  {
+   "file": "libs/ui/tests/kis_prescaled_projection_test.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 15482
+  },
+  {
+   "file": "libs/ui/tool/kis_tool.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 11858
+  },
+  {
+   "file": "libs/ui/tool/strokes/freehand_stroke.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 20753
+  },
+  {
+   "file": "libs/ui/tool/strokes/freehand_stroke.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6846
+  },
+  {
+   "file": "libs/ui/tool/strokes/kis_painter_based_stroke_strategy.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 27967
+  },
+  {
+   "file": "libs/ui/tool/strokes/kis_painter_based_stroke_strategy.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 6652
+  },
+  {
+   "file": "libs/ui/tool/strokes/move_stroke_strategy.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 20873
+  },
+  {
+   "file": "libs/ui/widgets/KisBrushStrokePreviewCache.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 14985
+  },
+  {
+   "file": "libs/ui/widgets/kis_custom_image_widget.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 19999
+  },
+  {
+   "file": "libs/ui/widgets/kis_custom_image_widget.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 2445
+  },
+  {
+   "file": "libs/ui/widgets/kis_filter_selector_widget.cc",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 13374
+  },
+  {
+   "file": "libs/ui/widgets/kis_image_from_clipboard_widget.cpp",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 5442
+  },
+  {
+   "file": "libs/ui/widgets/kis_image_from_clipboard_widget.h",
+   "conflicts": 0,
+   "tracked": true,
+   "bytes": 1285
+  }
+ ]
+}

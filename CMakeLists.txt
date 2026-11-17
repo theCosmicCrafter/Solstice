@@ -1558,6 +1558,9 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}
                            ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# Qt5 compat: translate Qt6-style qt_add_resources() big-resource calls
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/Qt5ResourceCompat.cmake)
+
 add_subdirectory(sdk/tests)
 
 add_subdirectory(libs)

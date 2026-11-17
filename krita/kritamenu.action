@@ -2007,8 +2007,21 @@
       <activationFlags>1</activationFlags><shortcut></shortcut><isCheckable>false</isCheckable>
     </Action>
     <Action name="fast_image_export">
+      <icon>document-export</icon>
       <text>Fast Image Export...</text>
       <toolTip>Export active or open documents with PNG or JPEG options</toolTip>
+      <activationFlags>1</activationFlags><shortcut></shortcut><isCheckable>false</isCheckable>
+    </Action>
+    <Action name="fast_image_export_run_all">
+      <icon>document-export</icon>
+      <text>Run All Saved Exports</text>
+      <toolTip>Run every Fast Image Export saved with the active document</toolTip>
+      <activationFlags>1</activationFlags><shortcut></shortcut><isCheckable>false</isCheckable>
+    </Action>
+    <Action name="fast_image_export_run_checked">
+      <icon>document-export</icon>
+      <text>Run Checked Saved Exports</text>
+      <toolTip>Run the checked Fast Image Exports saved with the active document</toolTip>
       <activationFlags>1</activationFlags><shortcut></shortcut><isCheckable>false</isCheckable>
     </Action>
     <Action name="rename_alternative">

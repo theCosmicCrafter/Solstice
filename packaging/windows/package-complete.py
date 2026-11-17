@@ -9,14 +9,13 @@
 import argparse
 import glob
 import itertools
-import logging
 import os
-import pathlib
 import re
+import pathlib
 import shutil
 import subprocess
 import sys
-
+import logging
 from components import MergeFolders
 
 # Subroutines
@@ -544,6 +543,21 @@ MergeFolders.merge_folders(f"{KRITA_INSTALL_DIR}\\share\\icons", f"{pkg_root}\\s
 MergeFolders.merge_folders(f"{KRITA_INSTALL_DIR}\\share\\krita", f"{pkg_root}\\share\\krita")
 MergeFolders.merge_folders(f"{KRITA_INSTALL_DIR}\\share\\kritaplugins", f"{pkg_root}\\share\\kritaplugins")
 
+# A bridge-only package would display a nonfunctional G'MIC menu entry.
+gmic_required = ["lib/kritaplugins/krita_gmic_qt.dll", "bin/libkritaqmicinterface.dll",
+                 "share/gmic/gmic_cluts.gmz", "share/gmic/gmic_denoise_cnn.gmz",
+                 "share/gmic/gmic_lightleaks.gmz", "share/gmic/gmic_scale2x_cnn.gmz",
+                 "share/gmic/source/runtime.lock.json", "share/gmic/source/runtime-patches.json",
+                 "share/gmic/source/build-runtime.py", "share/gmic/source/README.md",
+                 "share/gmic/source/gmic-3.7.4.1.tar.gz"]
+for required in gmic_required:
+    if not os.path.isfile(os.path.join(KRITA_INSTALL_DIR, required)):
+        raise RuntimeError(f"Missing required G'MIC runtime file: {required}")
+MergeFolders.merge_folders(f"{KRITA_INSTALL_DIR}\\share\\gmic", f"{pkg_root}\\share\\gmic")
+for required in gmic_required:
+    if not os.path.isfile(os.path.join(pkg_root, required)):
+        raise RuntimeError(f"G'MIC file missing from package: {required}")
+
 if useQt6Build:
     MergeFolders.merge_folders(f"{DEPS_INSTALL_DIR}\\share\\kf6", f"{pkg_root}\\share\\kf6")
 else:
@@ -632,17 +646,18 @@ if os.path.exists(f"{pkg_root}\\python\\python.exe"):
 if os.path.exists(f"{pkg_root}\\python\\pythonw.exe"):
     os.remove(f"{pkg_root}\\python\\pythonw.exe")
 
-# Remove Python cache files
+# Remove Python cache files and test-run pollution
 logger.info("")
 logger.info("Deleting python cache...")
 for d in os.walk(pkg_root):
-    pycache = f"{d[0]}\\__pycache__"
-    if os.path.isdir(pycache):
-        logger.debug(f"Deleting Python cache {pycache}")
-        shutil.rmtree(pycache)
+    for cache_name in ("__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"):
+        pycache = f"{d[0]}\\{cache_name}"
+        if os.path.isdir(pycache):
+            logger.debug(f"Deleting Python cache {pycache}")
+            shutil.rmtree(pycache)
 
 if os.path.exists(f"{pkg_root}\\lib\\site-packages"):
-    logger.info("Deleting unnecessary Python packages")
+    logger.info(f"Deleting unnecessary Python packages")
     for f in glob.glob(f"{pkg_root}\\lib\\site-packages\\packaging*"):
         shutil.rmtree(f)
     for f in glob.glob(f"{pkg_root}\\lib\\site-packages\\pip*"):
@@ -666,7 +681,7 @@ if os.path.exists(f"{pkg_root}\\lib\\site-packages"):
     for f in glob.glob(f"{pkg_root}\\lib\\site-packages\\easy-install.pth"):
         os.remove(f)
 
-if os.environ.get('KRITACI_SKIP_SPLIT_DEBUG', '0').lower() not in ['true', '1', 'on']:
+if not os.environ.get('KRITACI_SKIP_SPLIT_DEBUG', '0').lower() in ['true', '1', 'on']:
     logger.info("")
     logger.info("Splitting debug info from binaries...")
 
@@ -761,7 +776,7 @@ run_subprocess_checked(
     [os.environ["SEVENZIP_EXE"], "a", "-tzip",
     f"{pkg_name}.zip", f"{pkg_root}\\", "-xr!*.debug"])
 
-if os.environ.get('KRITACI_SKIP_DEBUG_PACKAGE', '0').lower() not in ['true', '1', 'on']:
+if not os.environ.get('KRITACI_SKIP_DEBUG_PACKAGE', '0').lower() in ['true', '1', 'on']:
     logger.info("")
     logger.info("Packaging debug info...")
     # (note that the top-level package dir is not included)
