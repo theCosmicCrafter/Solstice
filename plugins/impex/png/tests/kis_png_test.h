@@ -16,6 +16,8 @@ private Q_SLOTS:
     void testFiles();
     void testWriteonly();
     void testSaveHDR();
+    void testOptionsMissingForceSRGB();
+    void testBatchExportKeepsSavedOptions();
 };
 
 #endif

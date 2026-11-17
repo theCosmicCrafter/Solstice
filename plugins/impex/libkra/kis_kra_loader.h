@@ -49,6 +49,8 @@ public:
     void loadStoryboards(KoStore *store, KisDocument *doc);
     void loadAnimationMetadata(KoStore *store, KisImageSP image);
     void loadAudio(KoStore *store, KisDocument *kisDoc);
+    // Solstice: reads the Fast Image Export settings, if the file has them.
+    void loadSolsticeFastExport(KoStore *store, KisDocument *doc);
     Q_DECL_DEPRECATED void backCompat_loadAudio(const QDomElement &elem, KisDocument *document);
 
     vKisNodeSP selectedNodes() const;

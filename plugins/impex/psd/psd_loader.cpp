@@ -613,6 +613,12 @@ KisImportExportErrorCode PSDLoader::decode(QIODevice &io)
             }
         }
 
+        // Solstice: Photoshop's clipping is Clipping Mask. A group gets its
+        // value from its folder record, which follows the bounding divider.
+        if (KisLayer *clippingLayer = qobject_cast<KisLayer *>(newLayer.data())) {
+            clippingLayer->setClipped(layerRecord->clipping != 0);
+        }
+
         lastAddedLayer = newLayer;
     }
 

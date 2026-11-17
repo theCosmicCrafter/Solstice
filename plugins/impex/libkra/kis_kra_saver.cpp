@@ -364,6 +364,28 @@ bool KisKraSaver::saveAudio(KoStore *store)
     return true;
 }
 
+bool KisKraSaver::saveSolsticeFastExport(KoStore *store)
+{
+    const QByteArray data = m_d->doc->solsticeFastExportData();
+    // Without settings the file stays as it was before Solstice added them.
+    if (data.isEmpty()) {
+        return true;
+    }
+    if (!store->open(SOLSTICE_FAST_EXPORT_PATH)) {
+        m_d->errorMessages << i18nc("Error message when saving a .kra file",
+                                    "Could not save the Fast Image Export settings.");
+        return false;
+    }
+    const bool success = store->write(data) == data.size();
+    const bool closed = store->close();
+    if (!success || !closed) {
+        m_d->errorMessages << i18nc("Error message when saving a .kra file",
+                                    "Could not save the Fast Image Export settings.");
+        return false;
+    }
+    return true;
+}
+
 void KisKraSaver::saveResourcesToXML(QDomDocument &doc, QDomElement &element)
 {
     QDomElement ePalette = doc.createElement(PALETTES);
@@ -721,8 +743,9 @@ void KisKraSaver::saveWarningColor(QDomDocument& doc, QDomElement& element, KisI
 
 void KisKraSaver::saveCompositions(QDomDocument& doc, QDomElement& element, KisImageSP image)
 {
-    if (!image->compositions().isEmpty()) {
+    {
         QDomElement e = doc.createElement("compositions");
+        e.setAttribute("newLayersVisible", image->newLayersVisibleInCompositions() ? "1" : "0");
         Q_FOREACH (KisLayerCompositionSP composition, image->compositions()) {
             composition->save(doc, e);
         }

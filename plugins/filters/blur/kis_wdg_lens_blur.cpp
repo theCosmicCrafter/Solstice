@@ -8,6 +8,7 @@
 
 #include "kis_wdg_lens_blur.h"
 #include <QLayout>
+#include <QSignalBlocker>
 
 #include <filter/kis_filter.h>
 #include <filter/kis_filter_configuration.h>
@@ -27,6 +28,14 @@ KisWdgLensBlur::KisWdgLensBlur(QWidget * parent) : KisConfigWidget(parent)
 
     m_widget->irisRotationSelector->setDecimals(0);
     m_widget->irisRotationSelector->setIncreasingDirection(KisAngleGauge::IncreasingDirection_Clockwise);
+    for (auto *slider : {m_widget->irisRoundnessSlider, m_widget->highlightStrengthSlider}) {
+        slider->setRange(0.0, 100.0, 1);
+        slider->setSuffix(i18n("%"));
+        connect(slider, &KisDoubleSliderSpinBox::valueChanged, this, &KisConfigWidget::sigConfigurationItemChanged);
+    }
+    m_widget->irisRoundnessSlider->setToolTip(i18n("Zero keeps the original polygon; 100% makes a circle."));
+    m_widget->highlightStrengthSlider->setToolTip(
+        i18n("Emphasizes bright color values while blurring opacity normally. Zero keeps the original blur."));
 
     m_shapeTranslations[i18n("Triangle")] = "Triangle";
     m_shapeTranslations[i18n("Quadrilateral (4)")] = "Quadrilateral (4)";
@@ -51,6 +60,8 @@ KisPropertiesConfigurationSP KisWdgLensBlur::configuration() const
     config->setProperty("irisShape", m_shapeTranslations[m_widget->irisShapeCombo->currentText()]);
     config->setProperty("irisRadius", m_widget->irisRadiusSlider->value());
     config->setProperty("irisRotation", static_cast<int>(m_widget->irisRotationSelector->angle()));
+    config->setProperty("irisRoundness", m_widget->irisRoundnessSlider->value());
+    config->setProperty("highlightStrength", m_widget->highlightStrengthSlider->value());
 
     QSize halfSize = KisLensBlurFilter::getKernelHalfSize(config, 0);
     config->setProperty("halfWidth", halfSize.width());
@@ -61,10 +72,13 @@ KisPropertiesConfigurationSP KisWdgLensBlur::configuration() const
 
 void KisWdgLensBlur::setConfiguration(const KisPropertiesConfigurationSP config)
 {
+    const QSignalBlocker blocker(this);
+    m_widget->irisRoundnessSlider->setValue(config->getDouble("irisRoundness", 0.0));
+    m_widget->highlightStrengthSlider->setValue(config->getDouble("highlightStrength", 0.0));
     QVariant value;
     if (config->getProperty("irisShape", value)) {
         for (int i = 0; i < m_widget->irisShapeCombo->count(); ++i) {
-            if (m_shapeTranslations[value.toString()] == m_widget->irisShapeCombo->itemText(i)) {
+            if (m_shapeTranslations[m_widget->irisShapeCombo->itemText(i)] == value.toString()) {
                 m_widget->irisShapeCombo->setCurrentIndex(i);
             }
         }

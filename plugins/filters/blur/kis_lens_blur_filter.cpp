@@ -6,11 +6,14 @@
  *  SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-
 #include "kis_lens_blur_filter.h"
+#include "KisLensBlurHighlights.h"
 #include "kis_wdg_lens_blur.h"
 
+#include <KoColorModelStandardIds.h>
 #include <KoCompositeOp.h>
+#include <QLabel>
+#include <QLayout>
 
 #include <kis_convolution_kernel.h>
 #include <kis_convolution_painter.h>
@@ -39,9 +42,19 @@ KisLensBlurFilter::KisLensBlurFilter() : KisFilter(id(), FiltersCategoryBlurId, 
 
 }
 
-KisConfigWidget * KisLensBlurFilter::createConfigurationWidget(QWidget* parent, const KisPaintDeviceSP, bool) const
+KisConfigWidget *
+KisLensBlurFilter::createConfigurationWidget(QWidget *parent, const KisPaintDeviceSP device, bool) const
 {
-    return new KisWdgLensBlur(parent);
+    auto *widget = new KisWdgLensBlur(parent);
+    if (device && device->colorSpace()->colorModelId() != RGBAColorModelID
+        && device->colorSpace()->colorModelId() != GrayAColorModelID) {
+        auto *notice = new QLabel(
+            i18n("Highlight enhancement converts colors through floating-point RGB and back; appearance may change."),
+            widget);
+        notice->setWordWrap(true);
+        widget->layout()->addWidget(notice);
+    }
+    return widget;
 }
 
 QSize KisLensBlurFilter::getKernelHalfSize(const KisFilterConfigurationSP config, int lod)
@@ -61,6 +74,8 @@ KisFilterConfigurationSP KisLensBlurFilter::defaultConfiguration(KisResourcesInt
     config->setProperty("irisShape", "Pentagon (5)");
     config->setProperty("irisRadius", 5);
     config->setProperty("irisRotation", 0);
+    config->setProperty("irisRoundness", 0.0);
+    config->setProperty("highlightStrength", 0.0);
 
     QSize halfSize = getKernelHalfSize(config, 0);
     config->setProperty("halfWidth", halfSize.width());
@@ -99,10 +114,25 @@ QPolygonF KisLensBlurFilter::getIrisPolygon(const KisFilterConfigurationSP confi
     else if (irisShape == "Octagon (8)") sides = 8;
     else return QPolygonF();
 
-    for (int i = 0; i < sides; ++i) {
-        irisShapePoly << QPointF(0.5 * cos(angle), 0.5 * sin(angle));
-        angle += 2 * M_PI / sides;
-    }
+    const double roundness = KisLensBlurHighlights::boundedPercent(config, "irisRoundness") / 100.0;
+    if (roundness > 0.0) {
+        // Radially interpolate the polygon boundary toward its circumcircle.
+        // At 100%, shape and rotation must not affect the circular aperture.
+        const int segments = roundness == 1.0 ? 256 : sides * 64;
+        for (int i = 0; i < segments; ++i) {
+            const double theta = 2.0 * M_PI * i / segments;
+            const double sectorAngle = 2.0 * M_PI * (i % 64) / (sides * 64);
+            const double polygonRadius = 0.5 * cos(M_PI / sides) / cos(sectorAngle - M_PI / sides);
+            const double radius = roundness == 1.0 ? 0.5 : (1.0 - roundness) * polygonRadius + roundness * 0.5;
+            irisShapePoly << QPointF(radius * cos(theta), radius * sin(theta));
+        }
+        if (roundness == 1.0)
+            irisRotation = 0;
+    } else
+        for (int i = 0; i < sides; ++i) {
+            irisShapePoly << QPointF(0.5 * cos(angle), 0.5 * sin(angle));
+            angle += 2 * M_PI / sides;
+        }
 
     QTransform transform;
     transform.rotate(irisRotation);
@@ -151,24 +181,43 @@ void KisLensBlurFilter::processImpl(KisPaintDeviceSP device,
     imagePainter.drawPolygon(transformedIris, Qt::WindingFill);
 
     // construct kernel from image
-    Eigen::Matrix<qreal, Eigen::Dynamic, Eigen::Dynamic> irisKernel(kernelHeight, kernelWidth);
+    const bool extended = KisLensBlurHighlights::boundedPercent(config, "irisRoundness") > 0.0
+        || KisLensBlurHighlights::boundedPercent(config, "highlightStrength") > 0.0;
+    // FFT padding assumes odd support. With even kernels the first output
+    // pixel can wrap to the far end of the FFT cache, producing patch seams.
+    // Leading zeros preserve the aperture's offsets relative to its anchor.
+    // Keep the historical even kernel untouched for old configurations.
+    const int padX = extended && kernelWidth % 2 == 0 ? 1 : 0;
+    const int padY = extended && kernelHeight % 2 == 0 ? 1 : 0;
+    Eigen::Matrix<qreal, Eigen::Dynamic, Eigen::Dynamic> irisKernel(kernelHeight + padY, kernelWidth + padX);
+    irisKernel.setZero();
     for (int j = 0; j < kernelHeight; ++j) {
         for (int i = 0; i < kernelWidth; ++i) {
-            irisKernel(j, i) = qRed(kernelRepresentation.pixel(i, j));
+            irisKernel(j + padY, i + padX) = qRed(kernelRepresentation.pixel(i, j));
         }
     }
 
-    // apply convolution
+    KisConvolutionKernelSP kernel = KisConvolutionKernel::fromMatrix(irisKernel, 0, irisKernel.sum());
+    if (KisLensBlurHighlights::boundedPercent(config, "highlightStrength") > 0.0) {
+        KisLensBlurHighlights::apply(device, rect, neededRect(rect, config, lod), config, kernel, progressUpdater);
+        return;
+    }
+
+    // apply convolution (unchanged legacy path when both new controls are zero)
     KisConvolutionPainter painter(device);
     painter.setChannelFlags(channelFlags);
     painter.setProgress(progressUpdater);
 
-    KisConvolutionKernelSP kernel = KisConvolutionKernel::fromMatrix(irisKernel, 0, irisKernel.sum());
     painter.applyMatrix(kernel, device, srcTopLeft, srcTopLeft, rect.size(), BORDER_REPEAT);
 }
 
 QRect KisLensBlurFilter::neededRect(const QRect & rect, const KisFilterConfigurationSP _config, int lod) const
 {
+    if (KisLensBlurHighlights::boundedPercent(_config, "irisRoundness") > 0.0
+        || KisLensBlurHighlights::boundedPercent(_config, "highlightStrength") > 0.0) {
+        const QSize half = getKernelHalfSize(_config, lod);
+        return rect.adjusted(-2 * half.width(), -2 * half.height(), 2 * half.width(), 2 * half.height());
+    }
     KisLodTransformScalar t(lod);
 
     QVariant value;
@@ -180,6 +229,11 @@ QRect KisLensBlurFilter::neededRect(const QRect & rect, const KisFilterConfigura
 
 QRect KisLensBlurFilter::changedRect(const QRect & rect, const KisFilterConfigurationSP _config, int lod) const
 {
+    if (KisLensBlurHighlights::boundedPercent(_config, "irisRoundness") > 0.0
+        || KisLensBlurHighlights::boundedPercent(_config, "highlightStrength") > 0.0) {
+        const QSize half = getKernelHalfSize(_config, lod);
+        return rect.adjusted(-half.width(), -half.height(), half.width(), half.height());
+    }
     KisLodTransformScalar t(lod);
 
     QVariant value;

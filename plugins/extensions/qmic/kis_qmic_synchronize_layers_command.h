@@ -25,7 +25,9 @@ public:
                                     QVector<KisQMicImageSP> images,
                                     KisImageWSP image,
                                     const QRect &dstRect = QRect(),
-                                    KisSelectionSP selection = nullptr);
+                                    KisSelectionSP selection = nullptr,
+                                    KisNodeList selectedNodes = {},
+                                    KisNodeSP activeNode = nullptr);
 
     ~KisQmicSynchronizeLayersCommand() override;
 

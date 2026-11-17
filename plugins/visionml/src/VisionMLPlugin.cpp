@@ -1,6 +1,8 @@
 #include "VisionMLPlugin.h"
 #include "VisionML.h"
 #include "filters/BackgroundRemovalFilter.h"
+#include "filters/DepthMapFilter.h"
+#include "filters/ESRGANFilter.h"
 #include "inpaint/InpaintTool.h"
 #include "segmentation/SelectSegmentFromPointTool.h"
 #include "segmentation/SelectSegmentFromRectTool.h"
@@ -31,6 +33,8 @@ VisionMLPlugin::VisionMLPlugin(QObject *parent, const QVariantList &)
         addTool(new InpaintToolFactory(shared));
 
         KisFilterRegistry::instance()->add(new BackgroundRemovalFilter(shared));
+        KisFilterRegistry::instance()->add(new DepthMapFilter(shared));
+        KisFilterRegistry::instance()->add(new ESRGANFilter(shared));
     } else {
         qWarning() << "[VisionMLPlugin] Failed to create VisionModels instance. Tools will not be available.";
     }

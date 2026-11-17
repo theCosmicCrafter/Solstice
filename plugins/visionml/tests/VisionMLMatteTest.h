@@ -18,7 +18,8 @@ private Q_SLOTS:
     void testModulateMatteAlphaSemiTransparent();
     void testExpandRegionToMin();
     void testExpandRegionBoundaryConditions();
-    void testClampRegionToMax();
+    void testDownscaleFactor();
+    void testScaledSizeFor();
 };
 
 #endif // VISIONML_MATTE_TEST_H_

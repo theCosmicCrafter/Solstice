@@ -31,6 +31,9 @@ public:
 
     KoColorTransformation* createTransformation(const KoColorSpace* cs, const KisFilterConfigurationSP config) const override;
 
+    // Solstice (GPU engine, phase 4.115)
+    KisGpuColorTransformSP createGpuColorTransform(const KoColorSpace *cs, const KisFilterConfigurationSP config) const override;
+
     static inline KoID id() {
         return KoID("desaturate", i18n("Desaturate"));
     }

@@ -189,7 +189,7 @@ inputNodes(KisImageSP image, InputLayerMode inputMode, KisNodeSP currentNode)
     }
     case InputLayerMode::AllVisible:
     case InputLayerMode::AllInvisible: {
-        const bool visibility = (inputMode == InputLayerMode::AllInvisible);
+        const bool visibility = (inputMode == InputLayerMode::AllVisible);
 
         result = [&]() {
             KisNodeListSP r(new QList<KisNodeSP>());

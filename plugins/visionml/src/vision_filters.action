@@ -14,5 +14,29 @@
       <isCheckable>false</isCheckable>
       <statusTip/>
     </Action>
+    <Action name="krita_filter_depth_map">
+      <icon/>
+      <text>Depth Map...</text>
+      <whatsThis/>
+      <toolTip>Depth Estimation (VisionML)</toolTip>
+      <iconText>Depth Map</iconText>
+      <activationFlags>10000</activationFlags>
+      <activationConditions>0</activationConditions>
+      <shortcut/>
+      <isCheckable>false</isCheckable>
+      <statusTip/>
+    </Action>
+    <Action name="krita_filter_esrgan">
+      <icon/>
+      <text>ESRGAN Super-Resolution...</text>
+      <whatsThis/>
+      <toolTip>ESRGAN Super-Resolution (VisionML)</toolTip>
+      <iconText>ESRGAN Super-Resolution</iconText>
+      <activationFlags>10000</activationFlags>
+      <activationConditions>0</activationConditions>
+      <shortcut/>
+      <isCheckable>false</isCheckable>
+      <statusTip/>
+    </Action>
   </Actions>
 </ActionCollection>

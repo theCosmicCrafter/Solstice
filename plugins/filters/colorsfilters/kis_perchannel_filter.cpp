@@ -186,3 +186,34 @@ KoColorTransformation* KisPerChannelFilter::createTransformation(const KoColorSp
 
     return KisMultiChannelUtils::createPerChannelTransformationFromTransfers(cs, configBC->transfers(), isIdentityList);
 }
+
+KisGpuColorTransformSP KisPerChannelFilter::createGpuColorTransform(const KoColorSpace *cs, const KisFilterConfigurationSP config) const
+{
+    const KisPerChannelFilterConfiguration* configBC =
+        dynamic_cast<const KisPerChannelFilterConfiguration*>(config.data());
+    if (!configBC) {
+        return KisGpuColorTransformSP();
+    }
+
+    /**
+     * The curves of the single channels and the curve of all the color
+     * channels change every channel on its own, so tables per channel
+     * describe them. The hue, saturation and lightness curves mix the
+     * channels: they stay on the CPU.
+     */
+    const QList<KisCubicCurve> curves = configBC->curves();
+    const QVector<VirtualChannelInfo> virtualChannels =
+        KisMultiChannelUtils::getVirtualChannels(cs, configBC->transfers().size());
+    if (curves.size() > virtualChannels.size()) {
+        return KisGpuColorTransformSP();
+    }
+    for (int i = 0; i < curves.size(); i++) {
+        const VirtualChannelInfo::Type type = virtualChannels[i].type();
+        if (type != VirtualChannelInfo::REAL && type != VirtualChannelInfo::ALL_COLORS && !curves[i].isIdentity()) {
+            return KisGpuColorTransformSP();
+        }
+    }
+
+    QScopedPointer<KoColorTransformation> transformation(createTransformation(cs, config));
+    return KisGpuColorTransform::channelTables(cs, transformation.data());
+}

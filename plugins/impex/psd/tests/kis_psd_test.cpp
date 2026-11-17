@@ -466,6 +466,57 @@ void KisPSDTest::testRoundTripUserLocked()
     QCOMPARE(openedDoc->image()->root()->firstChild()->userLocked(), true);
 }
 
+void KisPSDTest::testRoundTripClipping()
+{
+    // Solstice: Clipping Mask is saved as Photoshop's clipping, for a paint
+    // layer base and for a group base
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+
+    QScopedPointer<KisDocument> doc(KisPart::instance()->createDocument());
+    doc->setFileBatchMode(true);
+    KisImageSP image = new KisImage(new KisSurrogateUndoStore(), 64, 64, cs, "clipping");
+    doc->setCurrentImage(image);
+
+    auto addLayer = [&](KisNodeSP parent, const QString &name, const QRect &rect, const QColor &color) {
+        KisPaintLayerSP layer = new KisPaintLayer(image, name, OPACITY_OPAQUE_U8);
+        layer->paintDevice()->fill(rect, KoColor(color, cs));
+        image->addNode(layer, parent, parent->lastChild());
+        return layer;
+    };
+    addLayer(image->root(), "base", QRect(5, 5, 30, 30), Qt::red);
+    addLayer(image->root(), "clip", QRect(0, 0, 64, 20), Qt::blue)->setClipped(true);
+    KisGroupLayerSP group = new KisGroupLayer(image, "group", OPACITY_OPAQUE_U8);
+    image->addNode(group, image->root(), image->root()->lastChild());
+    addLayer(group, "inside", QRect(30, 30, 30, 30), Qt::green);
+    addLayer(image->root(), "groupclip", QRect(0, 40, 64, 20), Qt::yellow)->setClipped(true);
+
+    image->initialRefreshGraph();
+    image->waitForDone();
+    const QImage reference = image->projection()->convertToQImage(0, image->bounds());
+
+    const QByteArray mimeType("image/vnd.adobe.photoshop");
+    QFileInfo dstFileInfo(QDir::currentPath() + '/' + "test_save_clipping.psd");
+    QVERIFY(doc->exportDocumentSync(dstFileInfo.absoluteFilePath(), mimeType));
+
+    QSharedPointer<KisDocument> openedDoc = openPsdDocument(dstFileInfo);
+    KisImageSP opened = openedDoc->image();
+    QVERIFY(opened);
+
+    auto findLayer = [&](const QString &name) {
+        KisNodeSP node = TestUtil::findNode(opened->root(), name);
+        return KisLayerSP(qobject_cast<KisLayer *>(node.data()));
+    };
+    QVERIFY(findLayer("base") && !findLayer("base")->isClipped());
+    QVERIFY(findLayer("clip") && findLayer("clip")->isClipped());
+    QVERIFY(findLayer("group") && !findLayer("group")->isClipped());
+    QVERIFY(findLayer("inside") && !findLayer("inside")->isClipped());
+    QVERIFY(findLayer("groupclip") && findLayer("groupclip")->isClipped());
+
+    opened->initialRefreshGraph();
+    opened->waitForDone();
+    QCOMPARE(opened->projection()->convertToQImage(0, opened->bounds()), reference);
+}
+
 void KisPSDTest::testRoundTripGroupCollapsed()
 {
     const KoColorProfile *profile = KoColorSpaceRegistry::instance()->p709SRGBProfile();

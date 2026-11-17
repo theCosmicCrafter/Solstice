@@ -99,10 +99,19 @@ install_pykrita_plugin(kritamcp)
 # endif()
 
 install( FILES
+    assignprofiledialog/assignprofiledialog.action
+    channels2layers/channels2layers.action
+    colorspace/colorspace.action
+    documenttools/documenttools.action
+    exportlayers/exportlayers.action
+    filtermanager/filtermanager.action
+    # highpass/highpass.action
+    krita_script_starter/krita_script_starter.action
+    mutator/mutator.action
+    plugin_importer/plugin_importer.action
+    scripter/scripter.action
     tenbrushes/tenbrushes.action
     tenscripts/tenscripts.action
-    plugin_importer/plugin_importer.action
-    mutator/mutator.action
 DESTINATION  ${KDE_INSTALL_DATADIR}/krita/actions)
 
 install(
@@ -113,7 +122,11 @@ install(
         PATTERN "__pycache__*" EXCLUDE
   )
 
-# PyQt5/PyQt -> PyQt6 compatibility shims for vendored plugins
+# PyQt5/PyQt -> PyQt6 compatibility shims for vendored plugins.
+# Only meaningful when the embedded interpreter actually has PyQt6: on a
+# Qt5/PyQt5 build these directories shadow the real PyQt5 in sys.path and
+# their unconditional "import PyQt6" breaks every pykrita plugin.
+if(HAVE_PYQT6)
 install(
     DIRECTORY PyQt5 PyQt
     DESTINATION ${KDE_INSTALL_DATADIR}/krita/pykrita
@@ -121,3 +134,18 @@ install(
         PATTERN "*.py"
         PATTERN "__pycache__*" EXCLUDE
   )
+endif()
+
+
+# PyQt6 -> PyQt5 compatibility shim for vendored plugins (reverse of the
+# block above). Installed only on Qt5 builds: there the real PyQt5 exists
+# and plugins written for Krita 6.x (ai_diffusion 1.56+) import PyQt6 names.
+if(NOT HAVE_PYQT6)
+install(
+    DIRECTORY PyQt6
+    DESTINATION ${KDE_INSTALL_DATADIR}/krita/pykrita
+    FILES_MATCHING
+        PATTERN "*.py"
+        PATTERN "__pycache__*" EXCLUDE
+  )
+endif()

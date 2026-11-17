@@ -14,6 +14,7 @@
 #include <QUrl>
 #include <QBuffer>
 #include <QVersionNumber>
+#include <QSet>
 
 #include <KoStore.h>
 #include <KoColorSpaceRegistry.h>
@@ -319,6 +320,7 @@ KisImageSP KisKraLoader::loadXML(const QDomElement& imageElement)
         else {
             image = new KisImage(0, width, height, cs, m_d->imageName);
         }
+        image->setNewLayersVisibleInCompositions(false);
         image->setResolution(xres, yres);
         loadNodes(imageElement, image, const_cast<KisGroupLayer*>(image->rootLayer().data()));
 
@@ -668,6 +670,17 @@ void KisKraLoader::loadAudio(KoStore *store, KisDocument *kisDoc)
         QDomElement root = xmlDocument.documentElement();
         loadAudioXML(xmlDocument, root, kisDoc);
     }
+}
+
+void KisKraLoader::loadSolsticeFastExport(KoStore *store, KisDocument *doc)
+{
+    // Older files have no entry. The settings are read as they are; their
+    // owner (KisLazyToolsFastExportPresets) checks the content.
+    if (!store->hasFile(SOLSTICE_FAST_EXPORT_PATH) || !store->open(SOLSTICE_FAST_EXPORT_PATH)) {
+        return;
+    }
+    doc->setSolsticeFastExportData(store->read(store->size()));
+    store->close();
 }
 
 void KisKraLoader::backCompat_loadAudio(const QDomElement& elem, KisDocument *document)
@@ -1031,6 +1044,7 @@ KisNodeSP KisKraLoader::loadNode(const QDomElement& element, KisImageSP image)
         KisLayer* layer           = qobject_cast<KisLayer*>(node.data());
         QBitArray channelFlags    = stringToFlags(element.attribute(CHANNEL_FLAGS, ""), colorSpace->channelCount());
         layer->setChannelFlags(channelFlags);
+        layer->setClipped(element.attribute(CLIPPED, "0").toInt());
 
         if (element.hasAttribute(LAYER_STYLE_UUID)) {
             QString uuidString = element.attribute(LAYER_STYLE_UUID);
@@ -1413,6 +1427,8 @@ KisNodeSP KisKraLoader::loadColorizeMask(KisImageSP image, const QDomElement& el
 
 void KisKraLoader::loadCompositions(const QDomElement& elem, KisImageSP image)
 {
+    image->setNewLayersVisibleInCompositions(elem.attribute("newLayersVisible", "0") == "1");
+    QSet<QUuid> compositionIds;
     QDomNode child;
 
     for (child = elem.firstChild(); !child.isNull(); child = child.nextSibling()) {
@@ -1423,6 +1439,12 @@ void KisKraLoader::loadCompositions(const QDomElement& elem, KisImageSP image)
 
         KisLayerCompositionSP composition(new KisLayerComposition(image, name));
         composition->setExportEnabled(exportEnabled);
+        // Files without ids (Krita, older Solstice) keep the new ones.
+        const QUuid compositionId(e.attribute("uuid"));
+        if (!compositionId.isNull() && !compositionIds.contains(compositionId)) {
+            composition->setUuid(compositionId);
+        }
+        compositionIds.insert(composition->uuid());
 
         QDomNode value;
         for (value = child.lastChild(); !value.isNull(); value = value.previousSibling()) {

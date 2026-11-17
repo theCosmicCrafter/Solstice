@@ -308,6 +308,10 @@ void KisSaveXmlVisitor::loadLayerAttributes(const QDomElement &el, KisLayer *lay
         layer->setChannelFlags(stringToFlags(el.attribute(CHANNEL_FLAGS)));
     }
 
+    if (el.hasAttribute(CLIPPED)) {
+        layer->setClipped(el.attribute(CLIPPED).toInt());
+    }
+
     if (el.hasAttribute(OPACITY)) {
         layer->setOpacity(el.attribute(OPACITY).toInt());
     }
@@ -380,6 +384,9 @@ void KisSaveXmlVisitor::saveLayer(QDomElement & el, const QString & layerType, c
     QString filename = LAYER + QString::number(m_count);
 
     el.setAttribute(CHANNEL_FLAGS, flagsToString(layer->channelFlags()));
+    if (layer->isClipped()) {
+        el.setAttribute(CLIPPED, 1);
+    }
     el.setAttribute(NAME, layer->name());
     el.setAttribute(OPACITY, layer->opacity());
     el.setAttribute(COMPOSITE_OP, layer->compositeOp()->id());

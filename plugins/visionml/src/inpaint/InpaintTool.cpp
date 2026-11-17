@@ -104,7 +104,7 @@ public:
 
             KoColorSpace const *maskCS = m_maskDev->colorSpace();
             if (maskCS->pixelSize() != 1 || maskCS->id() != "ALPHA") {
-                throw std::runtime_error("Unsupported mask color space: " + maskCS->id().toStdString());
+                throw std::runtime_error(i18n("Unsupported mask color space: %1", maskCS->id()).toStdString());
             }
 
             QImage maskData = QImage(bounds.width(), bounds.height(), QImage::Format_Alpha8);

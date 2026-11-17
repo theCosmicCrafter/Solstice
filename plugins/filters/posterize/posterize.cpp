@@ -24,6 +24,7 @@
 #include <filter/kis_filter_registry.h>
 #include <kis_global.h>
 
+#include <KoColorModelStandardIds.h>
 #include <KoColorSpaceMaths.h>
 #include <filter/kis_color_transformation_configuration.h>
 #include <widgets/kis_multi_integer_filter_widget.h>
@@ -66,6 +67,80 @@ KisPosterizeColorTransformation::KisPosterizeColorTransformation(int steps, cons
         m_colorSpace,
         KoColorConversionTransformation::internalRenderingIntent(),
         KoColorConversionTransformation::internalConversionFlags());
+}
+
+KisGpuColorTransformSP KisFilterPosterize::createGpuColorTransform(const KoColorSpace *cs, const KisFilterConfigurationSP config) const
+{
+    if (!cs || cs->colorModelId() != RGBAColorModelID || cs->colorDepthId() != Float16BitsColorDepthID) {
+        return KisGpuColorTransformSP();
+    }
+
+    const KisPosterizeColorTransformation transformation(config->getInt("steps", 16), cs);
+
+    bool independent = false;
+    {
+        QMutexLocker locker(&m_independentChannelsMutex);
+        auto it = m_independentChannels.find(cs);
+        if (it == m_independentChannels.end()) {
+            it = m_independentChannels.insert(cs, transformation.convertsChannelsIndependently());
+        }
+        independent = it.value();
+    }
+    return independent ? KisGpuColorTransform::channelTables(cs, &transformation) : KisGpuColorTransformSP();
+}
+
+namespace {
+/**
+ * Converts 65536 pixels whose channel @p channel runs through every 16-bit
+ * pattern while the other channels hold @p others (@p channel < 0: every
+ * channel runs), and returns the results.
+ */
+QVector<quint16> convertChannelSweep(const KoColorConversionTransformation *conversion, int channel, quint16 others)
+{
+    const int count = 65536;
+    QVector<quint16> src(4 * count);
+    QVector<quint16> dst(4 * count);
+    for (int i = 0; i < count; i++) {
+        for (int c = 0; c < 4; c++) {
+            src[4 * i + c] = (channel < 0 || c == channel) ? quint16(i) : others;
+        }
+    }
+    conversion->transform(reinterpret_cast<const quint8*>(src.constData()), reinterpret_cast<quint8*>(dst.data()), count);
+    return dst;
+}
+
+bool sweepsAgree(const KoColorConversionTransformation *conversion, const QVector<quint16> &othersValues, bool halfInput)
+{
+    // RGBA F16 pixels are stored as R, G, B, A and 16-bit integer ones as
+    // B, G, R, A: a channel arrives at the mirrored position.
+    const int convertedChannel[4] = {2, 1, 0, 3};
+
+    const QVector<quint16> reference = convertChannelSweep(conversion, -1, 0);
+    for (int channel = 0; channel < 4; channel++) {
+        const int resultChannel = convertedChannel[channel];
+        Q_FOREACH (quint16 others, othersValues) {
+            const QVector<quint16> result = convertChannelSweep(conversion, channel, others);
+            for (int i = 0; i < 65536; i++) {
+                // Inf and NaN are not colors
+                if (halfInput && (i & 0x7c00) == 0x7c00) continue;
+                if (result[4 * i + resultChannel] != reference[4 * i + resultChannel]) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+}
+
+bool KisPosterizeColorTransformation::convertsChannelsIndependently() const
+{
+    if (m_psize != 4 * sizeof(quint16) || !m_fromConversion || !m_toConversion) {
+        return false;
+    }
+    // half 0.0, 1.0, 0.25 and 4.0; then the same idea in 16-bit integers
+    return sweepsAgree(m_fromConversion, {0x0000, 0x3c00, 0x3400, 0x4400}, true)
+        && sweepsAgree(m_toConversion, {0x0000, 0xffff, 0x5555, 0xaaaa}, false);
 }
 
 KisPosterizeColorTransformation::~KisPosterizeColorTransformation()

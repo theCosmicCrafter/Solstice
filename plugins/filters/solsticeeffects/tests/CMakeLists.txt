@@ -1,0 +1,3 @@
+include_directories(..)
+kis_add_tests(KisColorReferenceFilterTest.cpp LINK_LIBRARIES solsticeeffects kritatestsdk)
+kis_add_tests(KisFilmGrainFilterTest.cpp KisChromaticAberrationFilterTest.cpp KisFilmFilterTest.cpp KisCrystalFilterTest.cpp KisPencilFilterTest.cpp KisSharpnessFilterTest.cpp KisColorFilterTest.cpp KisGlowFilterTest.cpp KisDropShadowFilterTest.cpp KisLineArtFilterTest.cpp KisRemoveDustFilterTest.cpp LINK_LIBRARIES solsticeeffects kritatestsdk)

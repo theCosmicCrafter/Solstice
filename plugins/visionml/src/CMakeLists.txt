@@ -2,6 +2,8 @@ set(kritavisionml_SOURCES
     VisionML.cpp
     VisionMLPlugin.cpp
     filters/BackgroundRemovalFilter.cpp
+    filters/DepthMapFilter.cpp
+    filters/ESRGANFilter.cpp
     inpaint/InpaintTool.cpp
     segmentation/SegmentationMatteUtils.h
     segmentation/SegmentationToolHelper.cpp
@@ -30,7 +32,8 @@ foreach(target ggml ggml-base ggml-cpu ggml-vulkan visioncpp)
     if(TARGET ${target})
         target_compile_options(${target} PRIVATE
             -Wno-cast-align -Wno-sign-compare -Wno-macro-redefined
-            -Wno-unused-parameter -Wno-missing-prototypes -Wno-undef
+            -Wno-unused-parameter -Wno-undef
+            $<$<NOT:$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:GNU>>>:-Wno-missing-prototypes>
             -Wno-unreachable-code)
     endif()
 endforeach()

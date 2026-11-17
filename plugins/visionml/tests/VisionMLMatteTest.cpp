@@ -63,8 +63,11 @@ void VisionMLMatteTest::testExpandRegionToMin()
     QCOMPARE(region.width(), 64);
     QCOMPARE(region.height(), 64);
     QVERIFY(bounds.contains(region));
-    // Symmetrical expansion: original center (110, 110)
-    QCOMPARE(region.center(), QPoint(110, 110));
+    // Symmetrical expansion around the original center (110, 110). An
+    // even-sized region cannot center exactly — QRect::center rounds down,
+    // so the achievable center is (109, 109); the original center is inside.
+    QVERIFY(region.contains(QPoint(110, 110)));
+    QVERIFY((region.center() - QPoint(110, 110)).manhattanLength() <= 2);
 }
 
 void VisionMLMatteTest::testExpandRegionBoundaryConditions()
@@ -93,26 +96,44 @@ void VisionMLMatteTest::testExpandRegionBoundaryConditions()
     QCOMPARE(smallRegion.height(), 10);
 }
 
-void VisionMLMatteTest::testClampRegionToMax()
+void VisionMLMatteTest::testDownscaleFactor()
 {
-    const QRect bounds(0, 0, 5000, 5000);
-    // Region exceeding 3072
-    QRect largeRegion(500, 500, 4000, 4000);
-    const bool clamped = VisionMLMatte::clampRegionToMax(largeRegion, bounds, 3072);
+    using VisionMLMatte::downscaleFactor;
+    using VisionMLMatte::kMaxInferencePixels;
+    using VisionMLMatte::kMinInferenceDim;
 
-    QVERIFY(clamped);
-    QCOMPARE(largeRegion.width(), 3072);
-    QCOMPARE(largeRegion.height(), 3072);
-    QVERIFY(bounds.contains(largeRegion));
-    // Clamped around center (original center was 2500, 2500)
-    QCOMPARE(largeRegion.center(), QPoint(2500, 2500));
+    // Within the pixel budget: no downscale
+    QCOMPARE(downscaleFactor({3072, 3072}, kMaxInferencePixels, kMinInferenceDim), 1.0);
+    QCOMPARE(downscaleFactor({500, 500}, kMaxInferencePixels, kMinInferenceDim), 1.0);
 
-    // Region within limit is not clamped
-    QRect normalRegion(100, 100, 500, 500);
-    const bool normalClamped = VisionMLMatte::clampRegionToMax(normalRegion, bounds, 3072);
-    QVERIFY(!normalClamped);
-    QCOMPARE(normalRegion.width(), 500);
-    QCOMPARE(normalRegion.height(), 500);
+    // Thin-but-large regions stay at native scale (area is under the cap)
+    QCOMPARE(downscaleFactor({20000, 64}, kMaxInferencePixels, kMinInferenceDim), 1.0);
+
+    // 6144 x 6144 = 4x budget -> factor 0.5
+    QCOMPARE(downscaleFactor({6144, 6144}, kMaxInferencePixels, kMinInferenceDim), 0.5);
+
+    // Aspect preserved: 12288 x 3072 = 4x budget -> 0.5 on both axes
+    QCOMPARE(downscaleFactor({12288, 3072}, kMaxInferencePixels, kMinInferenceDim), 0.5);
+
+    // Very tall-thin over-budget region: short edge must not drop below minDim.
+    // 100000 x 64 = 6.4 MP > budget? 6.4 MP < 9.4 MP -> stays 1.0.
+    QCOMPARE(downscaleFactor({100000, 64}, kMaxInferencePixels, kMinInferenceDim), 1.0);
+    // 100000 x 128 = 12.8 MP -> sqrt(9.437/12.8) ≈ 0.859, floor 64/128 = 0.5 -> 0.859
+    const double tall = downscaleFactor({100000, 128}, kMaxInferencePixels, kMinInferenceDim);
+    QVERIFY(tall < 1.0);
+    QVERIFY(qRound(128 * tall) >= kMinInferenceDim);
+
+    // Degenerate sizes never produce garbage factors
+    QCOMPARE(downscaleFactor({0, 0}, kMaxInferencePixels, kMinInferenceDim), 1.0);
+    QCOMPARE(downscaleFactor({-5, 10}, kMaxInferencePixels, kMinInferenceDim), 1.0);
+}
+
+void VisionMLMatteTest::testScaledSizeFor()
+{
+    QCOMPARE(VisionMLMatte::scaledSizeFor({6144, 6144}, 0.5), QSize(3072, 3072));
+    QCOMPARE(VisionMLMatte::scaledSizeFor({12288, 3072}, 0.5), QSize(6144, 1536));
+    // Never zero even at extreme factors
+    QCOMPARE(VisionMLMatte::scaledSizeFor({1, 100000}, 0.001), QSize(1, 100));
 }
 
 SIMPLE_TEST_MAIN(VisionMLMatteTest)

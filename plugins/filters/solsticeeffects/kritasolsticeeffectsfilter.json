@@ -1,0 +1,7 @@
+{
+    "Id": "Solstice Effects",
+    "Type": "Service",
+    "X-KDE-Library": "kritasolsticeeffectsfilter",
+    "X-KDE-ServiceTypes": ["Krita/Filter"],
+    "X-Krita-Version": "28"
+}

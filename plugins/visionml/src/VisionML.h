@@ -28,6 +28,8 @@ enum class VisionMLTask {
     segmentation = 0,
     inpainting,
     background_removal,
+    depth_estimation,
+    restoration,
     _count
 };
 
@@ -46,6 +48,10 @@ public:
     visp::image_data removeBackground(const visp::image_view &view);
 
     visp::image_data inpaint(visp::image_view const &image, visp::image_view const &mask);
+
+    visp::image_data estimateDepth(visp::image_view const &view);
+
+    visp::image_data restore(visp::image_view const &view);
 
     void unload(VisionMLTask);
 
@@ -76,6 +82,8 @@ private:
     visp::sam_model m_sam;
     visp::birefnet_model m_birefnet;
     visp::migan_model m_migan;
+    visp::depthany_model m_depthany;
+    visp::esrgan_model m_esrgan;
     std::array<QString, (int)VisionMLTask::_count> m_modelName;
     QMutex m_mutex;
 };

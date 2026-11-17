@@ -51,7 +51,7 @@ public:
         connect(m_vision.get(), &VisionModels::modelNameChanged, this, &BackgroundRemovalWidget::handleModelChange);
         connect(m_vision.get(), &VisionModels::backendChanged, this, &BackgroundRemovalWidget::handleBackendChange);
         connect(m_foregroundEstimationCheckBox,
-                &QCheckBox::checkStateChanged,
+                &QCheckBox::stateChanged,
                 this,
                 &KisConfigWidget::sigConfigurationItemChanged);
     }

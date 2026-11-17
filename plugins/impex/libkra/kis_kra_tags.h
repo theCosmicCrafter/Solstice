@@ -32,11 +32,15 @@ const QString PALETTE_PATH = "/palettes/";
 const QString RESOURCE_PATH = "resources/"; // Note: intentionally not slash in front.
 const QString STORYBOARD_PATH = "/storyboard/";
 const QString AUDIO_PATH = "/audio/";
+// Solstice: Fast Image Export settings, at the root of the store.
+const QString SOLSTICE_FAST_EXPORT_PATH = "solstice/fastexport.xml";
 const QString ANIMATION_METADATA_PATH = "/animation/";
 
 const QString ADJUSTMENT_LAYER = "adjustmentlayer";
 const QString CHANNEL_FLAGS = "channelflags";
 const QString CHANNEL_LOCK_FLAGS = "channellockflags";
+// Solstice: Clipping Mask (KisLayer::isClipped()); stock Krita ignores it
+const QString CLIPPED = "clipped";
 const QString CLONE_FROM = "clonefrom";
 const QString CLONE_FROM_UUID = "clonefromuuid";
 const QString CLONE_LAYER = "clonelayer";
@@ -141,7 +145,7 @@ const QString MIRROR_AXIS = "MirrorAxis";
 const QString ANNOTATIONS = "Annotations";
 const QString ANNOTATION = "Annotation";
 // Solstice: a brush stroke layer, saved as a paint layer with its recorded
-// strokes in a file beside its pixels (docs/agent/brush-stroke-layer-plan.md)
+// strokes in a file beside its pixels (docs/agent/brush-stroke-layer.md)
 const QString BRUSH_STROKE_LAYER = "solstice-brushstrokelayer";
 const QString DOT_BRUSH_STROKES = ".brushstrokes";
 }

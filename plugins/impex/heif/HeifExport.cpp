@@ -540,7 +540,7 @@ void KisWdgOptionsHeif::setConfiguration(const KisPropertiesConfigurationSP cfg)
     cmbChroma->setItemData(1, i18nc("@tooltip", "The brightness of the image will be at full resolution, while the colorfulness will be halved horizontally."), Qt::ToolTipRole);
     cmbChroma->setItemData(2, i18nc("@tooltip", "Both brightness and colorfulness of the image will be at full resolution."), Qt::ToolTipRole);
     chkLossless->setChecked(cfg->getBool("lossless", true));
-    sliderQuality->setValue(qreal(cfg->getInt("quality", 90)));
+    sliderQuality->setValue(qreal(cfg->getInt("quality", 50)));
     cmbChroma->setCurrentIndex(chromaOptions.indexOf(cfg->getString("chroma", "444")));
     m_hasAlpha = cfg->getBool(KisImportExportFilter::ImageContainsTransparencyTag, false);
 

@@ -15,6 +15,8 @@
 #include "kis_selection_filters.h"
 #include "kis_selection_tool_helper.h"
 
+#include <klocalizedstring.h>
+
 #include <QApplication>
 #include <QDebug>
 #include <QImage>
@@ -90,7 +92,14 @@ void SegmentationToolHelper::processImage(ImageInput const &input, KisProcessing
         return;
     }
 
-    m_bounds = inputImage->exactBounds();
+    // C1: In SampleColorLabeledLayers mode the merge command is queued
+    // asynchronously, so the reference device's exactBounds() is still empty on
+    // the GUI thread. Use the image (or node) bounds for the GUI-side checks;
+    // the stroke jobs clip to the actual merged bounds when they become
+    // available.
+    m_bounds = input.sampleLayersMode == KisToolSelect::SampleColorLabeledLayers
+        ? (input.image ? input.image->bounds() : (input.node ? input.node->exactBounds() : QRect()))
+        : inputImage->exactBounds();
 
     if (m_mode == SegmentationMode::precise) {
         return; // No separate image processing step, everything happens in applySelectionMask.
@@ -172,9 +181,12 @@ void SegmentationToolHelper::applySelectionMask(ImageInput const &input,
     bool noWork = false;
 
     if (prompt.canConvert<QRect>()) {
+        // C6: tryDeselectCurrentSelection takes the view-space rect of the
+        // original prompt, before intersecting/translating to image space.
+        const QRectF viewRect = kisCanvas->coordinatesConverter()->imageToWidget(prompt.toRect());
         QRect region = prompt.toRect().intersected(m_bounds);
         region.translate(-m_bounds.topLeft());
-        noWork |= helper.tryDeselectCurrentSelection(QRectF(region), options.action);
+        noWork |= helper.tryDeselectCurrentSelection(viewRect, options.action);
         noWork |= helper.canShortcutToNoop(region, options.action);
         noWork |= region.isEmpty();
     } else if (prompt.canConvert<QPoint>()) {
@@ -206,23 +218,49 @@ void SegmentationToolHelper::applySelectionMask(ImageInput const &input,
             visp::image_data mask;
             if (mode == SegmentationMode::fast) {
                 if (!shared->hasSegmentationImage()) {
+                    return nullptr; // Early out when there was no input image to process.
+                }
+                // C1: in SampleColorLabeledLayers mode the encoded image is the
+                // merged reference device, whose bounds were unknown on the GUI
+                // thread. Read them now that the merge job has run.
+                const QRect effectiveBounds = isColorLabeledMode ? inputImage->exactBounds() : bounds;
+                if (effectiveBounds.isEmpty()) {
                     if (image) {
                         image->cancelStroke(strokeId);
                     }
-                    return nullptr; // Early out when there was no input image to process.
+                    return nullptr;
                 }
                 if (prompt.canConvert<QPoint>()) {
-                    QPoint point = prompt.toPoint() - bounds.topLeft();
+                    QPoint point = prompt.toPoint();
+                    if (!effectiveBounds.contains(point, true)) {
+                        if (image) {
+                            image->cancelStroke(strokeId);
+                        }
+                        return nullptr;
+                    }
+                    point -= effectiveBounds.topLeft();
                     mask = shared->predictSegmentationMask(convert(point));
                 } else {
-                    QRect rect = prompt.toRect().intersected(bounds).translated(-bounds.topLeft());
+                    QRect rect = prompt.toRect().intersected(effectiveBounds).translated(-effectiveBounds.topLeft());
+                    if (rect.isEmpty()) {
+                        if (image) {
+                            image->cancelStroke(strokeId);
+                        }
+                        return nullptr;
+                    }
                     mask = shared->predictSegmentationMask(convert(rect));
                 }
-                selection->writeBytes(mask.data.get(), imageBounds(bounds.topLeft(), mask.extent));
+                selection->writeBytes(mask.data.get(), imageBounds(effectiveBounds.topLeft(), mask.extent));
             } else {
                 QRect rect = prompt.toRect().intersected(bounds);
                 if (isColorLabeledMode) {
                     rect = rect.intersected(inputImage->exactBounds());
+                    if (rect.isEmpty()) {
+                        if (image) {
+                            image->cancelStroke(strokeId);
+                        }
+                        return nullptr;
+                    }
                 }
                 VisionMLImage img = VisionMLImage::prepare(*inputImage, rect);
                 if (!img) {
@@ -328,30 +366,25 @@ void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
         return;
     }
 
-    // C4: Enforce min 64x64 by expanding region within bounds.
-    VisionMLMatte::expandRegionToMin(region, bounds, 64);
-
-    // C4: Cap crop size to 3072 clamped around the center, emitting a warning if clamped.
-    const bool clamped = VisionMLMatte::clampRegionToMax(region, bounds, 3072);
-    if (clamped) {
-        Q_EMIT m_errorReporter.errorOccurred(i18n("Selection region exceeds 3072 pixels and was clamped to 3072 pixels around the selection center."));
-    }
+    // C4: Enforce min 64x64 by expanding region within bounds. Oversized
+    // regions are downscaled for inference inside the stroke command
+    // (kMaxInferencePixels budget) instead of clamping coverage.
 
     KisPixelSelectionSP selection = new KisPixelSelection(new KisSelectionDefaultBounds(inputImage));
     const KisStrokeId strokeId = applicator.getStroke();
     KisImageSP image = input.image;
 
     KUndo2Command *cmd = new KisCommandUtils::LambdaCommand([shared = m_shared.get(),
-                                                           report = &m_errorReporter,
-                                                           inputImage,
-                                                           image,
-                                                           strokeId,
-                                                           region,
-                                                           polygon,
-                                                           selection,
-                                                           options,
-                                                           isColorLabeledMode,
-                                                           cursorLock]() mutable -> KUndo2Command * {
+                                                             report = &m_errorReporter,
+                                                             inputImage,
+                                                             image,
+                                                             strokeId,
+                                                             region,
+                                                             polygon,
+                                                             selection,
+                                                             options,
+                                                             isColorLabeledMode,
+                                                             cursorLock]() mutable -> KUndo2Command * {
         try {
             QRect effectiveRegion = region;
             // C1: In SampleColorLabeledLayers mode, lazily clip to rendered exactBounds
@@ -382,7 +415,30 @@ void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
                 }
                 return nullptr;
             }
-            visp::image_data matte = shared->removeBackground(inputImg.view);
+
+            // C4: regions above the pixel budget run inference on a
+            // downscaled crop; the soft matte is upsampled back so the
+            // whole selection is covered (no partial coverage).
+            const double inferScale = VisionMLMatte::downscaleFactor(effectiveRegion.size(),
+                                                                     VisionMLMatte::kMaxInferencePixels,
+                                                                     VisionMLMatte::kMinInferenceDim);
+            const visp::image_data matte = [&]() {
+                if (inferScale < 1.0) {
+                    const QSize inferSize = VisionMLMatte::scaledSizeFor(effectiveRegion.size(), inferScale);
+                    Q_EMIT report->errorOccurred(i18n("Large selection; matting used a downsampled %1x%2 crop.")
+                                                     .arg(inferSize.width())
+                                                     .arg(inferSize.height()));
+                    QImage inferScaled =
+                        inputImg.data.scaled(inferSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+                    visp::image_view inferView;
+                    inferView.extent = {inferScaled.width(), inferScaled.height()};
+                    inferView.stride = inferScaled.bytesPerLine();
+                    inferView.format = visp::image_format::bgra_u8;
+                    inferView.data = inferScaled.bits();
+                    return shared->removeBackground(inferView);
+                }
+                return shared->removeBackground(inputImg.view);
+            }();
 
             // Rasterize the lasso outline: the matte is clipped to the drawn
             // region and to non-transparent pixels of the source image.
@@ -396,27 +452,39 @@ void SegmentationToolHelper::applyMattingMask(ImageInput const &input,
                 painter.drawPolygon(polygon.translated(-QPointF(effectiveRegion.topLeft())));
             }
 
-            QRect maskRect(effectiveRegion.topLeft(), QSize(matte.extent[0], matte.extent[1]));
-            if (matte.extent[0] != effectiveRegion.width() || matte.extent[1] != effectiveRegion.height()) {
-                // Unexpected output size: fall back to the raw matte.
-                selection->writeBytes(matte.data.get(), maskRect);
-            } else {
-                QByteArray bytes(maskRect.width() * maskRect.height(), 0);
-                const uchar *matteData = matte.data.get();
-                for (int y = 0; y < maskRect.height(); ++y) {
-                    const uchar *maskRow = regionMask.constScanLine(y);
-                    const uchar *srcRow = inputImg.data.constScanLine(y);
-                    uchar *outRow = reinterpret_cast<uchar *>(bytes.data()) + y * maskRect.width();
-                    for (int x = 0; x < maskRect.width(); ++x) {
-                        const quint8 sourceAlpha = srcRow[x * 4 + 3]; // ARGB32 stores BGRA bytes
-                        const quint8 maskVal = maskRow[x];
-                        const quint8 matteVal = matteData[y * maskRect.width() + x];
-                        // C2: Multiply matte * mask * alpha / 255^2 with proper rounding
-                        outRow[x] = VisionMLMatte::modulateMatteAlpha(matteVal, maskVal, sourceAlpha);
-                    }
+            // Bring the matte to full region size: exact-size output is used
+            // directly, downscaled (or otherwise off-size) model output is
+            // upsampled. An empty matte means inference failed — cancel.
+            QImage matteImg;
+            if (matte.data && matte.extent[0] > 0 && matte.extent[1] > 0) {
+                matteImg = QImage(matte.data.get(), matte.extent[0], matte.extent[1], QImage::Format_Grayscale8);
+                if (matteImg.size() != effectiveRegion.size()) {
+                    matteImg = matteImg.scaled(effectiveRegion.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
                 }
-                selection->writeBytes(reinterpret_cast<const quint8 *>(bytes.constData()), maskRect);
             }
+            if (matteImg.isNull()) {
+                if (image) {
+                    image->cancelStroke(strokeId);
+                }
+                return nullptr;
+            }
+
+            const QRect maskRect(effectiveRegion.topLeft(), effectiveRegion.size());
+            QByteArray bytes(maskRect.width() * maskRect.height(), 0);
+            for (int y = 0; y < maskRect.height(); ++y) {
+                const uchar *maskRow = regionMask.constScanLine(y);
+                const uchar *srcRow = inputImg.data.constScanLine(y);
+                const uchar *matteRow = matteImg.constScanLine(y);
+                uchar *outRow = reinterpret_cast<uchar *>(bytes.data()) + y * maskRect.width();
+                for (int x = 0; x < maskRect.width(); ++x) {
+                    const quint8 sourceAlpha = srcRow[x * 4 + 3]; // ARGB32 stores BGRA bytes
+                    const quint8 maskVal = maskRow[x];
+                    const quint8 matteVal = matteRow[x];
+                    // C2: Multiply matte * mask * alpha / 255^2 with proper rounding
+                    outRow[x] = VisionMLMatte::modulateMatteAlpha(matteVal, maskVal, sourceAlpha);
+                }
+            }
+            selection->writeBytes(reinterpret_cast<const quint8 *>(bytes.constData()), maskRect);
             adjustSelection(selection, options);
             selection->invalidateOutlineCache();
         } catch (const std::exception &e) {

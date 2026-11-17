@@ -42,6 +42,9 @@ private Q_SLOTS:
     void testImportFromWriteonly();
     void testExportToReadonly();
     void testImportIncorrectFormat();
+
+    // Solstice: Clipping Mask
+    void testRoundTripClipping();
 };
 
 #endif

@@ -11,20 +11,13 @@
 #include <tuple>
 #include <utility>
 
-#include <KisDocument.h>
-#include <KisMainWindow.h>
-#include <KisPart.h>
-#include <KisViewManager.h>
 #include <KoColorSpaceConstants.h>
 #include <commands/kis_image_layer_add_command.h>
 #include <kis_command_utils.h>
 #include <kis_image.h>
 #include <kis_layer_utils.h>
-#include <kis_node_manager.h>
-#include <kis_node_selection_adapter.h>
 #include <kis_paint_layer.h>
 #include <kis_selection.h>
-#include <kis_surrogate_undo_adapter.h>
 #include <kis_transaction.h>
 #include <kis_types.h>
 
@@ -45,37 +38,30 @@ struct Q_DECL_HIDDEN KisQmicSynchronizeLayersCommand::Private {
     {
     }
 
-    ~Private()
-    {
-        qDeleteAll(m_imageCommands);
-        m_imageCommands.clear();
-    }
-
     KisNodeListSP m_nodes;
     KisNodeListSP m_newNodes;
     QVector<KisQMicImageSP> m_images;
     KisImageWSP m_image;
     QRect m_dstRect;
     KisSelectionSP m_selection;
-    QVector<KisImageCommand *> m_imageCommands;
-    KisSurrogateUndoAdapter m_undoAdapter;
-    bool m_firstRedo;
+    KisNodeList m_selectedNodes;
+    KisNodeSP m_activeNode;
+    bool m_firstRedo{true};
 };
 
-KisQmicSynchronizeLayersCommand::KisQmicSynchronizeLayersCommand(
-    KisNodeListSP nodes,
-    QVector<KisQMicImageSP> images,
-    KisImageWSP image,
-    const QRect &dstRect,
-    KisSelectionSP selection)
+KisQmicSynchronizeLayersCommand::KisQmicSynchronizeLayersCommand(KisNodeListSP nodes,
+                                                                 QVector<KisQMicImageSP> images,
+                                                                 KisImageWSP image,
+                                                                 const QRect &dstRect,
+                                                                 KisSelectionSP selection,
+                                                                 KisNodeList selectedNodes,
+                                                                 KisNodeSP activeNode)
     : KisCommandUtils::CompositeCommand()
-    , d(new Private{std::move(nodes),
-                    std::move(images),
-                    image,
-                    dstRect,
-                    selection})
+    , d(new Private{std::move(nodes), std::move(images), image, dstRect, selection})
 {
     dbgPlugins << "KisQmicSynchronizeLayersCommand";
+    d->m_selectedNodes = selectedNodes.isEmpty() ? *d->m_nodes : selectedNodes;
+    d->m_activeNode = activeNode ? activeNode : (d->m_nodes->isEmpty() ? KisNodeSP() : d->m_nodes->last());
 }
 
 KisQmicSynchronizeLayersCommand::~KisQmicSynchronizeLayersCommand()
@@ -86,6 +72,12 @@ KisQmicSynchronizeLayersCommand::~KisQmicSynchronizeLayersCommand()
 void KisQmicSynchronizeLayersCommand::redo()
 {
     dbgPlugins << "KisQmicSynchronizeLayersCommand::Redo";
+
+    if (!d->m_firstRedo) {
+        KisCommandUtils::CompositeCommand::redo();
+        return;
+    }
+    d->m_firstRedo = false;
 
     const auto pickAboveThis = [&]() {
         if (!d->m_newNodes->isEmpty()) {
@@ -103,28 +95,15 @@ void KisQmicSynchronizeLayersCommand::redo()
         }
     };
 
-    KisNodeManager *nodeManager = [&]() -> KisNodeManager * {
-        KisMainWindow *mainWin = KisPart::instance()->currentMainwindow();
-        if (!mainWin)
-            return nullptr;
-        KisViewManager *viewManager = mainWin->viewManager();
-        if (!viewManager)
-            return nullptr;
-        if (viewManager->document()->image() != d->m_image)
-            return nullptr;
-        return viewManager->nodeManager();
-    }();
-
-    if (!nodeManager)
-        return;
-
-    auto *selectOldLayer = new KisLayerUtils::KeepNodesSelectedCommand(
-        nodeManager->selectedNodes(),
-        nodeManager->selectedNodes(),
-        nodeManager->activeNode(),
-        nodeManager->activeNode(),
-        d->m_image,
-        false);
+    // Stroke jobs must not consult the current GUI window. The input nodes
+    // and image were captured by the launching interface.
+    const KisNodeSP oldActive = d->m_activeNode;
+    auto *selectOldLayer = new KisLayerUtils::KeepNodesSelectedCommand(d->m_selectedNodes,
+                                                                       d->m_selectedNodes,
+                                                                       oldActive,
+                                                                       oldActive,
+                                                                       d->m_image,
+                                                                       false);
 
     selectOldLayer->redo();
 
@@ -231,6 +210,7 @@ void KisQmicSynchronizeLayersCommand::redo()
                                                    dst,
                                                    selection,
                                                    d->m_dstRect);
+        addCommand(transaction.endAndTake());
         auto *layerNameCmd =
             KisQmicImportTools::applyLayerNameChanges(*gimg,
                                                       node.data(),
@@ -239,7 +219,6 @@ void KisQmicSynchronizeLayersCommand::redo()
 
         addCommand(new KisCommandUtils::SkipFirstRedoWrapper(layerNameCmd));
 
-        transaction.commit(&d->m_undoAdapter);
         node->setDirty(d->m_dstRect);
     }
 
@@ -255,24 +234,23 @@ void KisQmicSynchronizeLayersCommand::redo()
     if (!currentNode)
         return;
 
-    auto *selectNewLayer = new KisLayerUtils::KeepNodesSelectedCommand(
-        nodeManager->selectedNodes(),
-        {currentNode},
-        nodeManager->activeNode(),
-        currentNode,
-        d->m_image,
-        true);
+    auto *selectNewLayer = new KisLayerUtils::KeepNodesSelectedCommand(d->m_selectedNodes,
+                                                                       {currentNode},
+                                                                       oldActive,
+                                                                       currentNode,
+                                                                       d->m_image,
+                                                                       true);
 
     selectNewLayer->redo();
 
     addCommand(new KisCommandUtils::SkipFirstRedoWrapper(selectNewLayer));
 
     dbgPlugins << "Set selected node to" << currentNode->name();
+    // Consume each already-applied child's first-redo guard exactly once.
+    KisCommandUtils::CompositeCommand::redo();
 }
 
 void KisQmicSynchronizeLayersCommand::undo()
 {
     KisCommandUtils::CompositeCommand::undo();
-    d->m_undoAdapter.undoAll();
-    d->m_newNodes->clear();
 }

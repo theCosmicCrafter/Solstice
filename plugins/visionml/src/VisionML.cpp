@@ -56,7 +56,7 @@ void initPaths()
     paths.userModels = userRoot.filePath(QStringLiteral("visionml/models/"));
     paths.legacyModels = userRoot.filePath(QStringLiteral("pykrita/vision_tools/models/"));
 
-    for (const QString &folder : {QStringLiteral("sam"), QStringLiteral("birefnet"), QStringLiteral("migan")}) {
+    for (const QString &folder : {QStringLiteral("sam"), QStringLiteral("birefnet"), QStringLiteral("migan"), QStringLiteral("depthanything"), QStringLiteral("esrgan")}) {
         QDir().mkpath(QDir(paths.userModels).filePath(folder));
     }
 }
@@ -85,6 +85,10 @@ QString modelFolder(VisionMLTask task)
         return QStringLiteral("birefnet");
     case VisionMLTask::inpainting:
         return QStringLiteral("migan");
+    case VisionMLTask::depth_estimation:
+        return QStringLiteral("depthanything");
+    case VisionMLTask::restoration:
+        return QStringLiteral("esrgan");
     default:
         return QString();
     }
@@ -120,6 +124,10 @@ char const *toString(VisionMLTask task)
         return "inpainting";
     case VisionMLTask::background_removal:
         return "background_removal";
+    case VisionMLTask::depth_estimation:
+        return "depth_estimation";
+    case VisionMLTask::restoration:
+        return "restoration";
     default:
         return "unknown";
     }
@@ -163,6 +171,8 @@ VisionModels::VisionModels()
         ? QStringLiteral("birefnet/BiRefNet-lite-F16.gguf")
         : dynamicBiRefNet;
     configureModel(VisionMLTask::background_removal, defaultBiRefNet);
+    configureModel(VisionMLTask::depth_estimation, "depthanything/Depth-Anything-V2-Small-F16.gguf");
+    configureModel(VisionMLTask::restoration, "esrgan/RealESRGAN_x4plus-F16.gguf");
 
     QString err = initialize(backendType);
     if (!err.isEmpty()) {
@@ -200,6 +210,8 @@ QString VisionModels::initialize(visp::backend_type backendType)
     m_sam = {};
     m_birefnet = {};
     m_migan = {};
+    m_depthany = {};
+    m_esrgan = {};
     try {
         m_backend = visp::backend_init(backendType);
     } catch (const std::exception &e) {
@@ -282,6 +294,30 @@ visp::image_data VisionModels::inpaint(visp::image_view const &image, visp::imag
     return visp::migan_compute(m_migan, image, mask);
 }
 
+visp::image_data VisionModels::estimateDepth(visp::image_view const &image)
+{
+    QMutexLocker lock(&m_mutex);
+    if (!m_depthany.weights) {
+        QByteArray path = modelPath(VisionMLTask::depth_estimation);
+        m_depthany = visp::depthany_load_model(path.data(), m_backend);
+    }
+    auto result = visp::depthany_compute(m_depthany, image);
+    unloadFromGPU(m_depthany.graph, m_backendType);
+    return visp::image_f32_to_u8(result, visp::image_format::alpha_u8);
+}
+
+visp::image_data VisionModels::restore(visp::image_view const &image)
+{
+    QMutexLocker lock(&m_mutex);
+    if (!m_esrgan.weights) {
+        QByteArray path = modelPath(VisionMLTask::restoration);
+        m_esrgan = visp::esrgan_load_model(path.data(), m_backend);
+    }
+    auto result = visp::esrgan_compute(m_esrgan, image);
+    unloadFromGPU(m_esrgan.graph, m_backendType);
+    return result;
+}
+
 void VisionModels::unload(VisionMLTask task)
 {
     // Models and working memory are not that big.
@@ -299,6 +335,12 @@ void VisionModels::unload(VisionMLTask task)
         case VisionMLTask::background_removal:
             m_birefnet = {};
             break;
+        case VisionMLTask::depth_estimation:
+            m_depthany = {};
+            break;
+        case VisionMLTask::restoration:
+            m_esrgan = {};
+            break;
         default:
             break;
         }
@@ -309,7 +351,7 @@ QByteArray VisionModels::modelPath(VisionMLTask task) const
 {
     const QString path = resolveModelPath(modelName(task));
     if (path.isEmpty()) {
-        throw std::runtime_error("Model file not found: " + modelName(task).toStdString());
+        throw std::runtime_error(i18n("Model file not found: %1", modelName(task)).toStdString());
     }
     return path.toUtf8();
 }
@@ -366,6 +408,8 @@ void VisionModels::unloadModels()
     m_sam = {};
     m_birefnet = {};
     m_migan = {};
+    m_depthany = {};
+    m_esrgan = {};
 }
 
 void VisionModels::cleanUp()
@@ -417,7 +461,7 @@ VisionMLImage VisionMLImage::prepare(KisPaintDevice const &device, QRect bounds)
 QImage VisionMLImage::convertToQImage(visp::image_view const &img, QRect b)
 {
     if (img.format != visp::image_format::rgba_u8) {
-        throw std::runtime_error("Unsupported image format for conversion to QImage");
+        throw std::runtime_error(i18n("Unsupported image format for conversion to QImage").toStdString());
     }
     if (b.isEmpty()) {
         b = QRect(0, 0, img.extent[0], img.extent[1]);
@@ -576,6 +620,12 @@ void VisionMLModelSelect::updateModels()
         break;
     case VisionMLTask::inpainting:
         addModels("migan");
+        break;
+    case VisionMLTask::depth_estimation:
+        addModels("depthanything");
+        break;
+    case VisionMLTask::restoration:
+        addModels("esrgan");
         break;
     default:
         qWarning() << "Unknown VisionMLTask" << (int)m_task;

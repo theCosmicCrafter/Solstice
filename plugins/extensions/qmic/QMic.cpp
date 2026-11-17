@@ -7,8 +7,13 @@
 
 #include "QMic.h"
 
+#include <KisSolsticePaths.h>
 #include <QApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QMessageBox>
+#include <QScopeGuard>
+#include <kis_action_manager.h>
 #include <memory>
 
 #include <KisViewManager.h>
@@ -34,6 +39,16 @@ QMic::QMic(QObject *parent, const QVariantList &)
     m_againAction->setActivationFlags(KisAction::ACTIVE_DEVICE);
     m_againAction->setEnabled(false);
     connect(m_againAction, SIGNAL(triggered()), this, SLOT(slotQMicAgain()));
+    // Action-manager GUI refreshes must not enable Reapply before an output
+    // was accepted, or either action while a runtime is active.
+    connect(m_againAction, &QAction::changed, this, [this]() {
+        if (m_running || !m_hasAppliedFilter)
+            m_againAction->setEnabled(false);
+    });
+    connect(m_qmicAction, &QAction::changed, this, [this]() {
+        if (m_running)
+            m_qmicAction->setEnabled(false);
+    });
 }
 
 void QMic::slotQMicAgain()
@@ -43,8 +58,33 @@ void QMic::slotQMicAgain()
 
 void QMic::slotQMic(bool again)
 {
+    // The hosted runtime has process-wide state, shared by all main windows.
+    static bool runtimeActive = false;
+    const auto manager = viewManager();
+    if (runtimeActive || !manager || !manager->image() || (again && !m_hasAppliedFilter))
+        return;
+    runtimeActive = true;
+    m_running = true;
+    const auto restoreActions = qScopeGuard([this, manager]() {
+        runtimeActive = false;
+        m_running = false;
+        if (manager)
+            manager->actionManager()->updateGUI();
+    });
     m_qmicAction->setEnabled(false);
     m_againAction->setEnabled(false);
+
+    // G'MIC caches its paths on first use. Configure them before plugin creation.
+    const QString dataPath = KisSolsticePaths::defaultResourceDir() + QStringLiteral("/gmic");
+    const QString settingsPath = KisSolsticePaths::configFilePath(QStringLiteral("gmic-qt.ini"));
+    if (!QDir().mkpath(dataPath) || !QDir().mkpath(QFileInfo(settingsPath).absolutePath())) {
+        QMessageBox::warning(manager->mainWindowAsQWidget(),
+                             i18n("G'MIC"),
+                             i18n("Cannot create the G'MIC settings folder."));
+        return;
+    }
+    qputenv("GMIC_PATH", QDir::toNativeSeparators(dataPath).toUtf8());
+    qputenv("SOLSTICE_GMIC_SETTINGS", settingsPath.toUtf8());
 
     std::unique_ptr<KisQmicPluginInterface> plugin;
 
@@ -70,6 +110,7 @@ void QMic::slotQMic(bool again)
         plugin.reset(qobject_cast<KisQmicPluginInterface *>(pluginBase));
 
         if (!plugin) {
+            delete pluginBase;
             warnPlugins << "(GMic) This is not a valid GMic-Qt plugin: " << loader.fileName();
             continue;
         }
@@ -84,8 +125,15 @@ void QMic::slotQMic(bool again)
         return;
     }
 
-    if (this->viewManager()->blockUntilOperationsFinished(this->viewManager()->image())) {
-        auto image = std::make_shared<KisImageInterface>(this->viewManager().data());
+    if (manager->blockUntilOperationsFinished(manager->image())) {
+        auto image = std::make_shared<KisImageInterface>(manager.data());
+        connect(image.get(), &KisImageInterface::outputApplied, this, [this]() {
+            m_hasAppliedFilter = true;
+        });
+        connect(image.get(), &KisImageInterface::errorOccurred, this, [manager](const QString &message) {
+            if (manager)
+                QMessageBox::warning(manager->mainWindowAsQWidget(), i18n("G'MIC"), message);
+        });
         int status = plugin->launch(image, again);
 
         dbgPlugins << "pluginFinished" << status;
@@ -93,8 +141,6 @@ void QMic::slotQMic(bool again)
 
     plugin.reset();
 
-    m_qmicAction->setEnabled(true);
-    m_againAction->setEnabled(true);
 }
 
 #include "QMic.moc"

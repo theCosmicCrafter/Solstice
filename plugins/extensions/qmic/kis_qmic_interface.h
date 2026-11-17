@@ -17,6 +17,8 @@
 #include <QScopedPointer>
 #include <QSize>
 #include <QVector>
+#include <limits>
+#include <stdexcept>
 
 class KisQmicApplicator;
 class KisViewManager;
@@ -37,7 +39,7 @@ struct KRITAQMICINTERFACE_EXPORT KisQMicImage {
         , m_width(width)
         , m_height(height)
         , m_spectrum(spectrum)
-        , m_data(new float[width * height * spectrum])
+        , m_data(new float[checkedElementCount(width, height, spectrum)])
     {
     }
 
@@ -52,7 +54,18 @@ struct KRITAQMICINTERFACE_EXPORT KisQMicImage {
 
     size_t size() const
     {
-        return m_width * m_height * m_spectrum * sizeof(float);
+        return checkedElementCount(m_width, m_height, m_spectrum) * sizeof(float);
+    }
+
+    // The native bridge and G'MIC copy lengths must also fit signed int.
+    static size_t checkedElementCount(int width, int height, int spectrum)
+    {
+        const size_t limit = size_t(std::numeric_limits<int>::max()) / sizeof(float);
+        if (width <= 0 || height <= 0 || spectrum < 1 || spectrum > 4
+            || size_t(width) > limit / size_t(height) / size_t(spectrum)) {
+            throw std::length_error("Unsupported G'MIC image dimensions or channel count");
+        }
+        return size_t(width) * size_t(height) * size_t(spectrum);
     }
 };
 
@@ -72,6 +85,10 @@ public:
     QVector<KisQMicImageSP> gmic_qt_get_cropped_images(int mode, QRectF &cropRect);
     void gmic_qt_output_images(int mode, QVector<KisQMicImageSP> layers);
     void gmic_qt_detach();
+
+Q_SIGNALS:
+    void outputApplied();
+    void errorOccurred(const QString &message);
 
 private:
     struct Private;

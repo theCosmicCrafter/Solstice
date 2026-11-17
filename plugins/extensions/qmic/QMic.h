@@ -26,6 +26,8 @@ private Q_SLOTS:
 private:
     KisAction *m_qmicAction;
     KisAction *m_againAction;
+    bool m_hasAppliedFilter{false};
+    bool m_running{false};
 };
 
 #endif // QMic_H

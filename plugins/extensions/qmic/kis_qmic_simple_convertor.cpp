@@ -6,11 +6,13 @@
  */
 
 #include "kis_qmic_simple_convertor.h"
+#include "KisQmicRgbConverter.h"
 
 #include <array>
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 #include <kis_debug.h>
@@ -23,8 +25,6 @@
 #include <KoCompositeOpRegistry.h>
 
 #define SCALE_TO_FLOAT(v) KoColorSpaceMaths<_channel_type_, float>::scaleToA(v)
-#define SCALE_FROM_FLOAT(v)                                                    \
-    KoColorSpaceMaths<float, _channel_type_>::scaleToA(v)
 
 using KoColorTransformationSP = std::shared_ptr<KoColorTransformation>;
 
@@ -68,127 +68,6 @@ public:
     }
 };
 
-template<typename _channel_type_, typename traits>
-class KisColorFromFloat : public KoColorTransformation
-{
-    using RGBTrait = traits;
-    using RGBPixel = typename RGBTrait::Pixel;
-
-public:
-    KisColorFromFloat(float gmicUnitValue = 255.0f)
-        : m_gmicUnitValue(gmicUnitValue)
-    {
-    }
-
-    void
-    transform(const quint8 *src, quint8 *dst, qint32 nPixels) const override
-    {
-        const auto *srcPixel =
-            reinterpret_cast<const KoRgbF32Traits::Pixel *>(src);
-        auto *dstPixel = reinterpret_cast<RGBPixel *>(dst);
-
-        const float gmicUnitValue2KritaUnitValue =
-            KoColorSpaceMathsTraits<float>::unitValue / m_gmicUnitValue;
-
-        while (nPixels > 0) {
-            dstPixel->red =
-                SCALE_FROM_FLOAT(srcPixel->red * gmicUnitValue2KritaUnitValue);
-            dstPixel->green = SCALE_FROM_FLOAT(srcPixel->green
-                                               * gmicUnitValue2KritaUnitValue);
-            dstPixel->blue =
-                SCALE_FROM_FLOAT(srcPixel->blue * gmicUnitValue2KritaUnitValue);
-            dstPixel->alpha = SCALE_FROM_FLOAT(srcPixel->alpha
-                                               * gmicUnitValue2KritaUnitValue);
-
-            --nPixels;
-            ++srcPixel;
-            ++dstPixel;
-        }
-    }
-
-private:
-    float m_gmicUnitValue;
-};
-
-template<typename _channel_type_, typename traits>
-class KisColorFromGrayScaleFloat : public KoColorTransformation
-{
-    using RGBTrait = traits;
-    using RGBPixel = typename RGBTrait::Pixel;
-
-public:
-    KisColorFromGrayScaleFloat(float gmicUnitValue = 255.0f)
-        : m_gmicUnitValue(gmicUnitValue)
-    {
-    }
-
-    void
-    transform(const quint8 *src, quint8 *dst, qint32 nPixels) const override
-    {
-        const auto *srcPixel =
-            reinterpret_cast<const KoRgbF32Traits::Pixel *>(src);
-        auto *dstPixel = reinterpret_cast<RGBPixel *>(dst);
-
-        const float gmicUnitValue2KritaUnitValue =
-            KoColorSpaceMathsTraits<float>::unitValue / m_gmicUnitValue;
-        // warning: green and blue channels on input contain random data!!! see
-        // that we copy only one channel when gmic image has grayscale
-        // colorspace
-        while (nPixels > 0) {
-            dstPixel->red = dstPixel->green = dstPixel->blue =
-                SCALE_FROM_FLOAT(srcPixel->red * gmicUnitValue2KritaUnitValue);
-            dstPixel->alpha = SCALE_FROM_FLOAT(srcPixel->alpha
-                                               * gmicUnitValue2KritaUnitValue);
-
-            --nPixels;
-            ++srcPixel;
-            ++dstPixel;
-        }
-    }
-
-private:
-    float m_gmicUnitValue;
-};
-
-template<typename _channel_type_, typename traits>
-class KisColorFromGrayScaleAlphaFloat : public KoColorTransformation
-{
-    using RGBTrait = traits;
-    using RGBPixel = typename RGBTrait::Pixel;
-
-public:
-    KisColorFromGrayScaleAlphaFloat(float gmicUnitValue = 255.0f)
-        : m_gmicUnitValue(gmicUnitValue)
-    {
-    }
-
-    void
-    transform(const quint8 *src, quint8 *dst, qint32 nPixels) const override
-    {
-        const auto *srcPixel =
-            reinterpret_cast<const KoRgbF32Traits::Pixel *>(src);
-        auto *dstPixel = reinterpret_cast<RGBPixel *>(dst);
-
-        const float gmicUnitValue2KritaUnitValue =
-            KoColorSpaceMathsTraits<float>::unitValue / m_gmicUnitValue;
-        // warning: green and blue channels on input contain random data!!! see
-        // that we copy only one channel when gmic image has grayscale
-        // colorspace
-        while (nPixels > 0) {
-            dstPixel->red = dstPixel->green = dstPixel->blue =
-                SCALE_FROM_FLOAT(srcPixel->red * gmicUnitValue2KritaUnitValue);
-            dstPixel->alpha = SCALE_FROM_FLOAT(srcPixel->green
-                                               * gmicUnitValue2KritaUnitValue);
-
-            --nPixels;
-            ++srcPixel;
-            ++dstPixel;
-        }
-    }
-
-private:
-    float m_gmicUnitValue;
-};
 
 const std::map<QString, QString> blendingModeMap = {
     {"add", COMPOSITE_ADD},
@@ -248,87 +127,6 @@ const std::map<QString, QString> blendingModeMap = {
     {"vividlight", COMPOSITE_VIVID_LIGHT},
     {"xor", COMPOSITE_XOR}};
 
-static KoColorTransformation *
-createTransformationFromGmic(const KoColorSpace *colorSpace,
-                             int gmicSpectrum,
-                             float gmicUnitValue)
-{
-    KoColorTransformation *colorTransformation = nullptr;
-    if (colorSpace->colorModelId() != RGBAColorModelID) {
-        dbgKrita << "Unsupported color space for fast pixel transformation to "
-                    "gmic pixel format"
-                 << colorSpace->id();
-        return nullptr;
-    }
-
-    if (colorSpace->colorDepthId() == Float32BitsColorDepthID) {
-        if (gmicSpectrum == 3 || gmicSpectrum == 4) {
-            colorTransformation =
-                new KisColorFromFloat<float, KoRgbTraits<float>>(gmicUnitValue);
-        } else if (gmicSpectrum == 1) {
-            colorTransformation =
-                new KisColorFromGrayScaleFloat<float, KoRgbTraits<float>>(
-                    gmicUnitValue);
-        } else if (gmicSpectrum == 2) {
-            colorTransformation =
-                new KisColorFromGrayScaleAlphaFloat<float, KoRgbTraits<float>>(
-                    gmicUnitValue);
-        }
-    }
-#ifdef HAVE_OPENEXR
-    else if (colorSpace->colorDepthId() == Float16BitsColorDepthID) {
-        if (gmicSpectrum == 3 || gmicSpectrum == 4) {
-            colorTransformation =
-                new KisColorFromFloat<half, KoRgbTraits<half>>(gmicUnitValue);
-        } else if (gmicSpectrum == 1) {
-            colorTransformation =
-                new KisColorFromGrayScaleFloat<half, KoRgbTraits<half>>(
-                    gmicUnitValue);
-        } else if (gmicSpectrum == 2) {
-            colorTransformation =
-                new KisColorFromGrayScaleAlphaFloat<half, KoRgbTraits<half>>(
-                    gmicUnitValue);
-        }
-    }
-#endif
-    else if (colorSpace->colorDepthId() == Integer16BitsColorDepthID) {
-        if (gmicSpectrum == 3 || gmicSpectrum == 4) {
-            colorTransformation =
-                new KisColorFromFloat<quint16, KoBgrTraits<quint16>>(
-                    gmicUnitValue);
-        } else if (gmicSpectrum == 1) {
-            colorTransformation =
-                new KisColorFromGrayScaleFloat<quint16, KoBgrTraits<quint16>>(
-                    gmicUnitValue);
-        } else if (gmicSpectrum == 2) {
-            colorTransformation =
-                new KisColorFromGrayScaleAlphaFloat<quint16,
-                                                    KoBgrTraits<quint16>>(
-                    gmicUnitValue);
-        }
-    } else if (colorSpace->colorDepthId() == Integer8BitsColorDepthID) {
-        if (gmicSpectrum == 3 || gmicSpectrum == 4) {
-            colorTransformation =
-                new KisColorFromFloat<quint8, KoBgrTraits<quint8>>(
-                    gmicUnitValue);
-        } else if (gmicSpectrum == 1) {
-            colorTransformation =
-                new KisColorFromGrayScaleFloat<quint8, KoBgrTraits<quint8>>(
-                    gmicUnitValue);
-        } else if (gmicSpectrum == 2) {
-            colorTransformation =
-                new KisColorFromGrayScaleAlphaFloat<quint8,
-                                                    KoBgrTraits<quint8>>(
-                    gmicUnitValue);
-        }
-    } else {
-        dbgKrita << "Unsupported color space " << colorSpace->id()
-                 << " for fast pixel transformation to gmic pixel format";
-        return nullptr;
-    }
-
-    return colorTransformation;
-}
 
 static KoColorTransformation *
 createTransformation(const KoColorSpace *colorSpace)
@@ -365,297 +163,28 @@ createTransformation(const KoColorSpace *colorSpace)
     return colorTransformation;
 }
 
-void KisQmicSimpleConvertor::convertFromGmicFast(const KisQMicImage &gmicImage,
-                                                 KisPaintDeviceSP dst,
-                                                 float gmicUnitValue)
+void KisQmicSimpleConvertor::convertFromGmicFast(const KisQMicImage &image, KisPaintDeviceSP destination, float unit)
 {
-    dbgPlugins << "convertFromGmicFast";
-    const KoColorSpace *dstColorSpace = dst->colorSpace();
-    const KoColorTransformationSP gmicToDstPixelFormat(
-        createTransformationFromGmic(dstColorSpace,
-                                     gmicImage.m_spectrum,
-                                     gmicUnitValue));
-    if (!gmicToDstPixelFormat) {
-        dbgPlugins << "Fall-back to slow color conversion";
-        convertFromGmicImage(gmicImage, dst, gmicUnitValue);
-        return;
-    }
-
-    dst->clear();
-    dst->moveTo(0, 0);
-
-    const qint32 x = 0;
-    const qint32 y = 0;
-    const auto width = static_cast<size_t>(gmicImage.m_width);
-    const auto height = static_cast<size_t>(gmicImage.m_height);
-
-    const auto *rgbaFloat32bitcolorSpace =
-        KoColorSpaceRegistry::instance()->colorSpace(
-            RGBAColorModelID.id(),
-            Float32BitsColorDepthID.id(),
-            KoColorSpaceRegistry::instance()->rgb8()->profile());
-    // this function always convert to rgba or rgb with various color depth
-    const quint32 dstNumChannels = rgbaFloat32bitcolorSpace->channelCount();
-
-    // number of channels that we will copy
-    const int numChannels = gmicImage.m_spectrum;
-
-    // gmic image has 4, 3, 2, 1 channel
-    std::vector<float *> planes(dstNumChannels);
-    const size_t channelOffset = width * height;
-    for (int channelIndex = 0; channelIndex < gmicImage.m_spectrum;
-         channelIndex++) {
-        planes[channelIndex] = gmicImage.m_data + channelOffset * channelIndex;
-    }
-
-    for (int channelIndex = gmicImage.m_spectrum;
-         channelIndex < (int)dstNumChannels;
-         channelIndex++) {
-        planes[channelIndex] = 0; // turn off
-    }
-
-    size_t dataY = 0;
-    int imageY = y;
-    size_t rowsRemaining = height;
-
-    const auto floatPixelSize = rgbaFloat32bitcolorSpace->pixelSize();
-
-    KisRandomAccessorSP it = dst->createRandomAccessorNG();
-    const auto tileWidth =
-        static_cast<size_t>(it->numContiguousColumns(dst->x()));
-    const auto tileHeight =
-        static_cast<size_t>(it->numContiguousRows(dst->y()));
-    Q_ASSERT(tileWidth == 64);
-    Q_ASSERT(tileHeight == 64);
-    std::vector<quint8> convertedTile(
-        static_cast<size_t>(rgbaFloat32bitcolorSpace->pixelSize()) * tileWidth
-        * tileHeight);
-
-    // grayscale and rgb case does not have alpha, so let's fill 4th channel of
-    // rgba tile with opacity opaque
-    if (gmicImage.m_spectrum == 1 || gmicImage.m_spectrum == 3) {
-        const auto nPixels = tileWidth * tileHeight;
-        auto *srcPixel =
-            reinterpret_cast<KoRgbF32Traits::Pixel *>(convertedTile.data());
-        for (size_t pixelIndex = 0; pixelIndex < nPixels;
-             pixelIndex++, srcPixel++) {
-            srcPixel->alpha = gmicUnitValue;
-        }
-    }
-
-    while (rowsRemaining > 0) {
-        size_t dataX = 0;
-        qint32 imageX = x;
-        size_t columnsRemaining = width;
-        const auto numContiguousImageRows =
-            static_cast<size_t>(it->numContiguousRows(imageY));
-
-        size_t rowsToWork = qMin(numContiguousImageRows, rowsRemaining);
-
-        while (columnsRemaining > 0) {
-            const auto numContiguousImageColumns =
-                static_cast<size_t>(it->numContiguousColumns(imageX));
-            auto columnsToWork =
-                qMin(numContiguousImageColumns, columnsRemaining);
-
-            const auto dataIdx = dataX + dataY * width;
-            const auto tileRowStride =
-                (tileWidth - columnsToWork) * floatPixelSize;
-
-            auto *tileItStart = convertedTile.data();
-            // copy gmic channels to float tile
-            const auto channelSize = sizeof(float);
-            for (int i = 0; i < numChannels; i++) {
-                float *planeIt = planes[i] + dataIdx;
-                const auto dataStride = width - columnsToWork;
-                quint8 *tileIt = tileItStart;
-
-                for (size_t row = 0; row < rowsToWork; row++) {
-                    for (size_t col = 0; col < columnsToWork; col++) {
-                        memcpy(tileIt, planeIt, channelSize);
-                        tileIt += floatPixelSize;
-                        planeIt += 1;
-                    }
-
-                    tileIt += tileRowStride;
-                    planeIt += dataStride;
-                }
-                tileItStart += channelSize;
-            }
-
-            it->moveTo(imageX, imageY);
-            quint8 *dstTileItStart = it->rawData();
-            tileItStart =
-                convertedTile.data(); // back to the start of the converted tile
-            // copy float tile to dst colorspace based on input colorspace (rgb
-            // or grayscale)
-            for (size_t row = 0; row < rowsToWork; row++) {
-                gmicToDstPixelFormat->transform(
-                    tileItStart,
-                    dstTileItStart,
-                    static_cast<int>(columnsToWork));
-                dstTileItStart += dstColorSpace->pixelSize() * tileWidth;
-                tileItStart += floatPixelSize * tileWidth;
-            }
-
-            imageX += static_cast<int>(columnsToWork);
-            dataX += columnsToWork;
-            columnsRemaining -= columnsToWork;
-        }
-
-        imageY += static_cast<int>(rowsToWork);
-        dataY += rowsToWork;
-        rowsRemaining -= rowsToWork;
-    }
-
-    dst->crop(x, y, static_cast<qint32>(width), static_cast<qint32>(height));
+    destination->clear();
+    destination->moveTo(0, 0);
+    const bool converted = KisQmicRgbConverter::dispatch(destination->colorSpace(), [&](auto *tag) {
+        using Traits = std::remove_pointer_t<decltype(tag)>;
+        KisQmicRgbConverter::fromPlanar<Traits>(image, destination, unit);
+    });
+    if (!converted)
+        convertFromGmicImage(image, destination, unit);
 }
 
-void KisQmicSimpleConvertor::convertToGmicImageFast(KisPaintDeviceSP dev,
-                                                    KisQMicImage &gmicImage,
-                                                    QRect rc)
+void KisQmicSimpleConvertor::convertToGmicImageFast(KisPaintDeviceSP source, KisQMicImage &image, QRect rect)
 {
-    KoColorTransformationSP pixelToGmicPixelFormat(
-        createTransformation(dev->colorSpace()));
-    if (!pixelToGmicPixelFormat) {
-        dbgPlugins << "Fall-back to slow color conversion method";
-        convertToGmicImage(dev, gmicImage, rc);
-        return;
-    }
-
-    if (rc.isEmpty()) {
-        dbgPlugins
-            << "Image rectangle is empty! Using supplied gmic layer dimension";
-        rc = QRect(0,
-                   0,
-                   static_cast<int>(gmicImage.m_width),
-                   static_cast<int>(gmicImage.m_height));
-    }
-
-    const auto x = rc.x();
-    const auto y = rc.y();
-    const size_t width = rc.width() < 0 ? 0 : static_cast<size_t>(rc.width());
-    const size_t height =
-        rc.height() < 0 ? 0 : static_cast<size_t>(rc.height());
-
-    const qint32 numChannels = 4;
-
-    const size_t greenOffset =
-        static_cast<size_t>(gmicImage.m_width) * gmicImage.m_height;
-    const size_t blueOffset = greenOffset * 2;
-    const size_t alphaOffset = greenOffset * 3;
-
-    const std::array<float *, 4> planes = {gmicImage.m_data,
-                                           gmicImage.m_data + greenOffset,
-                                           gmicImage.m_data + blueOffset,
-                                           gmicImage.m_data + alphaOffset};
-
-    KisRandomConstAccessorSP it = dev->createRandomConstAccessorNG();
-    const auto tileWidth = it->numContiguousColumns(dev->x());
-    const auto tileHeight = it->numContiguousRows(dev->y());
-
-    Q_ASSERT(tileWidth == 64);
-    Q_ASSERT(tileHeight == 64);
-
-    const KoColorSpace *rgbaFloat32bitcolorSpace =
-        KoColorSpaceRegistry::instance()->colorSpace(
-            RGBAColorModelID.id(),
-            Float32BitsColorDepthID.id(),
-            KoColorSpaceRegistry::instance()->rgb8()->profile());
-    Q_CHECK_PTR(rgbaFloat32bitcolorSpace);
-    const auto dstPixelSize = rgbaFloat32bitcolorSpace->pixelSize();
-    const auto srcPixelSize = dev->pixelSize();
-
-    std::vector<quint8> dstTile(dstPixelSize * static_cast<size_t>(tileWidth)
-                                * static_cast<size_t>(tileHeight));
-
-    size_t dataY = 0;
-    int imageY = y;
-    int imageX = x;
-    it->moveTo(imageX, imageY);
-    size_t rowsRemaining = height;
-
-    while (rowsRemaining > 0) {
-        size_t dataX = 0;
-        imageX = x;
-        size_t columnsRemaining = width;
-        const auto numContiguousImageRows = it->numContiguousRows(imageY);
-
-        const auto rowsToWork =
-            qMin(numContiguousImageRows, static_cast<qint32>(rowsRemaining));
-        const auto convertedTileY = tileHeight - rowsToWork;
-        Q_ASSERT(convertedTileY >= 0);
-
-        while (columnsRemaining > 0) {
-            const auto numContiguousImageColumns =
-                static_cast<size_t>(it->numContiguousColumns(imageX));
-            const auto columnsToWork =
-                qMin(numContiguousImageColumns, columnsRemaining);
-            const auto convertedTileX =
-                tileWidth - static_cast<qint32>(columnsToWork);
-            Q_ASSERT(convertedTileX >= 0);
-
-            const auto dataIdx = dataX + dataY * width;
-            const auto dstTileIndex =
-                convertedTileX + convertedTileY * tileWidth;
-            const auto tileRowStride =
-                (static_cast<size_t>(tileWidth) - columnsToWork) * dstPixelSize;
-            const auto srcTileRowStride =
-                (static_cast<size_t>(tileWidth) - columnsToWork) * srcPixelSize;
-
-            it->moveTo(imageX, imageY);
-            quint8 *tileItStart = dstTile.data() + dstTileIndex * dstPixelSize;
-
-            // transform tile row by row
-            auto *dstTileIt = tileItStart;
-            const auto *srcTileIt = it->rawDataConst();
-
-            auto row = rowsToWork;
-            while (row > 0) {
-                pixelToGmicPixelFormat->transform(
-                    srcTileIt,
-                    dstTileIt,
-                    static_cast<qint32>(columnsToWork));
-                srcTileIt += columnsToWork * srcPixelSize;
-                srcTileIt += srcTileRowStride;
-
-                dstTileIt += columnsToWork * dstPixelSize;
-                dstTileIt += tileRowStride;
-
-                row--;
-            }
-
-            // here we want to copy floats to dstTile, so tileItStart has to
-            // point to float buffer
-            const auto channelSize = sizeof(float);
-            for (size_t i = 0; i < numChannels; i++) {
-                float *planeIt = planes.at(i) + dataIdx;
-                const auto dataStride = (width - columnsToWork);
-                quint8 *tileIt = tileItStart;
-
-                for (int row = 0; row < rowsToWork; row++) {
-                    for (size_t col = 0; col < columnsToWork; col++) {
-                        memcpy(planeIt, tileIt, channelSize);
-                        tileIt += dstPixelSize;
-                        planeIt += 1;
-                    }
-
-                    tileIt += tileRowStride;
-                    planeIt += dataStride;
-                }
-                // skip channel in tile: red, green, blue, alpha
-                tileItStart += channelSize;
-            }
-
-            imageX += static_cast<int>(columnsToWork);
-            dataX += columnsToWork;
-            columnsRemaining -= columnsToWork;
-        }
-
-        imageY += static_cast<int>(rowsToWork);
-        dataY += rowsToWork;
-        rowsRemaining -= rowsToWork;
-    }
+    if (rect.isEmpty())
+        rect = QRect(0, 0, image.m_width, image.m_height);
+    const bool converted = KisQmicRgbConverter::dispatch(source->colorSpace(), [&](auto *tag) {
+        using Traits = std::remove_pointer_t<decltype(tag)>;
+        KisQmicRgbConverter::toPlanar<Traits>(source, image, rect);
+    });
+    if (!converted)
+        convertToGmicImage(source, image, rect);
 }
 
 // gmic assumes float rgba in 0.0 - 255.0

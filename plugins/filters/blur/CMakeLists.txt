@@ -8,6 +8,7 @@ set(kritablurfilter_SOURCES
     kis_wdg_motion_blur.cpp
     kis_lens_blur_filter.cpp
     kis_wdg_lens_blur.cpp
+    KisLensBlurHighlights.cpp
     )
 
 ki18n_wrap_ui(kritablurfilter_SOURCES
@@ -20,3 +21,7 @@ ki18n_wrap_ui(kritablurfilter_SOURCES
 kis_add_library(kritablurfilter MODULE ${kritablurfilter_SOURCES})
 target_link_libraries(kritablurfilter kritaui)
 install(TARGETS kritablurfilter  DESTINATION ${KRITA_PLUGIN_INSTALL_DIR})
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

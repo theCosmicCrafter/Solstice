@@ -197,6 +197,12 @@ KisImportExportErrorCode KraConverter::buildFile(QIODevice *io, const QString &f
         qWarning() << "Saving audio data failed";
     }
 
+    result = m_kraSaver->saveSolsticeFastExport(m_store);
+    if (!result) {
+        success = false;
+        qWarning() << "Saving Fast Image Export settings failed";
+    }
+
     setProgress(80);
 
     if (!m_store->finalize()) {
@@ -455,6 +461,7 @@ bool KraConverter::completeLoading(KoStore* store)
     m_kraLoader->loadStoryboards(store, m_doc);
     m_kraLoader->loadAnimationMetadata(store, m_image);
     m_kraLoader->loadAudio(store, m_doc);
+    m_kraLoader->loadSolsticeFastExport(store, m_doc);
 
     if (!m_kraLoader->errorMessages().isEmpty()) {
         m_doc->setErrorMessage(m_kraLoader->errorMessages().join("\n"));

@@ -65,6 +65,7 @@ public Q_SLOTS:
     QByteArray pixelDataAtTime(int x, int y, int w, int h, int time) const;
     QByteArray projectionPixelData(int x, int y, int w, int h) const;
     bool setPixelData(QByteArray value, int x, int y, int w, int h);
+    bool setPixelDataUndoable(QByteArray value, int x, int y, int w, int h);
     QRect bounds() const;
     void move(int x, int y);
     QPoint position() const;

@@ -172,7 +172,7 @@ void KisWdgOptionsPNG::setConfiguration(const KisPropertiesConfigurationSP cfg)
     chkSRGB->setChecked(cfg->getBool("saveSRGBProfile", true));
 
     //chkForceSRGB->setEnabled(!sRGB);
-    chkForceSRGB->setChecked(cfg->getBool("forceSRGB", false));
+    chkForceSRGB->setChecked(cfg->getBool("forceSRGB", true));
 
     chkSaveAsHDR->setChecked(cfg->getBool("saveAsHDR", false));
     slotUseHDRChanged(chkSaveAsHDR->isChecked());

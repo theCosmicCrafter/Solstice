@@ -4,10 +4,9 @@
 
 from __future__ import print_function
 
+import pykrita
 import os
 import sys
-
-import pykrita
 
 # Look for PyQt
 try:
@@ -48,14 +47,12 @@ def importAvoidWrongPyQtHack(name, globals=None, locals=None, fromlist=(), level
     return import_real(name, globals, locals, fromlist, level)
 builtins.__import__ = importAvoidWrongPyQtHack
 
-import signal
-
-from PyKrita import krita
-
 from .api import *
 from .decorators import *
 from .dockwidgetfactory import *
+from PyKrita import krita
 
+import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 krita_path = os.path.dirname(os.path.abspath(__file__))
@@ -64,7 +61,6 @@ print("%s added to PYTHONPATH" % krita_path, file=sys.stderr)
 
 # Shows nice looking error dialog if an unhandled exception occurs.
 import excepthook
-
 excepthook.install()
 
 builtins.i18n = Krita.krita_i18n

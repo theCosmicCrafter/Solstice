@@ -14,6 +14,12 @@
 
 #include <testui.h>
 
+#include <KSharedConfig>
+#include <KisImportExportFilter.h>
+#include <KisImportExportManager.h>
+#include <kis_config.h>
+#include <kis_config_widget.h>
+
 #ifndef FILES_DATA_DIR
 #error "FILES_DATA_DIR not set. A directory with the data used for testing the importing of files in krita"
 #endif
@@ -163,6 +169,57 @@ void KisPngTest::testSaveHDR()
                     RGBAColorModelID.id(),
                     Integer8BitsColorDepthID.id(),
                     KoColorSpaceRegistry::instance()->p2020PQProfile()));
+}
+
+void KisPngTest::testOptionsMissingForceSRGB()
+{
+    // The options dialog has to show the value the exporter uses when a
+    // configuration has no forceSRGB key, as in a first Fast Image Export.
+    QScopedPointer<KisImportExportFilter> filter(
+        KisImportExportManager::filterForMimeType(PngMimetype, KisImportExportManager::Export));
+    QVERIFY(filter);
+
+    QScopedPointer<KisConfigWidget> widget(
+        filter->createConfigurationWidget(nullptr, KisDocument::nativeFormatMimeType(), PngMimetype.toLatin1()));
+    QVERIFY(widget);
+
+    KisPropertiesConfigurationSP cfg = new KisPropertiesConfiguration();
+    cfg->setProperty(KisImportExportFilter::ImageContainsTransparencyTag, true);
+    cfg->setProperty(KisImportExportFilter::ColorModelIDTag, RGBAColorModelID.id());
+    cfg->setProperty(KisImportExportFilter::sRGBTag, true);
+
+    widget->setConfiguration(cfg);
+    QVERIFY(widget->configuration()->getBool("forceSRGB", false));
+
+    cfg->setProperty("forceSRGB", false);
+    widget->setConfiguration(cfg);
+    QVERIFY(!widget->configuration()->getBool("forceSRGB", true));
+}
+
+void KisPngTest::testBatchExportKeepsSavedOptions()
+{
+    // A script exporting in batch mode must not replace the options the user
+    // remembered in File > Export.
+    KisPropertiesConfigurationSP saved = new KisPropertiesConfiguration();
+    saved->setProperty("forceSRGB", true);
+    KisConfig(false).setExportConfiguration(PngMimetype, saved);
+
+    QScopedPointer<KisDocument> doc(KisPart::instance()->createDocument());
+
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+    KisImageSP image = new KisImage(0, 3, 3, cs, "png test");
+    image->addNode(new KisPaintLayer(image, "paint0", OPACITY_OPAQUE_U8), image->root());
+
+    doc->setFileBatchMode(true);
+    doc->setCurrentImage(image);
+
+    KisPropertiesConfigurationSP exportConfiguration = new KisPropertiesConfiguration();
+    exportConfiguration->setProperty("forceSRGB", false);
+    QVERIFY(doc->exportDocumentSync("test.png", "image/png", exportConfiguration));
+
+    QVERIFY(KisConfig(true).exportConfiguration(PngMimetype)->getBool("forceSRGB", false));
+
+    KSharedConfig::openConfig()->group(QString()).deleteEntry("ExportConfiguration-" + PngMimetype);
 }
 
 KISTEST_MAIN(KisPngTest)

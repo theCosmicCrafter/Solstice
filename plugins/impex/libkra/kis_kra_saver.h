@@ -42,6 +42,9 @@ public:
 
     bool saveAudio(KoStore *store);
 
+    // Solstice: writes the document's Fast Image Export settings, if any.
+    bool saveSolsticeFastExport(KoStore *store);
+
     /// @return a list with everything that went wrong while saving
     QStringList errorMessages() const;
 
