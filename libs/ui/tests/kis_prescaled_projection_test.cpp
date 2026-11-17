@@ -25,6 +25,7 @@
 #include <kis_update_info.h>
 #include <KisDisplayConfig.h>
 #include <KisCanvasState.h>
+#include <kis_config_notifier.h>
 
 #include "canvas/kis_coordinates_converter.h"
 #include "canvas/kis_prescaled_projection.h"
