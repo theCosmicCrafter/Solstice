@@ -122,6 +122,30 @@ def test_mcp_foreign_origin_403(app):
     assert status == 403
 
 
+def test_mcp_null_origin_ok(app):
+    # opaque/sandboxed contexts send "null" — no host to DNS-rebind, allowed
+    status, _ = _raw("POST", "/mcp", {"jsonrpc": "2.0", "id": 1, "method": "ping"},
+                     token=resolve_token(), extra_headers={"Origin": "null"})
+    assert status == 200
+
+
+def test_mcp_tool_call_params_shape(app):
+    for params in ("x", {"name": ""}, {"name": 42}, {}):
+        status, r = _raw("POST", "/mcp",
+                         {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": params},
+                         token=resolve_token())
+        assert status == 200, r
+        assert r["error"]["code"] == -32602, (params, r)
+
+
+def test_mcp_tool_schemas(app):
+    status, r = _rpc("tools/list")
+    schemas = {t["name"]: t["inputSchema"] for t in r["result"]["tools"]}
+    assert schemas["krita_new_canvas"]["required"] == ["width", "height"]
+    assert schemas["krita_ai_generate"]["properties"]["mode"]["enum"] == \
+        ["auto", "fill", "remove", "expand", "create"]
+
+
 def test_mcp_loopback_origin_ok(app):
     status, _ = _raw("POST", "/mcp", {"jsonrpc": "2.0", "id": 1, "method": "ping"},
                      token=resolve_token(),

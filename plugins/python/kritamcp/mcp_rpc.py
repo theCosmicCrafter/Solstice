@@ -81,10 +81,61 @@ def _krita_tools(supported_actions):
         {
             "name": KRITA_PREFIX + action,
             "description": f"Solstice action '{action}' (kritamcp envelope tool).",
-            "inputSchema": {"type": "object", "additionalProperties": True},
+            "inputSchema": SCHEMAS.get(action, {"type": "object", "additionalProperties": True}),
         }
         for action in supported_actions
     ]
+
+
+# Hand-maintained input schemas for the highest-traffic actions; everything
+# else advertises a generic object schema until v2 mines handler signatures.
+SCHEMAS = {
+    "new_canvas": {"type": "object",
+                   "properties": {"width": {"type": "integer"}, "height": {"type": "integer"},
+                                  "name": {"type": "string"}},
+                   "required": ["width", "height"]},
+    "set_color": {"type": "object",
+                  "properties": {"color": {"type": "array", "items": {"type": "integer"},
+                                           "description": "RGBA 0-255"}},
+                  "required": ["color"]},
+    "stroke": {"type": "object",
+               "properties": {"points": {"type": "array",
+                                         "items": {"type": "array", "items": {"type": "number"}}},
+                              "size": {"type": "number"}},
+               "required": ["points"]},
+    "fill": {"type": "object", "properties": {}},
+    "draw_shape": {"type": "object",
+                   "properties": {"shape": {"type": "string", "enum": ["rect", "ellipse", "line"]},
+                                  "x": {"type": "number"}, "y": {"type": "number"},
+                                  "width": {"type": "number"}, "height": {"type": "number"}},
+                   "required": ["shape", "x", "y", "width", "height"]},
+    "select_rect": {"type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"},
+                                   "width": {"type": "number"}, "height": {"type": "number"}},
+                    "required": ["x", "y", "width", "height"]},
+    "open_file": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+    "save": {"type": "object", "properties": {"path": {"type": "string"}}},
+    "screenshot": {"type": "object",
+                   "properties": {"filename": {"type": "string"}, "zoom": {"type": "number"},
+                                  "scope": {"type": "string", "enum": ["window", "canvas"]}}},
+    "ai_generate": {"type": "object",
+                    "properties": {"mode": {"type": "string",
+                                            "enum": ["auto", "fill", "remove", "expand", "create"]},
+                                   "prompt": {"type": "string"}, "negative": {"type": "string"},
+                                   "style": {"type": "string"}, "strength": {"type": "number"},
+                                   "seed": {"type": "integer"}, "count": {"type": "integer"},
+                                   "apply": {"type": "boolean"}},
+                    "required": ["prompt"]},
+    "ai_apply": {"type": "object",
+                 "properties": {"job_id": {"type": "string"}, "index": {"type": "integer"},
+                                "result": {"type": "integer"}}},
+    "ai_jobs": {"type": "object",
+                "properties": {"limit": {"type": "integer"}, "state": {"type": "string"}}},
+    "export_document": {"type": "object", "properties": {"path": {"type": "string"}},
+                        "required": ["path"]},
+    "export_layers": {"type": "object", "properties": {"output_dir": {"type": "string"}},
+                      "required": ["output_dir"]},
+}
 
 
 def _result(mid, result):
@@ -149,7 +200,11 @@ def handle(body, *, run_command, supported_actions):
         return 200, json.dumps(_result(mid, {"tools": tools})).encode()
 
     if method == "tools/call":
-        name = params.get("name", "")
+        if not isinstance(msg.get("params"), dict):
+            return 200, json.dumps(_error(mid, -32602, "params must be an object")).encode()
+        name = params.get("name")
+        if not isinstance(name, str) or not name:
+            return 200, json.dumps(_error(mid, -32602, "params.name is required")).encode()
         args = params.get("arguments") or {}
         if not isinstance(args, dict):
             return 200, json.dumps(_error(mid, -32602, "arguments must be an object")).encode()
@@ -180,7 +235,9 @@ def origin_allowed(origin_header):
 
     Absent header -> OK (non-browser clients). Present -> must be loopback.
     """
-    if not origin_header:
+    if not origin_header or origin_header == "null":
+        # absent (non-browser clients) or opaque/sandboxed context — no host
+        # to DNS-rebind, nothing to guard against
         return True
     try:
         from urllib.parse import urlparse
