@@ -43,6 +43,7 @@ set(kritapigment_SRCS
     KoCompositeColorTransformation.cpp
     KoCompositeOp.cpp
     KoCompositeOpRegistry.cpp
+    KoSpectralMixing.cpp
     KoCopyColorConversionTransformation.cpp
     KoFallBackColorTransformation.cpp
     KoHistogramProducer.cpp

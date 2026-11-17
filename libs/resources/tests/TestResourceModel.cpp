@@ -326,6 +326,55 @@ void TestResourceModel::testUpdateResource()
     }
 }
 
+void TestResourceModel::testIndexForResourceIdFollowsChanges()
+{
+    // Solstice: indexForResourceId() keeps the row of every id until the
+    // query runs again. It must find each row, and follow added resources.
+    KisAllResourcesModel *model = KisResourceModelProvider::resourceModel(m_resourceType);
+
+    auto verifyAllRows = [model]() {
+        QSet<int> seen;
+        for (int row = 0; row < model->rowCount(); ++row) {
+            const int id = model->data(model->index(row, 0), Qt::UserRole + KisAbstractResourceModel::Id).toInt();
+            if (id < 0 || seen.contains(id)) {
+                return false;
+            }
+            seen.insert(id);
+            const QModelIndex index = model->indexForResourceId(id);
+            if (!index.isValid() || index.row() != row || index.column() != 0) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    QVERIFY(model->rowCount() > 0);
+    QVERIFY(verifyAllRows());
+    QVERIFY(!model->indexForResourceId(-1).isValid());
+    QVERIFY(!model->indexForResourceId(1000000).isValid());
+
+    const int rowsBefore = model->rowCount();
+    KoResourceSP resource(new DummyResource("dummy_for_index.kpp"));
+    resource->setValid(true);
+    QVERIFY(model->addResource(resource));
+    QCOMPARE(model->rowCount(), rowsBefore + 1);
+    QVERIFY(resource->resourceId() >= 0);
+    // found although the rows were read before it existed
+    QVERIFY(model->indexForResourceId(resource->resourceId()).isValid());
+    QVERIFY(verifyAllRows());
+
+    // an inactive resource stays in this model, at its row
+    QVERIFY(model->setResourceInactive(model->indexForResourceId(resource->resourceId())));
+    QVERIFY(model->indexForResourceId(resource->resourceId()).isValid());
+    QVERIFY(verifyAllRows());
+
+    // the filtered model maps through it
+    KisResourceModel filtered(m_resourceType);
+    QVERIFY(!filtered.indexForResourceId(resource->resourceId()).isValid());
+    filtered.setResourceFilter(KisResourceModel::ShowAllResources);
+    QVERIFY(filtered.indexForResourceId(resource->resourceId()).isValid());
+}
+
 void TestResourceModel::testTwoExistingResourceModels()
 {
     KisResourceModel resourceModel(m_resourceType);

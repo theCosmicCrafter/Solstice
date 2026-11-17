@@ -94,6 +94,42 @@ void KisGroupLayerTest::testRemoveAndUndo()
                                   "2_undone"));
 }
 
+void KisGroupLayerTest::testCopyToSmallerImageCropsProjection()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+
+    KisImageSP sourceImage = new KisImage(0, 200, 200, cs, "source");
+
+    KisPaintLayerSP paintLayer1 = new KisPaintLayer(sourceImage, "paint1", OPACITY_OPAQUE_U8);
+    paintLayer1->paintDevice()->fill(QRect(0, 0, 50, 50), KoColor(Qt::red, cs));
+
+    KisPaintLayerSP paintLayer2 = new KisPaintLayer(sourceImage, "paint2", OPACITY_OPAQUE_U8);
+    paintLayer2->paintDevice()->fill(QRect(80, 80, 60, 60), KoColor(Qt::blue, cs));
+
+    // two children, so that the group composes into its own projection
+    KisGroupLayerSP group = new KisGroupLayer(sourceImage, "group", OPACITY_OPAQUE_U8);
+    sourceImage->addNode(group, sourceImage->root());
+    sourceImage->addNode(paintLayer1, group);
+    sourceImage->addNode(paintLayer2, group);
+
+    sourceImage->initialRefreshGraph();
+    QCOMPARE(group->original()->exactBounds(), QRect(0, 0, 140, 140));
+
+    KisImageSP targetImage = new KisImage(0, 100, 100, cs, "target");
+    KisNodeSP copy = group->clone();
+    targetImage->addNode(copy, targetImage->root());
+
+    // the pixels outside of the target image are never refreshed there
+    QCOMPARE(copy->original()->exactBounds(), QRect(0, 0, 100, 100));
+
+    // the children keep their pixels outside of the image
+    QCOMPARE(copy->lastChild()->paintDevice()->exactBounds(), QRect(80, 80, 60, 60));
+
+    targetImage->refreshGraphAsync();
+    targetImage->waitForDone();
+    QCOMPARE(copy->original()->exactBounds(), QRect(0, 0, 100, 100));
+}
+
 SIMPLE_TEST_MAIN(KisGroupLayerTest)
 
 

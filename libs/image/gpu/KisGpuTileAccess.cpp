@@ -45,6 +45,9 @@ struct Entry {
     KisTileGpuState *state = nullptr;
     /// Tile data replaced by copy-on-write, referenced until complete().
     KisTileData *replaced = nullptr;
+    /// tileData holds a reference of this access (read-only accesses): a CPU
+    /// writer may replace the tile's data and free it meanwhile.
+    bool referenced = false;
     /// tileData is a fresh tile data whose content only the GPU work produces.
     bool contentPending = false;
     int generation = 0;
@@ -284,7 +287,18 @@ bool KisGpuTileAccess::prepareImpl(KisGpuCommandList &commands, QString *errorMe
                         && (d->mode == WriteOnly || contentFromGpuCopy);
                 }
 
-                entry.tileData = entry.tile->tileData();
+                if (writes) {
+                    // Merge jobs never share a projection tile, and the tile
+                    // was detached above: its data is this access's alone.
+                    entry.tileData = entry.tile->tileData();
+                } else {
+                    // A layer's tiles can be written on the CPU meanwhile: by
+                    // a stroke, or by another merge job when the device is
+                    // off the image's tile grid (a moved layer with masks).
+                    // Copy-on-write then frees the data this access reads.
+                    entry.tileData = entry.tile->referencedTileData();
+                    entry.referenced = true;
+                }
                 entry.state = d->pin(entry.tileData, errorMessage);
                 if (!entry.state) {
                     d->entries << entry;
@@ -620,6 +634,12 @@ void KisGpuTileAccess::Private::restorePendingContent()
 void KisGpuTileAccess::Private::releaseReplaced()
 {
     for (Entry &entry : entries) {
+        if (entry.referenced) {
+            entry.referenced = false;
+            entry.tileData->deref();
+            entry.tileData = nullptr;
+            entry.state = nullptr;
+        }
         if (!entry.replaced) {
             continue;
         }

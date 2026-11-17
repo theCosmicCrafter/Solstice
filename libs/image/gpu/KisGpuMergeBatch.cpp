@@ -9,15 +9,19 @@
 #include <QBitArray>
 
 #include <atomic>
+#include <cstring>
 #include <mutex>
 
 #include <kis_debug.h>
 
+#include <KoColor.h>
 #include <KoColorModelStandardIds.h>
 #include <KoColorSpace.h>
+#include <KoCompositeOpRegistry.h>
 
 #include "KisGpuEngineSettings.h"
 #include "kis_abstract_projection_plane.h"
+#include "kis_default_bounds_base.h"
 #include "kis_image.h"
 #include "kis_layer.h"
 #include "kis_layer_projection_plane.h"
@@ -100,7 +104,7 @@ KisGpuMergeBatch::KisGpuMergeBatch() = default;
 
 KisGpuMergeBatch::~KisGpuMergeBatch()
 {
-    KIS_SAFE_ASSERT_RECOVER_NOOP(m_entries.isEmpty() && "GPU merge batch destroyed without flush()");
+    KIS_SAFE_ASSERT_RECOVER_NOOP(m_entries.isEmpty() && !m_clearPending && "GPU merge batch destroyed without flush()");
 }
 
 bool KisGpuMergeBatch::tryAdd(KisProjectionLeafSP leaf, KisPaintDeviceSP projection, const QRect &rect)
@@ -129,8 +133,19 @@ bool KisGpuMergeBatch::tryAdd(KisProjectionLeafSP leaf, KisPaintDeviceSP project
         return false;
     }
 
-    KisGpuBlendOp op;
-    if (!KisGpuProjectionCompositor::blendOpForCompositeOp(layer->compositeOpId(), &op)) {
+    KisGpuBlendOp op = KisGpuBlendOp::Over;
+    // the leaf's blend mode differs from the layer's inside a clip stack
+    const QString compositeOpId = leaf->compositeOpId();
+    // Phase 4.115: Copy at full opacity (the mode of filter layers) replaces
+    // the rect with the layer, its default pixel where it has no data:
+    // KisLayerProjectionPlane does not clip this mode to the layer's extent.
+    const bool replace = compositeOpId == COMPOSITE_COPY;
+    if (replace) {
+        if (leaf->opacity() != OPACITY_OPAQUE_U8 || device->defaultBounds()->wrapAroundMode()
+            || std::memcmp(device->defaultPixel().data(), projection->defaultPixel().data(), device->pixelSize())) {
+            return false;
+        }
+    } else if (!KisGpuProjectionCompositor::blendOpForCompositeOp(compositeOpId, &op)) {
         return false;
     }
 
@@ -149,9 +164,18 @@ bool KisGpuMergeBatch::tryAdd(KisProjectionLeafSP leaf, KisPaintDeviceSP project
         }
         alphaLocked = !flags.testBit(3);
     }
+    // KisPainter::bitBlt() copies whole pixels in the Copy mode when both
+    // devices share their offset (fastBitBltPossible(); the color spaces are
+    // compared below): the channel flags do nothing then.
+    if (replace && projection->x() == device->x() && projection->y() == device->y()) {
+        alphaLocked = false;
+        channelMask = 0xf;
+    }
 
-    if (!(*device->colorSpace() == *projection->colorSpace()) || (device->x() - projection->x()) % TileSize
-        || (device->y() - projection->y()) % TileSize) {
+    // The layer may sit at any offset (phase 4.112); the projection is
+    // written in place, so only its tiles must be on the 64 px image grid.
+    if (!(*device->colorSpace() == *projection->colorSpace()) || projection->x() % TileSize
+        || projection->y() % TileSize) {
         return false;
     }
 
@@ -166,7 +190,11 @@ bool KisGpuMergeBatch::tryAdd(KisProjectionLeafSP leaf, KisPaintDeviceSP project
         return false;
     }
 
-    if (!m_entries.isEmpty() && (m_projection != projection || m_rect != rect)) {
+    if ((!m_entries.isEmpty() || m_clearPending) && (m_projection != projection || m_rect != rect)) {
+        flush();
+    }
+    // Replace entries lead a batch (KisGpuProjectionCompositor::composite()).
+    if (replace && !m_entries.isEmpty() && !m_entries.last().replace) {
         flush();
     }
 
@@ -179,6 +207,7 @@ bool KisGpuMergeBatch::tryAdd(KisProjectionLeafSP leaf, KisPaintDeviceSP project
     entry.opacity = leaf->opacity() / 255.0f;
     entry.alphaLocked = alphaLocked;
     entry.channelMask = channelMask;
+    entry.replace = replace;
     m_entries << entry;
     return true;
 #else
@@ -189,42 +218,95 @@ bool KisGpuMergeBatch::tryAdd(KisProjectionLeafSP leaf, KisPaintDeviceSP project
 #endif
 }
 
-void KisGpuMergeBatch::flush()
+bool KisGpuMergeBatch::deferClear(KisNodeSP node, KisPaintDeviceSP projection, const QRect &rect)
 {
-    if (m_entries.isEmpty()) {
+#ifdef HAVE_KRITA_GPU_ENGINE
+    if (!projection || rect.isEmpty() || tileAligned(rect) == rect || !mayCompositeOnGpu(node)) {
+        return false;
+    }
+    // The wrapped strategy splits clears at the wrap rect; composite() does not.
+    if (projection->defaultBounds()->wrapAroundMode() || projection->x() % TileSize || projection->y() % TileSize
+        || !KisGpuTileAccess::isSupported(projection)) {
+        return false;
+    }
+
+    if (!m_entries.isEmpty() || m_clearPending) {
+        flush();
+    }
+    m_projection = projection;
+    m_rect = rect;
+    m_clearPending = true;
+    return true;
+#else
+    Q_UNUSED(node);
+    Q_UNUSED(projection);
+    Q_UNUSED(rect);
+    return false;
+#endif
+}
+
+void KisGpuMergeBatch::flush(bool cpuReadsNext)
+{
+    if (m_entries.isEmpty() && !m_clearPending) {
         return;
     }
 
     bool done = false;
 #ifdef HAVE_KRITA_GPU_ENGINE
-    QVector<KisGpuProjectionCompositor::Layer> layers;
-    for (const Entry &entry : m_entries) {
-        KisGpuProjectionCompositor::Layer layer;
-        layer.device = entry.device;
-        layer.op = KisGpuBlendOp(entry.op);
-        layer.opacity = entry.opacity;
-        layer.alphaLocked = entry.alphaLocked;
-        layer.channelMask = entry.channelMask;
-        layers << layer;
-    }
+    if (!m_entries.isEmpty() || !cpuReadsNext) {
+        QVector<KisGpuProjectionCompositor::Layer> layers;
+        if (m_clearPending) {
+            // A replace layer without tiles sets the rect to its default pixel.
+            KisGpuProjectionCompositor::Layer clear;
+            clear.device = clearSource();
+            clear.replace = true;
+            layers << clear;
+        }
+        for (const Entry &entry : m_entries) {
+            KisGpuProjectionCompositor::Layer layer;
+            layer.device = entry.device;
+            layer.op = KisGpuBlendOp(entry.op);
+            layer.opacity = entry.opacity;
+            layer.alphaLocked = entry.alphaLocked;
+            layer.channelMask = entry.channelMask;
+            layer.replace = entry.replace;
+            layers << layer;
+        }
 
-    QString error;
-    done = KisGpuProjectionCompositor::composite(m_projection, m_rect, layers, &error);
-    if (done) {
-        s_gpuCompositeCount++;
-    } else {
-        warnImage << "GPU projection failed, compositing on the CPU:" << error;
+        QString error;
+        done = KisGpuProjectionCompositor::composite(m_projection, m_rect, layers, &error);
+        if (done) {
+            if (!m_entries.isEmpty())
+                s_gpuCompositeCount++;
+        } else {
+            warnImage << "GPU projection failed, compositing on the CPU:" << error;
+        }
     }
 #endif
 
-    if (!done) {
+    if (!done && m_clearPending) {
+        m_projection->clear(m_rect);
+    }
+    if (!done && !m_entries.isEmpty()) {
         KisPaintTrace::link("path.projection.cpu_fallback", this, KisPaintTrace::currentFlow());
         compositeOnCpu();
     }
 
     m_entries.clear();
+    m_clearPending = false;
     m_projection = nullptr;
     m_rect = QRect();
+}
+
+KisPaintDeviceSP KisGpuMergeBatch::clearSource()
+{
+    const KoColor defaultPixel = m_projection->defaultPixel();
+    if (!m_clearSource || !(*m_clearSource->colorSpace() == *m_projection->colorSpace())
+        || !(m_clearSource->defaultPixel() == defaultPixel)) {
+        m_clearSource = new KisPaintDevice(m_projection->colorSpace());
+        m_clearSource->setDefaultPixel(defaultPixel);
+    }
+    return m_clearSource;
 }
 
 void KisGpuMergeBatch::compositeOnCpu()

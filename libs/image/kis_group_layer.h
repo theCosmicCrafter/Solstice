@@ -40,6 +40,9 @@ public:
 
     void setImage(KisImageWSP image) override;
 
+    // Solstice: the position has its own level-of-detail value
+    void syncLodCache() override;
+
     KisLayerSP createMergedLayerTemplate(KisLayerSP prevLayer) override;
     void fillMergedLayerTemplate(KisLayerSP dstLayer, KisLayerSP prevLayer, bool skipPaintingThisLayer) override;
 

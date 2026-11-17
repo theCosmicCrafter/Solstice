@@ -5,6 +5,7 @@
 
 #include "KisPuppetTransformWorker.h"
 
+#include <QDebug>
 #include <QPainter>
 #include <QStringList>
 #include <QtMath>
@@ -21,12 +22,14 @@
 #include <utility>
 #include <vector>
 
+#include <KoColorSpace.h>
 #include <KoCompositeOpRegistry.h>
 
 #include "kis_algebra_2d.h"
 #include "kis_grid_interpolation_tools.h"
 #include "kis_paint_device.h"
 #include "kis_painter.h"
+#include "kis_sequential_iterator.h"
 #include "kis_warptransform_worker.h"
 
 #include "gpu/KisGpuGridWarpWorker.h"
@@ -134,6 +137,11 @@ double cotangent(const QPointF &apex, const QPointF &a, const QPointF &b)
     return (u.x() * v.x() + u.y() * v.y()) / cross;
 }
 
+bool isFinite(const QPointF &point)
+{
+    return std::isfinite(point.x()) && std::isfinite(point.y());
+}
+
 QPointF rotated(const QPointF &offset, qreal angle)
 {
     const qreal c = std::cos(angle);
@@ -141,25 +149,121 @@ QPointF rotated(const QPointF &offset, qreal angle)
     return QPointF(offset.x() * c - offset.y() * s, offset.x() * s + offset.y() * c);
 }
 
+/**
+ * Which blocks of the source hold a non-transparent pixel. Rendering cells
+ * over fully transparent source are skipped: they would only write
+ * transparent pixels, and the grid polygon ops overwrite, so squeezed empty
+ * space would cut holes into folded artwork. Unlike a test against the
+ * mesh's solid triangles (built from a 2000 px thumbnail and an alpha
+ * threshold), this never drops a visible pixel: faint pixels, thin lines,
+ * specks between triangles and content painted after the mesh was built.
+ */
+class SourceCoverage
+{
+public:
+    /// Block edge in source pixels.
+    static constexpr int BlockSize = 8;
+    /// The sampling footprint around a cell: bilinear sampling near a cell's
+    /// edge reads the pixels next to it.
+    static constexpr qreal Margin = 2.0;
+
+    /// @p origin: the position of source pixel (0, 0).
+    SourceCoverage(const QPointF &origin, const QSize &size)
+        : m_origin(origin)
+        , m_columns((size.width() + BlockSize - 1) / BlockSize)
+        , m_rows((size.height() + BlockSize - 1) / BlockSize)
+        , m_bits(m_columns * m_rows)
+    {
+    }
+
+    static SourceCoverage fromDevice(KisPaintDeviceSP device, const QRect &rect)
+    {
+        SourceCoverage coverage(rect.topLeft(), rect.size());
+        if (rect.isEmpty())
+            return coverage;
+        const KoColorSpace *cs = device->colorSpace();
+        std::vector<quint8> alpha;
+        KisSequentialConstIterator it(device, rect);
+        int count = it.nConseqPixels();
+        while (it.nextPixels(count)) {
+            count = it.nConseqPixels();
+            alpha.resize(size_t(count));
+            cs->copyOpacityU8(const_cast<quint8 *>(it.rawDataConst()), alpha.data(), count);
+            const int x = it.x() - rect.left();
+            const int y = it.y() - rect.top();
+            for (int i = 0; i < count; ++i) {
+                if (alpha[size_t(i)]) {
+                    coverage.mark(x + i, y);
+                    // The rest of this block is already marked.
+                    i = ((x + i) / BlockSize + 1) * BlockSize - x - 1;
+                }
+            }
+        }
+        return coverage;
+    }
+
+    static SourceCoverage fromImage(const QImage &image, const QPointF &origin)
+    {
+        SourceCoverage coverage(origin, image.size());
+        for (int y = 0; y < image.height(); ++y) {
+            const QRgb *line = reinterpret_cast<const QRgb *>(image.constScanLine(y));
+            for (int x = 0; x < image.width(); ++x) {
+                if (qAlpha(line[x])) {
+                    coverage.mark(x, y);
+                    x = (x / BlockSize + 1) * BlockSize - 1;
+                }
+            }
+        }
+        return coverage;
+    }
+
+    /// Whether @p cell (source coordinates) may sample a non-transparent pixel.
+    bool covers(const QPolygonF &cell) const
+    {
+        const QRectF rect = cell.boundingRect().translated(-m_origin).adjusted(-Margin, -Margin, Margin, Margin);
+        const int left = qMax(0, int(std::floor(rect.left())) / BlockSize);
+        const int top = qMax(0, int(std::floor(rect.top())) / BlockSize);
+        const int right = qMin(m_columns - 1, int(std::floor(rect.right())) / BlockSize);
+        const int bottom = qMin(m_rows - 1, int(std::floor(rect.bottom())) / BlockSize);
+        for (int row = top; row <= bottom; ++row) {
+            for (int column = left; column <= right; ++column) {
+                if (m_bits.testBit(row * m_columns + column))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+private:
+    void mark(int x, int y)
+    {
+        m_bits.setBit((y / BlockSize) * m_columns + x / BlockSize);
+    }
+
+    QPointF m_origin;
+    int m_columns;
+    int m_rows;
+    QBitArray m_bits;
+};
+
 /// Forwards only the grid cells of one stacking order to @p Op.
 template<class Op>
 struct OrderFilterOp {
     Op &op;
     const KisPuppetTransformWorker &worker;
+    const SourceCoverage &coverage;
     int order; ///< the owning pin of this group (stackingGroups())
     bool filterOrder; ///< false: one pass with every group
     std::function<QPointF(const QPointF &)> toImage; ///< empty: already image coordinates
     void operator()(const QPolygonF &srcPolygon, const QPolygonF &dstPolygon)
     {
-        QPolygonF cell = srcPolygon;
-        if (toImage) {
-            for (QPointF &point : cell)
-                point = toImage(point);
+        if (!coverage.covers(srcPolygon))
+            return;
+        if (filterOrder) {
+            const QPointF center = srcPolygon.boundingRect().center();
+            if (worker.ownerAt(toImage ? toImage(center) : center) != order)
+                return;
         }
-        if (!worker.touchesArtwork(cell))
-            return;
-        if (filterOrder && worker.ownerAt(cell.boundingRect().center()) != order)
-            return;
         op(srcPolygon, dstPolygon);
     }
 };
@@ -168,11 +272,12 @@ struct OrderFilterOp {
 /// cell filter of OrderFilterOp: one grid pass records every group.
 struct GroupRecordersOp {
     const KisPuppetTransformWorker &worker;
+    const SourceCoverage &coverage;
     const QVector<int> &groups; ///< stackingGroups()
     std::vector<std::unique_ptr<KisGpuGridWarpWorker::Recorder>> &recorders;
     void operator()(const QPolygonF &srcPolygon, const QPolygonF &dstPolygon)
     {
-        if (!worker.touchesArtwork(srcPolygon))
+        if (!coverage.covers(srcPolygon))
             return;
         const int group = groups.indexOf(worker.ownerAt(srcPolygon.boundingRect().center()));
         if (group >= 0)
@@ -183,7 +288,8 @@ struct GroupRecordersOp {
 
 bool KisPuppetTransformWorker::Mesh::isValid() const
 {
-    return columns > 0 && rows > 0 && solid.size() == 2 * columns * rows
+    return columns > 0 && rows > 0 && columns <= MaximumCells && rows <= MaximumCells
+        && solid.size() == 2 * columns * rows && isFinite(origin) && isFinite(columnStep) && isFinite(rowStep)
         && !qFuzzyIsNull(columnStep.x() * rowStep.y() - columnStep.y() * rowStep.x());
 }
 
@@ -250,22 +356,26 @@ KisPuppetTransformWorker::Mesh KisPuppetTransformWorker::Mesh::fromString(const 
     const QStringList parts = text.split(QLatin1Char(';'));
     if (parts.size() != 10)
         return Mesh();
-    bool ok = true;
+    bool numbersOk = true;
     auto value = [&](int index) {
         bool good = false;
         const qreal v = parts[index].toDouble(&good);
-        ok = ok && good;
+        numbersOk = numbersOk && good && std::isfinite(v);
         return v;
     };
     mesh.origin = QPointF(value(0), value(1));
     mesh.columnStep = QPointF(value(2), value(3));
     mesh.rowStep = QPointF(value(4), value(5));
-    mesh.columns = parts[6].toInt(&ok);
-    if (ok)
-        mesh.rows = parts[7].toInt(&ok);
-    if (ok)
-        mesh.expansion = parts[8].toInt(&ok);
-    if (!ok || mesh.columns <= 0 || mesh.rows <= 0 || mesh.columns > 4096 || mesh.rows > 4096)
+    bool columnsOk = false;
+    bool rowsOk = false;
+    bool expansionOk = false;
+    mesh.columns = parts[6].toInt(&columnsOk);
+    mesh.rows = parts[7].toInt(&rowsOk);
+    mesh.expansion = parts[8].toInt(&expansionOk);
+    // Mesh::build() never makes more than MaximumCells per side; a larger
+    // count only comes from a damaged file and would allocate a huge solve.
+    if (!numbersOk || !columnsOk || !rowsOk || !expansionOk || mesh.columns <= 0 || mesh.rows <= 0
+        || mesh.columns > MaximumCells || mesh.rows > MaximumCells)
         return Mesh();
     const int bitCount = 2 * mesh.columns * mesh.rows;
     const QString &bits = parts[9];
@@ -273,6 +383,7 @@ KisPuppetTransformWorker::Mesh KisPuppetTransformWorker::Mesh::fromString(const 
         return Mesh();
     mesh.solid = QBitArray(bitCount);
     for (int i = 0; i < bits.size(); ++i) {
+        bool ok = false;
         const int nibble = QString(bits[i]).toInt(&ok, 16);
         if (!ok)
             return Mesh();
@@ -338,7 +449,6 @@ KisPuppetTransformWorker::KisPuppetTransformWorker(const Mesh &mesh,
     : m_mesh(mesh)
     , m_orders(pinOrders)
 {
-    m_hasSolid = m_mesh.isValid() && m_mesh.solid.count(true) > 0;
     if (!m_mesh.isValid())
         return;
     m_deformed.resize((m_mesh.columns + 1) * (m_mesh.rows + 1));
@@ -376,6 +486,13 @@ void KisPuppetTransformWorker::solve(const QVector<QPointF> &originalPins,
     m_identity = true;
     for (int i = 0; i < pinCount; ++i) {
         const qreal rotation = i < pinRotations.size() ? pinRotations[i] : 0.0;
+        if (!isFinite(originalPins[i]) || !isFinite(transformedPins[i]) || !std::isfinite(rotation)) {
+            // Damaged arguments: render the source unchanged instead of
+            // spreading NaN through the solve and the rendering grid.
+            qWarning() << "KisPuppetTransformWorker: non-finite pin" << i << "; the transform is ignored";
+            m_identity = true;
+            return;
+        }
         if (originalPins[i] != transformedPins[i] || !qFuzzyIsNull(rotation))
             m_identity = false;
     }
@@ -550,8 +667,11 @@ void KisPuppetTransformWorker::solve(const QVector<QPointF> &originalPins,
     Eigen::SparseMatrix<double> system(n, n);
     system.setFromTriplets(triplets.begin(), triplets.end());
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver(system);
-    if (solver.info() != Eigen::Success)
+    if (solver.info() != Eigen::Success) {
+        // The rest mesh stays (the artwork renders unchanged).
+        qWarning() << "KisPuppetTransformWorker: the ARAP system could not be factorized" << solver.info();
         return;
+    }
 
     // Start every vertex with the rigid motion of the pin nearest to it along
     // the artwork, with the same hinge rule as the constraints, so a rotated
@@ -626,24 +746,6 @@ int KisPuppetTransformWorker::orderAt(const QPointF &point) const
     return pin >= 0 && pin < m_orders.size() ? m_orders[pin] : 0;
 }
 
-bool KisPuppetTransformWorker::touchesArtwork(const QPolygonF &cell) const
-{
-    if (!m_hasSolid)
-        return true;
-    auto solidAt = [this](const QPointF &point) {
-        int column = 0;
-        int row = 0;
-        int half = 0;
-        (void)locate(m_mesh, point, &column, &row, &half);
-        return m_mesh.triangleSolid(column, row, half);
-    };
-    for (const QPointF &corner : cell) {
-        if (solidAt(corner))
-            return true;
-    }
-    return solidAt(cell.boundingRect().center());
-}
-
 QVector<int> KisPuppetTransformWorker::stackingGroups() const
 {
     QVector<int> groups;
@@ -688,6 +790,7 @@ void KisPuppetTransformWorker::run(KisPaintDeviceSP srcDevice, KisPaintDeviceSP 
         return;
     }
     const QRect srcBounds = srcDevice->region().boundingRect();
+    const SourceCoverage coverage = SourceCoverage::fromDevice(srcDevice, srcBounds);
     dstDevice->clear();
     auto mapOp = [this](const QPointF &point) {
         return map(point);
@@ -700,7 +803,7 @@ void KisPuppetTransformWorker::run(KisPaintDeviceSP srcDevice, KisPaintDeviceSP 
         if (isGpuEnabled() && KisGpuGridWarpWorker::canRun(srcDevice, dstDevice)) {
             KisGpuGridWarpWorker::Recorder recorder(dstDevice->colorSpace() == srcDevice->colorSpace());
             recorder.setCanMergeRects(false);
-            OrderFilterOp<KisGpuGridWarpWorker::Recorder> filterOp{recorder, *this, 0, false, {}};
+            OrderFilterOp<KisGpuGridWarpWorker::Recorder> filterOp{recorder, *this, coverage, 0, false, {}};
             GridIterationTools::processGrid(filterOp, mapOp, srcBounds, 8);
             recorder.finalize();
             if (KisGpuGridWarpWorker::run(srcDevice, dstDevice, recorder)) {
@@ -710,7 +813,7 @@ void KisPuppetTransformWorker::run(KisPaintDeviceSP srcDevice, KisPaintDeviceSP 
         }
         GridIterationTools::PaintDevicePolygonOp polygonOp(srcDevice, dstDevice);
         polygonOp.setCanMergeRects(false);
-        OrderFilterOp<GridIterationTools::PaintDevicePolygonOp> filterOp{polygonOp, *this, 0, false, {}};
+        OrderFilterOp<GridIterationTools::PaintDevicePolygonOp> filterOp{polygonOp, *this, coverage, 0, false, {}};
         GridIterationTools::processGrid(filterOp, mapOp, srcBounds, 8);
         polygonOp.finalize();
         return;
@@ -733,7 +836,7 @@ void KisPuppetTransformWorker::run(KisPaintDeviceSP srcDevice, KisPaintDeviceSP 
                 new KisGpuGridWarpWorker::Recorder(dstDevice->colorSpace() == srcDevice->colorSpace()));
             recorders.back()->setCanMergeRects(false);
         }
-        GroupRecordersOp groupOp{*this, levels, recorders};
+        GroupRecordersOp groupOp{*this, coverage, levels, recorders};
         GridIterationTools::processGrid(groupOp, mapOp, srcBounds, 8);
         for (auto &recorder : recorders)
             recorder->finalize();
@@ -744,7 +847,12 @@ void KisPuppetTransformWorker::run(KisPaintDeviceSP srcDevice, KisPaintDeviceSP 
             layer->clear();
             GridIterationTools::PaintDevicePolygonOp polygonOp(srcDevice, layer);
             polygonOp.setCanMergeRects(false);
-            OrderFilterOp<GridIterationTools::PaintDevicePolygonOp> filterOp{polygonOp, *this, levels[i], true, {}};
+            OrderFilterOp<GridIterationTools::PaintDevicePolygonOp> filterOp{polygonOp,
+                                                                             *this,
+                                                                             coverage,
+                                                                             levels[i],
+                                                                             true,
+                                                                             {}};
             GridIterationTools::processGrid(filterOp, mapOp, srcBounds, 8);
             polygonOp.finalize();
         }
@@ -793,11 +901,12 @@ QImage KisPuppetTransformWorker::runOnQImage(const QImage &srcImage,
     dstImage.fill(0);
 
     const QVector<int> levels = stackingGroups();
-    // The preview grid is in thumbnail space; cells are tested in image space.
+    const SourceCoverage coverage = SourceCoverage::fromImage(srcImage, srcImageOffset);
+    // The preview grid is in thumbnail space; owners are looked up in image space.
     if (levels.size() == 1) {
         GridIterationTools::QImagePolygonOp polygonOp(srcImage, dstImage, srcImageOffset, *newOffset);
         polygonOp.setCanMergeRects(false);
-        OrderFilterOp<GridIterationTools::QImagePolygonOp> filterOp{polygonOp, *this, 0, false, thumbToImage};
+        OrderFilterOp<GridIterationTools::QImagePolygonOp> filterOp{polygonOp, *this, coverage, 0, false, thumbToImage};
         GridIterationTools::processGrid(filterOp, mapOp, srcBounds, 16);
         polygonOp.finalize();
         return dstImage;
@@ -808,7 +917,12 @@ QImage KisPuppetTransformWorker::runOnQImage(const QImage &srcImage,
         layer.fill(0);
         GridIterationTools::QImagePolygonOp polygonOp(srcImage, layer, srcImageOffset, *newOffset);
         polygonOp.setCanMergeRects(false);
-        OrderFilterOp<GridIterationTools::QImagePolygonOp> filterOp{polygonOp, *this, level, true, thumbToImage};
+        OrderFilterOp<GridIterationTools::QImagePolygonOp> filterOp{polygonOp,
+                                                                    *this,
+                                                                    coverage,
+                                                                    level,
+                                                                    true,
+                                                                    thumbToImage};
         GridIterationTools::processGrid(filterOp, mapOp, srcBounds, 16);
         polygonOp.finalize();
         gc.drawImage(QPoint(), layer);

@@ -23,6 +23,9 @@
 #include "kis_pixel_selection.h"
 #include <testutil.h>
 #include <KisGlobalResourcesInterface.h>
+#include <KoColor.h>
+#include "kis_paint_device.h"
+#include "kis_paint_layer.h"
 
 void KisAdjustmentLayerTest::testCreation()
 {
@@ -101,6 +104,42 @@ void KisAdjustmentLayerTest::testSelectionParent()
 
         QCOMPARE(adjLayer->internalSelection()->parentNode(), KisNodeWSP(adjLayer));
     }
+}
+
+void KisAdjustmentLayerTest::testCopyToSmallerImageCropsOriginal()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+    KisFilterSP f = KisFilterRegistry::instance()->value("invert");
+    QVERIFY(f);
+
+    KisImageSP sourceImage = new KisImage(0, 200, 200, cs, "source");
+    KisPaintLayerSP sourceLayer = new KisPaintLayer(sourceImage, "paint", OPACITY_OPAQUE_U8);
+    sourceLayer->paintDevice()->fill(QRect(0, 0, 200, 200), KoColor(Qt::white, cs));
+    KisAdjustmentLayerSP adjLayer = new KisAdjustmentLayer(
+        sourceImage,
+        "adj",
+        f->defaultConfiguration(KisGlobalResourcesInterface::instance())->cloneWithResourcesSnapshot(),
+        0);
+    sourceImage->addNode(sourceLayer, sourceImage->root());
+    sourceImage->addNode(adjLayer, sourceImage->root());
+
+    sourceImage->initialRefreshGraph();
+    QCOMPARE(adjLayer->original()->exactBounds(), QRect(0, 0, 200, 200));
+
+    KisImageSP targetImage = new KisImage(0, 100, 100, cs, "target");
+    KisPaintLayerSP targetLayer = new KisPaintLayer(targetImage, "paint", OPACITY_OPAQUE_U8);
+    targetLayer->paintDevice()->fill(QRect(0, 0, 100, 100), KoColor(Qt::black, cs));
+    targetImage->addNode(targetLayer, targetImage->root());
+
+    KisNodeSP copy = adjLayer->clone();
+    targetImage->addNode(copy, targetImage->root());
+
+    // the filtered pixels outside of the target image are never refreshed there
+    QCOMPARE(copy->original()->exactBounds(), QRect(0, 0, 100, 100));
+
+    targetImage->refreshGraphAsync();
+    targetImage->waitForDone();
+    QCOMPARE(copy->original()->exactBounds(), QRect(0, 0, 100, 100));
 }
 
 SIMPLE_TEST_MAIN(KisAdjustmentLayerTest)

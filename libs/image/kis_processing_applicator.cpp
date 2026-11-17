@@ -285,7 +285,7 @@ KisProcessingApplicator::KisProcessingApplicator(KisImageWSP image,
       m_sharedAllFramesToken(new bool(false))
 {
     StrategyWithStatusPromise *strategy =
-            new StrategyWithStatusPromise(name, m_image.data());
+            new StrategyWithStatusPromise(name, !flags.testFlag(READ_ONLY_ACTION) ? m_image.data() : nullptr);
 
     m_successfullyCompletedFuture = strategy->m_successfullyCompleted.get_future();
 
@@ -308,7 +308,7 @@ KisProcessingApplicator::KisProcessingApplicator(KisImageWSP image,
         applyCommand(new DisableUIUpdatesCommand(m_image, false), KisStrokeJobData::BARRIER);
     }
 
-    if (!m_nodes.isEmpty()) {
+    if (!m_nodes.isEmpty() && !m_flags.testFlag(READ_ONLY_ACTION)) {
         applyCommand(new UpdateCommand(m_image, m_nodes, m_flags,
                                        UpdateCommand::INITIALIZING,
                                        m_sharedAllFramesToken));
@@ -441,7 +441,7 @@ void KisProcessingApplicator::explicitlyEmitFinalSignals()
 {
     KIS_ASSERT_RECOVER_RETURN(!m_finalSignalsEmitted);
 
-    if (!m_nodes.isEmpty()) {
+    if (!m_nodes.isEmpty() && !m_flags.testFlag(READ_ONLY_ACTION)) {
         applyCommand(new UpdateCommand(m_image, m_nodes, m_flags,
                                        UpdateCommand::FINALIZING,
                                        m_sharedAllFramesToken));

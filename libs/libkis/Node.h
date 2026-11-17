@@ -448,6 +448,19 @@ public Q_SLOTS:
     bool setPixelData(QByteArray value, int x, int y, int w, int h);
 
     /**
+     * @brief setPixelDataUndoable behaves like setPixelData(), but records the
+     * write in a KisTransaction committed to the image's undo adapter, so the
+     * change can be undone with the regular undo stack (Ctrl+Z).
+     *
+     * Prefer this over setPixelData() for single user-visible pixel edits.
+     * For bulk writes (eg. filling a new layer) use setPixelData(), since each
+     * undoable call creates an undo step.
+     *
+     * @return true if writing the pixeldata worked
+     */
+    bool setPixelDataUndoable(QByteArray value, int x, int y, int w, int h);
+
+    /**
      * @brief bounds return the exact bounds of the node's paint device
      * @return the bounds, or an empty QRect if the node has no paint device or is empty.
      */

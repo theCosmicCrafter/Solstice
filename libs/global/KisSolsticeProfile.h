@@ -22,8 +22,8 @@
  *  - Importing: the configuration was imported, the resources not yet;
  *  - Ready: the profile is complete.
  *
- * The Krita files (KisSolsticePaths::legacyConfigDir() and
- * legacyResourceDir()) are only read, never changed.
+ * Import reads the Krita source files without changing them. A retained
+ * custom ResourceDirectory may still be shared during later application use.
  */
 namespace KisSolsticeProfile
 {
@@ -41,6 +41,26 @@ KRITAGLOBAL_EXPORT bool setState(State state);
 KRITAGLOBAL_EXPORT bool legacyProfileExists();
 /// The language of the Krita profile's language override (e.g. "ja"), or empty.
 KRITAGLOBAL_EXPORT QString legacyLanguage();
+
+/**
+ * The language of the texts around the import. They can appear before Qt
+ * and the translation catalogs start, so they are built in
+ * (builtInText()); the errors of this namespace use them too.
+ */
+enum class TextLanguage {
+    English,
+    Japanese,
+    ChineseSimplified,
+};
+
+/// The Krita language override (@p legacyLanguage, e.g. "ja" or "zh_CN")
+/// if it names a built-in language, otherwise the Windows display language
+/// (@p windowsLanguageId, a LANGID; 0 elsewhere).
+KRITAGLOBAL_EXPORT TextLanguage textLanguageFor(const QString &legacyLanguage, quint16 windowsLanguageId);
+/// textLanguageFor() of this system.
+KRITAGLOBAL_EXPORT TextLanguage textLanguage();
+/// The text of textLanguage().
+KRITAGLOBAL_EXPORT QString builtInText(const QString &english, const QString &japanese, const QString &chinese);
 
 /// Creates the profile folders for a fresh start (with the language set to
 /// English) and marks the profile Ready.
@@ -76,9 +96,10 @@ struct ResourceCopyPlan {
 KRITAGLOBAL_EXPORT ResourceCopyPlan planResourceCopy();
 
 /**
- * Copies @p plan. @p progress receives the bytes copied so far and returns
- * false to cancel. On success the profile is marked Ready; on failure or
- * cancel the target folder is removed and @p error says why.
+ * Clears the destination and copies @p plan. @p progress receives the bytes
+ * copied so far and returns false to cancel. On success the profile is marked
+ * Ready. Space/copy failures attempt to remove the target; a final marker-write
+ * failure does not. The startup caller abandons failed imports; @p error says why.
  */
 KRITAGLOBAL_EXPORT bool
 copyResources(const ResourceCopyPlan &plan, const std::function<bool(qint64)> &progress, QString *error = nullptr);

@@ -273,8 +273,10 @@ KoToolBase *KoToolManager::toolById(KoCanvasBase *canvas, const QString &id) con
 {
     Q_ASSERT(canvas);
     Q_FOREACH (KoCanvasController *controller, d->canvasses.keys()) {
-        if (controller->canvas() == canvas)
-            return d->canvasData->allTools.value(id);
+        if (controller->canvas() == canvas) {
+            // Input-device states share tool instances within this canvas.
+            return d->canvasses.value(controller).first()->allTools.value(id);
+        }
     }
     return 0;
 }
@@ -775,8 +777,14 @@ void KoToolManager::Private::movedFocus(QWidget *from, QWidget *to)
             return;
         }
     }
-    // if no such inputDevice for this canvas, then simply fallback to first one
-    switchCanvasData(canvasses.value(newCanvas).first());
+    // Keep the input device when visiting a canvas that has not seen it yet.
+    // Activating the mouse state would also change inputDevice, restoring a
+    // stale mouse tool when the user returns to the previous canvas.
+    const QString toolId = canvasses.value(newCanvas).first()->activeToolId;
+    CanvasData *data = createCanvasData(newCanvas, inputDevice);
+    canvasses[newCanvas].append(data);
+    switchCanvasData(data);
+    switchTool(toolId);
 }
 
 void KoToolManager::Private::updateCursor(const QCursor &cursor)

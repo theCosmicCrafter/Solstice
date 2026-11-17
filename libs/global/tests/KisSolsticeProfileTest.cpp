@@ -59,6 +59,7 @@ private Q_SLOTS:
     void testImport();
     void testCustomResourceDirectoryIsKept();
     void testCancelledCopy();
+    void testTextLanguage();
 
 private:
     void createKritaProfile(const QByteArray &resourceDirectoryLine);
@@ -230,12 +231,31 @@ void KisSolsticeProfileTest::testCancelledCopy()
             return false;
         },
         &error));
-    QCOMPARE(error, QStringLiteral("Cancelled"));
+    QCOMPARE(
+        error,
+        builtInText(QStringLiteral("Cancelled"), QStringLiteral("キャンセルされました"), QStringLiteral("已取消")));
     QVERIFY(!QFileInfo::exists(KisSolsticePaths::defaultResourceDir()));
     abandonImport();
     QCOMPARE(state(), State::Missing);
     QVERIFY(!QFileInfo::exists(KisSolsticePaths::configDir()));
     QVERIFY(QFile::exists(m_legacyResources + "/resourcecache.sqlite"));
+}
+
+void KisSolsticeProfileTest::testTextLanguage()
+{
+    using namespace KisSolsticeProfile;
+    // LANGIDs: en-US 0x0409, ja-JP 0x0411, zh-CN 0x0804, zh-SG 0x1004, zh-TW 0x0404
+    QCOMPARE(textLanguageFor(QString(), 0x0409), TextLanguage::English);
+    QCOMPARE(textLanguageFor(QString(), 0x0411), TextLanguage::Japanese);
+    QCOMPARE(textLanguageFor(QString(), 0x0804), TextLanguage::ChineseSimplified);
+    QCOMPARE(textLanguageFor(QString(), 0x1004), TextLanguage::ChineseSimplified);
+    QCOMPARE(textLanguageFor(QString(), 0x0404), TextLanguage::English);
+    QCOMPARE(textLanguageFor(QString(), 0), TextLanguage::English);
+    // the Krita language override wins when it names a built-in language
+    QCOMPARE(textLanguageFor(QStringLiteral("ja"), 0x0409), TextLanguage::Japanese);
+    QCOMPARE(textLanguageFor(QStringLiteral("zh_CN"), 0x0411), TextLanguage::ChineseSimplified);
+    QCOMPARE(textLanguageFor(QStringLiteral("zh_TW"), 0x0409), TextLanguage::English);
+    QCOMPARE(textLanguageFor(QStringLiteral("en_US"), 0x0804), TextLanguage::ChineseSimplified);
 }
 
 SIMPLE_TEST_MAIN(KisSolsticeProfileTest)

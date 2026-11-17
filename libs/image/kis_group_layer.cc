@@ -25,6 +25,7 @@
 #include "kis_selection_mask.h"
 #include "kis_psd_layer_style.h"
 #include "kis_layer_properties_icons.h"
+#include "kis_lod_capable_layer_offset.h"
 #include <kis_projection_leaf.h>
 #include <kis_abstract_projection_plane.h>
 
@@ -32,17 +33,18 @@
 struct Q_DECL_HIDDEN KisGroupLayer::Private
 {
 public:
-    Private()
+    Private(KisDefaultBoundsBaseSP defaultBounds)
         : paintDevice(0)
-        , x(0)
-        , y(0)
+        , offset(defaultBounds)
         , passThroughMode(false)
     {
     }
 
     KisPaintDeviceSP paintDevice;
-    qint32 x;
-    qint32 y;
+    // Solstice: the group's position; the projection device stays at 0,0
+    // (see setX()). It has a value of its own for the level of detail, as
+    // the device's offset had.
+    KisLodCapableLayerOffset offset;
     bool passThroughMode;
 
     std::tuple<KisPaintDeviceSP, bool> originalImpl() const;
@@ -50,18 +52,17 @@ public:
 
 KisGroupLayer::KisGroupLayer(KisImageWSP image, const QString &name, quint8 opacity, const KoColorSpace * colorSpace) :
     KisLayer(image, name, opacity),
-    m_d(new Private())
+    m_d(new Private(new KisDefaultBounds(image)))
 {
     resetCache(colorSpace);
 }
 
 KisGroupLayer::KisGroupLayer(const KisGroupLayer &rhs) :
     KisLayer(rhs),
-    m_d(new Private())
+    m_d(new Private(new KisDefaultBounds(rhs.image())))
 {
     m_d->paintDevice = new KisPaintDevice(*rhs.m_d->paintDevice.data());
-    m_d->x = rhs.m_d->x;
-    m_d->y = rhs.m_d->y;
+    m_d->offset = rhs.m_d->offset;
     m_d->paintDevice->setDefaultPixel(const_cast<KisGroupLayer*>(&rhs)->m_d->paintDevice->defaultPixel());
     m_d->paintDevice->setProjectionDevice(true);
     m_d->passThroughMode = rhs.passThroughMode();
@@ -152,6 +153,18 @@ QIcon KisGroupLayer::icon() const
 void KisGroupLayer::setImage(KisImageWSP image)
 {
     m_d->paintDevice->setDefaultBounds(new KisDefaultBounds(image));
+    m_d->offset.setDefaultBounds(new KisDefaultBounds(image));
+
+    /**
+     * Updates are cropped to the image bounds, so the projection is never
+     * refreshed outside of them. Pixels there can only come from another
+     * image (a group copied between documents) and would stay forever,
+     * e.g. in the layer thumbnail. Drop them.
+     */
+    if (image.isValid()) {
+        m_d->paintDevice->crop(image->bounds());
+    }
+
     KisLayer::setImage(image);
 }
 
@@ -194,9 +207,8 @@ void KisGroupLayer::resetCache(const KoColorSpace *colorSpace)
 
     if (!m_d->paintDevice) {
 
+        // Solstice: the projection stays at 0,0 (see setX())
         KisPaintDeviceSP dev = new KisPaintDevice(this, colorSpace, new KisDefaultBounds(image()));
-        dev->setX(this->x());
-        dev->setY(this->y());
         m_d->paintDevice = dev;
         m_d->paintDevice->setProjectionDevice(true);
     }
@@ -367,28 +379,37 @@ void KisGroupLayer::accept(KisProcessingVisitor &visitor, KisUndoAdapter *undoAd
 
 qint32 KisGroupLayer::x() const
 {
-    return m_d->paintDevice ? m_d->paintDevice->x() : m_d->x;
+    return m_d->offset->x();
 }
 
 qint32 KisGroupLayer::y() const
 {
-    return m_d->paintDevice ? m_d->paintDevice->y() : m_d->y;
+    return m_d->offset->y();
 }
 
+/**
+ * Solstice: a group's position is a number only; its projection device stays
+ * at 0,0. Upstream moved the device with the group, which shifted the old
+ * pixels along until the children were composited again (every mover
+ * refreshes the old and the new area anyway). A projection off the 64 px
+ * image grid cannot be composited in place by the GPU engine, so a moved
+ * group and all its children fell back to the CPU
+ * (docs/agent/gpu-engine.md, phase 4.112).
+ */
 void KisGroupLayer::setX(qint32 x)
 {
-    m_d->x = x;
-    if(m_d->paintDevice) {
-        m_d->paintDevice->setX(x);
-    }
+    m_d->offset->setX(x);
 }
 
 void KisGroupLayer::setY(qint32 y)
 {
-    m_d->y = y;
-    if(m_d->paintDevice) {
-        m_d->paintDevice->setY(y);
-    }
+    m_d->offset->setY(y);
+}
+
+void KisGroupLayer::syncLodCache()
+{
+    KisLayer::syncLodCache();
+    m_d->offset.syncLodCache();
 }
 
 struct ExtentPolicy

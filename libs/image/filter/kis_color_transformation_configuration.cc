@@ -9,6 +9,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QMap>
+#include <QHash>
 #include <QThread>
 #include "filter/kis_color_transformation_filter.h"
 
@@ -26,10 +27,13 @@ struct Q_DECL_HIDDEN KisColorTransformationConfiguration::Private {
         QMutexLocker locker(&mutex);
         qDeleteAll(colorTransformation);
         colorTransformation.clear();
+        gpuColorTransforms.clear();
     }
 
     // XXX: Threadlocal storage!!!
     QMap<QThread*, KoColorTransformation*> colorTransformation;
+    // Solstice: GPU forms of the filter per color space, null ones included
+    QHash<const KoColorSpace*, KisGpuColorTransformSP> gpuColorTransforms;
     QMutex mutex;
 };
 
@@ -77,6 +81,19 @@ KoColorTransformation* KisColorTransformationConfiguration::colorTransformation(
     }
     locker.unlock();
     return transformation;
+}
+
+KisGpuColorTransformSP KisColorTransformationConfiguration::gpuColorTransform(const KoColorSpace *cs, const KisColorTransformationFilter *filter) const
+{
+    QMutexLocker locker(&d->mutex);
+    auto it = d->gpuColorTransforms.constFind(cs);
+    if (it != d->gpuColorTransforms.constEnd()) {
+        return it.value();
+    }
+    KisFilterConfigurationSP config(clone().data());
+    KisGpuColorTransformSP transform = filter->createGpuColorTransform(cs, config);
+    d->gpuColorTransforms.insert(cs, transform);
+    return transform;
 }
 
 void KisColorTransformationConfiguration::invalidateColorTransformationCache()

@@ -19,6 +19,7 @@
 #include <QDataStream>
 #include <QByteArray>
 #include <QMessageBox>
+#include <QtEndian>
 
 #include <KritaVersionWrapper.h>
 
@@ -46,7 +47,7 @@ const QString KisResourceCacheDb::resourceCacheDbFilename { "resourcecache.sqlit
 const QString KisResourceCacheDb::databaseVersion { "0.0.18" };
 QStringList KisResourceCacheDb::storageTypes { QStringList() };
 // Solstice: of the installed bundles only Krita_4_Default_Resources is enabled
-// in a new profile (docs/agent/settings-location.md, phase 4).
+// on initial storage registration (docs/agent/settings-location.md).
 QStringList KisResourceCacheDb::disabledBundles{QStringList() << "Krita_3_Default_Resources.bundle"
                                                               << "Krita_Artists_SeExpr_examples.bundle"
                                                               << "RGBA_brushes.bundle"};
@@ -510,7 +511,156 @@ bool KisResourceCacheDb::initialize(const QString &location)
     // Delete all storages that are no longer known to the resource locator (including the memory storages)
     deleteTemporaryResources();
 
+    // Solstice: before any model holds a query on the database
+    if (s_valid) {
+        removeTextFromPresetThumbnails();
+    }
+
     return s_valid;
+}
+
+QByteArray KisResourceCacheDb::pngWithoutTextChunks(const QByteArray &png)
+{
+    static const char signature[8] = {'\x89', 'P', 'N', 'G', '\r', '\n', '\x1a', '\n'};
+    // a chunk is its length, its type, the data and a checksum
+    const qsizetype chunkOverhead = 12;
+
+    if (png.size() < qsizetype(sizeof(signature)) + chunkOverhead
+        || memcmp(png.constData(), signature, sizeof(signature)) != 0) {
+        return QByteArray();
+    }
+
+    QByteArray result;
+    result.reserve(png.size());
+    result.append(png.constData(), sizeof(signature));
+
+    bool removedText = false;
+    bool reachedEnd = false;
+    qsizetype pos = sizeof(signature);
+
+    while (pos + chunkOverhead <= png.size()) {
+        const quint32 dataLength = qFromBigEndian<quint32>(png.constData() + pos);
+        if (dataLength > quint32(png.size())) {
+            return QByteArray();
+        }
+        const qsizetype chunkSize = qsizetype(dataLength) + chunkOverhead;
+        if (pos + chunkSize > png.size()) {
+            return QByteArray();
+        }
+
+        const char *type = png.constData() + pos + 4;
+        if (memcmp(type, "tEXt", 4) == 0 || memcmp(type, "zTXt", 4) == 0 || memcmp(type, "iTXt", 4) == 0) {
+            removedText = true;
+        } else {
+            result.append(png.constData() + pos, chunkSize);
+        }
+        pos += chunkSize;
+
+        if (memcmp(type, "IEND", 4) == 0) {
+            reachedEnd = true;
+            break;
+        }
+    }
+
+    return removedText && reachedEnd ? result : QByteArray();
+}
+
+qint64 KisResourceCacheDb::removeTextFromPresetThumbnails(qint64 vacuumThreshold)
+{
+    if (!s_valid) {
+        return 0;
+    }
+
+    /**
+     * A preset thumbnail of the usual 200x200 pixels stays below this size
+     * without text, so a clean database gives no rows here. A larger
+     * thumbnail without text is read at every start and left alone.
+     */
+    const int candidateSize = 64 * 1024;
+
+    QVector<int> candidates;
+    {
+        QSqlQuery q;
+        if (!q.prepare("SELECT resources.id\n"
+                       "FROM   resources\n"
+                       ",      resource_types\n"
+                       "WHERE  resources.resource_type_id = resource_types.id\n"
+                       "AND    resource_types.name = :resource_type\n"
+                       "AND    length(resources.thumbnail) > :size\n")) {
+            qWarning() << "Could not prepare the preset thumbnail query" << q.lastError();
+            return 0;
+        }
+        q.bindValue(":resource_type", QStringLiteral("paintoppresets"));
+        q.bindValue(":size", candidateSize);
+        if (!q.exec()) {
+            qWarning() << "Could not look for preset thumbnails with text" << q.lastError();
+            return 0;
+        }
+        while (q.next()) {
+            candidates << q.value(0).toInt();
+        }
+    }
+
+    if (candidates.isEmpty()) {
+        return 0;
+    }
+
+    qint64 removedBytes = 0;
+    int rewritten = 0;
+    {
+        KisDatabaseTransactionLock transactionLock(QSqlDatabase::database());
+
+        QSqlQuery select;
+        QSqlQuery update;
+        if (!select.prepare("SELECT thumbnail FROM resources WHERE id = :id")
+            || !update.prepare("UPDATE resources SET thumbnail = :thumbnail WHERE id = :id")) {
+            qWarning() << "Could not prepare the preset thumbnail update" << select.lastError() << update.lastError();
+            transactionLock.rollback();
+            return 0;
+        }
+
+        Q_FOREACH (int id, candidates) {
+            select.bindValue(":id", id);
+            if (!select.exec() || !select.first()) {
+                continue;
+            }
+            const QByteArray thumbnail = select.value(0).toByteArray();
+            select.finish();
+
+            const QByteArray withoutText = pngWithoutTextChunks(thumbnail);
+            if (withoutText.isNull()) {
+                continue;
+            }
+
+            update.bindValue(":thumbnail", withoutText);
+            update.bindValue(":id", id);
+            if (!update.exec()) {
+                qWarning() << "Could not update the thumbnail of resource" << id << update.lastError();
+                transactionLock.rollback();
+                return 0;
+            }
+            removedBytes += thumbnail.size() - withoutText.size();
+            ++rewritten;
+        }
+
+        transactionLock.commit();
+    }
+
+    if (rewritten == 0) {
+        return 0;
+    }
+
+    KisUsageLogger::log(QString("Removed %1 MiB of embedded preset text from %2 brush preset thumbnails "
+                                "in the resource database.")
+                            .arg(removedBytes / (1024.0 * 1024.0), 0, 'f', 1)
+                            .arg(rewritten));
+
+    // The freed pages stay in the file until it is rewritten.
+    if (removedBytes >= vacuumThreshold) {
+        runUpdateScript("VACUUM", "Vacuum database after removing text from preset thumbnails");
+    }
+
+    return removedBytes;
 }
 
 std::pair<QVector<int>,QVector<int>> KisResourceCacheDb::tagsForStorage(const QString &resourceType, const QString &storageLocation)

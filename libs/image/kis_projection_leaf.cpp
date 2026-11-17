@@ -21,7 +21,9 @@
 #include "kis_async_merger.h"
 #include "kis_node_graph_listener.h"
 #include "kis_clone_layer.h"
+#include "KisClipStackLayer.h"
 
+#include <KoCompositeOpRegistry.h>
 
 struct Q_DECL_HIDDEN KisProjectionLeaf::Private
 {
@@ -88,6 +90,103 @@ struct Q_DECL_HIDDEN KisProjectionLeaf::Private
 
         group->setPassThroughMode(value);
     }
+
+    /**
+     * Solstice: Clipping Mask. A clip run is a sequence of adjacent clipped
+     * siblings; its base is the non-clipped layer directly below the run.
+     * The projection leaf tree replaces the base and its run with the
+     * base's KisClipStackLayer, whose children are the base and the run.
+     * Pass-through groups take no part in clipping: they cannot be clipped
+     * or be a base, and their children are not clipped.
+     */
+    static bool isClipLayer(const KisNode *node)
+    {
+        const KisLayer *layer = qobject_cast<const KisLayer *>(node);
+        return layer && !layer->isFakeNode() && !qobject_cast<const KisClipStackLayer *>(node);
+    }
+
+    static bool parentAllowsClipping(const KisNode *node)
+    {
+        return node->parent() && !checkPassThrough(node->parent());
+    }
+
+    static bool isClippedNode(const KisNode *node)
+    {
+        return isClipLayer(node) && !checkPassThrough(node) && static_cast<const KisLayer *>(node)->isClipped()
+            && parentAllowsClipping(node);
+    }
+
+    static bool canBeClipBase(const KisNode *node)
+    {
+        return isClipLayer(node) && !checkPassThrough(node) && !static_cast<const KisLayer *>(node)->isClipped()
+            && parentAllowsClipping(node);
+    }
+
+    static KisLayer *clipBaseOf(const KisNode *node)
+    {
+        if (!isClippedNode(node))
+            return nullptr;
+
+        KisNodeSP prev = skipSelectionMasksBackward(node->prevSibling());
+        while (prev && isClippedNode(prev)) {
+            prev = skipSelectionMasksBackward(prev->prevSibling());
+        }
+
+        return prev && canBeClipBase(prev) ? static_cast<KisLayer *>(prev.data()) : nullptr;
+    }
+
+    static bool hasClipRun(const KisNode *node)
+    {
+        if (!canBeClipBase(node))
+            return false;
+
+        KisNodeSP next = skipSelectionMasksForward(node->nextSibling());
+        return next && isClippedNode(next);
+    }
+
+    static KisNodeSP lastOfClipRun(KisNodeSP base)
+    {
+        KisNodeSP last = base;
+        KisNodeSP next = skipSelectionMasksForward(base->nextSibling());
+        while (next && isClippedNode(next)) {
+            last = next;
+            next = skipSelectionMasksForward(next->nextSibling());
+        }
+        return last;
+    }
+
+    /// The stack that contains \p node as its base or as a clipped layer
+    static KisNodeSP clipStackOfMember(const KisNode *node)
+    {
+        if (hasClipRun(node)) {
+            return static_cast<const KisLayer *>(node)->clipStackLayer().data();
+        }
+        if (KisLayer *base = clipBaseOf(node)) {
+            return base->clipStackLayer().data();
+        }
+        return KisNodeSP();
+    }
+
+    /// The node that represents \p node among its parent's leaves
+    static KisNodeSP clipRepresentative(KisNodeSP node)
+    {
+        if (!node)
+            return node;
+        KisNodeSP stack = clipStackOfMember(node);
+        return stack ? stack : node;
+    }
+
+    /// The base when \p node is a clip stack
+    static KisLayerSP clipStackBase(const KisNode *node)
+    {
+        const KisClipStackLayer *stack = qobject_cast<const KisClipStackLayer *>(node);
+        return stack ? stack->base() : KisLayerSP();
+    }
+
+    static bool isTopmostNode(const KisNode *node)
+    {
+        return !skipSelectionMasksForward(node->nextSibling()) && node->parent() && !node->parent()->parent();
+    }
 };
 
 KisProjectionLeaf::KisProjectionLeaf(KisNode *node)
@@ -103,10 +202,14 @@ KisProjectionLeafSP KisProjectionLeaf::parent() const
 {
     KisNodeSP node;
 
-    if (Private::isSelectionMask(m_d->node)) {
+    if (KisLayerSP base = Private::clipStackBase(m_d->node)) {
+        node = base->parent();
+    } else if (Private::isSelectionMask(m_d->node)) {
         if (m_d->overlayProjectionLeaf() == this) {
             node = m_d->findRoot();
         }
+    } else if (KisNodeSP stack = Private::clipStackOfMember(m_d->node)) {
+        return stack->projectionLeaf();
     } else {
         node = m_d->node->parent();
     }
@@ -121,11 +224,16 @@ KisProjectionLeafSP KisProjectionLeaf::parent() const
 
 KisProjectionLeafSP KisProjectionLeaf::firstChild() const
 {
+    if (KisLayerSP base = Private::clipStackBase(m_d->node)) {
+        return base->projectionLeaf();
+    }
+
     KisNodeSP node;
 
     if (!m_d->checkThisPassThrough()) {
         node = m_d->node->firstChild();
         node = Private::skipSelectionMasksForward(node);
+        node = Private::clipRepresentative(node);
     }
 
     if (!node && isRoot()) {
@@ -140,6 +248,10 @@ KisProjectionLeafSP KisProjectionLeaf::firstChild() const
 
 KisProjectionLeafSP KisProjectionLeaf::lastChild() const
 {
+    if (KisLayerSP base = Private::clipStackBase(m_d->node)) {
+        return Private::lastOfClipRun(base)->projectionLeaf();
+    }
+
     KisNodeSP node;
 
     if (isRoot()) {
@@ -152,6 +264,7 @@ KisProjectionLeafSP KisProjectionLeaf::lastChild() const
     if (!m_d->checkThisPassThrough()) {
         node = m_d->node->lastChild();
         node = Private::skipSelectionMasksBackward(node);
+        node = Private::clipRepresentative(node);
     }
 
     return node ? node->projectionLeaf() : KisProjectionLeafSP();
@@ -165,10 +278,27 @@ KisProjectionLeafSP KisProjectionLeaf::prevSibling() const
         if (m_d->overlayProjectionLeaf() == this) {
             KisNodeSP node = m_d->findRoot()->lastChild();
             node = Private::skipSelectionMasksBackward(node);
+            node = Private::clipRepresentative(node);
             leaf = node->projectionLeaf();
         }
 
         return leaf;
+    }
+
+    if (KisLayerSP base = Private::clipStackBase(m_d->node)) {
+        KisNodeSP node = Private::skipSelectionMasksBackward(base->prevSibling());
+        node = Private::clipRepresentative(node);
+        return node ? node->projectionLeaf() : KisProjectionLeafSP();
+    }
+
+    if (Private::hasClipRun(m_d->node)) {
+        // the base is the first child of its stack
+        return KisProjectionLeafSP();
+    }
+
+    if (Private::clipBaseOf(m_d->node)) {
+        KisNodeSP node = Private::skipSelectionMasksBackward(m_d->node->prevSibling());
+        return node ? node->projectionLeaf() : KisProjectionLeafSP();
     }
 
     KisNodeSP node;
@@ -190,6 +320,8 @@ KisProjectionLeafSP KisProjectionLeaf::prevSibling() const
         node = Private::skipSelectionMasksBackward(node);
     }
 
+    node = Private::clipRepresentative(node);
+
     return node ? node->projectionLeaf() : KisProjectionLeafSP();
 }
 
@@ -199,12 +331,23 @@ KisProjectionLeafSP KisProjectionLeaf::nextSibling() const
         return KisProjectionLeafSP();
     }
 
+    if (Private::hasClipRun(m_d->node) || Private::clipBaseOf(m_d->node)) {
+        KisNodeSP node = Private::skipSelectionMasksForward(m_d->node->nextSibling());
+        return node && Private::isClippedNode(node) ? node->projectionLeaf() : KisProjectionLeafSP();
+    }
+
+    // a clip stack continues after the last layer of its run
+    KisNodeSP lastNode = m_d->node;
+    if (KisLayerSP base = Private::clipStackBase(m_d->node)) {
+        lastNode = Private::lastOfClipRun(base);
+    }
+
     KisProjectionLeafSP overlayLeaf = m_d->overlayProjectionLeaf();
-    if (overlayLeaf && m_d->isTopmostNode()) {
+    if (overlayLeaf && Private::isTopmostNode(lastNode)) {
         return overlayLeaf;
     }
 
-    KisNodeSP node = m_d->node->nextSibling();
+    KisNodeSP node = lastNode->nextSibling();
     node = Private::skipSelectionMasksForward(node);
 
     while (node && Private::checkPassThrough(node) && node->firstChild()) {
@@ -215,6 +358,8 @@ KisProjectionLeafSP KisProjectionLeaf::nextSibling() const
     if (!node && m_d->checkParentPassThrough()) {
         node = m_d->node->parent();
         node = Private::skipSelectionMasksForward(node);
+    } else {
+        node = Private::clipRepresentative(node);
     }
 
     return node ? node->projectionLeaf() : KisProjectionLeafSP();
@@ -247,13 +392,18 @@ KisPaintDeviceSP KisProjectionLeaf::projection()
 
 KisPaintDeviceSP KisProjectionLeaf::lazyDestinationForSubtreeComposition()
 {
+    if (qobject_cast<const KisClipStackLayer *>(m_d->node.data())) {
+        return m_d->node->original();
+    }
+
     const KisGroupLayer *group = qobject_cast<const KisGroupLayer*>(m_d->node.data());
     return group ? group->lazyDestinationForSubtreeComposition() : nullptr;
 }
 
 bool KisProjectionLeaf::isRoot() const
 {
-    return (bool)!m_d->node->parent();
+    // a clip stack is outside the node graph and has no node parent
+    return (bool)!m_d->node->parent() && !qobject_cast<const KisClipStackLayer *>(m_d->node.data());
 }
 
 bool KisProjectionLeaf::isLayer() const
@@ -270,7 +420,8 @@ bool KisProjectionLeaf::isMask() const
 
 bool KisProjectionLeaf::canHaveChildLayers() const
 {
-    return (bool)qobject_cast<const KisGroupLayer*>(m_d->node.data());
+    return (bool)qobject_cast<const KisGroupLayer *>(m_d->node.data())
+        || (bool)qobject_cast<const KisClipStackLayer *>(m_d->node.data());
 }
 
 bool KisProjectionLeaf::dependsOnLowerNodes() const
@@ -280,6 +431,10 @@ bool KisProjectionLeaf::dependsOnLowerNodes() const
 
 bool KisProjectionLeaf::visible() const
 {
+    if (KisLayerSP base = Private::clipStackBase(m_d->node)) {
+        return base->projectionLeaf()->visible();
+    }
+
     if (m_d->isTemporaryHidden || isDroppedNode()) return false;
 
     // TODO: check opacity as well!
@@ -299,6 +454,15 @@ bool KisProjectionLeaf::visible() const
 
 quint8 KisProjectionLeaf::opacity() const
 {
+    // the stack takes the base's opacity; inside it, the base is opaque
+    // (a base's parent is never pass-through, so its own values apply)
+    if (KisLayerSP base = Private::clipStackBase(m_d->node)) {
+        return base->opacity();
+    }
+    if (Private::hasClipRun(m_d->node)) {
+        return OPACITY_OPAQUE_U8;
+    }
+
     quint8 resultOpacity = m_d->node->opacity();
 
     if (m_d->checkParentPassThrough()) {
@@ -310,12 +474,45 @@ quint8 KisProjectionLeaf::opacity() const
     return resultOpacity;
 }
 
+QString KisProjectionLeaf::compositeOpId() const
+{
+    // the stack takes the base's blend mode; inside it, the base is Normal
+    if (KisLayerSP base = Private::clipStackBase(m_d->node)) {
+        return base->compositeOpId();
+    }
+    if (Private::hasClipRun(m_d->node)) {
+        return COMPOSITE_OVER;
+    }
+
+    return m_d->node->compositeOpId();
+}
+
+bool KisProjectionLeaf::isClipStackMember() const
+{
+    return (bool)Private::clipStackOfMember(m_d->node);
+}
+
 QBitArray KisProjectionLeaf::channelFlags() const
 {
     QBitArray channelFlags;
 
+    // the stack takes the base's flags; inside it, the base uses all channels
+    if (KisLayerSP base = Private::clipStackBase(m_d->node)) {
+        return base->channelFlags();
+    }
+    if (Private::hasClipRun(m_d->node)) {
+        return channelFlags;
+    }
+
     KisLayer *layer = qobject_cast<KisLayer*>(m_d->node.data());
     if (!layer) return channelFlags;
+
+    // a clipped layer keeps the alpha of the stack below it
+    if (Private::clipBaseOf(m_d->node)) {
+        const QBitArray noAlpha = layer->colorSpace()->channelFlags(true, false);
+        channelFlags = layer->channelFlags();
+        return channelFlags.isEmpty() ? noAlpha : (channelFlags & noAlpha);
+    }
 
     channelFlags = layer->channelFlags();
 
@@ -337,6 +534,9 @@ QBitArray KisProjectionLeaf::channelFlags() const
 
 bool KisProjectionLeaf::isStillInGraph() const
 {
+    if (KisLayerSP base = Private::clipStackBase(m_d->node)) {
+        return (bool)base->graphListener();
+    }
     return (bool)m_d->node->graphListener();
 }
 

@@ -62,6 +62,22 @@ void KisColorTransformationFilter::processImpl(KisPaintDeviceSP device,
 
 }
 
+KisGpuColorTransformSP KisColorTransformationFilter::createGpuColorTransform(const KoColorSpace *cs, const KisFilterConfigurationSP config) const
+{
+    Q_UNUSED(cs);
+    Q_UNUSED(config);
+    return KisGpuColorTransformSP();
+}
+
+KisGpuColorTransformSP KisColorTransformationFilter::gpuColorTransform(const KoColorSpace *cs, const KisFilterConfigurationSP config) const
+{
+    const KisColorTransformationConfiguration *colorTransformationConfiguration =
+        dynamic_cast<const KisColorTransformationConfiguration*>(config.data());
+    return colorTransformationConfiguration ?
+        colorTransformationConfiguration->gpuColorTransform(cs, this) :
+        createGpuColorTransform(cs, config);
+}
+
 KisFilterConfigurationSP  KisColorTransformationFilter::factoryConfiguration(KisResourcesInterfaceSP resourcesInterface) const
 {
     return new KisColorTransformationConfiguration(id(), 0, resourcesInterface);

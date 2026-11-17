@@ -55,6 +55,27 @@ public:
     /// perform optimize and vacuum when necessary
     static void performHouseKeepingOnExit();
 
+    /**
+     * Solstice: removes the text chunks from brush preset thumbnails that
+     * hold them. Databases filled by Krita 5.0 and 5.1 stored each preset's
+     * thumbnail with the whole preset (settings and embedded brush tips) in
+     * a PNG text chunk, megabytes per preset, that nothing reads. The
+     * pixels stay as they are. Called by initialize(); a database without
+     * such thumbnails only costs one query.
+     *
+     * @param vacuumThreshold the file is compacted (VACUUM) when at least
+     * this many bytes were removed
+     * @return the number of bytes removed from the thumbnails
+     */
+    static qint64 removeTextFromPresetThumbnails(qint64 vacuumThreshold = 16 * 1024 * 1024);
+
+    /**
+     * Solstice: \p png without its tEXt, zTXt and iTXt chunks; every other
+     * chunk is copied as it is. A null array when \p png has no such chunk
+     * or is not a well-formed PNG.
+     */
+    static QByteArray pngWithoutTextChunks(const QByteArray &png);
+
     /// set the foreign_keys feature state of the database
     /// (the function **may** throw SQL exceptions,
     /// call in a try-block only!)

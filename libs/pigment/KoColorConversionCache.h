@@ -64,7 +64,11 @@ private:
     KoCachedColorConversionTransformation(KoColorConversionCache::CachedTransformation* transfo);
 public:
     KoCachedColorConversionTransformation(const KoCachedColorConversionTransformation&);
+    KoCachedColorConversionTransformation(KoCachedColorConversionTransformation&&);
     ~KoCachedColorConversionTransformation();
+
+    KoCachedColorConversionTransformation& operator=(const KoCachedColorConversionTransformation &rhs);
+    KoCachedColorConversionTransformation& operator=(KoCachedColorConversionTransformation &&rhs);
 public:
     const KoColorConversionTransformation* transformation() const;
 private:

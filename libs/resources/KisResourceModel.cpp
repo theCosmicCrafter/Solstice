@@ -7,8 +7,10 @@
 #include "KisResourceModel.h"
 
 #include <QBuffer>
+#include <QHash>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QSqlRecord>
 
 #include <KisResourceLocator.h>
 #include <KisResourceCacheDb.h>
@@ -28,6 +30,11 @@ struct KisAllResourcesModel::Private {
     int columnCount {StorageActive};
     int cachedRowCount {-1};
     int externalResourcesRemovedCount {0};
+
+    /// Solstice: the row of each resource id in resourcesQuery, built by the
+    /// first indexForResourceId() after the query was run (resetQuery())
+    QHash<int, int> rowForResourceId;
+    bool rowForResourceIdValid{false};
 };
 
 KisAllResourcesModel::KisAllResourcesModel(const QString &resourceType, QObject *parent)
@@ -399,17 +406,34 @@ QModelIndex KisAllResourcesModel::indexForResource(KoResourceSP resource) const
 
 QModelIndex KisAllResourcesModel::indexForResourceId(int resourceId) const
 {
-    if (!d->resourcesQuery.first()) {
-        return QModelIndex();
+    /**
+     * Solstice: this used to search the query's rows from the top on every
+     * call, and it is called for every change of a brush setting (the Brush
+     * Editor's preset state, the preview in Tool Options). The rows only
+     * change when the query runs again, so they are read once.
+     */
+    if (!d->rowForResourceIdValid) {
+        d->rowForResourceId.clear();
+
+        if (!d->resourcesQuery.first()) {
+            // no rows, or a closed query: try again next time
+            return QModelIndex();
+        }
+
+        const int idColumn = d->resourcesQuery.record().indexOf("id");
+        do {
+            const int id = d->resourcesQuery.value(idColumn).toInt();
+            // the first row of an id, as the search from the top found it
+            if (!d->rowForResourceId.contains(id)) {
+                d->rowForResourceId.insert(id, d->resourcesQuery.at());
+            }
+        } while (d->resourcesQuery.next());
+
+        d->rowForResourceIdValid = true;
     }
 
-    do {
-        if (d->resourcesQuery.value("id").toInt() == resourceId) {
-            return index(d->resourcesQuery.at(), 0);
-        }
-    } while (d->resourcesQuery.next());
-
-    return QModelIndex();
+    const auto it = d->rowForResourceId.constFind(resourceId);
+    return it != d->rowForResourceId.constEnd() ? index(it.value(), 0) : QModelIndex();
 }
 
 bool KisAllResourcesModel::setResourceActive(const QModelIndex &index, bool value)
@@ -604,6 +628,7 @@ bool KisAllResourcesModel::prepareQuery()
 void KisAllResourcesModel::closeQuery()
 {
     d->resourcesQuery.clear();
+    d->rowForResourceIdValid = false;
 }
 
 bool KisAllResourcesModel::resetQuery()
@@ -622,6 +647,7 @@ bool KisAllResourcesModel::resetQuery()
         qWarning() << "Could not select" << d->resourceType << "resources" << d->resourcesQuery.lastError() << d->resourcesQuery.boundValues();
     }
     d->cachedRowCount = -1;
+    d->rowForResourceIdValid = false;
 
     return r;
 }

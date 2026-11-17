@@ -27,6 +27,7 @@
 #include "compositeops/KoCompositeOpDestinationAtop.h"
 #include "compositeops/KoCompositeOpGreater.h"
 #include "compositeops/KoCompositeOpMarker.h"
+#include "compositeops/KoCompositeOpPigment.h"
 #include "compositeops/KoAlphaDarkenParamsWrapper.h"
 #include "compositeops/KoColorSpaceBlendingPolicy.h"
 #include "compositeops/KoCompositeOpClampPolicy.h"
@@ -377,6 +378,7 @@ struct AddRGBOps<Traits, true>
         add<CFIncreaseLightness <HSVType, channels_type> >(cs, COMPOSITE_INC_VALUE         , KoCompositeOp::categoryHSV());
         add<CFDecreaseLightness <HSVType, channels_type> >(cs, COMPOSITE_DEC_VALUE         , KoCompositeOp::categoryHSV());
 
+        cs->addCompositeOp(new KoCompositeOpPigment<Traits>(cs));
     }
 };
 

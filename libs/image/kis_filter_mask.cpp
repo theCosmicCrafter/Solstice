@@ -20,6 +20,12 @@
 #include "kis_processing_visitor.h"
 #include "kis_busy_progress_indicator.h"
 #include "kis_painter.h"
+#include "kis_layer.h"
+#include "kis_paint_device.h"
+#include "kis_pixel_selection.h"
+#ifdef HAVE_KRITA_GPU_ENGINE
+#include "gpu/KisGpuProjectionCompositor.h"
+#endif
 
 struct KisFilterMask::Private
 {
@@ -126,6 +132,70 @@ QRect KisFilterMask::decorateRect(KisPaintDeviceSP &src,
 
     QRect r = filter->changedRect(rc, filterConfig.data(), dst->defaultBounds()->currentLevelOfDetail());
     return r;
+}
+
+KisGpuColorTransformSP KisFilterMask::gpuColorTransform() const
+{
+    // The mask filters its layer's projection, which has the layer's color
+    // space; the layer's own device knows the image's bounds.
+    KisLayer *layer = qobject_cast<KisLayer*>(parent().data());
+    KisPaintDeviceSP original = layer ? layer->original() : KisPaintDeviceSP();
+    if (!original) {
+        return KisGpuColorTransformSP();
+    }
+    return KisGpuColorTransform::forNode(parent(), filter(), layer->colorSpace(), original->defaultBounds());
+}
+
+bool KisFilterMask::gpuAppliesFilter() const
+{
+    return !gpuColorTransform().isNull();
+}
+
+bool KisFilterMask::applyOnGpu(KisPaintDeviceSP projection,
+                               KisSelectionSP selection,
+                               const QRect &applyRect,
+                               const QRect &preparedNeedRect) const
+{
+#ifdef HAVE_KRITA_GPU_ENGINE
+    const KisGpuColorTransformSP transform = gpuColorTransform();
+    if (!transform || !projection || applyRect.isEmpty()) {
+        return false;
+    }
+
+    // With a selection the CPU copies the filtered rect through it; a
+    // deselected pixel keeps the projection. Without one it filters the
+    // whole rect after clearing the need rect.
+    QVector<quint8> coverage;
+    if (selection) {
+        KisPixelSelectionSP pixels = selection->projection();
+        // the extent of the tiles (KisPixelSelection hides extent())
+        const KisPaintDevice *pixelDevice = pixels.data();
+        const bool allSelected =
+            (pixelDevice->extent() & applyRect).isEmpty() && *pixels->defaultPixel().data() == MAX_SELECTED;
+        if (!allSelected) {
+            const qint64 size = qint64(applyRect.width()) * applyRect.height();
+            if (size > KisGpuProjectionCompositor::maxColorTransformCoveragePixels()) {
+                return false;
+            }
+            coverage.resize(int(size));
+            pixels->readBytes(coverage.data(), applyRect);
+        }
+    } else if (preparedNeedRect != applyRect) {
+        return false;
+    }
+
+    return KisGpuProjectionCompositor::transformColors(projection,
+                                                       applyRect,
+                                                       projection,
+                                                       *transform,
+                                                       coverage.isEmpty() ? nullptr : coverage.constData());
+#else
+    Q_UNUSED(projection);
+    Q_UNUSED(selection);
+    Q_UNUSED(applyRect);
+    Q_UNUSED(preparedNeedRect);
+    return false;
+#endif
 }
 
 bool KisFilterMask::accept(KisNodeVisitor &v)

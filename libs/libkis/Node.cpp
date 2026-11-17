@@ -39,6 +39,7 @@
 #include <commands/kis_image_layer_remove_command.h>
 #include <commands_new/kis_set_layer_style_command.h>
 #include <kis_processing_applicator.h>
+#include <kis_transaction.h>
 #include <kis_asl_layer_style_serializer.h>
 
 #include <kis_raster_keyframe_channel.h>
@@ -607,6 +608,27 @@ bool Node::setPixelData(QByteArray value, int x, int y, int w, int h)
         return false;
     }
     dev->writeBytes((const quint8*)value.constData(), x, y, w, h);
+    return true;
+}
+
+bool Node::setPixelDataUndoable(QByteArray value, int x, int y, int w, int h)
+{
+    if (!d->node)
+        return false;
+    KisPaintDeviceSP dev = d->node->paintDevice();
+    if (!dev)
+        return false;
+    if (value.length() < w * h * (int)dev->colorSpace()->pixelSize()) {
+        qWarning() << "Node::setPixelDataUndoable: not enough data to write to the paint device";
+        return false;
+    }
+    if (!d->image) {
+        dev->writeBytes((const quint8 *)value.constData(), x, y, w, h);
+        return true;
+    }
+    KisTransaction transaction(kundo2_i18n("Scripted Pixel Change"), dev);
+    dev->writeBytes((const quint8 *)value.constData(), x, y, w, h);
+    transaction.commit(d->image->undoAdapter());
     return true;
 }
 

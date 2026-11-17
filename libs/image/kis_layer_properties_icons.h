@@ -36,6 +36,8 @@ public:
     static const KoID layerError;
     static const KoID layerColorSpaceMismatch;
     static const KoID antialiased;
+    /// Solstice: Clipping Mask (KisLayer::isClipped())
+    static const KoID clipping;
 
     static KisLayerPropertiesIcons* instance();
 

@@ -24,6 +24,13 @@
 #include "KisLayerStyleKnockoutBlower.h"
 #include "krita_utils.h"
 
+#include "gpu/KisGpuMergeBatch.h"
+#include "kis_default_bounds_base.h"
+#include "kis_paint_device.h"
+#ifdef HAVE_KRITA_GPU_ENGINE
+#include "gpu/KisGpuProjectionCompositor.h"
+#endif
+
 struct Q_DECL_HIDDEN KisLayerStyleProjectionPlane::Private
 {
     KisLayerProjectionPlaneWSP sourceProjectionPlane;
@@ -226,8 +233,13 @@ QRect KisLayerStyleProjectionPlane::recalculate(const QRect& rect, KisNodeSP fil
     if (m_d->style->isEnabled()) {
         result = sourcePlane->recalculate(stylesNeedRect(rect), filthyNode, flags);
 
-        Q_FOREACH (const KisAbstractProjectionPlaneSP plane, m_d->allStyles()) {
-            plane->recalculate(rect, filthyNode, flags);
+        // Solstice: the GPU computes the stroke while it composites the
+        // layer (applyOnGpu()); apply() recalculates the styles if the
+        // GPU cannot.
+        if (!gpuCompositesStyles()) {
+            Q_FOREACH (const KisAbstractProjectionPlaneSP plane, m_d->allStyles()) {
+                plane->recalculate(rect, filthyNode, flags);
+            }
         }
     } else {
         result = sourcePlane->recalculate(rect, filthyNode, flags);
@@ -257,9 +269,133 @@ void KisLayerStyleProjectionPlane::Private::applyComplexPlane(KisPainter *painte
     }
 }
 
+namespace
+{
+#ifdef HAVE_KRITA_GPU_ENGINE
+/// Channel flags as the GPU passes take them (KisGpuMergeBatch::tryAdd()).
+bool gpuChannelFlags(const QBitArray &flags, bool *alphaLocked, quint32 *channelMask)
+{
+    *alphaLocked = false;
+    *channelMask = 0xf;
+    if (flags.isEmpty()) {
+        return true;
+    }
+    if (flags.size() != 4) {
+        return false;
+    }
+    *channelMask = 0;
+    for (int i = 0; i < 4; ++i) {
+        if (flags.testBit(i)) {
+            *channelMask |= 1u << i;
+        }
+    }
+    *alphaLocked = !flags.testBit(3);
+    return true;
+}
+#endif
+} // namespace
+
+bool KisLayerStyleProjectionPlane::gpuCompositesStyles() const
+{
+#ifdef HAVE_KRITA_GPU_ENGINE
+    // Development switch, like KRITA_GPU_TRANSFORM (docs/agent/gpu-engine.md).
+    static const bool disabled = qgetenv("KRITA_GPU_LAYER_STYLE") == "0";
+    if (disabled || !m_d->sourceLayer || !m_d->style || !m_d->style->isEnabled()) {
+        return false;
+    }
+    const KisPSDLayerStyle *style = m_d->style.data();
+    const psd_layer_effects_stroke *stroke = style->stroke();
+    if (!stroke->effectEnabled() || style->dropShadow()->effectEnabled() || style->innerShadow()->effectEnabled()
+        || style->outerGlow()->effectEnabled() || style->innerGlow()->effectEnabled() || style->satin()->effectEnabled()
+        || style->colorOverlay()->effectEnabled() || style->gradientOverlay()->effectEnabled()
+        || style->patternOverlay()->effectEnabled() || style->bevelAndEmboss()->effectEnabled()) {
+        return false;
+    }
+    if (stroke->position() != psd_stroke_outside || stroke->fillType() != psd_fill_solid_color || stroke->size() < 1
+        || stroke->size() > KisGpuProjectionCompositor::maxStrokeStyleSize()) {
+        return false;
+    }
+
+    // The CPU scales the size for the level of detail (KisLsUtils::LodWrapper).
+    KisPaintDeviceSP original = m_d->sourceLayer->original();
+    if (!original || original->defaultBounds()->currentLevelOfDetail() > 0) {
+        return false;
+    }
+    if (!KisGpuMergeBatch::mayCompositeOnGpu(KisNodeSP(m_d->sourceLayer))
+        || !KisGpuProjectionCompositor::supportsStrokeStyle()) {
+        return false;
+    }
+
+    KisGpuBlendOp op;
+    bool alphaLocked;
+    quint32 channelMask;
+    KisProjectionLeafSP leaf = m_d->sourceLayer->projectionLeaf();
+    return KisGpuProjectionCompositor::blendOpForCompositeOp(stroke->blendMode(), &op)
+        && KisGpuProjectionCompositor::strokeStyleSupportsBlendOp(op)
+        && KisGpuProjectionCompositor::blendOpForCompositeOp(leaf->compositeOpId(), &op)
+        && KisGpuProjectionCompositor::strokeStyleSupportsBlendOp(op)
+        && gpuChannelFlags(leaf->channelFlags(), &alphaLocked, &channelMask)
+        && gpuChannelFlags(m_d->sourceLayer->channelFlags(), &alphaLocked, &channelMask);
+#else
+    return false;
+#endif
+}
+
+bool KisLayerStyleProjectionPlane::applyOnGpu(KisPaintDeviceSP projection, const QRect &rect)
+{
+#ifdef HAVE_KRITA_GPU_ENGINE
+    if (!projection || !gpuCompositesStyles()) {
+        return false;
+    }
+    KisPaintDeviceSP device = m_d->sourceLayer->projection();
+    if (!device || !(*device->colorSpace() == *projection->colorSpace())) {
+        return false;
+    }
+
+    // What KisLayerProjectionPlane::applyImpl() gives its painter.
+    KisProjectionLeafSP leaf = m_d->sourceLayer->projectionLeaf();
+    KisGpuProjectionCompositor::StrokeStyle gpuStyle;
+    gpuStyle.layer = device;
+    gpuStyle.layerOpacity = leaf->opacity() / 255.0f;
+    if (!KisGpuProjectionCompositor::blendOpForCompositeOp(leaf->compositeOpId(), &gpuStyle.layerOp)
+        || !gpuChannelFlags(leaf->channelFlags(), &gpuStyle.layerAlphaLocked, &gpuStyle.layerChannelMask)) {
+        return false;
+    }
+
+    // What KisLsStrokeFilter::applyStroke() and
+    // KisLayerStyleFilterEnvironment::setupFinalPainter() give the stroke.
+    const psd_layer_effects_stroke *stroke = m_d->style->stroke();
+    const quint8 opacityU8 = quint8(qRound(255.0 / 100.0 * stroke->opacity()));
+    gpuStyle.strokeColor = KoColor(stroke->color(), device->colorSpace());
+    gpuStyle.strokeOpacity = float(KritaUtils::mergeOpacityF(qreal(opacityU8) / OPACITY_OPAQUE_U8,
+                                                             qreal(m_d->sourceLayer->opacity()) / OPACITY_OPAQUE_U8));
+    gpuStyle.strokeSize = stroke->size();
+    if (!KisGpuProjectionCompositor::blendOpForCompositeOp(stroke->blendMode(), &gpuStyle.strokeOp)
+        || !gpuChannelFlags(KritaUtils::mergeChannelFlags(QBitArray(), m_d->sourceLayer->channelFlags()),
+                            &gpuStyle.strokeAlphaLocked,
+                            &gpuStyle.strokeChannelMask)) {
+        return false;
+    }
+
+    return KisGpuProjectionCompositor::compositeStrokeStyle(projection, rect, gpuStyle);
+#else
+    Q_UNUSED(projection);
+    Q_UNUSED(rect);
+    return false;
+#endif
+}
+
 void KisLayerStyleProjectionPlane::apply(KisPainter *painter, const QRect &rect)
 {
     KisLayerProjectionPlaneSP sourcePlane = m_d->sourceProjectionPlane.toStrongRef();
+
+    // Solstice: recalculate() left the styles to the GPU, which did not
+    // composite this rect after all: compute them now.
+    if (gpuCompositesStyles()) {
+        Q_FOREACH (const KisAbstractProjectionPlaneSP plane, m_d->allStyles()) {
+            plane->recalculate(rect, KisNodeSP(), KisRenderPassFlag::None);
+        }
+    }
 
     if (m_d->style->isEnabled()) {
         if (m_d->hasOverlayStyles() || m_d->hasKnockoutStyles()) {

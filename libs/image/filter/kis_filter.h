@@ -17,6 +17,7 @@
 
 #include "kis_types.h"
 #include "kis_base_processor.h"
+#include "gpu/KisGpuColorTransform.h"
 
 #include "kritaimage_export.h"
 
@@ -97,6 +98,15 @@ public:
      * when generating preview.
      */
     virtual bool supportsLevelOfDetail(const KisFilterConfigurationSP config, int lod) const;
+
+    /**
+     * Solstice (GPU engine, phases 4.115 and 4.116): this filter with
+     * @p config in a form the GPU engine computes with the CPU's result for
+     * a device in @p cs, or null (the default) when it has none and runs on
+     * the CPU. Used for filter layers and filter masks; see
+     * KisGpuColorTransform and docs/agent/gpu-engine.md.
+     */
+    virtual KisGpuColorTransformSP gpuColorTransform(const KoColorSpace *cs, const KisFilterConfigurationSP config) const;
 
     virtual bool needsTransparentPixels(const KisFilterConfigurationSP config, const KoColorSpace *cs) const;
 

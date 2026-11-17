@@ -45,10 +45,11 @@ void KisLayerProjectionPlane::applyImpl(KisPainter *painter, const QRect &rect, 
 
     QRect needRect = rect;
 
-    if (m_d->layer->compositeOpId() != COMPOSITE_COPY &&
-        m_d->layer->compositeOpId() != COMPOSITE_DESTINATION_IN  &&
-        m_d->layer->compositeOpId() != COMPOSITE_DESTINATION_ATOP) {
+    // Solstice: the leaf's blend mode differs from the layer's inside a clip stack
+    const QString compositeOpId = m_d->layer->projectionLeaf()->compositeOpId();
 
+    if (compositeOpId != COMPOSITE_COPY && compositeOpId != COMPOSITE_DESTINATION_IN
+        && compositeOpId != COMPOSITE_DESTINATION_ATOP) {
         needRect &= device->extent();
     }
 
@@ -69,7 +70,7 @@ void KisLayerProjectionPlane::applyImpl(KisPainter *painter, const QRect &rect, 
     }
 
     painter->setChannelFlags(channelFlags);
-    painter->setCompositeOpId(m_d->layer->compositeOpId());
+    painter->setCompositeOpId(compositeOpId);
     painter->setOpacityU8(m_d->layer->projectionLeaf()->opacity());
     painter->bitBlt(needRect.topLeft(), device, needRect);
 }

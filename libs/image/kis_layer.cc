@@ -16,6 +16,8 @@
 #include <QReadWriteLock>
 #include <QReadLocker>
 #include <QWriteLocker>
+#include <QMutex>
+#include <QMutexLocker>
 
 #include <KoIcon.h>
 #include <kis_icon.h>
@@ -47,6 +49,12 @@
 #include "kis_layer_utils.h"
 #include "kis_projection_leaf.h"
 #include "KisSafeNodeProjectionStore.h"
+#include "KisClipStackLayer.h"
+#include "kis_default_bounds.h"
+#include "gpu/KisGpuMergeBatch.h"
+#ifdef HAVE_KRITA_GPU_ENGINE
+#include "gpu/KisGpuProjectionCompositor.h"
+#endif
 
 
 class KisCloneLayersList {
@@ -175,6 +183,11 @@ struct Q_DECL_HIDDEN KisLayer::Private
     KisSafeNodeProjectionStoreSP safeProjection;
 
     KisLayerMasksCache masksCache;
+
+    // Solstice: Clipping Mask
+    bool clipped{false};
+    QMutex clipStackLock;
+    KisClipStackLayerSP clipStack;
 };
 
 
@@ -197,6 +210,7 @@ KisLayer::KisLayer(const KisLayer& rhs)
     if (this != &rhs) {
         m_d->metaDataStore = new KisMetaData::Store(*rhs.m_d->metaDataStore);
         m_d->channelFlags = rhs.m_d->channelFlags;
+        m_d->clipped = rhs.m_d->clipped;
 
         setName(rhs.name());
         m_d->projectionPlane = toQShared(new KisLayerProjectionPlane(this));
@@ -285,6 +299,7 @@ KisBaseNode::PropertyList KisLayer::sectionModelProperties() const
     }
 
     l << KisLayerPropertiesIcons::getProperty(KisLayerPropertiesIcons::inheritAlpha, alphaChannelDisabled());
+    l << KisLayerPropertiesIcons::getProperty(KisLayerPropertiesIcons::clipping, isClipped());
 
     if (colorOverlayMask()) {
         // Use an immutable property (with a string value), to hide it in the layer properties dialog.
@@ -298,9 +313,20 @@ void KisLayer::setSectionModelProperties(const KisBaseNode::PropertyList &proper
 {
     KisBaseNode::setSectionModelProperties(properties);
 
+    // Solstice: clipping and inherit alpha exclude each other; the one that
+    // is being switched on wins
+    bool hasInheritAlpha = false;
+    bool inheritAlphaValue = alphaChannelDisabled();
+    bool clippingValue = isClipped();
+
     Q_FOREACH (const KisBaseNode::Property &property, properties) {
         if (property.id == KisLayerPropertiesIcons::inheritAlpha.id()) {
-            disableAlphaChannel(property.state.toBool());
+            hasInheritAlpha = true;
+            inheritAlphaValue = property.state.toBool();
+        }
+
+        if (property.id == KisLayerPropertiesIcons::clipping.id()) {
+            clippingValue = property.state.toBool();
         }
 
         if (property.id == KisLayerPropertiesIcons::layerStyle.id()) {
@@ -314,6 +340,56 @@ void KisLayer::setSectionModelProperties(const KisBaseNode::PropertyList &proper
             }
         }
     }
+
+    if (clippingValue && inheritAlphaValue) {
+        if (!isClipped()) {
+            inheritAlphaValue = false;
+        } else {
+            clippingValue = false;
+        }
+    }
+
+    if (hasInheritAlpha || inheritAlphaValue != alphaChannelDisabled()) {
+        disableAlphaChannel(inheritAlphaValue);
+    }
+    setClipped(clippingValue);
+}
+
+QRect KisLayer::clipRunBounds() const
+{
+    // Solstice: the base below this layer and the clipped layers next to it.
+    // A wide estimate is fine: it is used only to refresh after a change.
+    auto isLayer = [](KisNodeSP node) {
+        return qobject_cast<KisLayer *>(node.data()) && !node->inherits("KisSelectionMask");
+    };
+    auto isClippedLayer = [](KisNodeSP node) {
+        KisLayer *layer = qobject_cast<KisLayer *>(node.data());
+        return layer && layer->isClipped();
+    };
+
+    QRect rect = projectionPlane()->tightUserVisibleBounds();
+
+    KisNodeSP node = prevSibling();
+    while (node && !isLayer(node)) {
+        node = node->prevSibling();
+    }
+    while (node && isClippedLayer(node)) {
+        rect |= node->projectionPlane()->tightUserVisibleBounds();
+        node = node->prevSibling();
+    }
+    if (node && isLayer(node)) {
+        rect |= node->projectionPlane()->tightUserVisibleBounds();
+    }
+
+    node = nextSibling();
+    while (node && (isClippedLayer(node) || !isLayer(node))) {
+        if (isLayer(node)) {
+            rect |= node->projectionPlane()->tightUserVisibleBounds();
+        }
+        node = node->nextSibling();
+    }
+
+    return rect;
 }
 
 void KisLayer::disableAlphaChannel(bool disable)
@@ -329,6 +405,46 @@ void KisLayer::disableAlphaChannel(bool disable)
         newChannelFlags |= colorSpace()->channelFlags(false, true);
 
     setChannelFlags(newChannelFlags);
+}
+
+bool KisLayer::isClipped() const
+{
+    return m_d->clipped;
+}
+
+void KisLayer::setClipped(bool value)
+{
+    if (m_d->clipped == value) {
+        return;
+    }
+
+    m_d->clipped = value;
+
+    baseNodeChangedCallback();
+    baseNodeInvalidateAllFramesCallback();
+}
+
+KisLayerSP KisLayer::clipStackLayer() const
+{
+    QMutexLocker l(&m_d->clipStackLock);
+
+    if (!m_d->clipStack) {
+        m_d->clipStack = new KisClipStackLayer(const_cast<KisLayer *>(this));
+    }
+
+    return m_d->clipStack.data();
+}
+
+KisPaintDeviceList KisLayer::getLodCapableDevices() const
+{
+    KisPaintDeviceList list = KisNode::getLodCapableDevices();
+
+    QMutexLocker l(&m_d->clipStackLock);
+    if (m_d->clipStack) {
+        list << m_d->clipStack->getLodCapableDevices();
+    }
+
+    return list;
 }
 
 bool KisLayer::alphaChannelDisabled() const
@@ -384,18 +500,63 @@ void KisLayer::setImage(KisImageWSP image)
     }
     m_d->safeProjection->setImage(image);
 
+    {
+        QMutexLocker l(&m_d->clipStackLock);
+        if (m_d->clipStack) {
+            m_d->clipStack->setImage(image);
+            m_d->clipStack->original()->setDefaultBounds(new KisDefaultBounds(image));
+            // the image may still be under construction: no strong reference
+            m_d->clipStack->syncColorSpace(image.isValid() ? image.data()->colorSpace() : nullptr);
+        }
+    }
+
     KisNode::setImage(image);
 }
 
+namespace
+{
+
+/**
+ * Solstice: Merge Down of a clipped layer onto its base bakes the layer into
+ * the base (Clipping Mask)
+ */
+bool bakesIntoClipBase(const KisLayer *layer, KisLayerSP prevLayer)
+{
+    return layer->isClipped() && !prevLayer->isClipped() && layer->projectionLeaf()->isClipStackMember()
+        && prevLayer->projectionLeaf()->isClipStackMember();
+}
+
+/**
+ * Solstice: inside a clip stack the projection leaf reports other blend
+ * options than the layer's own (see KisProjectionLeaf). Merging paints the
+ * members of a stack with their own options instead.
+ */
+void applyForMerge(KisLayer *layer, KisPainter *gc, const QRect &rect)
+{
+    if (!layer->projectionLeaf()->isClipStackMember()) {
+        layer->projectionPlane()->apply(gc, rect);
+        return;
+    }
+
+    KisPaintDeviceSP device = layer->projection();
+    const QRect applyRect = rect & device->extent();
+    if (applyRect.isEmpty())
+        return;
+
+    gc->setChannelFlags(layer->channelFlags());
+    gc->setCompositeOpId(layer->compositeOpId());
+    gc->setOpacityU8(layer->opacity());
+    gc->bitBlt(applyRect.topLeft(), device, applyRect);
+}
+
+} // namespace
+
 bool KisLayer::canMergeAndKeepBlendOptions(KisLayerSP otherLayer)
 {
-    return
-        this->compositeOpId() == otherLayer->compositeOpId() &&
-        this->opacity() == otherLayer->opacity() &&
-        this->channelFlags() == otherLayer->channelFlags() &&
-        !this->layerStyle() && !otherLayer->layerStyle() &&
-        (this->colorSpace() == otherLayer->colorSpace() ||
-         *this->colorSpace() == *otherLayer->colorSpace());
+    return this->isClipped() == otherLayer->isClipped() && this->compositeOpId() == otherLayer->compositeOpId()
+        && this->opacity() == otherLayer->opacity() && this->channelFlags() == otherLayer->channelFlags()
+        && !this->layerStyle() && !otherLayer->layerStyle()
+        && (this->colorSpace() == otherLayer->colorSpace() || *this->colorSpace() == *otherLayer->colorSpace());
 }
 
 KisLayerSP KisLayer::tryCreateInternallyMergedLayerFromMutipleLayers(QList<KisLayerSP> layers)
@@ -406,6 +567,14 @@ KisLayerSP KisLayer::tryCreateInternallyMergedLayerFromMutipleLayers(QList<KisLa
 
 KisLayerSP KisLayer::createMergedLayerTemplate(KisLayerSP prevLayer)
 {
+    // the baked layer keeps the base's name and blend options
+    if (bakesIntoClipBase(this, prevLayer)) {
+        KisLayerSP newLayer = new KisPaintLayer(image(), prevLayer->name(), prevLayer->opacity());
+        newLayer->setCompositeOpId(prevLayer->compositeOpId());
+        newLayer->disableAlphaChannel(prevLayer->alphaChannelDisabled());
+        return newLayer;
+    }
+
     const bool keepBlendingOptions = canMergeAndKeepBlendOptions(prevLayer);
 
     KisLayerSP newLayer = new KisPaintLayer(image(), prevLayer->name(), OPACITY_OPAQUE_U8);
@@ -415,6 +584,8 @@ KisLayerSP KisLayer::createMergedLayerTemplate(KisLayerSP prevLayer)
         newLayer->setOpacity(opacity());
         newLayer->setChannelFlags(channelFlags());
     }
+
+    newLayer->setClipped(prevLayer->isClipped());
 
     return newLayer;
 }
@@ -430,6 +601,22 @@ void KisLayer::fillMergedLayerTemplate(KisLayerSP dstLayer, KisLayerSP prevLayer
 
     KisPaintDeviceSP mergedDevice = dstLayer->paintDevice();
 
+    if (bakesIntoClipBase(this, prevLayer)) {
+        KisImageSP imageSP = image().toStrongRef();
+        if (!imageSP) {
+            return;
+        }
+
+        // inside the stack the base is Normal at full opacity and this layer
+        // keeps the stack's alpha: exactly how the stack renders them
+        KisPainter gc(mergedDevice);
+        prevLayer->projectionPlane()->apply(&gc, prevLayerProjectionExtent | imageSP->bounds());
+        if (!skipPaintingThisLayer) {
+            this->projectionPlane()->apply(&gc, layerProjectionExtent | imageSP->bounds());
+        }
+        return;
+    }
+
     if (!keepBlendingOptions) {
         KisPainter gc(mergedDevice);
 
@@ -441,7 +628,7 @@ void KisLayer::fillMergedLayerTemplate(KisLayerSP dstLayer, KisLayerSP prevLayer
         //Copy the pixels of previous layer with their actual alpha value
         prevLayer->disableAlphaChannel(false);
 
-        prevLayer->projectionPlane()->apply(&gc, prevLayerProjectionExtent | imageSP->bounds());
+        applyForMerge(prevLayer.data(), &gc, prevLayerProjectionExtent | imageSP->bounds());
 
         //Restore the previous prevLayer disableAlpha status for correct undo/redo
         prevLayer->disableAlphaChannel(prevAlphaDisabled);
@@ -452,7 +639,7 @@ void KisLayer::fillMergedLayerTemplate(KisLayerSP dstLayer, KisLayerSP prevLayer
                 this->disableAlphaChannel(false);
             }
 
-            this->projectionPlane()->apply(&gc, layerProjectionExtent | imageSP->bounds());
+            applyForMerge(this, &gc, layerProjectionExtent | imageSP->bounds());
 
             //Restore the layer disableAlpha status for correct undo/redo
             this->disableAlphaChannel(alphaDisabled);
@@ -807,10 +994,43 @@ bool KisLayer::needProjection() const
     return false;
 }
 
+bool KisLayer::gpuAppliesEffectMasks() const
+{
+#ifdef HAVE_KRITA_GPU_ENGINE
+    if (!KisGpuMergeBatch::mayCompositeOnGpu(KisNodeSP(const_cast<KisLayer *>(this)))) {
+        return false;
+    }
+    const QList<KisEffectMaskSP> masks = effectMasks();
+    if (masks.isEmpty()) {
+        return false;
+    }
+    Q_FOREACH (const KisEffectMaskSP &mask, masks) {
+        if (mask->inherits("KisTransparencyMask")) {
+            continue;
+        }
+        // phase 4.116: a filter mask whose filter has a GPU form
+        const KisFilterMask *filterMask = qobject_cast<const KisFilterMask *>(mask.data());
+        if (!filterMask || !filterMask->gpuAppliesFilter()) {
+            return false;
+        }
+    }
+    return true;
+#else
+    return false;
+#endif
+}
+
 void KisLayer::copyOriginalToProjection(const KisPaintDeviceSP original,
                                         KisPaintDeviceSP projection,
                                         const QRect& rect) const
 {
+#ifdef HAVE_KRITA_GPU_ENGINE
+    // Solstice: keep the copy on the GPU when the masks are applied there
+    // (transparency masks, phase 4.113).
+    if (gpuAppliesEffectMasks() && KisGpuProjectionCompositor::copyShifted(projection, rect, original, QPoint())) {
+        return;
+    }
+#endif
     KisPainter::copyAreaOptimized(rect.topLeft(), original, projection, rect);
 }
 

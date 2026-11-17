@@ -78,6 +78,8 @@ public:
 
     void setChannelFlags(const QBitArray & channelFlags) override;
 
+    void setImage(KisImageWSP image) override;
+
 protected:
     // override from KisLayer
     QRect incomingChangeRect(const QRect &rect) const override;

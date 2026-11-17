@@ -46,7 +46,7 @@ QString abr_v1_brush_name(const QString filename, qint32 id)
 /**
  * Solstice: the names of the presets that use each sampled tip, by the
  * tip's identifier (`sampledData`), from the preset descriptors of version
- * 6 and later (docs/agent/abr-import-plan.md)
+ * 6 and later (docs/agent/abr-import.md)
  */
 QDomDocument readDescriptors(const QByteArray &descriptors)
 {
@@ -205,7 +205,7 @@ bool KisAbrBrushCollection::load()
 
 bool KisAbrBrushCollection::loadFromDevice(QIODevice *dev)
 {
-    // Solstice: read with KisAbrParser (docs/agent/abr-import-plan.md)
+    // Solstice: read with KisAbrParser (docs/agent/abr-import.md)
     KisAbrParser::Contents contents;
     const bool parsed = KisAbrParser::parse(dev->readAll(), &contents);
     for (const QString &warning : contents.warnings) {
@@ -255,7 +255,7 @@ bool KisAbrBrushCollection::loadFromDevice(QIODevice *dev)
     }
 
     // Solstice: the file's brush presets as Pixel Brush presets
-    // (docs/agent/abr-import-plan.md, phase 4)
+    // (docs/agent/abr-import.md)
     for (auto it = m_patterns->constBegin(); it != m_patterns->constEnd(); ++it) {
         sources.patternsById.insert(QFileInfo(it.key()).completeBaseName(), it.value());
     }
@@ -272,7 +272,7 @@ bool KisAbrBrushCollection::loadFromDevice(QIODevice *dev)
                       << ", which Solstice does not have";
         }
 
-        // the folders of the Brushes panel (phase 5): the hierarchy lists
+        // the folders of the Brushes panel: the hierarchy lists
         // the presets in the order of the descriptors; presets it does not
         // list stay at the top level
         m_presetFolders.clear();

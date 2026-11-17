@@ -39,6 +39,7 @@
 #include "gpu/KisGpuBrushPainter.h"
 #include "gpu/KisGpuEngineSettings.h"
 #include "gpu/KisGpuMergeBatch.h"
+#include "gpu/KisGpuProjectionCompositor.h"
 #include "gpu/KisGpuTileAccess.h"
 #endif
 #include "KisPaintTrace.h"
@@ -191,7 +192,15 @@ void KisPaintLayer::copyOriginalToProjection(const KisPaintDeviceSP original,
 
     if (!baseCopied) {
         KisPaintTrace::Scope trace("layer.copy_original", this);
-        KisPainter::copyAreaOptimized(rect.topLeft(), original, projection, rect);
+        bool gpuCopied = false;
+#ifdef HAVE_KRITA_GPU_ENGINE
+        // Solstice: on the GPU when the masks are applied there (phase 4.113)
+        gpuCopied =
+            gpuAppliesEffectMasks() && KisGpuProjectionCompositor::copyShifted(projection, rect, original, QPoint());
+#endif
+        if (!gpuCopied) {
+            KisPainter::copyAreaOptimized(rect.topLeft(), original, projection, rect);
+        }
     }
 
     if (hasTemporaryTarget() && !baseCopied) {

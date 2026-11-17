@@ -18,7 +18,7 @@ class KUndo2Command;
 /**
  * A paint layer that can draw its content again for a transform instead of
  * resampling its pixels (Solstice: the brush stroke layer, see
- * docs/agent/brush-stroke-layer-plan.md). KisTransformProcessingVisitor asks
+ * docs/agent/brush-stroke-layer.md). KisTransformProcessingVisitor asks
  * it before transforming the layer's pixels.
  */
 class KRITAIMAGE_EXPORT KisRedrawableLayerInterface

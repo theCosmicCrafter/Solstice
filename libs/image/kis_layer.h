@@ -132,6 +132,29 @@ public:
     bool alphaChannelDisabled() const;
 
     /**
+     * Solstice: a clipped layer is shown only where its base, the nearest
+     * non-clipped layer below it in the same parent, has pixels (Clipping
+     * Mask, see docs/agent/clipping-mask-plan.md).
+     */
+    bool isClipped() const;
+    void setClipped(bool value);
+
+    /**
+     * Solstice: the internal layer that composites this layer as a clip base
+     * with the clipped layers above it. It is not part of the node graph;
+     * only the projection leaf tree uses it. Created on first use.
+     */
+    KisLayerSP clipStackLayer() const;
+
+    /**
+     * Solstice: the bounds of this layer, the base below it and the clipped
+     * layers next to it; the area to refresh when its clipping changes
+     */
+    QRect clipRunBounds() const;
+
+    KisPaintDeviceList getLodCapableDevices() const override;
+
+    /**
      * set the channelflags for this layer to the specified bit array.
      * The bit array must have exactly the same number of channels as
      * the colorspace this layer is in, or be empty, in which case all
@@ -277,6 +300,16 @@ public:
      * Returns true if there are any effect masks present
      */
     bool hasEffectMasks() const;
+
+    /**
+     * Solstice (GPU engine, phase 4.113): true when the GPU engine applies
+     * all effect masks of this layer, i.e. the layer has visible effect
+     * masks, all of them are transparency masks, and the image is
+     * composited on the GPU. The copy of the original into the projection
+     * then stays on the GPU too (copyOriginalToProjection()); with a mask
+     * that runs on the CPU it would be read back at once.
+     */
+    bool gpuAppliesEffectMasks() const;
 
     /**
      * @return the list of effect masks

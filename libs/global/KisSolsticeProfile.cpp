@@ -18,6 +18,10 @@
 
 #include "KisSolsticePaths.h"
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 namespace
 {
 const char *const MarkerFile = "SOLSTICE_PROFILE";
@@ -43,6 +47,32 @@ void setError(QString *error, const QString &message)
     }
 }
 
+// The errors are shown in krita/main.cc's built-in messages, partly before Qt
+// starts, so they are built in too (KisSolsticeProfile::builtInText()).
+
+QString couldNotCreate(const QString &path)
+{
+    return KisSolsticeProfile::builtInText(QStringLiteral("Could not create %1"),
+                                           QStringLiteral("%1 を作成できませんでした"),
+                                           QStringLiteral("无法创建 %1"))
+        .arg(QDir::toNativeSeparators(path));
+}
+
+QString couldNotCopy(const QString &path)
+{
+    return KisSolsticeProfile::builtInText(QStringLiteral("Could not copy %1"),
+                                           QStringLiteral("%1 をコピーできませんでした"),
+                                           QStringLiteral("无法复制 %1"))
+        .arg(QDir::toNativeSeparators(path));
+}
+
+QString couldNotWriteMarker()
+{
+    return KisSolsticeProfile::builtInText(QStringLiteral("Could not write the profile marker"),
+                                           QStringLiteral("プロファイルのマーカーファイルを書き込めませんでした"),
+                                           QStringLiteral("无法写入用户配置的标记文件"));
+}
+
 bool samePath(const QString &a, const QString &b)
 {
     return QDir::cleanPath(QDir::fromNativeSeparators(a))
@@ -57,7 +87,7 @@ bool makeFolders(QString *error)
                                KisSolsticePaths::defaultResourceDir(),
                                KisSolsticePaths::cacheDir()}) {
         if (!QDir().mkpath(dir)) {
-            setError(error, QStringLiteral("Could not create %1").arg(QDir::toNativeSeparators(dir)));
+            setError(error, couldNotCreate(dir));
             return false;
         }
     }
@@ -73,7 +103,7 @@ bool copyTree(const QString &source, const QString &target, QString *error)
         QDir().mkpath(QFileInfo(destination).path());
         QFile::remove(destination);
         if (!QFile::copy(file, destination)) {
-            setError(error, QStringLiteral("Could not copy %1").arg(QDir::toNativeSeparators(file)));
+            setError(error, couldNotCopy(file));
             return false;
         }
     }
@@ -162,12 +192,56 @@ QString KisSolsticeProfile::legacyLanguage()
     return languages.section(QLatin1Char(':'), 0, 0);
 }
 
+KisSolsticeProfile::TextLanguage KisSolsticeProfile::textLanguageFor(const QString &legacyLanguage,
+                                                                     quint16 windowsLanguageId)
+{
+    if (legacyLanguage.startsWith(QLatin1String("ja"))) {
+        return TextLanguage::Japanese;
+    }
+    if (legacyLanguage == QLatin1String("zh_CN") || legacyLanguage == QLatin1String("zh_SG")) {
+        return TextLanguage::ChineseSimplified;
+    }
+    // LANGID: primary language in the low 10 bits, sublanguage above
+    const quint16 primary = windowsLanguageId & 0x3ff;
+    const quint16 sub = windowsLanguageId >> 10;
+    if (primary == 0x11) { // LANG_JAPANESE
+        return TextLanguage::Japanese;
+    }
+    // LANG_CHINESE with SUBLANG_CHINESE_SIMPLIFIED or SUBLANG_CHINESE_SINGAPORE
+    if (primary == 0x04 && (sub == 0x02 || sub == 0x04)) {
+        return TextLanguage::ChineseSimplified;
+    }
+    return TextLanguage::English;
+}
+
+KisSolsticeProfile::TextLanguage KisSolsticeProfile::textLanguage()
+{
+#ifdef Q_OS_WIN
+    return textLanguageFor(legacyLanguage(), GetUserDefaultUILanguage());
+#else
+    return textLanguageFor(legacyLanguage(), 0);
+#endif
+}
+
+QString KisSolsticeProfile::builtInText(const QString &english, const QString &japanese, const QString &chinese)
+{
+    switch (textLanguage()) {
+    case TextLanguage::Japanese:
+        return japanese;
+    case TextLanguage::ChineseSimplified:
+        return chinese;
+    case TextLanguage::English:
+        break;
+    }
+    return english;
+}
+
 bool KisSolsticeProfile::createFreshProfile(QString *error)
 {
     if (!makeFolders(error)) {
         return false;
     }
-    // Solstice defaults (docs/agent/settings-location.md, phase 4): a new
+    // Solstice defaults (docs/agent/settings-location.md): a new
     // profile starts in English. The format is the one of
     // kswitchlanguagedialog_p.cpp: [Language] <application name>=<languages>.
     {
@@ -181,7 +255,7 @@ bool KisSolsticeProfile::createFreshProfile(QString *error)
         overrides.sync();
     }
     if (!setState(State::Ready)) {
-        setError(error, QStringLiteral("Could not write the profile marker"));
+        setError(error, couldNotWriteMarker());
         return false;
     }
     return true;
@@ -269,7 +343,7 @@ bool KisSolsticeProfile::importConfiguration(QString *error)
             QFile in(source);
             QFile out(target);
             if (!in.open(QIODevice::ReadOnly) || !out.open(QIODevice::WriteOnly)) {
-                setError(error, QStringLiteral("Could not copy %1").arg(QDir::toNativeSeparators(source)));
+                setError(error, couldNotCopy(source));
                 return false;
             }
             const QString text = QString::fromUtf8(in.readAll());
@@ -279,7 +353,7 @@ bool KisSolsticeProfile::importConfiguration(QString *error)
                                    QDir::homePath())
                           .toUtf8());
         } else if (!QFile::copy(source, target)) {
-            setError(error, QStringLiteral("Could not copy %1").arg(QDir::toNativeSeparators(source)));
+            setError(error, couldNotCopy(source));
             return false;
         }
     }
@@ -290,7 +364,7 @@ bool KisSolsticeProfile::importConfiguration(QString *error)
         return false;
     }
     if (!setState(withResources ? State::Importing : State::Ready)) {
-        setError(error, QStringLiteral("Could not write the profile marker"));
+        setError(error, couldNotWriteMarker());
         return false;
     }
     return true;
@@ -322,7 +396,11 @@ bool KisSolsticeProfile::copyResources(const ResourceCopyPlan &plan,
 {
     QDir target(plan.targetDir);
     if (target.exists() && !target.removeRecursively()) {
-        setError(error, QStringLiteral("Could not clear %1").arg(QDir::toNativeSeparators(plan.targetDir)));
+        setError(error,
+                 builtInText(QStringLiteral("Could not clear %1"),
+                             QStringLiteral("%1 を空にできませんでした"),
+                             QStringLiteral("无法清空 %1"))
+                     .arg(QDir::toNativeSeparators(plan.targetDir)));
         return false;
     }
     QDir().mkpath(plan.targetDir);
@@ -330,7 +408,9 @@ bool KisSolsticeProfile::copyResources(const ResourceCopyPlan &plan,
     const qint64 margin = 64 * 1024 * 1024;
     if (storage.isValid() && storage.bytesAvailable() < plan.bytes + margin) {
         setError(error,
-                 QStringLiteral("Not enough free space: %1 MB needed, %2 MB available")
+                 builtInText(QStringLiteral("Not enough free space: %1 MB needed, %2 MB available"),
+                             QStringLiteral("空き容量が足りません: %1 MB 必要ですが、%2 MB しかありません"),
+                             QStringLiteral("可用空间不足：需要 %1 MB，可用 %2 MB"))
                      .arg((plan.bytes + margin) / (1024 * 1024))
                      .arg(storage.bytesAvailable() / (1024 * 1024)));
         target.removeRecursively();
@@ -345,14 +425,16 @@ bool KisSolsticeProfile::copyResources(const ResourceCopyPlan &plan,
         QDir().mkpath(QFileInfo(destination).path());
         if (!copyFile(source.filePath(relative), destination, &done, progress, &cancelled)) {
             setError(error,
-                     cancelled ? QStringLiteral("Cancelled")
-                               : QStringLiteral("Could not copy %1").arg(QDir::toNativeSeparators(relative)));
+                     cancelled ? builtInText(QStringLiteral("Cancelled"),
+                                             QStringLiteral("キャンセルされました"),
+                                             QStringLiteral("已取消"))
+                               : couldNotCopy(relative));
             target.removeRecursively();
             return false;
         }
     }
     if (!setState(State::Ready)) {
-        setError(error, QStringLiteral("Could not write the profile marker"));
+        setError(error, couldNotWriteMarker());
         return false;
     }
     return true;

@@ -12,6 +12,7 @@ kis_add_tests(
     TestShapeBackgroundCommand.cpp
     TestShapeStrokeCommand.cpp
     TestInputDevice.cpp
+    TestKoToolManager.cpp
     TestSnapStrategy.cpp
     TestPathShape.cpp
     TestControlPointMoveCommand.cpp

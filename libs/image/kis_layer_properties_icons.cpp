@@ -37,6 +37,7 @@ const KoID KisLayerPropertiesIcons::openFileLayerFile("open-file-layer-file", ki
 const KoID KisLayerPropertiesIcons::layerError("layer-error", ki18n("Error"));
 const KoID KisLayerPropertiesIcons::layerColorSpaceMismatch("layer-color-space-mismatch", ki18n("Layer Color Space Mismatch"));
 const KoID KisLayerPropertiesIcons::antialiased("antialiased", ki18n("Anti-aliasing"));
+const KoID KisLayerPropertiesIcons::clipping("clipping", ki18n("Clipping Mask"));
 
 struct IconsPair {
     IconsPair() {}
@@ -88,6 +89,10 @@ void KisLayerPropertiesIcons::updateIcons()
     m_d->icons.insert(layerError.id(), IconsPair(KisIconUtils::loadIcon("warning"), KisIconUtils::loadIcon("warning")));
     m_d->icons.insert(layerColorSpaceMismatch.id(), IconsPair(KisIconUtils::loadIcon("different-colorspace"), KisIconUtils::loadIcon("different-colorspace")));
     m_d->icons.insert(antialiased.id(), IconsPair(KisIconUtils::loadIcon("select-shape"), KisIconUtils::loadIcon("select-pixel")));
+    // the off icon is inherit alpha's: both share one slot in the Layers docker
+    m_d->icons.insert(
+        clipping.id(),
+        IconsPair(KisIconUtils::loadIcon("clipping-enabled"), KisIconUtils::loadIcon("transparency-enabled")));
     // No static icons for colorOverlay.
 }
 

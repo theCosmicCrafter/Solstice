@@ -9,6 +9,10 @@
 
 #include <QRandomGenerator>
 
+#include <atomic>
+#include <thread>
+#include <vector>
+
 #include "tiles3/kis_tiled_data_manager.h"
 
 #include "tiles_test_utils.h"
@@ -983,6 +987,86 @@ void KisTiledDataManagerTest::stressTestExtentsColumn()
 
     QVERIFY(column.isEmpty());
     QVERIFY(column.max() < column.min()); // really empty :)
+}
+
+void KisTiledDataManagerTest::stressTestExtentAfterConcurrentAdds()
+{
+    /**
+     * Solstice: several threads add tiles that each extend the extent (a
+     * stroke growing a device from parallel dab jobs). When they have
+     * finished, the extent must cover every tile. updateExtent() used to
+     * store its result under a lock taken after computing it, so an older,
+     * smaller extent could be stored last; compositing then skipped the
+     * device outside it. Before the fix about 800 of 200000 rounds failed.
+     */
+#ifdef LIMIT_LONG_TESTS
+    const int numRounds = 50000;
+#else
+    const int numRounds = 200000;
+#endif
+    const int numThreads = 4;
+    const int numTiles = 4;
+
+    // The workers stay alive and are released together each round, so that
+    // their additions really overlap (starting threads per round hides it).
+    KisTiledExtentManager *manager = nullptr;
+    std::atomic<int> round{0};
+    std::atomic<int> finished{0};
+    std::atomic<int> nextTile{0};
+    std::atomic<bool> quit{false};
+
+    std::vector<std::thread> workers;
+    for (int i = 0; i < numThreads; i++) {
+        workers.emplace_back([&]() {
+            int seenRound = 0;
+            while (true) {
+                while (round.load() == seenRound && !quit.load()) { }
+                if (quit.load())
+                    return;
+                seenRound = round.load();
+
+                while (true) {
+                    const int tile = nextTile.fetch_add(1);
+                    if (tile >= numTiles)
+                        break;
+                    manager->notifyTileAdded(tile, tile);
+                }
+                finished.fetch_add(1);
+            }
+        });
+    }
+
+    const QRect expectedExtent(0, 0, numTiles * KisTileData::WIDTH, numTiles * KisTileData::HEIGHT);
+    int numStaleExtents = 0;
+    QRect firstStaleExtent;
+
+    for (int i = 0; i < numRounds; i++) {
+        KisTiledExtentManager roundManager;
+        manager = &roundManager;
+        nextTile.store(0);
+        finished.store(0);
+        round.fetch_add(1);
+        while (finished.load() < numThreads) { }
+
+        const QRect extent = roundManager.extent();
+        if (extent != expectedExtent) {
+            if (!numStaleExtents) {
+                firstStaleExtent = extent;
+            }
+            numStaleExtents++;
+        }
+    }
+
+    quit.store(true);
+    for (std::thread &worker : workers) {
+        worker.join();
+    }
+
+    if (numStaleExtents) {
+        qDebug() << "Stale extents:" << numStaleExtents << "of" << numRounds << "rounds; first" << firstStaleExtent
+                 << "expected" << expectedExtent;
+    }
+    QCOMPARE(numStaleExtents, 0);
 }
 
 void KisTiledDataManagerTest::benchmarkQRegion()

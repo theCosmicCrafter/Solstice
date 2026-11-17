@@ -687,6 +687,10 @@ public:
      */
     void moveCompositionDown(KisLayerCompositionSP composition);
 
+    bool reorderCompositions(const QList<KisLayerCompositionSP> &order);
+    bool newLayersVisibleInCompositions() const;
+    void setNewLayersVisibleInCompositions(bool visible);
+
     /**
      * Permit or deny the wrap-around mode for all the paint devices
      * of the image. Note that permitting the wraparound mode will not
@@ -856,6 +860,7 @@ Q_SIGNALS:
      * Inform the model that a node was changed
      */
     void sigNodeChanged(KisNodeSP node);
+    void sigCompositionsChanged();
 
     /**
      * Inform that the image is going to be deleted

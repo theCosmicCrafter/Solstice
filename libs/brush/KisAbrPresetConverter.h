@@ -24,8 +24,9 @@ class QDomElement;
  * Makes Pixel Brush presets from the brush presets of a Photoshop brush
  * file: the `brushPreset` descriptors of its `desc` section (read into XML
  * by KisAslReader). The tips are the file's own ABR tips, the textures its
- * patterns. Settings Solstice has no counterpart for are counted in
- * `unsupported`. See docs/agent/abr-import-plan.md, phase 4.
+ * patterns. Recognized unsupported or approximate settings are counted in
+ * `unsupported`; unknown keys are not exhaustively reported. See
+ * docs/agent/abr-import.md.
  */
 class BRUSH_EXPORT KisAbrPresetConverter
 {
@@ -54,8 +55,8 @@ public:
     /// The folders of the presets, from the `phry` section's `hierarchy`
     /// list (@p root is its descriptor document's root element): one entry
     /// per preset, in the order of the `desc` section, with the names of the
-    /// folders it is in (empty at the top level). See phase 5 of
-    /// docs/agent/abr-import-plan.md.
+    /// folders it is in (empty at the top level). See
+    /// docs/agent/abr-import.md.
     static QVector<QStringList> presetFolders(const QDomElement &root);
 };
 

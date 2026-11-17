@@ -26,7 +26,10 @@ public:
         RECURSIVE = 0x1,
         NO_UI_UPDATES = 0x2,
         SUPPORTS_WRAPAROUND_MODE = 0x4,
-        NO_IMAGE_UPDATES = 0x8
+        NO_IMAGE_UPDATES = 0x8,
+        READ_ONLY_ACTION = 0x20, ///< Do not save undo commands into the global undo stack after the
+                                 ///< action has been completed. Also, do not emit any updates and do not
+                                 ///< invalidate any frames.
     };
 
     Q_DECLARE_FLAGS(ProcessingFlags, ProcessingFlag)

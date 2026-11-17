@@ -86,6 +86,37 @@ public:
         return m_nonDefaultPixelAreaCache.getValue(m_paintDevice->defaultBounds()->wrapAroundMode());
     }
 
+    /**
+     * Solstice: the cached bounds that a move of the device only translates
+     * (KisPaintDevice::moveTo()). Not for wrap-around mode.
+     */
+    struct TranslatableBounds {
+        bool hasExactBounds {false};
+        QRect exactBounds;
+        bool hasNonDefaultPixelArea {false};
+        QRect nonDefaultPixelArea;
+    };
+
+    TranslatableBounds validBounds() const {
+        TranslatableBounds bounds;
+        bounds.hasExactBounds = m_exactBoundsCache.tryGetValue(bounds.exactBounds, false);
+        bounds.hasNonDefaultPixelArea = m_nonDefaultPixelAreaCache.tryGetValue(bounds.nonDefaultPixelArea, false);
+        return bounds;
+    }
+
+    /// Call after invalidate(): the bounds from before a move by @p offset
+    void setTranslatedBounds(const TranslatableBounds &bounds, const QPoint &offset) {
+        auto translated = [&offset](const QRect &rect) {
+            return rect.isEmpty() ? rect : rect.translated(offset);
+        };
+        if (bounds.hasExactBounds) {
+            m_exactBoundsCache.setValue(translated(bounds.exactBounds), false);
+        }
+        if (bounds.hasNonDefaultPixelArea) {
+            m_nonDefaultPixelAreaCache.setValue(translated(bounds.nonDefaultPixelArea), false);
+        }
+    }
+
     KisRegion region() {
         return m_regionCache.getValue(m_paintDevice->defaultBounds()->wrapAroundMode());
     }

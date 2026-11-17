@@ -127,6 +127,13 @@ void KisFilter::setSupportsLevelOfDetail(bool value)
     m_supportsLevelOfDetail = value;
 }
 
+KisGpuColorTransformSP KisFilter::gpuColorTransform(const KoColorSpace *cs, const KisFilterConfigurationSP config) const
+{
+    Q_UNUSED(cs);
+    Q_UNUSED(config);
+    return KisGpuColorTransformSP();
+}
+
 bool KisFilter::needsTransparentPixels(const KisFilterConfigurationSP config, const KoColorSpace *cs) const
 {
     Q_UNUSED(config);

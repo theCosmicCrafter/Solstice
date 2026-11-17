@@ -307,6 +307,16 @@ KisTileData *KisTile::detachForExternalWrite(const std::function<KisTileData *(K
     return oldTileData;
 }
 
+KisTileData *KisTile::referencedTileData() const
+{
+    // lockForWrite() and detachForExternalWrite() release the data they
+    // replace while they hold this lock.
+    QMutexLocker locker(&m_swapBarrierLock);
+    KisTileData *tileData = m_tileData;
+    tileData->ref();
+    return tileData;
+}
+
 void KisTile::unlockForWrite()
 {
     // GPU engine: a snapshot of the data taken while this write was in

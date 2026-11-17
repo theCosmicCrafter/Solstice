@@ -80,7 +80,7 @@ void KisTransformProcessingVisitor::visit(KisNode *node, KisUndoAdapter *undoAda
 void KisTransformProcessingVisitor::visit(KisPaintLayer *layer, KisUndoAdapter *undoAdapter)
 {
     // Solstice: a brush stroke layer draws its strokes again at the new size
-    // (docs/agent/brush-stroke-layer-plan.md)
+    // (docs/agent/brush-stroke-layer.md)
     KisRedrawableLayerInterface *redrawable = dynamic_cast<KisRedrawableLayerInterface *>(layer);
     if (redrawable && !m_selection) {
         KisTransformWorker

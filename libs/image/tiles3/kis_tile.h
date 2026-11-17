@@ -104,6 +104,19 @@ public:
      */
     KisTileData *detachForExternalWrite(const std::function<KisTileData *(KisTileData *)> &createClone, bool *isLocked);
 
+    /**
+     * GPU engine: the tile's data with one extra reference (ref()), for a
+     * reader that does not lock the tile (the GPU).
+     *
+     * A CPU writer in another thread may replace the tile's data at any
+     * time (copy-on-write in lockForWrite()) and free the old one. Readers
+     * that lock the tile are protected by its lock counter; a reader that
+     * only looks tileData() up is not. The reference is taken under the
+     * lock that guards that release, so the returned data stays alive
+     * until the caller drops it with deref().
+     */
+    KisTileData *referencedTileData() const;
+
     /* this allows us work directly on tile's data */
     inline quint8 *data() const {
         return m_tileData->data();

@@ -262,9 +262,9 @@ void KisResourceItemListView::doItemsLayout()
         }
         const QPair<QString, QString> group = m_d->groupOf(model()->index(row, modelColumn(), rootIndex()));
         const QString id = group.first + QLatin1Char('\n') + group.second;
-        auto it = groupIndex.constFind(id);
-        if (it == groupIndex.constEnd()) {
-            it = groupIndex.insert(id, groups.size());
+        auto it = groupIndex.find(id);
+        if (it == groupIndex.end()) {
+            it = groupIndex.insert(id, int(groups.size()));
             groups.append({group.first, group.second, {}});
         }
         groups[it.value()].rows.append(row);

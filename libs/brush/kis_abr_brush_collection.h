@@ -82,7 +82,7 @@ public:
     }
 
     /// Solstice: the patterns stored in the file, by file name
-    /// (`<identifier>.pat`); docs/agent/abr-import-plan.md
+    /// (`<identifier>.pat`); docs/agent/abr-import.md
     QSharedPointer<QMap<QString, KoPatternSP>> patternsMap() const
     {
         return m_patterns;

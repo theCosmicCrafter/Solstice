@@ -59,8 +59,27 @@ public:
      */
     bool tryAdd(KisProjectionLeafSP leaf, KisPaintDeviceSP projection, const QRect &rect);
 
-    /// Composites every deferred leaf: on the GPU, or on the CPU if the GPU fails.
-    void flush();
+    /**
+     * Phase 4.111: defers KisAsyncMerger::setupProjection()'s clear of
+     * @p rect in @p projection (a destination of @p node's image). The next
+     * batch on the same projection and rect first replaces the rect with the
+     * projection's default pixel on the GPU, so the partly covered border
+     * tiles of an unaligned rect are not downloaded for a CPU clear.
+     *
+     * Returns false if the caller must clear on the CPU itself: the GPU
+     * projection is off, the image is not RGBA F32/F16, the rect is tile
+     * aligned (a CPU clear of whole tiles only drops them), or the projection
+     * wraps around.
+     */
+    bool deferClear(KisNodeSP node, KisPaintDeviceSP projection, const QRect &rect);
+
+    /**
+     * Composites every deferred leaf: on the GPU, or on the CPU if the GPU fails.
+     * @p cpuReadsNext: the caller accesses the projection on the CPU right
+     * after. A deferred clear with no leaf to composite is then done on the
+     * CPU: the CPU access downloads its border tiles anyway.
+     */
+    void flush(bool cpuReadsNext = false);
 
 private:
     struct Entry {
@@ -70,13 +89,20 @@ private:
         float opacity = 1.0f;
         bool alphaLocked = false;
         quint32 channelMask = 0xf;
+        /// The Copy mode at full opacity (phase 4.115); such entries lead the batch.
+        bool replace = false;
     };
 
     void compositeOnCpu();
+    /// An empty device with the projection's color space and default pixel.
+    KisPaintDeviceSP clearSource();
 
     KisPaintDeviceSP m_projection;
     QRect m_rect;
     QVector<Entry> m_entries;
+    /// m_rect of m_projection is cleared before the entries are composited.
+    bool m_clearPending = false;
+    KisPaintDeviceSP m_clearSource;
 };
 
 #endif // KISGPUMERGEBATCH_H

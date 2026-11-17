@@ -20,6 +20,8 @@
    adjustment layers work on all layers below it in its layer group.
 */
 
+#include "gpu/KisGpuColorTransform.h"
+
 class KRITAIMAGE_EXPORT KisFilterMask : public KisEffectMask, public KisNodeFilterInterface
 {
     Q_OBJECT
@@ -57,8 +59,29 @@ public:
     QRect changeRect(const QRect &rect, PositionToFilthy pos = N_FILTHY) const override;
     QRect needRect(const QRect &rect, PositionToFilthy pos = N_FILTHY) const override;
 
+    /**
+     * Solstice (GPU engine, phase 4.116): true when the GPU engine applies
+     * this mask to its layer's projection (KisGpuColorTransform::forNode()
+     * has a GPU form of the filter). KisLayer::gpuAppliesEffectMasks() then
+     * keeps the layer's copy of its original on the GPU, and
+     * KisMask::mergeInMaskInternal() calls applyOnGpu().
+     */
+    bool gpuAppliesFilter() const;
+
+    /**
+     * What KisMask::mergeInMaskInternal() does for a filter mask, on the
+     * GPU: inside @p applyRect the projection is filtered in place, through
+     * @p selection (the mask's own) when not everything is selected.
+     * @return false when the CPU has to do it; the projection is unchanged
+     */
+    bool applyOnGpu(KisPaintDeviceSP projection,
+                    KisSelectionSP selection,
+                    const QRect &applyRect,
+                    const QRect &preparedNeedRect) const;
+
 private:
     bool filterNeedsTransparentPixels() const;
+    KisGpuColorTransformSP gpuColorTransform() const;
 
 private:
     struct Private;

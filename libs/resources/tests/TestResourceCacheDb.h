@@ -17,6 +17,8 @@ private Q_SLOTS:
     void testCreateDatabase();
     void testLookupTables();
     void testMetaData();
+    void testPngWithoutTextChunks();
+    void testRemoveTextFromPresetThumbnails();
     void cleanupTestCase();
 private:
 };

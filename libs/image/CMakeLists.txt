@@ -241,6 +241,7 @@ set(kritaimage_LIB_SRCS
    kis_crop_saved_extra_data.cpp
    kis_timed_signal_threshold.cpp
    kis_layer.cc
+   KisClipStackLayer.cpp
    kis_indirect_painting_support.cpp
    kis_abstract_projection_plane.cpp
    kis_layer_projection_plane.cpp
@@ -357,6 +358,7 @@ set(kritaimage_LIB_SRCS
    KisBezierTransformMesh.cpp
 
    KisEncloseAndFillPainter.cpp
+   KisDustDetector.cpp
    KisBlockBackgroundFrameGenerationLock.cpp
    KisLockFrameGenerationLock.cpp
 
@@ -376,7 +378,7 @@ set(einspline_SRCS
 # GPU engine (Solstice, docs/agent/gpu-engine.md): GPU-resident tiles
 list(APPEND kritaimage_LIB_SRCS gpu/KisGpuMergeBatch.cpp gpu/KisGpuEngineSettings.cpp gpu/KisGpuBrushPainter.cpp
     gpu/KisGpuTransformWorker.cpp gpu/KisGpuGridWarpWorker.cpp gpu/KisGpuConvolutionWorker.cpp
-    gpu/KisGpuMaskingWorker.cpp)
+    gpu/KisGpuMaskingWorker.cpp gpu/KisGpuPerspectiveWorker.cpp gpu/KisGpuColorTransform.cpp gpu/KisGpuColorReferenceTables.cpp)
 if(HAVE_KRITA_GPU_ENGINE)
     list(APPEND kritaimage_LIB_SRCS
         gpu/KisGpuTileBackend.cpp

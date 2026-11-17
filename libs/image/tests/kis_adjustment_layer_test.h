@@ -18,6 +18,7 @@ private Q_SLOTS:
     void testSetSelection();
     void testInverted();
     void testSelectionParent();
+    void testCopyToSmallerImageCropsOriginal();
 };
 
 #endif

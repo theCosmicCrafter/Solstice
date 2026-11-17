@@ -8,6 +8,7 @@
 
 #include "kis_filter_configuration.h"
 #include "kritaimage_export.h"
+#include "gpu/KisGpuColorTransform.h"
 
 class KoColorSpace;
 class KisColorTransformationFilter;
@@ -28,6 +29,13 @@ public:
     void setProperty(const QString &name, const QVariant &value) override;
 
     KoColorTransformation *colorTransformation(const KoColorSpace *cs, const KisColorTransformationFilter *filter) const;
+
+    /**
+     * Solstice (GPU engine, phase 4.115): the filter's
+     * createGpuColorTransform() for this configuration in @p cs, cached
+     * like the color transformations (also when it is null).
+     */
+    KisGpuColorTransformSP gpuColorTransform(const KoColorSpace *cs, const KisColorTransformationFilter *filter) const;
 
     /**
      * @brief Manually invalidate the cache. By default @ref setProperty

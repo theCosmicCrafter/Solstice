@@ -75,7 +75,8 @@ public:
     /**
      * @param pinOrders stacking order per pin (higher on top) for overlapping
      * parts: each part belongs to the pin nearest to it along the artwork.
-     * Equal orders (or none) render in one pass, like before orders existed.
+     * Orders only sort the rendering groups (stackingGroups()); with equal
+     * orders (or none), later pins are on top.
      */
     KisPuppetTransformWorker(const Mesh &mesh,
                              const QVector<QPointF> &originalPins,
@@ -97,13 +98,6 @@ public:
 
     /// Stacking order of the part at @p point (original coordinates).
     int orderAt(const QPointF &point) const;
-    /**
-     * Whether a rendering cell (original coordinates) touches artwork: a
-     * corner or its center lies in a solid triangle. Only such cells are
-     * rendered; the grid polygon ops overwrite pixels, so transparent cells
-     * of squeezed empty space would otherwise cut holes into folded artwork.
-     */
-    bool touchesArtwork(const QPolygonF &cell) const;
     /// The pin owning the part at @p point (original coordinates), -1 if none.
     int ownerAt(const QPointF &point) const;
     /**
@@ -119,6 +113,12 @@ public:
     /**
      * Final rendering. With the GPU engine, RGBA float devices are painted on
      * the GPU (phase 4.96, KisGpuGridWarpWorker), bit-identical to the CPU.
+     *
+     * Only rendering cells whose source (grown by the sampling footprint)
+     * holds a non-transparent pixel are painted: the grid polygon ops
+     * overwrite pixels, so transparent cells of squeezed empty space would
+     * cut holes into folded artwork, and skipping a transparent cell loses
+     * nothing. runOnQImage() applies the same rule to the thumbnail.
      */
     void run(KisPaintDeviceSP srcDevice, KisPaintDeviceSP dstDevice) const;
 
@@ -146,7 +146,6 @@ private:
     QVector<QPointF> m_deformed;
     QVector<int> m_owner; ///< nearest pin per vertex along the artwork, -1 if none
     QVector<int> m_orders;
-    bool m_hasSolid = false; ///< no solid triangle: render every cell
     bool m_identity = true;
 };
 

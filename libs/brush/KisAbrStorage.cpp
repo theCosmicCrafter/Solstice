@@ -54,7 +54,7 @@ public:
         if (m_folder >= 0) {
             // Solstice: a folder of Photoshop's Brushes panel, with the
             // presets in it and in its subfolders
-            // (docs/agent/abr-import-plan.md, phase 5)
+            // (docs/agent/abr-import.md)
             const auto folder = folderTags().at(m_folder);
             const QString name = QFileInfo(m_location).completeBaseName() + QStringLiteral(" / ")
                 + folder.first.join(QStringLiteral(" / "));
@@ -71,7 +71,7 @@ public:
         abrTag->setFilename(fileName);
         QStringList brushes;
         if (m_resourceType == ResourceType::Patterns) {
-            // Solstice: the file's patterns (docs/agent/abr-import-plan.md)
+            // Solstice: the file's patterns (docs/agent/abr-import.md)
             brushes = m_brushCollection->patternsMap()->keys();
         } else if (m_resourceType == ResourceType::PaintOpPresets) {
             brushes = m_brushCollection->presetsMap()->keys();
@@ -122,7 +122,7 @@ class AbrIterator : public KisResourceStorage::ResourceIterator
 {
 public:
     KisAbrBrushCollectionSP m_brushCollection;
-    /// Solstice: the brush tips or the patterns (docs/agent/abr-import-plan.md)
+    /// Solstice: brush tips, patterns or presets (docs/agent/abr-import.md)
     QVector<QPair<QString, KoResourceSP>> m_items;
     int m_nextItem{0};
     KoResourceSP m_currentResource;
@@ -251,7 +251,7 @@ bool KisAbrStorage::loadVersionedResource(KoResourceSP resource)
 {
     // Solstice: a preset made from the file's brush presets goes back to
     // how the file made it (reloading a preset);
-    // docs/agent/abr-import-plan.md
+    // docs/agent/abr-import.md
     KisPaintOpPresetSP preset = resource.dynamicCast<KisPaintOpPreset>();
     if (!preset) {
         return false;

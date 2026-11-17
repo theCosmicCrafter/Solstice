@@ -31,7 +31,10 @@
 #include "config-limit-long-tests.h"
 #include "testimage.h"
 #include "kis_default_bounds.h"
+#include "kis_random_accessor_ng.h"
+#include <KoColorModelStandardIds.h>
 
+#include <limits>
 
 class KisFakePaintDeviceWriter : public KisPaintDeviceWriter {
 public:
@@ -810,6 +813,197 @@ void KisPaintDeviceTest::testExactBoundsNonTransparent()
     dev->fill(QRect(-1,0, 1, 1000), KoColor(Qt::white, cs));
     QCOMPARE(dev->exactBounds(), QRect(-1,-1,1002,1002));
     QCOMPARE(dev->nonDefaultPixelArea(), QRect(-1,-1,1002,1002));
+}
+
+namespace
+{
+// The definition of the exact bounds: the bounding rect of the non-empty
+// pixels of a rect (the device's extent), found one pixel at a time.
+QRect bruteForceBounds(KisPaintDeviceSP dev, bool nonDefaultOnly, const QRect &rect)
+{
+    const KoColorSpace *cs = dev->colorSpace();
+    const KoColor defaultPixel = dev->defaultPixel();
+    const int pixelSize = dev->pixelSize();
+
+    int left = std::numeric_limits<int>::max();
+    int top = std::numeric_limits<int>::max();
+    int right = std::numeric_limits<int>::min();
+    int bottom = std::numeric_limits<int>::min();
+
+    KisRandomConstAccessorSP it = dev->createRandomConstAccessorNG();
+    for (int y = rect.top(); y <= rect.bottom(); ++y) {
+        for (int x = rect.left(); x <= rect.right(); ++x) {
+            it->moveTo(x, y);
+            const quint8 *pixel = it->rawDataConst();
+            const bool empty = nonDefaultOnly ? memcmp(pixel, defaultPixel.data(), pixelSize) == 0
+                                              : cs->opacityU8(pixel) == OPACITY_TRANSPARENT_U8;
+            if (!empty) {
+                left = qMin(left, x);
+                top = qMin(top, y);
+                right = qMax(right, x);
+                bottom = qMax(bottom, y);
+            }
+        }
+    }
+    return right < left ? QRect() : QRect(QPoint(left, top), QPoint(right, bottom));
+}
+
+QString describeRect(const QRect &rect)
+{
+    return QStringLiteral("(%1,%2 %3x%4)").arg(rect.x()).arg(rect.y()).arg(rect.width()).arg(rect.height());
+}
+
+// Empty when the scan and the definition agree, for both kinds of bounds.
+QString compareBounds(KisPaintDeviceSP dev)
+{
+    for (bool nonDefaultOnly : {false, true}) {
+        const QRect actual = dev->calculateExactBounds(nonDefaultOnly);
+        const QRect expected = bruteForceBounds(dev, nonDefaultOnly, dev->extent());
+        const bool same = expected.isEmpty() ? actual.isEmpty() : actual == expected;
+        if (!same) {
+            return QStringLiteral("nonDefaultOnly %1: got %2, expected %3, extent %4")
+                .arg(nonDefaultOnly)
+                .arg(describeRect(actual), describeRect(expected), describeRect(dev->extent()));
+        }
+    }
+    return QString();
+}
+
+#define CHECK_BOUNDS(dev, context)                                                                                     \
+    do {                                                                                                               \
+        const QString boundsError = compareBounds(dev);                                                                \
+        QVERIFY2(boundsError.isEmpty(), qPrintable((context) + QStringLiteral(": ") + boundsError));                   \
+    } while (0)
+} // namespace
+
+void KisPaintDeviceTest::testExactBoundsTileWise()
+{
+    KoColorSpaceRegistry *registry = KoColorSpaceRegistry::instance();
+    QList<const KoColorSpace *> colorSpaces;
+    colorSpaces << registry->rgb8() << registry->rgb16() << registry->alpha8()
+                << registry->colorSpace(GrayAColorModelID.id(), Integer8BitsColorDepthID.id(), QString())
+                << registry->colorSpace(RGBAColorModelID.id(), Float16BitsColorDepthID.id(), QString())
+                << registry->colorSpace(RGBAColorModelID.id(), Float32BitsColorDepthID.id(), QString());
+
+    int testedColorSpaces = 0;
+    Q_FOREACH (const KoColorSpace *cs, colorSpaces) {
+        if (!cs)
+            continue;
+        ++testedColorSpaces;
+
+        KoColor opaque(Qt::red, cs);
+        KoColor translucent(Qt::green, cs);
+        translucent.setOpacity(quint8(40));
+        KoColor transparent(Qt::transparent, cs);
+        // alpha 0 with color: empty for the bounds, not the default pixel
+        KoColor weird(Qt::blue, cs);
+        weird.setOpacity(quint8(0));
+        // float channels: an alpha that is not zero but rounds to 0
+        KoColor faint(Qt::white, cs);
+        faint.setOpacity(qreal(0.0005));
+
+        // the edges of a tile, one pixel each
+        {
+            KisPaintDeviceSP dev = new KisPaintDevice(cs);
+            CHECK_BOUNDS(dev, cs->id() + " empty");
+            const QVector<QPoint> points = {{0, 0}, {63, 0}, {0, 63}, {63, 63}, {64, 64}, {-1, -1}, {127, 5}};
+            Q_FOREACH (const QPoint &pt, points) {
+                dev->setPixel(pt.x(), pt.y(), opaque);
+                CHECK_BOUNDS(dev, cs->id() + " tile edges");
+            }
+            // tiles that exist but hold nothing visible
+            dev->fill(QRect(-200, -200, 600, 600), weird);
+            CHECK_BOUNDS(dev, cs->id() + " weird fill");
+            dev->fill(QRect(-200, -200, 600, 600), faint);
+            CHECK_BOUNDS(dev, cs->id() + " faint fill");
+            dev->fill(QRect(-200, -200, 600, 600), transparent);
+            CHECK_BOUNDS(dev, cs->id() + " erased");
+            dev->setPixel(300, -150, translucent);
+            CHECK_BOUNDS(dev, cs->id() + " one pixel");
+        }
+
+        for (int seed = 0; seed < 40; ++seed) {
+            QRandomGenerator rng(1000 + seed);
+            KisPaintDeviceSP dev = new KisPaintDevice(cs);
+            const QString context = QStringLiteral("%1 seed %2").arg(cs->id()).arg(seed);
+
+            const bool moveFirst = rng.bounded(2);
+            const QPoint offset(rng.bounded(-70, 70), rng.bounded(-70, 70));
+            if (moveFirst) {
+                dev->moveTo(offset);
+            }
+
+            auto randomRect = [&](int maxSize) {
+                return QRect(rng.bounded(-200, 500),
+                             rng.bounded(-200, 500),
+                             rng.bounded(1, maxSize),
+                             rng.bounded(1, maxSize));
+            };
+
+            const int numFills = rng.bounded(0, 5);
+            for (int i = 0; i < numFills; ++i) {
+                dev->fill(randomRect(150), rng.bounded(2) ? opaque : translucent);
+            }
+            const int numErased = rng.bounded(0, 4);
+            for (int i = 0; i < numErased; ++i) {
+                const int kind = rng.bounded(3);
+                dev->fill(randomRect(300), kind == 0 ? transparent : kind == 1 ? weird : faint);
+            }
+            const int numPixels = rng.bounded(0, 5);
+            for (int i = 0; i < numPixels; ++i) {
+                dev->setPixel(rng.bounded(-200, 500), rng.bounded(-200, 500), opaque);
+            }
+            if (rng.bounded(4) == 0) {
+                // a tile far away: the extent then covers tiles that do not exist
+                dev->setPixel(rng.bounded(900, 1300), rng.bounded(-600, -300), translucent);
+            }
+            if (!moveFirst) {
+                dev->moveTo(offset);
+            }
+
+            CHECK_BOUNDS(dev, context);
+
+            // a default pixel that is transparent, but not zero
+            dev->setDefaultPixel(weird);
+            CHECK_BOUNDS(dev, context + " weird default pixel");
+
+            // a visible default pixel: the non-default area only (the
+            // extent of such a device is infinite, so search its tiles)
+            dev->setDefaultPixel(opaque);
+            const QRect actual = dev->calculateExactBounds(true);
+            const QRect expected = bruteForceBounds(dev, true, dev->region().boundingRect());
+            QVERIFY2(expected.isEmpty() ? actual.isEmpty() : actual == expected,
+                     qPrintable(QStringLiteral("%1 opaque default pixel: got %2, expected %3")
+                                    .arg(context, describeRect(actual), describeRect(expected))));
+        }
+    }
+    // the float color spaces included
+    QCOMPARE(testedColorSpaces, int(colorSpaces.size()));
+}
+
+KisPaintDeviceSP createWrapAroundPaintDevice(const KoColorSpace *cs);
+
+void KisPaintDeviceTest::testExactBoundsTileWiseWrapAround()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+    KoColor opaque(Qt::red, cs);
+
+    for (int seed = 0; seed < 20; ++seed) {
+        QRandomGenerator rng(2000 + seed);
+        KisPaintDeviceSP dev = createWrapAroundPaintDevice(cs);
+        const QString context = QStringLiteral("wrap-around seed %1").arg(seed);
+
+        CHECK_BOUNDS(dev, context + " empty");
+        const int numPixels = rng.bounded(1, 4);
+        for (int i = 0; i < numPixels; ++i) {
+            dev->setPixel(rng.bounded(-30, 50), rng.bounded(-30, 50), opaque);
+        }
+        CHECK_BOUNDS(dev, context);
+        if (rng.bounded(2)) {
+            dev->fill(QRect(rng.bounded(0, 15), rng.bounded(0, 15), rng.bounded(1, 8), rng.bounded(1, 8)), opaque);
+            CHECK_BOUNDS(dev, context + " filled");
+        }
+    }
 }
 
 KisPaintDeviceSP createWrapAroundPaintDevice(const KoColorSpace *cs)
@@ -2478,6 +2672,63 @@ void KisPaintDeviceTest::stressTestMemoryFragmentation()
     }
 
     undoStack.clear();
+}
+
+void KisPaintDeviceTest::testMoveKeepsCachedBounds()
+{
+    // Solstice: KisPaintDevice::moveTo() translates the cached bounds
+    // instead of dropping them.
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+    KisPaintDeviceSP dev = new KisPaintDevice(cs);
+
+    // Content much smaller than its tiles: the extent is 384x256 at -64,0.
+    dev->fill(QRect(-10, 20, 300, 200), KoColor(Qt::red, cs));
+    const QRect content(-10, 20, 300, 200);
+    QVERIFY(dev->extent() != content);
+
+    // No cached bounds yet: nothing to keep, the amortized bounds fall back
+    // to the extent.
+    dev->moveTo(5, 7);
+    QCOMPARE(dev->exactBoundsAmortized(), dev->extent());
+    QCOMPARE(dev->exactBounds(), content.translated(5, 7));
+    QCOMPARE(dev->nonDefaultPixelArea(), content.translated(5, 7));
+
+    // Cached bounds follow the device (the amortized bounds return the
+    // exact ones only from the cache) and equal a new calculation.
+    dev->moveTo(-131, 1000);
+    QCOMPARE(dev->exactBoundsAmortized(), content.translated(-131, 1000));
+    QCOMPARE(dev->exactBounds(), content.translated(-131, 1000));
+    QCOMPARE(dev->nonDefaultPixelArea(), content.translated(-131, 1000));
+    QCOMPARE(dev->exactBounds(), dev->calculateExactBounds(false));
+    QCOMPARE(dev->nonDefaultPixelArea(), dev->calculateExactBounds(true));
+
+    dev->setX(0);
+    dev->setY(0);
+    QCOMPARE(dev->exactBoundsAmortized(), content);
+
+    // A write still drops them.
+    dev->fill(QRect(400, 20, 10, 10), KoColor(Qt::red, cs));
+    QCOMPARE(dev->exactBoundsAmortized(), dev->extent());
+    QCOMPARE(dev->exactBounds(), QRect(-10, 20, 420, 200));
+
+    // An empty device stays empty.
+    KisPaintDeviceSP empty = new KisPaintDevice(cs);
+    QVERIFY(empty->exactBounds().isEmpty());
+    empty->moveTo(40, 50);
+    QVERIFY(empty->exactBounds().isEmpty());
+    QCOMPARE(empty->exactBounds(), empty->calculateExactBounds(false));
+
+    // A visible default pixel: the bounds include the image bounds, which
+    // do not move, so they are calculated again.
+    TestUtil::TestingTimedDefaultBounds *bounds = new TestUtil::TestingTimedDefaultBounds(QRect(0, 0, 500, 400));
+    KisPaintDeviceSP opaque = new KisPaintDevice(cs);
+    opaque->setDefaultBounds(bounds);
+    opaque->setDefaultPixel(KoColor(Qt::blue, cs));
+    opaque->fill(QRect(480, 20, 100, 50), KoColor(Qt::red, cs));
+    QCOMPARE(opaque->exactBounds(), QRect(0, 0, 580, 400));
+    opaque->moveTo(100, 0);
+    QCOMPARE(opaque->exactBounds(), QRect(0, 0, 680, 400));
+    QCOMPARE(opaque->exactBounds(), opaque->calculateExactBounds(false));
 }
 
 KISTEST_MAIN(KisPaintDeviceTest)

@@ -30,6 +30,7 @@ kis_add_tests(
     TestKoColorSpaceMaths.cpp
     TestKisSwatchGroup.cpp
     TestKoStopGradient.cpp
+    TestKoSpectralMixing.cpp
 
     LINK_LIBRARIES kritapigment kritatestsdk
     )

@@ -4,6 +4,7 @@
  */
 
 #include "KisGpuTileBackend.h"
+#include "KisGpuEngineSettings.h"
 #include "KisPaintTrace.h"
 
 #include <KisGpuBuffer.h>
@@ -34,6 +35,8 @@ constexpr int DownloadBatchTiles = 256;
 std::once_flag s_createOnce;
 KisGpuTileBackend *s_instance = nullptr;
 QString s_unavailableReason;
+QString s_unverifiedDeviceName;
+std::atomic<bool> s_creationTried{false};
 QMutex s_failureListenerMutex;
 std::function<void()> *s_failureListener = new std::function<void()>();
 std::atomic<bool> s_failureNotified{false};
@@ -74,13 +77,20 @@ KisGpuTileBackend *KisGpuTileBackend::instance()
 {
     std::call_once(s_createOnce, []() {
         QString error;
-        std::unique_ptr<KisGpuContext> context = KisGpuContext::create(&error);
+        // The engine starts by itself only on the hardware it was verified
+        // with; elsewhere the user has to allow it (user decision, 2026-11-12).
+        KisGpuContext::Options options;
+        options.requireVerifiedDevice = !KisGpuEngineSettings::unverifiedDeviceAllowed();
+        KisGpuDeviceInfo unverifiedDevice;
+        std::unique_ptr<KisGpuContext> context = KisGpuContext::create(options, &error, &unverifiedDevice);
         if (!context) {
             s_unavailableReason = error;
+            s_unverifiedDeviceName = unverifiedDevice.name;
             warnKrita << "GPU engine unavailable:" << error;
-            return;
+        } else {
+            s_instance = new KisGpuTileBackend(std::move(context));
         }
-        s_instance = new KisGpuTileBackend(std::move(context));
+        s_creationTried.store(true);
     });
     return s_instance;
 }
@@ -111,6 +121,18 @@ KisGpuTileBackend *KisGpuTileBackend::existingInstance()
 QString KisGpuTileBackend::unavailableReason()
 {
     return s_unavailableReason;
+}
+
+QString KisGpuTileBackend::unverifiedDeviceName()
+{
+    if (s_creationTried.load()) {
+        return s_unverifiedDeviceName;
+    }
+    if (KisGpuEngineSettings::unverifiedDeviceAllowed()) {
+        return QString();
+    }
+    const KisGpuDeviceInfo device = KisGpuContext::probeDevice();
+    return device.name.isEmpty() || KisGpuContext::acceptsDevice(device, true) ? QString() : device.name;
 }
 
 KisGpuContext &KisGpuTileBackend::context()
@@ -460,6 +482,7 @@ QVector<KisTileData *> KisGpuTileBackend::downloadBatch(const QVector<KisTileDat
                 std::memcpy(stale[i]->data(), src + size_t(i) * tileBytes, tileBytes);
                 stale[i]->gpuState()->addValid(KisTileGpuState::CpuValid);
             }
+            m_downloadedTiles += quint64(stale.size());
         } else {
             warnKrita << "GPU engine: download of" << stale.size() << "tiles failed";
             failed = stale;
@@ -480,6 +503,11 @@ void KisGpuTileBackend::injectDownloadFailuresForTesting(int count)
 quint64 KisGpuTileBackend::contentLossCount() const
 {
     return m_lostTiles.load();
+}
+
+quint64 KisGpuTileBackend::downloadedTileCount() const
+{
+    return m_downloadedTiles.load();
 }
 
 bool KisGpuTileBackend::hasFailed() const
@@ -591,6 +619,7 @@ void KisTileGpuHooks::prepareCpuRead(KisTiledDataManager *manager, const QRect &
         backend->downloadToCpu(data);
         for (KisTileData *td : data) {
             td->unblockSwapping();
+            td->deref();
         }
         data.clear();
         seen.clear();
@@ -603,9 +632,12 @@ void KisTileGpuHooks::prepareCpuRead(KisTiledDataManager *manager, const QRect &
             if (!existing) {
                 continue;
             }
-            KisTileData *td = tile->tileData();
+            // A CPU writer in another thread may replace the tile's data and
+            // free it (copy-on-write): hold a reference while it is used.
+            KisTileData *td = tile->referencedTileData();
             KisTileGpuState *state = td->gpuState();
             if (!state || state->cpuValid() || seen.contains(td)) {
+                td->deref();
                 continue;
             }
             // Keep both the tile and its CPU allocation alive while downloading.

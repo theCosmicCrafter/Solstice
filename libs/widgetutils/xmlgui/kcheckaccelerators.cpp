@@ -53,7 +53,14 @@ public Q_SLOTS:
                 key = cuts.first()[0];
             }
         }
-        const bool autoCheck = cg.readEntry("AutoCheckAccelerators", true);
+        // Solstice: opt-in instead of upstream's default-on. The auto-check
+        // event filter is a KDE developer tool; when enabled it restarts a
+        // 20ms Qt::PreciseTimer on every ChildAdded/Resize/LayoutRequest
+        // delivered to any object in the application, burning multimedia
+        // timers in production sessions (observed as "Failed to create a
+        // precise timer" storms). Set AutoCheckAccelerators=true explicitly
+        // to re-enable.
+        const bool autoCheck = cg.readEntry("AutoCheckAccelerators", false);
         const bool copyWidgetText = cg.readEntry("CopyWidgetText", false);
         if (!copyWidgetText && key == 0 && !autoCheck) {
             deleteLater();

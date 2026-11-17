@@ -18,6 +18,9 @@
 #include <qmath.h>
 #include <KisRegion.h>
 
+#include <limits>
+#include <vector>
+
 #include <klocalizedstring.h>
 
 #include <KoChannelInfo.h>
@@ -1216,8 +1219,29 @@ KisDefaultBoundsBaseSP KisPaintDevice::defaultBounds() const
 
 void KisPaintDevice::moveTo(const QPoint &pt)
 {
+    /**
+     * Solstice: a move only translates the exact bounds, so keep the cached
+     * ones instead of scanning the pixels again. The Move Tool asks for the
+     * bounds of every moved layer at every pointer position; a layer whose
+     * tiles cover much more than its content took tens of milliseconds
+     * each time. Not with a visible default pixel (the bounds then include
+     * the image bounds) and not in wrap-around mode (the move rewrites
+     * pixels there).
+     */
+    const QPoint offset = pt - this->offset();
+    const bool keepBounds =
+        !defaultBounds()->wrapAroundMode() && defaultPixel().opacityU8() == OPACITY_TRANSPARENT_U8;
+    KisPaintDeviceCache::TranslatableBounds bounds;
+    if (keepBounds) {
+        bounds = m_d->cache()->validBounds();
+    }
+
     m_d->currentStrategy()->move(pt);
     m_d->cache()->invalidate();
+
+    if (keepBounds) {
+        m_d->cache()->setTranslatedBounds(bounds, offset);
+    }
 }
 
 QPoint KisPaintDevice::offset() const
@@ -1290,7 +1314,15 @@ namespace Impl
 struct CheckFullyTransparent {
     CheckFullyTransparent(const KoColorSpace *colorSpace)
         : m_colorSpace(colorSpace)
+        , m_pixelSize(colorSpace->pixelSize())
     {
+        Q_FOREACH (const KoChannelInfo *channel, colorSpace->channels()) {
+            if (channel->channelType() == KoChannelInfo::ALPHA) {
+                m_alphaPos = channel->pos();
+                m_alphaSize = channel->size();
+                break;
+            }
+        }
     }
 
     bool isPixelEmpty(const quint8 *pixelData)
@@ -1298,8 +1330,61 @@ struct CheckFullyTransparent {
         return m_colorSpace->opacityU8(pixelData) == OPACITY_TRANSPARENT_U8;
     }
 
+    /**
+     * Solstice: true when isPixelEmpty() is true for every pixel of the
+     * run. An alpha channel whose bytes are all zero is fully transparent in
+     * every channel type, so most empty runs need no call into the color
+     * space.
+     */
+    bool isRunEmpty(const quint8 *pixelData, int numPixels)
+    {
+        if (alphaBytesAreZero(pixelData, numPixels)) {
+            return true;
+        }
+        for (int i = 0; i < numPixels; ++i) {
+            if (!isPixelEmpty(pixelData + i * m_pixelSize)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+private:
+    template<typename T>
+    bool alphaIsZero(const quint8 *pixelData, int numPixels) const
+    {
+        T accumulated = 0;
+        const quint8 *alpha = pixelData + m_alphaPos;
+        for (int i = 0; i < numPixels; ++i) {
+            T value;
+            memcpy(&value, alpha + i * m_pixelSize, sizeof(T));
+            accumulated |= value;
+        }
+        return accumulated == 0;
+    }
+
+    bool alphaBytesAreZero(const quint8 *pixelData, int numPixels) const
+    {
+        switch (m_alphaSize) {
+        case 1:
+            return alphaIsZero<quint8>(pixelData, numPixels);
+        case 2:
+            return alphaIsZero<quint16>(pixelData, numPixels);
+        case 4:
+            return alphaIsZero<quint32>(pixelData, numPixels);
+        case 8:
+            return alphaIsZero<quint64>(pixelData, numPixels);
+        default:
+            // no alpha channel, or one of an unusual size
+            return false;
+        }
+    }
+
 private:
     const KoColorSpace *m_colorSpace;
+    int m_pixelSize;
+    int m_alphaPos{0};
+    int m_alphaSize{0};
 };
 
 struct CheckNonDefault {
@@ -1307,6 +1392,10 @@ struct CheckNonDefault {
         : m_pixelSize(pixelSize),
           m_defaultPixel(defaultPixel)
     {
+        m_defaultPixelIsZero = true;
+        for (int i = 0; i < pixelSize; ++i) {
+            m_defaultPixelIsZero &= defaultPixel[i] == 0;
+        }
     }
 
     bool isPixelEmpty(const quint8 *pixelData)
@@ -1314,10 +1403,266 @@ struct CheckNonDefault {
         return memcmp(m_defaultPixel, pixelData, m_pixelSize) == 0;
     }
 
+    /**
+     * Solstice: true when every pixel of the run is the default pixel.
+     */
+    bool isRunEmpty(const quint8 *pixelData, int numPixels)
+    {
+        if (m_defaultPixelIsZero) {
+            quint8 accumulated = 0;
+            const int numBytes = numPixels * m_pixelSize;
+            for (int i = 0; i < numBytes; ++i) {
+                accumulated |= pixelData[i];
+            }
+            return accumulated == 0;
+        }
+        for (int i = 0; i < numPixels; ++i) {
+            if (!isPixelEmpty(pixelData + i * m_pixelSize)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 private:
     int m_pixelSize;
     const quint8 *m_defaultPixel;
+    bool m_defaultPixelIsZero;
 };
+
+/**
+ * Solstice: the bounding rect of the non-empty pixels of \p rect, the result
+ * calculateExactBoundsImpl() gives for an empty end rect.
+ *
+ * That function looks at every pixel on its way from the edges of \p rect to
+ * the content, one accessor move and one test per pixel, and its column
+ * sweeps cross the rows that the row sweeps have already found empty. A
+ * layer whose tiles cover much more than its content (erased areas, content
+ * moved off the canvas) is scanned almost completely: 430 ms for one layer
+ * of a 5319x4705 RGBA8 document whose tiles cover 9856x6976.
+ *
+ * Here the rect is split along the tile borders. An empty tile is tested row
+ * by row in memory order, once, and only tiles on the border of the content
+ * are searched for the exact edge. Tiles inside the content are not read,
+ * like before, so a device held by the GPU engine is not downloaded for it.
+ */
+template<class ComparePixelOp>
+QRect calculateExactBoundsTileWise(const KisPaintDevice *device, const QRect &rect, ComparePixelOp compareOp)
+{
+    // the passed extent might have weird invalid structure that
+    // can overflow integer precision when calling rect.right()
+    if (!rect.isValid())
+        return QRect();
+
+    KisRandomConstAccessorSP accessor = device->createRandomConstAccessorNG();
+    const int pixelSize = device->pixelSize();
+
+    // Cell borders: every cell lies inside one tile, so its rows are
+    // contiguous in memory. The widths depend on x only, the heights on y.
+    std::vector<int> xs;
+    std::vector<int> ys;
+    for (int x = rect.left(); x <= rect.right();) {
+        xs.push_back(x);
+        x += qMin(accessor->numContiguousColumns(x), rect.right() - x + 1);
+    }
+    xs.push_back(rect.right() + 1);
+    for (int y = rect.top(); y <= rect.bottom();) {
+        ys.push_back(y);
+        y += qMin(accessor->numContiguousRows(y), rect.bottom() - y + 1);
+    }
+    ys.push_back(rect.bottom() + 1);
+
+    const int numColumns = int(xs.size()) - 1;
+    const int numRows = int(ys.size()) - 1;
+
+    // What is known about a cell, so that no empty cell is tested twice.
+    // Not kept for a rect of absurd size (two tiles very far apart).
+    enum CellState : quint8 {
+        Unknown = 0,
+        Empty,
+        Occupied
+    };
+    const qint64 numCells = qint64(numColumns) * numRows;
+    std::vector<quint8> states;
+    if (numCells <= 16 * 1024 * 1024) {
+        states.assign(size_t(numCells), Unknown);
+    }
+    auto cellState = [&](int column, int row) {
+        return states.empty() ? Unknown : CellState(states[size_t(row) * numColumns + column]);
+    };
+    auto setCellState = [&](int column, int row, CellState state) {
+        if (!states.empty()) {
+            states[size_t(row) * numColumns + column] = state;
+        }
+    };
+
+    struct Cell {
+        const quint8 *data;
+        int stride;
+        int width;
+        int height;
+    };
+    // Fetching a cell reads its tile (a download, if the GPU engine holds
+    // it), so the loops below decide first whether a cell can still move an
+    // edge. The data is valid until the accessor moves on to other tiles.
+    auto fetchCell = [&](int column, int row) {
+        accessor->moveTo(xs[column], ys[row]);
+        return Cell{accessor->rawDataConst(),
+                    accessor->rowStride(xs[column], ys[row]),
+                    xs[column + 1] - xs[column],
+                    ys[row + 1] - ys[row]};
+    };
+    auto isCellOccupied = [&](int column, int row) {
+        CellState state = cellState(column, row);
+        if (state == Unknown) {
+            const Cell cell = fetchCell(column, row);
+            state = Empty;
+            for (int y = 0; y < cell.height; ++y) {
+                if (!compareOp.isRunEmpty(cell.data + y * cell.stride, cell.width)) {
+                    state = Occupied;
+                    break;
+                }
+            }
+            setCellState(column, row, state);
+        }
+        return state == Occupied;
+    };
+
+    const int notFound = std::numeric_limits<int>::max();
+
+    // Top edge: the first row of cells with content, then the highest
+    // non-empty pixel row of its cells.
+    int boundTop = notFound;
+    int topRow = -1;
+    for (int row = 0; row < numRows && topRow < 0; ++row) {
+        for (int column = 0; column < numColumns; ++column) {
+            // only the pixel rows above the best one found so far
+            const int height = ys[row + 1] - ys[row];
+            const int limit = boundTop == notFound ? height : qMin(height, boundTop - ys[row]);
+            if (limit <= 0)
+                break;
+            if (cellState(column, row) == Empty)
+                continue;
+
+            const Cell cell = fetchCell(column, row);
+            bool found = false;
+            for (int y = 0; y < limit; ++y) {
+                if (!compareOp.isRunEmpty(cell.data + y * cell.stride, cell.width)) {
+                    boundTop = ys[row] + y;
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                setCellState(column, row, Occupied);
+            } else if (limit == cell.height) {
+                setCellState(column, row, Empty);
+            }
+        }
+        if (boundTop != notFound) {
+            topRow = row;
+        }
+    }
+
+    if (topRow < 0) {
+        return QRect();
+    }
+
+    // Bottom edge. The row of the top edge holds content, so the loop ends
+    // there at the latest.
+    int boundBottom = notFound;
+    int bottomRow = -1;
+    for (int row = numRows - 1; row >= topRow && bottomRow < 0; --row) {
+        for (int column = 0; column < numColumns; ++column) {
+            // only the pixel rows below the best one found so far
+            const int height = ys[row + 1] - ys[row];
+            const int first = boundBottom == notFound ? 0 : qMax(0, boundBottom - ys[row] + 1);
+            if (first >= height)
+                break;
+            if (cellState(column, row) == Empty)
+                continue;
+
+            const Cell cell = fetchCell(column, row);
+            bool found = false;
+            for (int y = cell.height - 1; y >= first; --y) {
+                if (!compareOp.isRunEmpty(cell.data + y * cell.stride, cell.width)) {
+                    boundBottom = ys[row] + y;
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                setCellState(column, row, Occupied);
+            } else if (first == 0) {
+                setCellState(column, row, Empty);
+            }
+        }
+        if (boundBottom != notFound) {
+            bottomRow = row;
+        }
+    }
+    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(bottomRow >= 0, rect);
+
+    // Left and right edges: all content lies in the pixel rows
+    // boundTop..boundBottom, so nothing else is looked at.
+    auto columnHasContent = [&](const Cell &cell, int row, int x) {
+        const int firstY = qMax(0, boundTop - ys[row]);
+        const int lastY = qMin(cell.height - 1, boundBottom - ys[row]);
+        const quint8 *pixel = cell.data + firstY * cell.stride + x * pixelSize;
+        for (int y = firstY; y <= lastY; ++y, pixel += cell.stride) {
+            if (!compareOp.isPixelEmpty(pixel)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int boundLeft = notFound;
+    for (int column = 0; column < numColumns && boundLeft == notFound; ++column) {
+        for (int row = topRow; row <= bottomRow; ++row) {
+            // only the pixel columns left of the best one found so far
+            const int width = xs[column + 1] - xs[column];
+            const int limit = boundLeft == notFound ? width : qMin(width, boundLeft - xs[column]);
+            if (limit <= 0)
+                break;
+            if (!isCellOccupied(column, row))
+                continue;
+
+            const Cell cell = fetchCell(column, row);
+            for (int x = 0; x < limit; ++x) {
+                if (columnHasContent(cell, row, x)) {
+                    boundLeft = xs[column] + x;
+                    break;
+                }
+            }
+        }
+    }
+    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(boundLeft != notFound, rect);
+
+    int boundRight = notFound;
+    for (int column = numColumns - 1; column >= 0 && boundRight == notFound; --column) {
+        for (int row = topRow; row <= bottomRow; ++row) {
+            // only the pixel columns right of the best one found so far
+            const int width = xs[column + 1] - xs[column];
+            const int first = boundRight == notFound ? 0 : qMax(0, boundRight - xs[column] + 1);
+            if (first >= width)
+                break;
+            if (!isCellOccupied(column, row))
+                continue;
+
+            const Cell cell = fetchCell(column, row);
+            for (int x = cell.width - 1; x >= first; --x) {
+                if (columnHasContent(cell, row, x)) {
+                    boundRight = xs[column] + x;
+                    break;
+                }
+            }
+        }
+    }
+    KIS_SAFE_ASSERT_RECOVER_RETURN_VALUE(boundRight != notFound, rect);
+
+    return QRect(QPoint(boundLeft, boundTop), QPoint(boundRight, boundBottom));
+}
 
 template <class ComparePixelOp>
 QRect calculateExactBoundsImpl(const KisPaintDevice *device, const QRect &startRect, const QRect &endRect, ComparePixelOp compareOp)
@@ -1453,13 +1798,20 @@ QRect KisPaintDevice::calculateExactBounds(bool nonDefaultOnly) const
         }
     }
 
+    // Solstice: the usual case, nothing known in advance, is scanned tile
+    // by tile. An end rect (a visible default pixel, where only the area
+    // outside of the image bounds is searched) keeps the pixel sweeps.
+    const bool scanTileWise = endRect.isEmpty() && startRect != endRect;
+
     if (nonDefaultOnly) {
         const KoColor defaultPixel = this->defaultPixel();
         Impl::CheckNonDefault compareOp(pixelSize(), defaultPixel.data());
-        endRect = Impl::calculateExactBoundsImpl(this, startRect, endRect, compareOp);
+        endRect = scanTileWise ? Impl::calculateExactBoundsTileWise(this, startRect, compareOp)
+                               : Impl::calculateExactBoundsImpl(this, startRect, endRect, compareOp);
     } else {
         Impl::CheckFullyTransparent compareOp(m_d->colorSpace());
-        endRect = Impl::calculateExactBoundsImpl(this, startRect, endRect, compareOp);
+        endRect = scanTileWise ? Impl::calculateExactBoundsTileWise(this, startRect, compareOp)
+                               : Impl::calculateExactBoundsImpl(this, startRect, endRect, compareOp);
     }
 
     return endRect;

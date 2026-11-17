@@ -205,6 +205,21 @@ public:
         }
     }
 
+    /**
+     * Solstice: store a value the caller already knows, instead of having
+     * it calculated on the next read (KisPaintDevice::moveTo()). Does
+     * nothing when the cache is valid or is being written; if it is
+     * invalidated meanwhile, the value is dropped, as for a calculation.
+     */
+    void setValue(const T &value, Mode mode) {
+        KisCacheStateValue::SeqValue seqValue;
+        if (m_state.startWrite(&seqValue)) {
+            m_value = value;
+            m_mode = mode;
+            m_state.endWrite(seqValue);
+        }
+    }
+
     bool tryGetValue(T &result, Mode mode) const {
         KisCacheStateValue::SeqValue seqValue;
         bool isValid = false;

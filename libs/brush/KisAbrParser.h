@@ -20,17 +20,16 @@
  * later stages interpret. Versions 1 and 2 (a list of brushes) and 6 to 10
  * (8BIM sections) are read; tips may be 8 or 16 bits, raw or RLE.
  *
- * Every size and offset is checked against the data: a damaged file gives
- * what could be read and warnings, never a crash. See
- * docs/agent/abr-import-plan.md (Solstice).
+ * Reader operations check requested ranges and report warnings for
+ * unreadable entries; parsing can return partial contents. See
+ * docs/agent/abr-import.md (Solstice).
  */
 class BRUSH_EXPORT KisAbrParser
 {
 public:
-    /// The largest tip edge read, in pixels (Photoshop's largest brush is
-    /// 5000 pixels)
+    /// The largest sampled tip edge accepted, in pixels
     static const int maxEdge = 8192;
-    /// The most tip data decoded from one file
+    /// Decoded tip-byte budget per legacy list or samp section
     static const qint64 maxTotalBytes = qint64(512) << 20;
 
     struct Sample {
@@ -64,7 +63,7 @@ public:
     };
 
     /// Reads @p data; false when nothing could be read (an unknown version
-    /// or no tips and no presets)
+    /// or no tips and no descriptor data)
     static bool parse(const QByteArray &data, Contents *contents);
 };
 

@@ -289,10 +289,13 @@ void KisTiledExtentManager::replaceTileStats(const QVector<QPoint> &indexes)
 
 void KisTiledExtentManager::clear()
 {
+    // Solstice: the same lock order as updateExtent(), so that an update
+    // computed before the clear cannot be stored after it.
+    QWriteLocker lock(&m_extentLock);
+
     m_colsData.clear();
     m_rowsData.clear();
 
-    QWriteLocker lock(&m_extentLock);
     m_currentExtent = QRect();
 }
 
@@ -304,6 +307,20 @@ QRect KisTiledExtentManager::extent() const
 
 void KisTiledExtentManager::updateExtent()
 {
+    /**
+     * Solstice: read the columns and rows and store the result as one step.
+     * When the result was stored under a lock taken only afterwards, two
+     * threads adding tiles could store their results in the opposite order,
+     * and the older, smaller extent stayed until the next row or column
+     * appeared or disappeared. Layer compositing skips everything outside
+     * the extent, so the layer was missing there (in whole tiles).
+     *
+     * Every change of a row or column is followed by an updateExtent() of
+     * the thread that made it, so the last call to run sees all of them.
+     * Nothing takes this lock while holding a Data lock.
+     */
+    QWriteLocker lock(&m_extentLock);
+
     qint32 minX, width, minY, height;
 
     {
@@ -330,6 +347,5 @@ void KisTiledExtentManager::updateExtent()
         }
     }
 
-    QWriteLocker lock(&m_extentLock);
     m_currentExtent = QRect(minX, minY, width, height);
 }

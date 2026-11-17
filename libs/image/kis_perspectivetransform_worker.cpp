@@ -20,18 +20,21 @@
 #include <KoColor.h>
 #include <KoCompositeOpRegistry.h>
 
+#include "gpu/KisGpuPerspectiveWorker.h"
+#include "kis_algebra_2d.h"
+#include "kis_image.h"
 #include "kis_paint_device.h"
+#include "kis_painter.h"
 #include "kis_perspective_math.h"
+#include "kis_progress_update_helper.h"
 #include "kis_random_accessor_ng.h"
 #include "kis_random_sub_accessor.h"
 #include "kis_selection.h"
-#include <kis_iterator_ng.h>
 #include "krita_utils.h"
-#include "kis_progress_update_helper.h"
-#include "kis_painter.h"
-#include "kis_image.h"
-#include "kis_algebra_2d.h"
+#include <kis_iterator_ng.h>
 
+#include <QPair>
+#include <type_traits>
 
 KisPerspectiveTransformWorker::KisPerspectiveTransformWorker(KisPaintDeviceSP dev, QPointF center, double aX, double aY, double distance, bool cropDst, KoUpdaterPtr progress)
         : m_dev(dev), m_progressUpdater(progress), m_cropDst(cropDst)
@@ -143,7 +146,54 @@ struct NearestNeighbourWrapper
     int m_pixelSize;
 };
 
-template <class SrcAccessorWrapper>
+namespace
+{
+/**
+ * GPU engine (Solstice): flattens the rect list the CPU iterates (the
+ * destination region's rects, or a single dstRect) into the per-row span
+ * tables of KisGpuPerspectiveWorker::run(). Every row gets the row's
+ * [xStart, xEnd) intervals; a row may hold several of them. Returns false
+ * for a pathological region size (the caller then runs the CPU loops).
+ */
+bool buildRegionSpans(const QVector<QRect> &rects, KisGpuPerspectiveWorker::Region *region)
+{
+    QRect bounds;
+    for (const QRect &rect : rects) {
+        bounds |= rect;
+    }
+    if (bounds.isEmpty()) {
+        region->bounds = bounds;
+        return true;
+    }
+
+    QVector<QVector<QPair<qint32, qint32>>> perRow(bounds.height());
+    qint64 spanCount = 0;
+    for (const QRect &rect : rects) {
+        for (int y = rect.top(); y <= rect.bottom(); ++y) {
+            perRow[y - bounds.top()].append(qMakePair(rect.left(), rect.right() + 1));
+            // 4M spans is far beyond any region this worker produces.
+            if (++spanCount > (qint64(1) << 22)) {
+                return false;
+            }
+        }
+    }
+
+    region->bounds = bounds;
+    region->rows.resize(bounds.height() * 2);
+    region->spans.reserve(int(spanCount) * 2);
+    for (int i = 0; i < bounds.height(); ++i) {
+        region->rows[2 * i] = region->spans.size() / 2;
+        region->rows[2 * i + 1] = perRow[i].size();
+        for (const QPair<qint32, qint32> &span : perRow[i]) {
+            region->spans.append(span.first);
+            region->spans.append(span.second);
+        }
+    }
+    return true;
+}
+} // namespace
+
+template<class SrcAccessorWrapper>
 void KisPerspectiveTransformWorker::runImpl()
 {
     KIS_ASSERT_RECOVER_RETURN(m_dev);
@@ -168,6 +218,23 @@ void KisPerspectiveTransformWorker::runImpl()
     KIS_ASSERT_RECOVER_NOOP(!m_isIdentity);
 
     KisProgressUpdateHelper progressHelper(m_progressUpdater, 100, m_dstRegion.rectCount());
+
+    // GPU engine (Solstice): the whole backward map in one submission;
+    // the progress helper's destructor reports the completed portion.
+    {
+        KisGpuPerspectiveWorker::Region region;
+        const bool nearest = !std::is_same<typename SrcAccessorWrapper::SrcAccessorSP, KisRandomSubAccessorSP>::value;
+        if (buildRegionSpans(m_dstRegion.rects(), &region)
+            && KisGpuPerspectiveWorker::run(cloneDevice,
+                                            m_dev,
+                                            m_backwardTransform,
+                                            m_srcRect,
+                                            region,
+                                            KisGpuPerspectiveWorker::OverwriteAll,
+                                            nearest)) {
+            return;
+        }
+    }
 
     SrcAccessorWrapper srcAcc(cloneDevice);
     KisRandomAccessorSP accessor = m_dev->createRandomAccessorNG();
@@ -214,6 +281,22 @@ void KisPerspectiveTransformWorker::runPartialDst(KisPaintDeviceSP srcDev,
         gc.bitBlt(dstRect.topLeft(), srcDev, m_backwardTransform.mapRect(dstRect));
     } else {
         KisProgressUpdateHelper progressHelper(m_progressUpdater, 100, dstRect.height());
+
+        // GPU engine (Solstice): the chunk's whole backward map in one
+        // submission; the helper's destruction reports the chunk done.
+        {
+            KisGpuPerspectiveWorker::Region region;
+            if (buildRegionSpans({dstRect}, &region)
+                && KisGpuPerspectiveWorker::run(srcDev,
+                                                dstDev,
+                                                m_backwardTransform,
+                                                srcClipRect,
+                                                region,
+                                                KisGpuPerspectiveWorker::KeepUnwritten,
+                                                false)) {
+                return;
+            }
+        }
 
         KisRandomSubAccessorSP srcAcc = srcDev->createRandomSubAccessor();
         KisRandomAccessorSP accessor = dstDev->createRandomAccessorNG();

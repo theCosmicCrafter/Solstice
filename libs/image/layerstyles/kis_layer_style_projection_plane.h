@@ -40,6 +40,24 @@ public:
     // a method for registering on KisLayerStyleProjectionPlaneFactory
     static KisAbstractProjectionPlaneSP factoryObject(KisLayer *sourceLayer);
 
+    /**
+     * Solstice (GPU engine, phase 4.114): true when the GPU engine
+     * composites this layer together with its style: the only enabled
+     * effect is a Stroke outside the layer with a solid color, a size and
+     * blend modes the GPU pass supports, in an image the GPU composites,
+     * at full resolution. recalculate() then leaves the style's CPU
+     * devices alone, and the merger calls applyOnGpu() instead of apply().
+     */
+    bool gpuCompositesStyles() const;
+
+    /**
+     * Composites the layer and its stroke onto @p projection on the GPU.
+     * @return false when the GPU could not do it; the projection is then
+     * unchanged and the caller uses apply(), which computes the style on
+     * the CPU first.
+     */
+    bool applyOnGpu(KisPaintDeviceSP projection, const QRect &rect);
+
 private:
     friend class KisLayerStyleProjectionPlaneTest;
     KisLayerStyleProjectionPlane(KisLayer *sourceLayer, KisPSDLayerStyleSP style);

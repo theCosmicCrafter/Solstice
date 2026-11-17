@@ -16,7 +16,7 @@
 #include <kis_abr_brush_collection.h>
 
 /**
- * KisAbrParser (docs/agent/abr-import-plan.md, phase 2): versions, 16-bit
+ * KisAbrParser (docs/agent/abr-import.md): versions, 16-bit
  * and compressed tips, names, and damaged files.
  */
 class TestAbrParser : public QObject

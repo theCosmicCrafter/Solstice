@@ -10,6 +10,7 @@
 #include <QScopeGuard>
 
 #include <cmath>
+#include <limits>
 
 #include <KoColor.h>
 #include <KoColorSpaceRegistry.h>
@@ -78,6 +79,36 @@ private Q_SLOTS:
         QVERIFY(copy.isValid());
         QVERIFY(copy == mesh);
         QVERIFY(!KisPuppetTransformWorker::Mesh::fromString(QStringLiteral("1;2;3")).isValid());
+    }
+
+    void testDamagedMeshStringsAreRejected()
+    {
+        // A valid 4x4 mesh string, then single damaged fields.
+        const QString bits(8, QLatin1Char('0'));
+        auto meshString = [&](const QString &x, const QString &columns) {
+            return QStringList{x, "0", "24", "0", "0", "24", columns, "4", "2", bits}.join(QLatin1Char(';'));
+        };
+        QVERIFY(KisPuppetTransformWorker::Mesh::fromString(meshString("0", "4")).isValid());
+        // A bad number must not be hidden by the integers parsed after it.
+        QVERIFY(!KisPuppetTransformWorker::Mesh::fromString(meshString("x", "4")).isValid());
+        QVERIFY(!KisPuppetTransformWorker::Mesh::fromString(meshString("nan", "4")).isValid());
+        QVERIFY(!KisPuppetTransformWorker::Mesh::fromString(meshString("inf", "4")).isValid());
+        // Mesh::build() never makes more than 64 cells per side.
+        const QString wideBits((2 * 65 * 4 + 3) / 4, QLatin1Char('0'));
+        QVERIFY(!KisPuppetTransformWorker::Mesh::fromString(
+                     QStringList{"0", "0", "24", "0", "0", "24", "65", "4", "2", wideBits}.join(QLatin1Char(';')))
+                     .isValid());
+    }
+
+    void testNonFinitePinsRenderUnchanged()
+    {
+        const auto mesh = KisPuppetTransformWorker::Mesh::build(armMask(), Bounds, 0);
+        KisPuppetTransformWorker worker(mesh,
+                                        {TorsoPin, ElbowPin},
+                                        {TorsoPin, ElbowPin + QPointF(10, 0)},
+                                        {0.0, std::numeric_limits<qreal>::quiet_NaN()});
+        QVERIFY(worker.isIdentity());
+        QCOMPARE(worker.map(ElbowPin), ElbowPin);
     }
 
     void testIdentity()
@@ -204,6 +235,56 @@ private Q_SLOTS:
         QCOMPARE(alphaAt(dst, QPointF(50, 150)), quint8(255)); // torso stays
     }
 
+    void testRenderKeepsPixelsOutsideSolidTriangles()
+    {
+        // The mesh comes from a thumbnail mask with an alpha threshold, so
+        // faint pixels, thin lines and content painted after the mesh was
+        // built can lie in empty triangles. Applying must not delete them.
+        const auto *cs = KoColorSpaceRegistry::instance()->rgb8();
+        KisPaintDeviceSP src = new KisPaintDevice(cs);
+        const KoColor black(Qt::black, cs);
+        src->fill(QRect(0, 50, 100, 200), black);
+        src->fill(QRect(100, 100, 140, 30), black);
+        src->fill(QRect(210, 130, 30, 160), black);
+        const QPoint speck(350, 30); // far from the arm mask
+        src->fill(QRect(speck, QSize(3, 3)), black);
+        KoColor faint(Qt::black, cs);
+        faint.setOpacity(quint8(5)); // below the mask threshold
+        const QPoint faintSpot(360, 280);
+        src->fill(QRect(faintSpot, QSize(4, 4)), faint);
+
+        const auto mesh = KisPuppetTransformWorker::Mesh::build(armMask(), Bounds, 0);
+        int column = 0;
+        int row = 0;
+        // Both spots lie in empty triangles of the mesh.
+        for (const QPointF &spot : {QPointF(speck), QPointF(faintSpot)}) {
+            column = int((spot.x() - mesh.origin.x()) / mesh.columnStep.x());
+            row = int((spot.y() - mesh.origin.y()) / mesh.rowStep.y());
+            QVERIFY(!mesh.triangleSolid(column, row, 0) && !mesh.triangleSolid(column, row, 1));
+        }
+        KisPuppetTransformWorker worker(mesh,
+                                        {TorsoPin, ShoulderPin, ElbowPin},
+                                        {TorsoPin, ShoulderPin, ElbowPin + QPointF(0, 10)},
+                                        {0.0, 0.0, 0.3});
+        KisPaintDeviceSP dst = new KisPaintDevice(cs);
+        worker.run(src, dst);
+        auto maxAlphaAround = [&](const QPointF &point) {
+            quint8 result = 0;
+            for (int y = -2; y <= 2; ++y) {
+                for (int x = -2; x <= 2; ++x) {
+                    KoColor color(cs);
+                    dst->pixel(qRound(point.x()) + x, qRound(point.y()) + y, &color);
+                    result = qMax(result, color.opacityU8());
+                }
+            }
+            return result;
+        };
+        QVERIFY(maxAlphaAround(worker.map(QPointF(speck) + QPointF(1.5, 1.5))) > 200);
+        QVERIFY(maxAlphaAround(worker.map(QPointF(faintSpot) + QPointF(2, 2))) > 0);
+        // The arm is still there.
+        QCOMPARE(maxAlphaAround(QPointF(50, 150)), quint8(255));
+    }
+
     void testPinOrderStacksOverlappingParts_data()
     {
         QTest::addColumn<int>("elbowOrder");
@@ -296,7 +377,8 @@ private Q_SLOTS:
             dst->convertToQImage(nullptr, 0, 0, 400, 320)
                 .save(QString::fromLocal8Bit(qgetenv("PUPPET_DUMP")) + QStringLiteral("/fold.png"));
         }
-        // Current behaviour (hinge side unconstrained): 558 gap pixels.
+        // Current behaviour (hinge side unconstrained): 556 gap pixels (558
+        // before the source-alpha cell filter of 2026-10-15).
         QVERIFY2(gap <= 600, qPrintable(QString::number(gap)));
     }
 

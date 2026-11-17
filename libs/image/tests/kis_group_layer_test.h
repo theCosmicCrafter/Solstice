@@ -19,6 +19,8 @@ private Q_SLOTS:
 
     void testRemoveAndUndo();
 
+    void testCopyToSmallerImageCropsProjection();
+
 };
 
 #endif

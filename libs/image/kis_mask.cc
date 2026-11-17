@@ -28,10 +28,16 @@
 #include "kis_layer.h"
 
 #include "kis_cached_paint_device.h"
+#include "kis_filter_mask.h"
 #include "kis_mask_projection_plane.h"
 
 #include "kis_raster_keyframe_channel.h"
 #include "KisSafeNodeProjectionStore.h"
+
+#ifdef HAVE_KRITA_GPU_ENGINE
+#include "gpu/KisGpuProjectionCompositor.h"
+#include <vector>
+#endif
 
 
 struct Q_DECL_HIDDEN KisMask::Private {
@@ -341,6 +347,39 @@ void KisMask::mergeInMaskInternal(KisPaintDeviceSP projection,
                                   KisNode::PositionToFilthy maskPos,
                                   KisRenderPassFlags flags) const
 {
+#ifdef HAVE_KRITA_GPU_ENGINE
+    /**
+     * Solstice (GPU engine, phase 4.113): a transparency mask multiplies
+     * the alpha by its selection. Do that on the projection's GPU tiles
+     * instead of reading them back for the copies below. The layer made
+     * the same decision for its copy of the original
+     * (KisLayer::gpuAppliesEffectMasks()).
+     */
+    if (effectiveSelection && inherits("KisTransparencyMask") && !applyRect.isEmpty()
+        && qint64(applyRect.width()) * applyRect.height() <= 4096 * 4096) {
+        KisLayer *layer = qobject_cast<KisLayer *>(parent().data());
+        if (layer && layer->gpuAppliesEffectMasks()) {
+            std::vector<quint8> coverage(size_t(applyRect.width()) * applyRect.height());
+            effectiveSelection->projection()->readBytes(coverage.data(), applyRect);
+            if (KisGpuProjectionCompositor::applyCoverage(projection, applyRect, coverage.data())) {
+                return;
+            }
+        }
+    }
+#endif
+
+#ifdef HAVE_KRITA_GPU_ENGINE
+    // Solstice (GPU engine, phase 4.116): a filter mask whose filter has a
+    // GPU form filters the projection's GPU tiles in place.
+    if (const KisFilterMask *filterMask = qobject_cast<const KisFilterMask *>(this)) {
+        KisLayer *layer = qobject_cast<KisLayer *>(parent().data());
+        if (layer && layer->gpuAppliesEffectMasks()
+            && filterMask->applyOnGpu(projection, effectiveSelection, applyRect, preparedNeedRect)) {
+            return;
+        }
+    }
+#endif
+
     KisCachedPaintDevice::Guard d1(projection, m_d->paintDeviceCache);
     KisPaintDeviceSP cacheDevice = d1.device();
 

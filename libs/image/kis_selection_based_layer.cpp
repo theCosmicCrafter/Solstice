@@ -27,6 +27,11 @@
 
 #include "kis_raster_keyframe_channel.h"
 
+#include "gpu/KisGpuMergeBatch.h"
+#ifdef HAVE_KRITA_GPU_ENGINE
+#include "gpu/KisGpuProjectionCompositor.h"
+#endif
+
 
 struct Q_DECL_HIDDEN KisSelectionBasedLayer::Private
 {
@@ -184,6 +189,16 @@ void KisSelectionBasedLayer::copyOriginalToProjection(const KisPaintDeviceSP ori
          */
         projection->clear(rect);
     }
+
+#ifdef HAVE_KRITA_GPU_ENGINE
+    // Solstice (GPU engine, phase 4.115): a filter layer passes its original
+    // on whole. Keep the copy on the GPU, where the original was filtered.
+    if (!tempSelection && KisGpuMergeBatch::mayCompositeOnGpu(KisNodeSP(const_cast<KisSelectionBasedLayer *>(this)))
+        && (!hasEffectMasks() || gpuAppliesEffectMasks())
+        && KisGpuProjectionCompositor::copyShifted(projection, rect, original, QPoint())) {
+        return;
+    }
+#endif
 
     KisPainter::copyAreaOptimized(rect.topLeft(), original, projection, rect, tempSelection);
 }

@@ -27,6 +27,11 @@ class KoColorSpace;
  * - Solstice/GpuEngineConvertDocuments (int, ConvertPolicy, default Ask):
  *   what to do with a document that is opened in another color space than
  *   RGBA float while the GPU engine is enabled.
+ * - Solstice/GpuEngineUnverifiedDevice (bool, default false): also use the
+ *   engine with a graphics card it was not verified with
+ *   (KisGpuDeviceInfo::isVerified(): NVIDIA Blackwell). Read when the
+ *   engine starts; the KRITA_GPU_ALLOW_UNVERIFIED_DEVICE=1 environment
+ *   variable allows such cards too.
  */
 class KRITAIMAGE_EXPORT KisGpuEngineSettings
 {
@@ -35,17 +40,24 @@ public:
         Ask = 0,
         Convert = 1,
         Keep = 2,
+        Convert16 = 3, // Keep persisted values 0/1/2 compatible.
     };
 
     static QString enabledKey();
     static QString convertPolicyKey();
     static QString brushKey();
+    static QString unverifiedDeviceKey();
 
     static bool enabledInConfig();
     static void setEnabledInConfig(bool enabled);
 
     static bool brushEnabledInConfig();
     static void setBrushEnabledInConfig(bool enabled);
+
+    static bool unverifiedDeviceAllowedInConfig();
+    static void setUnverifiedDeviceAllowedInConfig(bool allowed);
+    /// The setting, or KRITA_GPU_ALLOW_UNVERIFIED_DEVICE=1.
+    static bool unverifiedDeviceAllowed();
 
     static ConvertPolicy convertPolicy();
     static void setConvertPolicy(ConvertPolicy policy);
@@ -61,6 +73,8 @@ public:
      * color space.
      */
     static const KoColorSpace *conversionTarget(const KoColorSpace *colorSpace);
+    /// As above, but Convert16 selects RGBA F16; other policies retain F32.
+    static const KoColorSpace *conversionTarget(const KoColorSpace *colorSpace, ConvertPolicy policy);
 };
 
 #endif // KISGPUENGINESETTINGS_H

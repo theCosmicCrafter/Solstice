@@ -11,7 +11,7 @@
 #include "kritawidgetutils_export.h"
 
 /**
- * The "Solstice" widget style (docs/agent/ui-modernization-plan.md, phase 3):
+ * The "Solstice" widget style (docs/agent/ui-modernization.md):
  * Fusion with flat, rounded common controls in the palette's colors.
  *
  * It changes only drawing, never sizes, so layouts stay as with Fusion:

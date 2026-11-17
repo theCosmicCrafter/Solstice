@@ -694,6 +694,15 @@ namespace Private {
                 m_info->rasterizedDstLayer = new KisPaintLayer(m_info->image, mergedLayerName, OPACITY_OPAQUE_U8);
                 m_info->dstNode = m_info->rasterizedDstLayer;
 
+                // Solstice: clipped layers merge into a clipped layer (Clipping Mask)
+                const KisNodeList srcNodes = m_info->allSrcNodes();
+                const bool allClipped =
+                    !srcNodes.isEmpty() && std::all_of(srcNodes.begin(), srcNodes.end(), [](KisNodeSP node) {
+                        KisLayer *layer = qobject_cast<KisLayer *>(node.data());
+                        return layer && layer->isClipped();
+                    });
+                m_info->rasterizedDstLayer->setClipped(allClipped);
+
                 if (m_info->frames.size() > 0) {
                     m_info->dstNode->enableAnimation();
                     m_info->dstNode->getKeyframeChannel(KisKeyframeChannel::Raster.id(), true);
@@ -736,6 +745,22 @@ namespace Private {
         bool m_skipMergingSourceLayer {false};
     };
 
+    /**
+     * Solstice: paints \p device with \p layer's own blend options; inside a
+     * clip stack the projection leaf reports others (Clipping Mask)
+     */
+    static void applyWithOwnBlending(KisLayerSP layer, KisPaintDeviceSP device, KisPainter *gc, const QRect &rect)
+    {
+        const QRect applyRect = rect & device->extent();
+        if (applyRect.isEmpty())
+            return;
+
+        gc->setChannelFlags(layer->channelFlags());
+        gc->setCompositeOpId(layer->compositeOpId());
+        gc->setOpacityU8(layer->opacity());
+        gc->bitBlt(applyRect.topLeft(), device, applyRect);
+    }
+
     struct MergeLayersMultiple : public KisCommandUtils::AggregateCommand {
         MergeLayersMultiple(MergeMultipleInfoSP info) : m_info(info) {}
 
@@ -744,10 +769,54 @@ namespace Private {
 
             KisPainter gc(m_info->rasterizedDstLayer->paintDevice());
 
+            /**
+             * Solstice: Clipping Mask. A selected base and the selected clipped
+             * layers above it composite into a stack first, as KisClipStackLayer
+             * renders them, and the stack is applied with the base's blend
+             * options. Clipped layers whose base is not merged are painted with
+             * their own blend options.
+             */
+            KisLayerSP stackBase;
+            KisPaintDeviceSP stackDevice;
+            QRect stackRect;
+            auto flushStack = [&]() {
+                if (!stackBase)
+                    return;
+                applyWithOwnBlending(stackBase, stackDevice, &gc, stackRect);
+                stackBase = nullptr;
+                stackDevice = nullptr;
+                stackRect = QRect();
+            };
+
             foreach (KisNodeSP node, m_info->allSrcNodes()) {
                 QRect rc = node->exactBounds() | m_info->image->bounds();
-                node->projectionPlane()->apply(&gc, rc);
+                KisLayerSP layer = qobject_cast<KisLayer *>(node.data());
+                const bool stackMember = layer && layer->projectionLeaf()->isClipStackMember();
+
+                if (stackMember && layer->isClipped() && stackBase
+                    && layer->projectionLeaf()->parent() == stackBase->projectionLeaf()->parent()) {
+                    KisPainter stackGc(stackDevice);
+                    layer->projectionPlane()->apply(&stackGc, rc);
+                    stackRect |= rc;
+                    continue;
+                }
+
+                flushStack();
+
+                if (stackMember && !layer->isClipped()) {
+                    stackBase = layer;
+                    stackDevice = new KisPaintDevice(gc.device()->colorSpace());
+                    KisPainter stackGc(stackDevice);
+                    layer->projectionPlane()->apply(&stackGc, rc);
+                    stackRect = rc;
+                } else if (stackMember) {
+                    applyWithOwnBlending(layer, layer->projection(), &gc, rc);
+                } else {
+                    node->projectionPlane()->apply(&gc, rc);
+                }
             }
+
+            flushStack();
         }
 
     private:

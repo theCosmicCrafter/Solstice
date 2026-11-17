@@ -136,3 +136,17 @@ void KisAdjustmentLayer::setChannelFlags(const QBitArray & channelFlags)
     KisLayer::setChannelFlags(channelFlags);
 }
 
+void KisAdjustmentLayer::setImage(KisImageWSP image)
+{
+    KisSelectionBasedLayer::setImage(image);
+
+    /**
+     * The filtered original is only refreshed inside the image bounds
+     * (see KisGroupLayer::setImage()), so pixels a layer copied from
+     * another image brings outside of them would stay forever, e.g. in
+     * the layer thumbnail. Drop them.
+     */
+    if (image.isValid()) {
+        original()->crop(image->bounds());
+    }
+}

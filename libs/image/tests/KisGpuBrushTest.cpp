@@ -2572,7 +2572,9 @@ private:
         gpu->copyOriginalToProjection(gpu->paintDevice(), gpuPreview, bounds);
         context.waitIdle();
         const auto previewSubmissions = context.completedValue() - beforePreview;
-        const bool previewGpu = !previewFailure && previewPath != "offset" && previewPath != "integer";
+        // A temporary target off the tile grid ("offset") previews on the GPU
+        // since phase 4.112; its final merge rects are not whole tiles.
+        const bool previewGpu = !previewFailure && previewPath != "integer";
         QCOMPARE(KisGpuBrushPainter::washPreviewCount() - beforeGpuPreview, previewGpu ? quint64(1) : quint64(0));
         QCOMPARE(KisGpuBrushPainter::washBaseCopyCount() - beforeBaseCopy, previewGpu ? quint64(1) : quint64(0));
         if (!noCoverage)

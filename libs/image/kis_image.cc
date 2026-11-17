@@ -206,24 +206,32 @@ public:
          * and undo are still alive
          */
 
-        KIS_SAFE_ASSERT_RECOVER_NOOP(rootLayer->graphListener() == q);
-        KIS_SAFE_ASSERT_RECOVER_NOOP(rootLayer->image() == q);
-
         /**
-         * Firstly we need to disconnect the nodes from the image,
-         * because some of the nodes (e.g. KisGroupLayer) may
-         * request the image back via defaultBouds() and/or
-         * animationInterface()
+         * The root layer is unset if the image dies before its constructor
+         * assigned one. The copy constructor holds a reference to prevent
+         * that (see KisImage(const KisImage &, ...)); this keeps the
+         * destructor safe if another path lets it happen.
          */
-        if (rootLayer->image() == q) {
-            rootLayer->setImage(0);
-        }
+        if (!rootLayer.isNull()) {
+            KIS_SAFE_ASSERT_RECOVER_NOOP(rootLayer->graphListener() == q);
+            KIS_SAFE_ASSERT_RECOVER_NOOP(rootLayer->image() == q);
 
-        if (rootLayer->graphListener() == q) {
-            rootLayer->setGraphListener(0);
-        }
+            /**
+             * Firstly we need to disconnect the nodes from the image,
+             * because some of the nodes (e.g. KisGroupLayer) may
+             * request the image back via defaultBouds() and/or
+             * animationInterface()
+             */
+            if (rootLayer->image() == q) {
+                rootLayer->setImage(0);
+            }
 
-        rootLayer.clear();
+            if (rootLayer->graphListener() == q) {
+                rootLayer->setGraphListener(0);
+            }
+
+            rootLayer.clear();
+        }
 
         /**
          * Stop animation interface. It may use the rootLayer.
@@ -251,6 +259,8 @@ public:
     KisSelectionMaskSP targetOverlaySelectionMask; // the overlay switching stroke will try to switch into this mask
     KisSelectionMaskSP overlaySelectionMask;
     QList<KisLayerCompositionSP> compositions;
+    mutable QMutex compositionsLock;
+    bool newLayersVisibleInCompositions = true;
 
     KisNodeSP isolationRootNode;
     bool isolateLayer;
@@ -552,12 +562,21 @@ void KisImage::copyFromImageImpl(const KisImage &rhs, int policy)
                                            dbgImage << "Node: " << (void *)node.data();
                                        });
 
-
-
-    m_d->compositions.clear();
-
-    Q_FOREACH (KisLayerCompositionSP comp, rhs.m_d->compositions) {
-        m_d->compositions << toQShared(new KisLayerComposition(*comp, this));
+    QList<KisLayerCompositionSP> sourceCompositions;
+    bool newLayersVisible;
+    {
+        QMutexLocker locker(&rhs.m_d->compositionsLock);
+        sourceCompositions = rhs.m_d->compositions;
+        newLayersVisible = rhs.m_d->newLayersVisibleInCompositions;
+    }
+    QList<KisLayerCompositionSP> copiedCompositions;
+    Q_FOREACH (KisLayerCompositionSP comp, sourceCompositions) {
+        copiedCompositions << toQShared(new KisLayerComposition(*comp, this));
+    }
+    {
+        QMutexLocker locker(&m_d->compositionsLock);
+        m_d->compositions = copiedCompositions;
+        m_d->newLayersVisibleInCompositions = newLayersVisible;
     }
 
     EMIT_IF_NEEDED sigLayersChangedAsync();
@@ -589,7 +608,16 @@ KisImage::KisImage(const KisImage& rhs, KisUndoStore *undoStore, bool exactCopy)
     moveToThread(qApp->thread());
     connect(this, SIGNAL(sigInternalStopIsolatedModeRequested()), SLOT(stopIsolatedMode()));
 
+    /**
+     * The image has no owner until the caller wraps it, but copying the graph
+     * hands it to the nodes, and a node may take and drop a KisImageSP right
+     * away (KisShapeLayerCanvas::setImage() repaints synchronously). That
+     * temporary reference would be the last one and delete the image inside
+     * its own constructor. Hold one for the copy; deref() does not delete.
+     */
+    ref();
     copyFromImageImpl(rhs, CONSTRUCT | (exactCopy ? EXACT_COPY : 0));
+    deref();
 }
 
 void KisImage::aboutToAddANode(KisNode *parent, int index)
@@ -611,6 +639,15 @@ void KisImage::nodeHasBeenAdded(KisNode *parent, int index, KisNodeAdditionFlags
     });
 
     SANITY_CHECK_LOCKED("nodeHasBeenAdded");
+    // Layer Comps: record only the added subtree, never its existing siblings.
+    const auto comps = compositions();
+    const bool visible = newLayersVisibleInCompositions();
+    if (!comps.isEmpty()) {
+        KisLayerUtils::recursiveApplyNodes(parent->at(index), [&](KisNodeSP node) {
+            for (const auto &comp : comps)
+                comp->recordAddedNode(node, visible);
+        });
+    }
     m_d->signalRouter.emitNodeHasBeenAdded(parent, index, flags);
 }
 
@@ -2518,35 +2555,86 @@ void KisImage::keyframeChannelAboutToBeRemoved(KisNode *node, KisKeyframeChannel
 
 QList<KisLayerCompositionSP> KisImage::compositions()
 {
+    QMutexLocker locker(&m_d->compositionsLock);
     return m_d->compositions;
 }
 
 void KisImage::addComposition(KisLayerCompositionSP composition)
 {
-    m_d->compositions.append(composition);
+    {
+        QMutexLocker locker(&m_d->compositionsLock);
+        m_d->compositions.append(composition);
+    }
+    Q_EMIT sigCompositionsChanged();
 }
 
 void KisImage::removeComposition(KisLayerCompositionSP composition)
 {
-    m_d->compositions.removeAll(composition);
+    {
+        QMutexLocker locker(&m_d->compositionsLock);
+        m_d->compositions.removeAll(composition);
+    }
+    Q_EMIT sigCompositionsChanged();
 }
 
 void KisImage::moveCompositionUp(KisLayerCompositionSP composition)
 {
+    QMutexLocker locker(&m_d->compositionsLock);
     int index = m_d->compositions.indexOf(composition);
     if (index <= 0) {
         return;
     }
     m_d->compositions.move(index, index - 1);
+    locker.unlock();
+    Q_EMIT sigCompositionsChanged();
 }
 
 void KisImage::moveCompositionDown(KisLayerCompositionSP composition)
 {
+    QMutexLocker locker(&m_d->compositionsLock);
     int index = m_d->compositions.indexOf(composition);
-    if (index >= m_d->compositions.size() -1) {
+    if (index < 0 || index >= m_d->compositions.size() - 1) {
         return;
     }
     m_d->compositions.move(index, index + 1);
+    locker.unlock();
+    Q_EMIT sigCompositionsChanged();
+}
+
+bool KisImage::reorderCompositions(const QList<KisLayerCompositionSP> &order)
+{
+    {
+        QMutexLocker locker(&m_d->compositionsLock);
+        if (order.size() != m_d->compositions.size())
+            return false;
+        auto remaining = m_d->compositions;
+        for (const auto &comp : order) {
+            if (!remaining.removeOne(comp))
+                return false;
+        }
+        if (order == m_d->compositions)
+            return false;
+        m_d->compositions = order;
+    }
+    Q_EMIT sigCompositionsChanged();
+    return true;
+}
+
+bool KisImage::newLayersVisibleInCompositions() const
+{
+    QMutexLocker locker(&m_d->compositionsLock);
+    return m_d->newLayersVisibleInCompositions;
+}
+
+void KisImage::setNewLayersVisibleInCompositions(bool visible)
+{
+    {
+        QMutexLocker locker(&m_d->compositionsLock);
+        if (m_d->newLayersVisibleInCompositions == visible)
+            return;
+        m_d->newLayersVisibleInCompositions = visible;
+    }
+    Q_EMIT sigCompositionsChanged();
 }
 
 bool checkMasksNeedConversion(KisNodeSP root, const QRect &bounds)

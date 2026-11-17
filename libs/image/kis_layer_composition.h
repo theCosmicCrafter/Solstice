@@ -13,6 +13,7 @@
 #include <QUuid>
 #include <QDomDocument>
 #include <QDomElement>
+#include <QMutex>
 
 #include "kis_image.h"
 
@@ -39,6 +40,14 @@ public:
     */
     QString name();
 
+    /**
+     * Identifies the composition across renames and reordering. New
+     * compositions get a new id; image copies keep it, so a copied image's
+     * composition can be found from the original's.
+     */
+    QUuid uuid() const;
+    void setUuid(const QUuid &uuid);
+
    /**
     * Stores the current visibility of all layers in the composition
     */
@@ -49,9 +58,15 @@ public:
     */
     void apply();
 
-   /**
-    * Set the export enabled flag, if false the compositions will not be exported
-    */
+    /** Caller must hold the image barrier lock while accessing the node tree. */
+    KUndo2Command *createApplyCommand(bool preserveMissing = false);
+    bool matchesCurrentVisibility(bool preserveMissing = false) const;
+    void recordAddedNode(KisNodeSP node, bool visible);
+    QMap<QUuid, bool> visibilityMap() const;
+
+    /**
+     * Set the export enabled flag, if false the compositions will not be exported
+     */
     void setExportEnabled(bool enabled);
 
    /**
@@ -67,8 +82,10 @@ public:
     void save(QDomDocument& doc, QDomElement& element);
 
 private:
+    mutable QMutex m_mutex;
     KisImageWSP m_image;
     QString m_name;
+    QUuid m_uuid;
     QMap<QUuid, bool> m_visibilityMap;
     QMap<QUuid, bool> m_collapsedMap;
     bool m_exportEnabled;

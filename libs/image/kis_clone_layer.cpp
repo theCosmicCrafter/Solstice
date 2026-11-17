@@ -26,6 +26,10 @@
 #include <QStack>
 #include <kis_effect_mask.h>
 #include "kis_lod_capable_layer_offset.h"
+#include "gpu/KisGpuMergeBatch.h"
+#ifdef HAVE_KRITA_GPU_ENGINE
+#include "gpu/KisGpuProjectionCompositor.h"
+#endif
 
 
 struct Q_DECL_HIDDEN KisCloneLayer::Private
@@ -149,6 +153,26 @@ void KisCloneLayer::copyOriginalToProjection(const KisPaintDeviceSP original,
 {
     QRect copyRect = rect;
     copyRect.translate(-m_d->offset->x(), -m_d->offset->y());
+
+#ifdef HAVE_KRITA_GPU_ENGINE
+    /**
+     * Solstice: with the GPU engine, copy the source's GPU-resident tiles
+     * on the GPU instead of reading them back for a CPU copy
+     * (docs/agent/clone-layer.md). mayCompositeOnGpu() guarantees the
+     * tile-exclusive merge scheduling that the GPU write relies on. Effect
+     * masks that run on the CPU would read the copy back: keep those on
+     * the CPU (measured slower otherwise). Transparency masks are applied
+     * on the GPU (phase 4.113).
+     */
+    if ((!hasEffectMasks() || gpuAppliesEffectMasks())
+        && KisGpuMergeBatch::mayCompositeOnGpu(KisNodeSP(const_cast<KisCloneLayer *>(this)))
+        && KisGpuProjectionCompositor::copyShifted(projection,
+                                                   rect,
+                                                   original,
+                                                   QPoint(m_d->offset->x(), m_d->offset->y()))) {
+        return;
+    }
+#endif
 
     KisPainter::copyAreaOptimized(rect.topLeft(), original, projection, copyRect);
 }
