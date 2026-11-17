@@ -23,7 +23,7 @@ set(kritaspraypaintop_SOURCES
 ki18n_wrap_ui(kritaspraypaintop_SOURCES wdgsprayoptions.ui wdgsprayshapeoptions.ui wdgshapedynamicsoptions.ui )
 
 # Solstice: a static library for the tests of the settings widget
-# (docs/agent/brush-option-shared-model-plan.md, phase 4)
+# (docs/agent/brush-option-shared-model.md)
 set(kritaspraypaintop_static_SOURCES ${kritaspraypaintop_SOURCES})
 list(REMOVE_ITEM kritaspraypaintop_static_SOURCES spray_paintop_plugin.cpp)
 

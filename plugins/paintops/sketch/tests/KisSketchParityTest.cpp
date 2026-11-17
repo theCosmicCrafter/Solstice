@@ -18,7 +18,7 @@ using namespace KisPaintOpParityTestUtils;
 
 /**
  * Phase 4 of the brush option shared model
- * (docs/agent/brush-option-shared-model-plan.md): the Sketch editor must
+ * (docs/agent/brush-option-shared-model.md): the Sketch editor must
  * write the same keys and values for every preset as before its migration
  * to the options model.
  *

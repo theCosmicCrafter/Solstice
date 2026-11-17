@@ -22,7 +22,7 @@ class PAINTOP_EXPORT KisBrushBasedPaintopOptionWidget : public KisPaintOpSetting
 public:
     KisBrushBasedPaintopOptionWidget(KisBrushOptionWidgetFlags flags, QWidget* parent = 0);
     /// Solstice: the brush tip's state lives in @p brushTipData, e.g. a
-    /// shared options model (docs/agent/brush-option-shared-model-plan.md).
+    /// shared options model (docs/agent/brush-option-shared-model.md).
     KisBrushBasedPaintopOptionWidget(KisBrushOptionWidgetFlags flags,
                                      lager::cursor<KisBrushTipOptionData> brushTipData,
                                      QWidget *parent = 0);

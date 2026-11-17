@@ -17,7 +17,7 @@ set(kritahairypaintop_SOURCES
 ki18n_wrap_ui(kritahairypaintop_SOURCES wdgInkOptions.ui  wdghairyshapeoptions.ui wdgbristleoptions.ui)
 
 # Solstice: a static library for the tests of the settings widget
-# (docs/agent/brush-option-shared-model-plan.md, phase 4)
+# (docs/agent/brush-option-shared-model.md)
 set(kritahairypaintop_static_SOURCES ${kritahairypaintop_SOURCES})
 list(REMOVE_ITEM kritahairypaintop_static_SOURCES hairy_paintop_plugin.cpp)
 

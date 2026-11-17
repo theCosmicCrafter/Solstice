@@ -35,8 +35,8 @@ KisExperimentPaintOpSettingsWidget:: KisExperimentPaintOpSettingsWidget(QWidget*
     namespace kposu = KisPaintOpOptionStateUtils;
 
     // Solstice: the option states live in a shared model, so that one option
-    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,
-    // phase 4); no option's written data depends on another
+    // change writes that option and its dependents after the initial rewrite
+    // (docs/agent/brush-option-shared-model.md); no option's written data depends on another
     KisPaintOpOptionsModel *model = new KisPaintOpOptionsModel(this);
 
     auto *experimentOp = model->addOption(QStringLiteral("ExperimentOp"), KisExperimentOpOptionData());

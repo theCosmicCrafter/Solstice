@@ -15,7 +15,7 @@ set(kritahatchingpaintop_SOURCES
 ki18n_wrap_ui(kritahatchingpaintop_SOURCES wdghatchingpreferences.ui wdghatchingoptions.ui)
 
 # Solstice: a static library for the tests of the settings widget
-# (docs/agent/brush-option-shared-model-plan.md, phase 4)
+# (docs/agent/brush-option-shared-model.md)
 set(kritahatchingpaintop_static_SOURCES ${kritahatchingpaintop_SOURCES})
 list(REMOVE_ITEM kritahatchingpaintop_static_SOURCES hatching_paintop_plugin.cpp)
 

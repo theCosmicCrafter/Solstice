@@ -11,7 +11,7 @@ set(kritaroundmarkerpaintop_SOURCES
 ki18n_wrap_ui(kritaroundmarkerpaintop_SOURCES kis_roundmarker_option.ui )
 
 # Solstice: a static library for the tests of the settings widget
-# (docs/agent/brush-option-shared-model-plan.md, phase 4)
+# (docs/agent/brush-option-shared-model.md)
 set(kritaroundmarkerpaintop_static_SOURCES ${kritaroundmarkerpaintop_SOURCES})
 list(REMOVE_ITEM kritaroundmarkerpaintop_static_SOURCES roundmarker_paintop_plugin.cpp)
 

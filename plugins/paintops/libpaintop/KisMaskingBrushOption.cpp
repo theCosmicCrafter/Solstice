@@ -178,7 +178,7 @@ struct KisMaskingBrushOption::Private
 
     /// The state when the option owns it (no external cursor). Solstice: the
     /// masking data, its common size and the preserve mode are one value,
-    /// KisMaskingBrushOptionData (docs/agent/brush-option-shared-model-plan.md).
+    /// KisMaskingBrushOptionData (docs/agent/brush-option-shared-model.md).
     lager::state<KisMaskingBrushOptionData, lager::automatic_tag> ownData;
     lager::cursor<KisMaskingBrushOptionData> data;
     /// The parts that notify a change, as before the shared model. The

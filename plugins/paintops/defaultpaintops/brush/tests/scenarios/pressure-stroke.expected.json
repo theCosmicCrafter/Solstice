@@ -1,0 +1,9 @@
+{
+  "format": "solstice-test-control-expected",
+  "values": {
+    "strokeHash": {
+      "linux-cpu": "d5899a59337df2641033cd58214504786d551b00f37ae847265c53f2faa3940b"
+    }
+  },
+  "version": 1
+}

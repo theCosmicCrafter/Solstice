@@ -24,7 +24,7 @@
 #include <strokes/freehand_stroke.h>
 
 /**
- * Stage 1 of the brush stroke layer plan (docs/agent/brush-stroke-layer-plan.md):
+ * Brush Stroke Layer replay feasibility (docs/agent/brush-stroke-layer.md):
  * can a recorded stroke be drawn again, exactly at the same size and sharply
  * at a larger one? The stroke is the point list a freehand tool sends after
  * smoothing; it is drawn through the normal stroke path

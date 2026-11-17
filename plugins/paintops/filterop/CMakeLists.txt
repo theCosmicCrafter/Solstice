@@ -7,7 +7,7 @@ set(kritafilterop_SOURCES
 
 
 # Solstice: a static library for the tests of the settings widget
-# (docs/agent/brush-option-shared-model-plan.md, phase 4)
+# (docs/agent/brush-option-shared-model.md)
 set(kritafilterop_static_SOURCES ${kritafilterop_SOURCES})
 list(REMOVE_ITEM kritafilterop_static_SOURCES filterop.cpp)
 

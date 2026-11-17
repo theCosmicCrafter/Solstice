@@ -13,7 +13,7 @@ set(kritatangentnormalpaintop_SOURCES
 ki18n_wrap_ui(kritatangentnormalpaintop_SOURCES wdgtangenttiltoption.ui )
 
 # Solstice: a static library for the tests of the settings widget
-# (docs/agent/brush-option-shared-model-plan.md, phase 4)
+# (docs/agent/brush-option-shared-model.md)
 set(kritatangentnormalpaintop_static_SOURCES ${kritatangentnormalpaintop_SOURCES})
 list(REMOVE_ITEM kritatangentnormalpaintop_static_SOURCES kis_tangent_normal_paintop_plugin.cpp)
 

@@ -13,27 +13,33 @@
 #include <KisAsynchronousStrokeUpdateHelper.h>
 #include <KisBrushStrokeLayer.h>
 #include <KisGlobalResourcesInterface.h>
+#include <KisLodPreferences.h>
 #include <KoCanvasResourceProvider.h>
 #include <KoColorSpaceRegistry.h>
 #include <KoCompositeOpRegistry.h>
 #include <brushengine/kis_paintop_preset.h>
 #include <brushengine/kis_paintop_settings.h>
+#include <commands/kis_selection_commands.h>
 #include <kis_image.h>
 #include <kis_paint_device.h>
 #include <kis_paint_information.h>
+#include <kis_pixel_selection.h>
 #include <kis_resources_snapshot.h>
+#include <kis_selection.h>
 #include <kis_undo_stores.h>
 #include <strokes/KisFreehandStrokeInfo.h>
 #include <strokes/freehand_stroke.h>
+#include <strokes/move_stroke_strategy.h>
 
 #include "kis_transform_utils.h"
 #include "strokes/inplace_transform_stroke_strategy.h"
+#include "strokes/move_selection_stroke_strategy.h"
 #include "tool_transform_args.h"
 #include "transform_transaction_properties.h"
 
 /**
  * The brush stroke layer with the Transform Tool
- * (docs/agent/brush-stroke-layer-plan.md): a free transform that only
+ * (docs/agent/brush-stroke-layer.md): a free transform that only
  * scales and moves draws the strokes again when it is applied; a rotation
  * keeps the transformed pixels.
  */
@@ -43,6 +49,9 @@ class KisBrushStrokeLayerTransformTest : public QObject
 private Q_SLOTS:
     void testScaleRedraws();
     void testRotationTransformsPixels();
+    void testCancelledContinuedTransformRedraws();
+    void testSelectionMoveWithInstantPreview();
+    void testSelectionDuplicateWithInstantPreview();
 };
 
 namespace
@@ -104,10 +113,10 @@ QImage toImage(KisPaintDeviceSP device, const QRect &rect)
     return device->convertToQImage(nullptr, rect);
 }
 
-/// Runs the Transform Tool's in-place stroke on @p node with the arguments
-/// that @p change makes from the tool's initial ones; returns them
-template<typename Change>
-ToolTransformArgs transform(KisImageSP image, KisNodeSP node, Change change)
+/// Starts the Transform Tool's in-place stroke on @p node; @p args become
+/// the tool's initial arguments (those of the previous transform when it
+/// continues it). False if the stroke did not start.
+bool startTransform(KisImageSP image, KisNodeSP node, KisStrokeId *id, ToolTransformArgs *args)
 {
     InplaceTransformStrokeStrategy *strategy = new InplaceTransformStrokeStrategy(ToolTransformArgs::FREE_TRANSFORM,
                                                                                   "Bicubic",
@@ -120,23 +129,35 @@ ToolTransformArgs transform(KisImageSP image, KisNodeSP node, Change change)
                                                                                   image->root(),
                                                                                   false);
     std::atomic<bool> generated(false);
-    ToolTransformArgs args;
     QObject::connect(
         strategy,
         &InplaceTransformStrokeStrategy::sigTransactionGenerated,
         strategy,
-        [&](TransformTransactionProperties, ToolTransformArgs initial, void *) {
-            args = initial;
+        [&generated, args](TransformTransactionProperties, ToolTransformArgs initial, void *) {
+            *args = initial;
             generated = true;
         },
         Qt::DirectConnection);
 
-    KisStrokeId id = image->startStroke(strategy);
+    *id = image->startStroke(strategy);
     for (int i = 0; i < 500 && !generated; i++) {
         QTest::qWait(10);
     }
     if (!generated) {
-        image->cancelStroke(id);
+        image->cancelStroke(*id);
+        return false;
+    }
+    return true;
+}
+
+/// Runs the Transform Tool's in-place stroke on @p node with the arguments
+/// that @p change makes from the tool's initial ones; returns them
+template<typename Change>
+ToolTransformArgs transform(KisImageSP image, KisNodeSP node, Change change)
+{
+    KisStrokeId id;
+    ToolTransformArgs args;
+    if (!startTransform(image, node, &id, &args)) {
         return ToolTransformArgs();
     }
 
@@ -211,6 +232,130 @@ void KisBrushStrokeLayerTransformTest::testRotationTransformsPixels()
     // the pixels are rotated, the record is left as it was
     QCOMPARE(layer->strokes().first()->jobs.first().pi1.pos(), firstPoint);
     QVERIFY(layer->paintDevice()->exactBounds() != before);
+}
+
+/// Opening the Transform Tool again continues the last transform (it undoes
+/// it first); cancelling that (Ctrl+Z) applies the last transform again,
+/// which draws the strokes again as the first time
+void KisBrushStrokeLayerTransformTest::testCancelledContinuedTransformRedraws()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+    KisSurrogateUndoStore *undoStore = new KisSurrogateUndoStore();
+    KisImageSP image = new KisImage(undoStore, imageBounds.width(), imageBounds.height(), cs, "continue");
+    KisBrushStrokeLayerSP layer = new KisBrushStrokeLayer(image, "strokes", OPACITY_OPAQUE_U8, cs);
+    image->addNode(layer, image->root());
+    paintStroke(image, layer, loadPreset(QStringLiteral("d)_Ink-3_Gpen.kpp")));
+    const QPointF firstPoint = layer->strokes().first()->jobs.first().pi1.pos();
+
+    const ToolTransformArgs args = transform(image, layer, [](ToolTransformArgs &args) {
+        args.setScaleX(1.8);
+        args.setScaleY(1.8);
+    });
+    const QTransform t = KisTransformUtils::MatricesPack(args).finalTransform();
+    const QRect large = layer->paintDevice()->exactBounds() | imageBounds;
+    const QImage scaled = toImage(layer->paintDevice(), large);
+
+    KisStrokeId id;
+    ToolTransformArgs continued;
+    QVERIFY(startTransform(image, layer, &id, &continued));
+    QCOMPARE(continued.scaleX(), 1.8);
+    image->cancelStroke(id);
+    image->waitForDone();
+    QTest::qWait(50);
+    image->waitForDone();
+
+    // the record and the pixels are those of the first transform
+    QCOMPARE(layer->strokes().size(), 1);
+    const QPointF mapped = layer->strokes().first()->jobs.first().pi1.pos();
+    QVERIFY2((mapped - t.map(firstPoint)).manhattanLength() < 1e-6,
+             qPrintable(QString("%1,%2").arg(mapped.x()).arg(mapped.y())));
+    QString difference;
+    QVERIFY2(KisBrushStrokeLayer::strokesMatchPixels(layer->strokes(), layer->paintDevice(), &difference),
+             qPrintable(difference));
+    QCOMPARE(toImage(layer->paintDevice(), large), scaled);
+}
+
+/// With Instant Preview, the Move Tool's preview at a lower level of
+/// detail does not move the recorded strokes; the full stroke moves them
+/// once
+void KisBrushStrokeLayerTransformTest::testSelectionMoveWithInstantPreview()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+    const QRect bounds(0, 0, 400, 200);
+    KisImageSP image = new KisImage(new KisSurrogateUndoStore(), bounds.width(), bounds.height(), cs, "lod move");
+    KisBrushStrokeLayerSP layer = new KisBrushStrokeLayer(image, "strokes", OPACITY_OPAQUE_U8, cs);
+    image->addNode(layer, image->root());
+    paintStroke(image, layer, loadPreset(QStringLiteral("d)_Ink-3_Gpen.kpp")));
+    const QPointF firstPoint = layer->strokes().first()->jobs.first().pi1.pos();
+
+    image->setLodPreferences(KisLodPreferences(2));
+    image->waitForDone();
+    {
+        KisSelectionSP selection = new KisSelection();
+        selection->pixelSelection()->select(QRect(0, 0, 200, 200), OPACITY_OPAQUE_U8);
+        KisSetGlobalSelectionCommand command(image, selection);
+        command.redo();
+    }
+
+    const QPoint offset(160, 40);
+    MoveSelectionStrokeStrategy *strategy =
+        new MoveSelectionStrokeStrategy(layer, image->globalSelection(), image.data(), image.data());
+    KisStrokeId id = image->startStroke(strategy);
+    image->addJob(id, new MoveStrokeStrategy::Data(offset));
+    image->endStroke(id);
+    image->waitForDone();
+
+    QCOMPARE(layer->strokes().size(), 1);
+    QCOMPARE(layer->strokes().first()->jobs.first().pi1.pos(), firstPoint + offset);
+    QString difference;
+    QVERIFY2(KisBrushStrokeLayer::strokesMatchPixels(layer->strokes(), layer->paintDevice(), &difference),
+             qPrintable(difference));
+}
+
+/// The same for a duplicate (Ctrl-drag): the full stroke adds one moved
+/// copy of the recorded stroke and keeps the original; undo removes it
+void KisBrushStrokeLayerTransformTest::testSelectionDuplicateWithInstantPreview()
+{
+    const KoColorSpace *cs = KoColorSpaceRegistry::instance()->rgb8();
+    const QRect bounds(0, 0, 400, 200);
+    KisSurrogateUndoStore *undoStore = new KisSurrogateUndoStore();
+    KisImageSP image = new KisImage(undoStore, bounds.width(), bounds.height(), cs, "lod duplicate");
+    KisBrushStrokeLayerSP layer = new KisBrushStrokeLayer(image, "strokes", OPACITY_OPAQUE_U8, cs);
+    image->addNode(layer, image->root());
+    paintStroke(image, layer, loadPreset(QStringLiteral("d)_Ink-3_Gpen.kpp")));
+    const KisRecordedBrushStrokeSP original = layer->strokes().first();
+    const QPointF firstPoint = original->jobs.first().pi1.pos();
+
+    image->setLodPreferences(KisLodPreferences(2));
+    image->waitForDone();
+    {
+        KisSelectionSP selection = new KisSelection();
+        selection->pixelSelection()->select(QRect(0, 0, 200, 200), OPACITY_OPAQUE_U8);
+        KisSetGlobalSelectionCommand command(image, selection);
+        command.redo();
+    }
+
+    const QPoint offset(160, 40);
+    MoveSelectionStrokeStrategy *strategy =
+        new MoveSelectionStrokeStrategy(layer, image->globalSelection(), image.data(), image.data(), true);
+    KisStrokeId id = image->startStroke(strategy);
+    image->addJob(id, new MoveStrokeStrategy::Data(offset));
+    image->endStroke(id);
+    image->waitForDone();
+
+    QCOMPARE(layer->strokes().size(), 2);
+    QCOMPARE(layer->strokes().first(), original);
+    QCOMPARE(layer->strokes().last()->jobs.first().pi1.pos(), firstPoint + offset);
+    QString difference;
+    QVERIFY2(KisBrushStrokeLayer::strokesMatchPixels(layer->strokes(), layer->paintDevice(), &difference),
+             qPrintable(difference));
+
+    undoStore->undo();
+    image->waitForDone();
+    QCOMPARE(layer->strokes().size(), 1);
+    QCOMPARE(layer->strokes().first(), original);
+    QVERIFY2(KisBrushStrokeLayer::strokesMatchPixels(layer->strokes(), layer->paintDevice(), &difference),
+             qPrintable(difference));
 }
 
 SOLSTICE_BRUSH_TEST_MAIN_WITH_BUNDLES(KisBrushStrokeLayerTransformTest,

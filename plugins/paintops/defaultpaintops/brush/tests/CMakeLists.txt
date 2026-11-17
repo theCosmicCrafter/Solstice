@@ -35,14 +35,20 @@ kis_add_test(KisBrushStrokeLayerTest.cpp
     LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritaui kritatestsdk
     )
 
-# the brush stroke layer with the Transform Tool's stroke
+kis_add_test(KisThroughLayerEraserTest.cpp
+    TEST_NAME KisThroughLayerEraserTest
+    LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritaui kritatestsdk
+    )
+
+# the brush stroke layer with the Transform Tool's and the Move Tool's strokes
 kis_add_test(KisBrushStrokeLayerTransformTest.cpp
     TEST_NAME KisBrushStrokeLayerTransformTest
-    LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritatooltransform_static kritaui kritatestsdk
+    LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritatooltransform_static kritadefaulttools_static kritaui kritatestsdk
     )
 target_include_directories(KisBrushStrokeLayerTransformTest PRIVATE
     ${CMAKE_SOURCE_DIR}/plugins/tools/tool_transform2
-    ${CMAKE_BINARY_DIR}/plugins/tools/tool_transform2)
+    ${CMAKE_BINARY_DIR}/plugins/tools/tool_transform2
+    ${CMAKE_SOURCE_DIR}/plugins/tools/basictools)
 
 if(HAVE_KRITA_GPU_ENGINE)
     kis_add_test(KisGpuBrushJobsTest.cpp
@@ -53,12 +59,23 @@ if(HAVE_KRITA_GPU_ENGINE)
         TEST_NAME KisGpuStrokeTest
         LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritaui kritatestsdk
         )
+    # projection after concurrent strokes and updates vs. a full refresh
+    kis_add_test(KisGpuProjectionStressTest.cpp
+        TEST_NAME KisGpuProjectionStressTest
+        LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritaui kritatestsdk
+        )
 endif()
 
 
 krita_add_broken_unit_test(kis_brushop_test.cpp ../../../../../sdk/tests/stroke_testing_utils.cpp
     TEST_NAME KisBrushOpTest
     LINK_LIBRARIES kritaui kritalibpaintop kritatestsdk
+    )
+
+# Solstice: "At least 1 pixel" (docs/agent/brush-minimum-one-pixel.md)
+kis_add_test(KisBrushMinimumOnePixelTest.cpp
+    TEST_NAME KisBrushMinimumOnePixelTest
+    LINK_LIBRARIES kritadefaultpaintops_static kritalibpaintop kritaui kritatestsdk
     )
 
 # Solstice: Pixel Brush presets made from Photoshop brush files

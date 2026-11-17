@@ -24,7 +24,7 @@ public:
     /// The option owns its state.
     KisMaskingBrushOption(lager::reader<qreal> effectiveBrushSize);
     /// Solstice: the state lives in @p optionData, e.g. a shared options
-    /// model (docs/agent/brush-option-shared-model-plan.md, phase 2a).
+    /// model (docs/agent/brush-option-shared-model.md).
     KisMaskingBrushOption(lager::cursor<KisMaskingBrushOptionData> optionData,
                           lager::reader<qreal> effectiveBrushSize);
     ~KisMaskingBrushOption() override;

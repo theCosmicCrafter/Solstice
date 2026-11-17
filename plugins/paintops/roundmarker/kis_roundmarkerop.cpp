@@ -28,6 +28,7 @@
 #include <kis_spacing_information.h>
 #include "kis_marker_painter.h"
 #include "kis_paintop_utils.h"
+#include <brushengine/KisMinimumDabSize.h>
 
 
 
@@ -45,6 +46,13 @@ KisRoundMarkerOp::KisRoundMarkerOp(KisPaintOpSettingsSP settings, KisPainter* pa
     m_lastRadius = 1.0;
 
     m_markerOption.read(settings.data());
+    m_minimumOnePixelDab = settings->getBool(KisMinimumDabSize::settingsKey(), false);
+}
+
+qreal KisRoundMarkerOp::lod0Scale(const KisPaintInformation &info) const
+{
+    const qreal scale = m_sizeOption.apply(info);
+    return m_minimumOnePixelDab ? KisMinimumDabSize::apply(scale, m_markerOption.diameter) : scale;
 }
 
 KisRoundMarkerOp::~KisRoundMarkerOp()
@@ -60,7 +68,7 @@ KisSpacingInformation KisRoundMarkerOp::paintAt(const KisPaintInformation& info)
 
     // get the scaling factor calculated by the size option
     const qreal lodScale = KisLodTransform::lodToScale(painter()->device());
-    const qreal scale = m_sizeOption.apply(info) * lodScale;
+    const qreal scale = lod0Scale(info) * lodScale;
     const qreal rotation = 0; // TODO
 
     const qreal diameter = m_markerOption.diameter * scale;
@@ -146,7 +154,7 @@ KisSpacingInformation KisRoundMarkerOp::paintAt(const KisPaintInformation& info)
 KisSpacingInformation KisRoundMarkerOp::updateSpacingImpl(const KisPaintInformation &info) const
 {
     const qreal lodScale = KisLodTransform::lodToScale(painter()->device());
-    const qreal diameter = m_markerOption.diameter * m_sizeOption.apply(info) * lodScale;
+    const qreal diameter = m_markerOption.diameter * lod0Scale(info) * lodScale;
 
     return computeSpacing(info, diameter);
 }

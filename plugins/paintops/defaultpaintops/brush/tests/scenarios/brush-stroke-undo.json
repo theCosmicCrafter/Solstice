@@ -1,0 +1,257 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "brush-stroke-undo",
+  "description": "A mouse stroke with the Basic-5 preset paints the active layer; undo restores the empty layer exactly.",
+  "covers": "Freehand brush tool through the input manager, undo of a brush stroke",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KritaShape/KisToolBrush"
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "preset": "b) Basic-5 Size Opacity",
+        "size": 20,
+        "opacity": 1,
+        "eraser": false,
+        "color": "#000000"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "emptyLayer": "sha256"
+      },
+      "expect": {
+        "nonTransparentPixels": 0
+      }
+    },
+    {
+      "call": "input_stroke",
+      "args": {
+        "points": [
+          {
+            "x": 100.0,
+            "y": 150.0
+          },
+          {
+            "x": 120.69,
+            "y": 160.34
+          },
+          {
+            "x": 141.38,
+            "y": 170.69
+          },
+          {
+            "x": 162.07,
+            "y": 181.03
+          },
+          {
+            "x": 182.76,
+            "y": 191.38
+          },
+          {
+            "x": 203.45,
+            "y": 201.72
+          },
+          {
+            "x": 224.14,
+            "y": 212.07
+          },
+          {
+            "x": 244.83,
+            "y": 222.41
+          },
+          {
+            "x": 265.52,
+            "y": 232.76
+          },
+          {
+            "x": 286.21,
+            "y": 243.1
+          },
+          {
+            "x": 306.9,
+            "y": 253.45
+          },
+          {
+            "x": 327.59,
+            "y": 263.79
+          },
+          {
+            "x": 348.28,
+            "y": 274.14
+          },
+          {
+            "x": 368.97,
+            "y": 284.48
+          },
+          {
+            "x": 389.66,
+            "y": 294.83
+          },
+          {
+            "x": 410.34,
+            "y": 305.17
+          },
+          {
+            "x": 431.03,
+            "y": 315.52
+          },
+          {
+            "x": 451.72,
+            "y": 325.86
+          },
+          {
+            "x": 472.41,
+            "y": 336.21
+          },
+          {
+            "x": 493.1,
+            "y": 346.55
+          },
+          {
+            "x": 513.79,
+            "y": 356.9
+          },
+          {
+            "x": 534.48,
+            "y": 367.24
+          },
+          {
+            "x": 555.17,
+            "y": 377.59
+          },
+          {
+            "x": 575.86,
+            "y": 387.93
+          },
+          {
+            "x": 596.55,
+            "y": 398.28
+          },
+          {
+            "x": 617.24,
+            "y": 408.62
+          },
+          {
+            "x": 637.93,
+            "y": 418.97
+          },
+          {
+            "x": 658.62,
+            "y": 429.31
+          },
+          {
+            "x": 679.31,
+            "y": 439.66
+          },
+          {
+            "x": 700.0,
+            "y": 450.0
+          }
+        ]
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 1,
+        "undo.lastCommand": "Freehand Brush Stroke",
+        "activeLayer.exactBounds.x": {
+          "min": 85,
+          "max": 100
+        },
+        "activeLayer.exactBounds.y": {
+          "min": 135,
+          "max": 150
+        },
+        "activeLayer.exactBounds.width": {
+          "min": 600,
+          "max": 630
+        },
+        "activeLayer.exactBounds.height": {
+          "min": 300,
+          "max": 330
+        }
+      }
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "painted": "sha256"
+      },
+      "expect": {
+        "sha256": {
+          "notEquals": "$emptyLayer"
+        },
+        "nonTransparentPixels": {
+          "min": 10000
+        },
+        "meanColor": "#000000"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.count": 1,
+        "undo.index": 0
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$emptyLayer"
+        },
+        "nonTransparentPixels": 0
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_redo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$painted"
+        }
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

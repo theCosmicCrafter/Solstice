@@ -55,6 +55,13 @@ public:
 
     bool checkSizeTooSmall(qreal scale);
 
+    /**
+     * Solstice: raises a level-of-detail 0 dab scale so that the dab is at
+     * least 1 px large when the stroke's preset enables "At least 1 pixel"
+     * (KisMinimumDabSize). Apply it before KisLodTransform::lodToScale().
+     */
+    qreal applyMinimumDabSize(qreal lod0Scale) const;
+
     KisSpacingInformation effectiveSpacing(qreal scale) const;
     KisSpacingInformation effectiveSpacing(qreal scale, qreal rotation, const KisPaintInformation &pi) const;
     KisSpacingInformation effectiveSpacing(qreal scale, qreal rotation, const KisSpacingOption &spacingOption, const KisPaintInformation &pi) const;
@@ -83,6 +90,7 @@ protected: // XXX: make private!
 
 private:
     KisTextureOption m_textureOption;
+    bool m_minimumOnePixelDab{false};
 
 protected:
     KisMirrorOption m_mirrorOption;

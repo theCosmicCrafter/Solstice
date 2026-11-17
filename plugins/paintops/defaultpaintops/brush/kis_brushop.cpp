@@ -141,7 +141,7 @@ KisSpacingInformation KisBrushOp::paintAt(const KisPaintInformation& info)
     if (!brush->canPaintFor(info))
         return KisSpacingInformation(1.0);
 
-    qreal scale = m_sizeOption.apply(info);
+    qreal scale = applyMinimumDabSize(m_sizeOption.apply(info));
     scale *= KisLodTransform::lodToScale(painter()->device());
     if (checkSizeTooSmall(scale)) return KisSpacingInformation();
 
@@ -558,7 +558,8 @@ std::pair<int, bool> KisBrushOp::doAsynchronousUpdate(QVector<KisRunnableStrokeJ
 
 KisSpacingInformation KisBrushOp::updateSpacingImpl(const KisPaintInformation &info) const
 {
-    const qreal scale = m_sizeOption.apply(info) * KisLodTransform::lodToScale(painter()->device());
+    const qreal scale =
+        applyMinimumDabSize(m_sizeOption.apply(info)) * KisLodTransform::lodToScale(painter()->device());
     qreal rotation = m_rotationOption.apply(info);
     return effectiveSpacing(scale, rotation, &m_airbrushData, &m_spacingOption, info);
 }

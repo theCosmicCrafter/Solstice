@@ -12,7 +12,7 @@ set(kritacurvepaintop_SOURCES
 ki18n_wrap_ui(kritacurvepaintop_SOURCES wdgcurveoptions.ui )
 
 # Solstice: a static library for the tests of the settings widget
-# (docs/agent/brush-option-shared-model-plan.md, phase 4)
+# (docs/agent/brush-option-shared-model.md)
 set(kritacurvepaintop_static_SOURCES ${kritacurvepaintop_SOURCES})
 list(REMOVE_ITEM kritacurvepaintop_static_SOURCES curve_paintop_plugin.cpp)
 

@@ -32,7 +32,7 @@
 #include <strokes/freehand_stroke.h>
 
 /**
- * Phase 4 of docs/agent/abr-import-plan.md: an ABR file's brush presets
+ * ABR import (docs/agent/abr-import.md): an ABR file's brush presets
  * become Pixel Brush presets that paint with the file's tips.
  */
 class KisAbrPresetTest : public QObject

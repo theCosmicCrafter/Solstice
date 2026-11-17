@@ -239,7 +239,7 @@ KisCurveOptionWidget *createMaskingRotationOptionWidget()
 
 // Solstice: variants bound to a state owned by KisPaintOpOptionsModel, with
 // the same categories and labels as the variants above
-// (docs/agent/brush-option-shared-model-plan.md, phase 2b)
+// (docs/agent/brush-option-shared-model.md)
 
 KisCurveOptionWidget *createFlowOptionWidget(lager::cursor<KisCurveOptionDataCommon> optionData)
 {

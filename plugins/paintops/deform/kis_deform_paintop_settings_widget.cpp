@@ -35,7 +35,7 @@ KisDeformPaintOpSettingsWidget::KisDeformPaintOpSettingsWidget(QWidget* parent)
     namespace kposu = KisPaintOpOptionStateUtils;
 
     // Option states live in a shared model so that one option change writes
-    // only that option (docs/agent/brush-option-shared-model-plan.md).
+    // that option after the initial rewrite (docs/agent/brush-option-shared-model.md).
     KisPaintOpOptionsModel *model = new KisPaintOpOptionsModel(this);
 
     auto *brushSize = model->addOption(QStringLiteral("BrushSize"), KisBrushSizeOptionData());

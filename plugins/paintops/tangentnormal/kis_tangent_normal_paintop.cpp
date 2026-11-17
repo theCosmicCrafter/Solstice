@@ -103,7 +103,7 @@ KisSpacingInformation KisTangentNormalPaintOp::paintAt(const KisPaintInformation
         return KisSpacingInformation(1.0);
     }
 
-    qreal scale    = m_sizeOption.apply(info);
+    qreal scale = applyMinimumDabSize(m_sizeOption.apply(info));
     scale *= KisLodTransform::lodToScale(painter()->device());
     qreal rotation = m_rotationOption.apply(info);
     if (checkSizeTooSmall(scale)) return KisSpacingInformation();
@@ -149,7 +149,7 @@ KisSpacingInformation KisTangentNormalPaintOp::paintAt(const KisPaintInformation
 
 KisSpacingInformation KisTangentNormalPaintOp::updateSpacingImpl(const KisPaintInformation &info) const
 {
-    qreal scale = m_sizeOption.apply(info) * KisLodTransform::lodToScale(painter()->device());
+    qreal scale = applyMinimumDabSize(m_sizeOption.apply(info)) * KisLodTransform::lodToScale(painter()->device());
     qreal rotation = m_rotationOption.apply(info);
     return computeSpacing(info, scale, rotation);
 }

@@ -1,0 +1,159 @@
+{
+  "format": "solstice-test-control-scenario",
+  "version": 1,
+  "name": "eraser-stroke",
+  "description": "An eraser-mode stroke across a fully painted layer makes the pixels under its center line transparent and leaves the rest.",
+  "covers": "Freehand brush tool in eraser mode (EraserMode canvas resource), undo of an eraser stroke",
+  "steps": [
+    {
+      "call": "document_new",
+      "args": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    {
+      "call": "view_reset"
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "color": "#0000ff"
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "select_all"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "fill_selection_foreground_color"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "deselect"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "save": {
+        "filled": "sha256"
+      },
+      "expect": {
+        "opaquePixels": 480000
+      }
+    },
+    {
+      "call": "tool_activate",
+      "args": {
+        "id": "KritaShape/KisToolBrush"
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "preset": "b) Basic-5 Size Opacity",
+        "size": 40,
+        "opacity": 1,
+        "eraser": true
+      }
+    },
+    {
+      "call": "input_drag",
+      "args": {
+        "from": {
+          "x": 100,
+          "y": 300
+        },
+        "to": {
+          "x": 700,
+          "y": 300
+        },
+        "steps": 60,
+        "durationMs": 600
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_state",
+      "expect": {
+        "undo.lastCommand": "Freehand Brush Stroke"
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 120,
+        "y": 295,
+        "width": 560,
+        "height": 10
+      },
+      "expect": {
+        "nonTransparentPixels": 0
+      }
+    },
+    {
+      "call": "query_pixels",
+      "args": {
+        "x": 0,
+        "y": 0,
+        "width": 800,
+        "height": 250
+      },
+      "expect": {
+        "opaquePixels": 200000
+      }
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "opaquePixels": {
+          "min": 440000,
+          "max": 460000
+        }
+      }
+    },
+    {
+      "call": "action_trigger",
+      "args": {
+        "name": "edit_undo"
+      }
+    },
+    {
+      "call": "wait_idle"
+    },
+    {
+      "call": "query_pixels",
+      "expect": {
+        "sha256": {
+          "equals": "$filled"
+        }
+      }
+    },
+    {
+      "call": "brush_set",
+      "args": {
+        "eraser": false
+      }
+    },
+    {
+      "call": "document_close"
+    }
+  ]
+}

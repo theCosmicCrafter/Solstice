@@ -16,7 +16,7 @@
 
 /**
  * Helpers for option widgets whose state lives in KisPaintOpOptionsModel
- * instead of the widget. See docs/agent/brush-option-shared-model-plan.md.
+ * instead of the widget. See docs/agent/brush-option-shared-model.md.
  */
 namespace KisPaintOpOptionStateUtils
 {

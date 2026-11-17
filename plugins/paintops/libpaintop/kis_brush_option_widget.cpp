@@ -47,7 +47,7 @@ struct KisBrushOptionWidget::Private
 
     /// The state when the widget owns it (no external cursor). Solstice: the
     /// three former states are one value, KisBrushTipOptionData, so a shared
-    /// model can hold it (docs/agent/brush-option-shared-model-plan.md).
+    /// model can hold it (docs/agent/brush-option-shared-model.md).
     lager::state<KisBrushTipOptionData, lager::automatic_tag> ownData;
     lager::cursor<KisBrushTipOptionData> data;
     lager::cursor<BrushData> brushData;

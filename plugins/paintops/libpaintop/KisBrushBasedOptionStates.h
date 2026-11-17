@@ -22,7 +22,7 @@
 
 /**
  * Option states of brush-based engines for KisPaintOpOptionsModel
- * (docs/agent/brush-option-shared-model-plan.md, phase 2b).
+ * (docs/agent/brush-option-shared-model.md).
  *
  * The brush tip and the masking brush need more than a configuration to read
  * their data (the resources, the brush tip size), so they cannot use

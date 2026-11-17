@@ -20,6 +20,7 @@
 #include "kis_image.h"
 #include "kis_clipboard.h"
 #include "kis_paint_device.h"
+#include <kis_tool_utils.h>
 #include "kis_gbr_brush.h"
 #include "KisBrushServerProvider.h"
 #include "kis_icon.h"
@@ -74,9 +75,14 @@ void KisClipboardBrushWidget::slotCreateBrush()
     // do nothing if it's hidden otherwise it can break the active brush is something is copied
     if (m_clipboard->hasClip() && !isHidden()) {
 
-        pd = m_clipboard->clip(QRect(0, 0, 0, 0), false);     //Weird! Don't know how this works!
+        KisImageSP clipImage = m_clipboard->clipImage(false);
+        pd = clipImage ? new KisPaintDevice(*clipImage->projection()) : nullptr;
         if (pd) {
-            QRect rc = pd->exactBounds();
+            const QRect rc = clipImage->projection()->exactBounds();
+
+            // A clip copied from Solstice may have a non-transparent default
+            // pixel; bake it so exactBounds() stays finite.
+            KisToolUtils::bakeDefaultPixel(pd, rc);
 
             m_brush = KisBrushSP(new KisGbrBrush(pd, rc.x(), rc.y(), rc.width(), rc.height()));
 

@@ -49,8 +49,9 @@ KisMyPaintOpSettingsWidget:: KisMyPaintOpSettingsWidget(QWidget* parent)
     namespace kposu = KisPaintOpOptionStateUtils;
 
     // Solstice: the option states live in a shared model, so that one option
-    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,
-    // phase 4). Every curve option patches only its own part of the shared
+    // change writes that option and its dependents after the initial rewrite
+    // (docs/agent/brush-option-shared-model.md). Every curve option patches
+    // only its own part of the shared
     // MyPaint/json, which resetSettings() keeps, so writing one option gives
     // the same document as a full rewrite. The ids are MyPaint's setting names.
     KisPaintOpOptionsModel *model = new KisPaintOpOptionsModel(this);

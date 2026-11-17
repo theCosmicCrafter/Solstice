@@ -30,7 +30,7 @@ set(kritacolorsmudgepaintop_SOURCES
     KisColorSmudgeStrategyMaskLegacy.cpp)
 
 # Solstice: a static library for the tests of the settings widget
-# (docs/agent/brush-option-shared-model-plan.md, phase 4)
+# (docs/agent/brush-option-shared-model.md)
 set(kritacolorsmudgepaintop_static_SOURCES ${kritacolorsmudgepaintop_SOURCES})
 list(REMOVE_ITEM kritacolorsmudgepaintop_static_SOURCES colorsmudge_paintop_plugin.cpp)
 

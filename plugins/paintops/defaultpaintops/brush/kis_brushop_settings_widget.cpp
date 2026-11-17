@@ -77,9 +77,9 @@ KisBrushOpSettingsWidget::KisBrushOpSettingsWidget(QWidget *parent,
     const QString maskingPrefix = KisPaintOpUtils::MaskingBrushPresetPrefix;
 
     // Solstice: the option states live in a shared model, so that one option
-    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,
-    // phase 2b). The brush tip is read first: the masking brush reads with
-    // its size.
+    // change writes that option and its dependents after the initial rewrite
+    // (docs/agent/brush-option-shared-model.md). The brush tip is read first:
+    // the masking brush reads with its size.
     model->setParent(this);
 
     KisBrushTipOptionState *brushTip = static_cast<KisBrushTipOptionState *>(model->option(QStringLiteral("BrushTip")));

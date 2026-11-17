@@ -33,6 +33,8 @@ protected:
 
 private:
     KisSpacingInformation computeSpacing(const KisPaintInformation &info, qreal diameter) const;
+    /// size option scale at level of detail 0, raised by "At least 1 pixel"
+    qreal lod0Scale(const KisPaintInformation &info) const;
 
 private:
     bool                      m_firstRun;
@@ -42,6 +44,7 @@ private:
     QPointF                   m_lastPaintPos;
     qreal                     m_lastRadius;
     KisRoundMarkerOpOptionData   m_markerOption;
+    bool m_minimumOnePixelDab{false};
 };
 
 #endif // _KIS_ROUNDMARKEROP_H_

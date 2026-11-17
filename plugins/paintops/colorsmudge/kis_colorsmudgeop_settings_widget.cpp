@@ -100,8 +100,8 @@ KisColorSmudgeOpSettingsWidget::KisColorSmudgeOpSettingsWidget(QWidget *parent,
     setObjectName("brush option widget");
 
     // Solstice: the option states live in a shared model, so that one option
-    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,
-    // phase 4)
+    // change writes that option and its dependents after the initial rewrite
+    // (docs/agent/brush-option-shared-model.md)
     model->setParent(this);
 
     KisBrushTipOptionState *brushTip = static_cast<KisBrushTipOptionState *>(model->option(QStringLiteral("BrushTip")));

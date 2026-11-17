@@ -12,7 +12,7 @@ set(kritaparticlepaintop_SOURCES
 ki18n_wrap_ui(kritaparticlepaintop_SOURCES wdgparticleoptions.ui )
 
 # Solstice: a static library for the tests of the settings widget
-# (docs/agent/brush-option-shared-model-plan.md, phase 4)
+# (docs/agent/brush-option-shared-model.md)
 set(kritaparticlepaintop_static_SOURCES ${kritaparticlepaintop_SOURCES})
 list(REMOVE_ITEM kritaparticlepaintop_static_SOURCES particle_paintop_plugin.cpp)
 

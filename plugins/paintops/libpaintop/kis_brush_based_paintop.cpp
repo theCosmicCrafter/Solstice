@@ -18,6 +18,7 @@
 #include <kis_brush_registry.h>
 #include <KisUsageLogger.h>
 #include <KoResourceLoadResult.h>
+#include <brushengine/KisMinimumDabSize.h>
 
 #include <QPainter>
 
@@ -104,6 +105,8 @@ KisBrushBasedPaintOp::KisBrushBasedPaintOp(const KisPaintOpSettingsSP settings, 
 
     m_brush->notifyStrokeStarted();
 
+    m_minimumOnePixelDab = settings->getBool(KisMinimumDabSize::settingsKey(), false);
+
     m_dabCache = new KisDabCache(m_brush);
     m_dabCache->setPrecisionOption(&m_precisionOption);
     m_dabCache->setMirrorPostprocessing(&m_mirrorOption);
@@ -144,6 +147,14 @@ bool KisBrushBasedPaintOp::checkSizeTooSmall(qreal scale)
 {
     scale *= m_brush->scale();
     return KisPaintOpUtils::checkSizeTooSmall(scale, m_brush->width(), m_brush->height());
+}
+
+qreal KisBrushBasedPaintOp::applyMinimumDabSize(qreal lod0Scale) const
+{
+    if (!m_minimumOnePixelDab) {
+        return lod0Scale;
+    }
+    return KisMinimumDabSize::apply(lod0Scale, m_brush->userEffectiveSize());
 }
 
 KisSpacingInformation KisBrushBasedPaintOp::effectiveSpacing(qreal scale) const

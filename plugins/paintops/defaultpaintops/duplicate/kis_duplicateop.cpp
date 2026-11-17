@@ -109,7 +109,7 @@ KisSpacingInformation KisDuplicateOp::paintAt(const KisPaintInformation& info)
 
     m_opacityOption.apply(painter(),info);
 
-    qreal scale = m_sizeOption.apply(info);
+    qreal scale = applyMinimumDabSize(m_sizeOption.apply(info));
 
     if (checkSizeTooSmall(scale)) return KisSpacingInformation();
     KisDabShape shape(scale, 1.0, rotation);
@@ -272,5 +272,5 @@ KisSpacingInformation KisDuplicateOp::paintAt(const KisPaintInformation& info)
 
 KisSpacingInformation KisDuplicateOp::updateSpacingImpl(const KisPaintInformation &info) const
 {
-    return effectiveSpacing(m_sizeOption.apply(info));
+    return effectiveSpacing(applyMinimumDabSize(m_sizeOption.apply(info)));
 }

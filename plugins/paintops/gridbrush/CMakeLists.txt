@@ -15,7 +15,7 @@ set(kritagridpaintop_SOURCES
 ki18n_wrap_ui(kritagridpaintop_SOURCES wdggridoptions.ui wdggridbrushshapeoptions.ui )
 
 # Solstice: a static library for the tests of the settings widget
-# (docs/agent/brush-option-shared-model-plan.md, phase 4)
+# (docs/agent/brush-option-shared-model.md)
 set(kritagridpaintop_static_SOURCES ${kritagridpaintop_SOURCES})
 list(REMOVE_ITEM kritagridpaintop_static_SOURCES grid_paintop_plugin.cpp)
 

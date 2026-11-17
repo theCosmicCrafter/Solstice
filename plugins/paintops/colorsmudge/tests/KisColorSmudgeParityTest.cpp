@@ -28,7 +28,7 @@
 
 /**
  * Phase 4 of the brush option shared model
- * (docs/agent/brush-option-shared-model-plan.md): the Color Smudge editor
+ * (docs/agent/brush-option-shared-model.md): the Color Smudge editor
  * must write the same keys and values for every preset as before its
  * migration to the options model.
  *

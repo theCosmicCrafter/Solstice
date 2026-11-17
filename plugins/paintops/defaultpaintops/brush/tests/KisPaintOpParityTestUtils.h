@@ -26,7 +26,7 @@
 
 /**
  * Helpers for the parity tests of the brush option shared model
- * (docs/agent/brush-option-shared-model-plan.md): an engine's editor must
+ * (docs/agent/brush-option-shared-model.md): an engine's editor must
  * write the same keys and values for every preset as before its migration
  * to the options model. References are .properties files next to the
  * presets, written by the code before the migration with

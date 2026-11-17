@@ -87,7 +87,7 @@ KisSpacingInformation KisFilterOp::paintAt(const KisPaintInformation& info)
     if (! brush->canPaintFor(info))
         return KisSpacingInformation(1.0);
 
-    qreal scale = m_sizeOption.apply(info);
+    qreal scale = applyMinimumDabSize(m_sizeOption.apply(info));
     scale *= KisLodTransform::lodToScale(painter()->device());
     if (checkSizeTooSmall(scale)) return KisSpacingInformation();
     qreal rotation = m_rotationOption.apply(info);
@@ -137,7 +137,8 @@ KisSpacingInformation KisFilterOp::paintAt(const KisPaintInformation& info)
 
 KisSpacingInformation KisFilterOp::updateSpacingImpl(const KisPaintInformation &info) const
 {
-    const qreal scale = m_sizeOption.apply(info) * KisLodTransform::lodToScale(painter()->device());
+    const qreal scale =
+        applyMinimumDabSize(m_sizeOption.apply(info)) * KisLodTransform::lodToScale(painter()->device());
     const qreal rotation = m_rotationOption.apply(info);
     return effectiveSpacing(scale, rotation, info);
 }

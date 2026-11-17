@@ -18,7 +18,7 @@ using namespace KisPaintOpParityTestUtils;
 
 /**
  * Phase 4 of the brush option shared model
- * (docs/agent/brush-option-shared-model-plan.md): the MyPaint editor must
+ * (docs/agent/brush-option-shared-model.md): the MyPaint editor must
  * write the same keys and values for every brush as before its migration to
  * the options model.
  *

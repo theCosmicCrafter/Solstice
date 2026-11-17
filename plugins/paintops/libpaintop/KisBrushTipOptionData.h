@@ -21,7 +21,7 @@ using KisResourcesInterfaceSP = QSharedPointer<KisResourcesInterface>;
 
 /**
  * The state of the brush tip option (KisBrushOptionWidget), as one value
- * (docs/agent/brush-option-shared-model-plan.md, phase 2a).
+ * (docs/agent/brush-option-shared-model.md).
  *
  * commonBrushSize is the size shared by the auto, predefined and text tips:
  * switching the tip type keeps it. It is not stored by itself; writing bakes

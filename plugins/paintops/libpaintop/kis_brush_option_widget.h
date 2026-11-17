@@ -31,7 +31,7 @@ public:
     /// The widget owns its state.
     KisBrushOptionWidget(KisBrushOptionWidgetFlags flags);
     /// Solstice: the state lives in @p optionData, e.g. a shared options
-    /// model (docs/agent/brush-option-shared-model-plan.md, phase 2a).
+    /// model (docs/agent/brush-option-shared-model.md).
     KisBrushOptionWidget(KisBrushOptionWidgetFlags flags, lager::cursor<KisBrushTipOptionData> optionData);
 
     ~KisBrushOptionWidget() override;

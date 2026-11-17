@@ -37,7 +37,7 @@
 
 /**
  * Phase 2a of the brush option shared model
- * (docs/agent/brush-option-shared-model-plan.md): the brush tip and masking
+ * (docs/agent/brush-option-shared-model.md): the brush tip and masking
  * brush options moved their state into one value each. The Pixel Brush editor
  * must still write the same keys and values for every preset, and the options
  * must behave the same on a shared model's cursor as on their own state.

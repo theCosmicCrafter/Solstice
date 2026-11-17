@@ -85,7 +85,7 @@ KisSpacingInformation KisHatchingPaintOp::paintAt(const KisPaintInformation& inf
     m_settings->thicknesssensorvalue = m_thicknessOption.apply(info);
 
     const qreal additionalScale = KisLodTransform::lodToScale(painter()->device());
-    const double scale = additionalScale * m_sizeOption.apply(info);
+    const double scale = additionalScale * applyMinimumDabSize(m_sizeOption.apply(info));
     if ((scale * brush->width()) <= 0.01 || (scale * brush->height()) <= 0.01) return KisSpacingInformation(1.0);
     KisDabShape shape(scale, 1.0, 0.0);
 
@@ -172,7 +172,8 @@ KisSpacingInformation KisHatchingPaintOp::paintAt(const KisPaintInformation& inf
 
 KisSpacingInformation KisHatchingPaintOp::updateSpacingImpl(const KisPaintInformation &info) const
 {
-    const qreal scale = KisLodTransform::lodToScale(painter()->device()) * m_sizeOption.apply(info);
+    const qreal scale =
+        KisLodTransform::lodToScale(painter()->device()) * applyMinimumDabSize(m_sizeOption.apply(info));
     return effectiveSpacing(scale);
 }
 

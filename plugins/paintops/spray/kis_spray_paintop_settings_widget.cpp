@@ -46,8 +46,8 @@ KisSprayPaintOpSettingsWidget:: KisSprayPaintOpSettingsWidget(QWidget* parent)
     namespace kposu = KisPaintOpOptionStateUtils;
 
     // Solstice: the option states live in a shared model, so that one option
-    // change writes only that option (docs/agent/brush-option-shared-model-plan.md,
-    // phase 4). The spray shape page shows its size relative to the spray
+    // change writes that option and its dependents after the initial rewrite
+    // (docs/agent/brush-option-shared-model.md). The spray shape page shows its size relative to the spray
     // area's diameter and scale but writes only its own data, so no option's
     // written data depends on another.
     KisPaintOpOptionsModel *model = new KisPaintOpOptionsModel(this);
