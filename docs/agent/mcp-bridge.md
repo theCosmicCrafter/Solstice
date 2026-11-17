@@ -103,6 +103,16 @@ job queue the AI Diffusion docker uses. No second backend is started.
   managed-server upgrades, repairs missing custom nodes and required
   models, and honors the configured update channel. Returns immediately;
   poll `ai_update_status`. No-op while the server is starting/running.
+
+  Backend lifecycle (zero-click): `server_mode` defaults to `managed` on
+  fresh profiles, so the first `autostart` run installs the pinned
+  ComfyUI + custom nodes + required models automatically
+  (`not_installed`/`missing_resources` both route through `install()`;
+  `download()` receives a deduped id list — `find_missing` reports one
+  entry per missing *file*, so multi-file models otherwise pass
+  duplicate ids and crash with an empty not_found message). The setup
+  wizard (cloud/managed/external pick) is only reachable by switching
+  modes after the fact; `settings.restore()` still forces `external`.
 - `ai_update_status`: `{auto_update, update_channel, last_update_check,
   server_state, server_version, comfy_version, missing_resources,
   native_engine}` — `comfy_version` is the installed ComfyUI release,

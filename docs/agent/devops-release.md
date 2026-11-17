@@ -54,6 +54,36 @@ CI layout. Refuses to run while `solstice.exe` is running (DLL locks).
 and never signs anything. First real run is a manual step — validate
 against the same artifact checklist as CI before publishing.
 
+### Verified Qt6 package recipe (2026-11-17)
+
+A full self-contained package was built and verified from the Qt6 tree
+at `C:\solstice-ci` (deps + llvm-mingw + Vulkan SDK already present):
+
+1. `ninja install` into `C:\solstice-ci\i` (whole tree, incl. PyKrita).
+2. G'MIC runtime: `build-tools/gmic/build-runtime.py --work C:\solstice-ci\gmic
+   --install C:\solstice-ci\i --deps C:\solstice-ci\deps
+   --compiler-bin <llvm-mingw>\bin` — required;
+   `package-complete.py` hard-fails without `lib/kritaplugins/krita_gmic_qt.dll`.
+3. `packaging/windows/package-complete.py --no-interactive`
+   with `--src-dir`, `--deps-install-dir C:\solstice-ci\deps`,
+   `--krita-install-dir C:\solstice-ci\i`, `--pre-zip-hook
+   build-tools/windows-shellex/add-shellex.py`; env:
+   `MINGW_BIN_DIR`, `SEVENZIP_EXE`. Output dir must not exist.
+4. Result: 690 MiB zip (8 803 files) + 12 MiB dbg zip + `SHA256SUMS.txt`.
+
+Verified on the extracted copy (no deps on PATH): `Solstice.exe` boots,
+Vulkan/GPU healthy on RTX 5090, kritamcp on :5678 + native TestControl
+on :5679 merge to 116 tools on `/mcp`, `document_new` + 3 input
+scenarios pass, fresh-profile managed-backend bootstrap installs
+ComfyUI automatically (`server_mode` defaults `managed`).
+
+AI payloads are deliberately *not* in the zip: managed ComfyUI +
+models install on first run into `settings.server_path` (pinned,
+hash-checked by the server machinery); the TensorRT bundle resolves at
+runtime (`share/krita/livediffusion/bin` if bundled, else
+`%LOCALAPPDATA%\Solstice\livediffusion`). AGPL obligations attach to the
+engine bundle when it ships, not to the app zip.
+
 ## Open decisions (record resolution in `wiki/decisions/` when made)
 
 - **Version reconciliation**: repo `SOLSTICE_VERSION_*` says

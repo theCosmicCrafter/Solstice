@@ -2048,3 +2048,17 @@ ame:weight)
   descriptive param/setup errors. Env-blocked (sidecars not running):
   ai_h3, ai_drag (own ports refuse). ai_remove_distraction hardened
   to accept rect {x,y,w,h} dicts as well as [x,y,w,h] lists.
+- Qt6 native build + package (2026-11-17): Qt 6.11 full-tree build at
+  C:\solstice-ci (3 real port fixes: QWheelEvent removed APIs x2,
+  missing kis_config_notifier.h). Packaged via gmic build-runtime.py +
+  package-complete.py -> 690 MiB zip + dbg + SHA256SUMS. Extracted copy
+  verified self-contained: boots with no deps on PATH, 116 /mcp tools,
+  scenario replay passes. Scenario-runner flakes (outline-select,
+  lazy-*) are cross-scenario state accretion, not code defects — all
+  pass on clean boot. Zero-click backend: server_mode defaults managed;
+  not_installed routes to install() like missing_resources; download()
+  needs deduped ids (find_missing reports per-file, duplicates crash it
+  with empty not_found). Managed server finds models only under
+  server_path/ComfyUI dirs — extra_model_paths.yaml entries are seen by
+  ComfyUI but not by find_missing, so updater won't fight external
+  libraries it can't scan.
