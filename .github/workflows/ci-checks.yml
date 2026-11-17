@@ -1,0 +1,44 @@
+name: Sanity checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sanity:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.13"
+      - name: Install PyYAML
+        run: 'python -m pip install "PyYAML==6.0.2" --only-binary :all:'
+      - name: Python syntax (plugins + e2e)
+        run: |
+          python -m compileall -q plugins/python tests/e2e
+      - name: Workflow YAML parses
+        run: |
+          python -c "import glob,yaml,sys; [yaml.safe_load(open(f,encoding='utf-8')) for f in glob.glob('.github/workflows/*.yml')]; print('all workflow files parse')"
+      - name: Whitespace check
+        run: git diff --check HEAD~1
+      - name: Docs index and links
+        run: python build-tools/github-actions/check-docs.py .
