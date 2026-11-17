@@ -155,12 +155,14 @@ sets no `SmoothPixmapTransform` hint; the GL canvas's
 Most of this already exists; the work is verify + productize + one new
 feature.
 
-1. ~~**Vector-layer crispness verification.**~~ Confirmed by inspection
-   (2026-10-15): `KisShapeLayerCanvas::repaint()`
-   (`libs/ui/flake/kis_shape_layer_canvas.cpp:403+`) paints shapes with
-   a `documentToView()` transform into view-resolution patches — vector
-   layers re-rasterize at canvas resolution and stay sharp at any zoom.
-   Remaining: GUI confirmation + regression coverage.
+1. ~~**Vector-layer crispness verification.**~~ Correction (2026-10-29):
+   the earlier "confirmed by inspection" was wrong — `documentToView()`
+   in `KisShapeLayerCanvas::repaint()` maps into the *image-pixel*
+   raster target, not the screen, so zooming magnified doc-resolution
+   edges (audit defect D7). Implemented as the view-resolution
+   re-composition decoration `KisViewResVectorDecoration` +
+   `KisViewResVectorCompositor` — see `view-res-vectors.md` for the
+   architecture, eligibility rules and kill-switch.
 2. ~~**Discoverability.**~~ Mostly done (audit 2026-10-15):
    `add_new_shape_layer` sits in the layer docker's new-layer menu
    (`LayerBox.cpp:661`), and node-type badges already exist —

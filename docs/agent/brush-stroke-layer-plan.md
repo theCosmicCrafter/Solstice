@@ -552,6 +552,59 @@ differ ...)」。ファイルの写しで記録を描き直して照合すると
 3. 変形ツール(Free)で拡大して適用しても同じ。元に戻すで大きさと線が戻る。
 4. 境目に段差や継ぎ目が目立たない。
 
+## オンデマンドの描き直しと記録の破棄(製品化、2026年10月28日)
+
+記録をいつでも現在の解像度で描き直せる操作と、記録を捨てる操作を加えた。
+Layer メニュー(最後、`layer_style` の後)と、Layers のレイヤーの右クリック
+メニューに出る。アクティブなノードがブラシストロークレイヤーのときだけ
+有効になる、新しい `KisAction::ACTIVE_BRUSH_STROKE_LAYER`(0x100000)で絞る。
+
+|| 場所 | 内容 |
+|| --- | --- |
+|| `libs/ui/kis_action.h`、`libs/ui/kis_action_manager.cpp` | `ACTIVE_BRUSH_STROKE_LAYER`: アクティブなノードがブラシストロークレイヤーのときだけ操作を有効にするフラグ |
+|| `libs/ui/KisBrushStrokeLayer.{h,cpp}` | `createRerenderCommand()`: 記録を現在のデバイス位置で描き直し、デバイスの内容を置き換える(記録でない部分は消える。元に戻すと画素が戻る)。`markChangeRecorded()` は呼ばないので、バックグラウンドの照合が一致を確かめて警告を下げる。`createForgetStrokesCommand()`: 記録を空にするコマンド(画素はそのまま) |
+|| `KisBrushStrokeLayerMonitor`(同ファイル) | 記録が空のレイヤーは照合しない(状態を Unknown に戻す)。記録を破棄した後や新しいレイヤーで、警告が出ない |
+|| `libs/ui/kis_node_manager.{h,cpp}` | `rerender_brush_strokes` / `forget_brush_strokes` の操作と `rerenderBrushStrokes()` / `forgetBrushStrokes()` スロット。描き直しは `KisRerenderBrushStrokesVisitor`(`KisSimpleProcessingVisitor`)が画像のジョブの中で `createRerenderCommand()` を呼ぶ(描き直しは重いのでGUIスレッドでは走らせない)。破棄は `runSingleCommandStroke()` |
+|| `krita/krita.action`、`krita/krita5.xmlgui` | 操作の定義と Layer メニューの項目 |
+|| `plugins/dockers/layerdocker/LayerBox.cpp` | 右クリックメニューに、ブラシストロークレイヤーのときだけ加える |
+
+意味と修復の方向:
+
+- **Re-render Strokes(描き直し):** 記録どおりに描き直すので、記録でない
+  変更(フィルタ、選択範囲で切られた線の残り)は消える。「記録が正」方向の
+  修復で、警告の印が付いたレイヤーを一致に戻すもう1つの方法(もう1つは
+  元に戻す)。
+- **Forget Recorded Strokes(記録の破棄):** 画素はそのままで記録だけ捨てる。
+  「画素が正」方向の修復。あとの拡大は画素の変換になり、新しく描く線は
+  また記録される。レイヤーの種類はブラシストロークレイヤーのまま。
+
+どちらも1回の操作で元に戻せる。線を1本だけ選んで描き直す・消す操作は、
+線を選ぶUIが要るので段階3(線単位の編集)に残す。
+
+ブラシの間隔と濃さ: 描き直しでは、線の位置とブラシのサイズが変換の倍率に
+従い(`lengthScale()`、面積の倍率の平方根)、点の間隔は記録した
+`KisDistanceInformation`(線の始まり `starts`)とサイズ連動の間隔でそのまま
+再現される。テクスチャは `mapTexture()` が倍率とオフセットを追従させる。
+密度を調整する品質の選択肢は要らないと判断した(間隔はブラシサイズの
+割合なので、拡大で自動的に追従する)。
+
+AIアップスケールとの連携: 計画にもメガプランにも、描き直しの後の超解像
+(SeedVR2など)への受け渡しの規定はない(メガプランのV5.3は評価のみの
+「stretch / research」)。実装しない。
+
+手動確認の項目(未確認):
+
+1. ブラシストロークレイヤーを選ぶと、Layer メニューの最後と右クリック
+   メニューに「Re-render Strokes」「Forget Recorded Strokes」が有効で出る。
+   ほかのレイヤーでは出ない(Layer メニューでは無効)。
+2. 記録と一致しないレイヤー(警告の印)で Re-render Strokes を実行すると、
+   数秒で「matches again」のメッセージが出て印が消え、フィルタなどの
+   変更が消えて記録どおりの線に戻る。元に戻すと画素が戻る。
+3. 一致しているレイヤーで実行しても見た目は変わらない。
+4. Forget Recorded Strokes で警告の印が消え、拡大は画素の変換になる。
+   その後ブラシで描くと、新しい線は記録される(次の拡大でその線だけ
+   描き直される)。元に戻すと記録が戻る。
+
 ## 段階1: 技術検証
 
 テスト `KisBrushStrokeReplayTest`

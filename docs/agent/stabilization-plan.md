@@ -28,6 +28,51 @@ supported by the dispatcher (including `screenshot`, `trigger_action`,
 
 ## P0 — defects in shipped or just-built features
 
+> **Status 2026-10-27.** Lane A fully resolved in code: A1–A3 shimmed in
+> `plugins/python/PyQt5/` (`horizontalAdvance` wrapper, `Qt.MidButton`,
+> `setFilterRegExp` alias), A4 residuals shimmed (`QtXml.py`,
+> `QtMultimedia.py`, `QDesktopWidget`, `setMargin`), A5 binds `127.0.0.1`,
+> A6 `try/except OSError` + `/health` status, A7 `_resolve_allowed_path()`
+> on every file-writing action + traversal e2e, A8 413 body cap + Host
+> allowlist, A9 `restore()` → `ServerMode.external` (`undefined` first-run
+> default kept intentionally for setup flow). Lane B: B1–B3 resolved in
+> `KisOpenGLCanvasRenderer.cpp`/prescaled projection (LOD-plane
+> `GL_TEXTURE_MAG_FILTER` set explicitly at ~:974), B4 resolved
+> (`overviewwidget.cc` uses `SmoothTransformation` with a pixel-art
+> `FastTransformation` fallback). New bridge fixes the same day:
+> `QuietHTTPServer.handle_error` (disconnects log one line, real bugs
+> still trace) and `screenshot scope=canvas` resolves the canvas inside
+> `QMdiArea::activeSubWindow()`. Lane C resolved: `21aab085` had already
+> landed C1–C8; residual gaps fixed — fast+labeled mode bounds
+> (`processImage`/`applySelectionMask`), `modulateMatteAlpha` rounding,
+> `applySelectionMask` view-space deselect rect, missing
+> `klocalizedstring.h` include. C4 then replaced clamping with real
+> downscaling: `downscaleFactor`/`scaledSizeFor` (area budget 3072²,
+> ≥64-px floor) run inference on a scaled crop, matte upsampled back —
+> full coverage, verified by rebuild + e2e. Lane D resolved:
+> D1/D2 were already guarded/fixed; D3 rearchitected — scan now runs in
+> `KisTraceScanStrokeStrategy` (runnable, no undo facade) on a worker
+> thread via `traceDeviceToPathShape`, GUI waits through the cancellable
+> `blockUntilOperationsFinished` dialog; D4 documented. A `QSharedPointer`
+> holder UAF in the first cut (shape deleted while the async
+> `KoShapeCreateCommand` still queued) was found by the e2e suite and
+> fixed by releasing the holder after ownership transfers. C8 closed —
+> `VisionMLMatteTest` covers the unit-testable helpers (alpha modulation
+> incl. antialiased/semi-transparent, region expand/clamp); the audit's
+> other three cases (labeled-layers, colour-space, missing-model) live in
+> plugin internals not linkable from a unit test and are covered at
+> integration level by the e2e `test_matting_to_vector_pipeline` (real
+> `background_removal` inference → trace). D5 closed —
+> `KisLayerManagerTest::testTraceToVector*` covers pt scaling, donut
+> hole, empty layer, threshold and simplification; the single-undo-step
+> guarantee is asserted in e2e (`test_trigger_action_and_trace_to_vector`,
+> undo removes exactly one vector layer, redo restores); the proposed
+> `KisPrescaledProjectionTest` was skipped — no unit harness for that
+> class exists and smooth high zoom is covered by the e2e
+> `test_smooth_high_zoom_display` pixel check. E4 closed — e2e now
+> covers all ten named actions + `/info` (40 tests). Full packaged
+> suite: **40 passed, 0 skipped**.
+
 ### Lane A — Python plugins, shim and bridge (`plugins/python/` only)
 
 | #   | Finding                                                                                                                                                                                                                                                                                               | Where                                                    | Fix                                                                                                                                                                                                                 |
@@ -58,7 +103,7 @@ supported by the dispatcher (including `screenshot`, `trigger_action`,
 | C1  | **BLOCKER.** In _color-labeled layers_ mode the merge is queued asynchronously but `exactBounds()` is read at once on the GUI thread, so the region is empty and the tool silently does nothing. (Code reading matches the audit.) | `SegmentationToolHelper.cpp` ~237, 347-361 | Compute bounds from `image->bounds()` or crop inside the stroke command.                                                              |
 | C2  | Lasso mask and source alpha are binarized: antialiased lasso edges and semi-transparent source pixels get full matte.                                                                                                              | `SegmentationToolHelper.cpp:291-294`       | Multiply `matte * mask * alpha / 255²` with rounding.                                                                                 |
 | C3  | Wait cursor released when the stroke is _scheduled_, not finished; no progress, no cancel.                                                                                                                                         | `:224, 254-308`                            | Tie cursor/progress to stroke completion; add `KoUpdater`.                                                                            |
-| C4  | Crop size uncapped (8K layers allocate hundreds of MB, single-threaded loops); crops under 64 px can fail in GGML.                                                                                                                 | `:238-241, 280-297`                        | Cap (about 3072 px) with downscale, enforce ≥ 64 × 64.                                                                                |
+| C4  | Crop size uncapped (8K layers allocate hundreds of MB, single-threaded loops); crops under 64 px can fail in GGML.                                                                                                                 | `:238-241, 280-297`                        | **Resolved (2026-10-27).** Area budget `kMaxInferencePixels` (3072²); oversized regions run inference on a downscaled crop (`downscaleFactor`/`scaledSizeFor`) and the matte is upsampled to full region size — full coverage, no clamp. Warning now reports the downsampled size. Enforce ≥ 64 × 64 via `expandRegionToMin`/`kMinInferenceDim` floor. |
 | C5  | Inference failure still commits an empty undo step.                                                                                                                                                                                | `:209, 260-308`                            | `applicator.cancel()` on failure.                                                                                                     |
 | C6  | `tryDeselectCurrentSelection` receives image coordinates after padding.                                                                                                                                                            | `:245`                                     | Use view-space rect before padding, as `kis_tool_select_outline.cc:61-68`.                                                            |
 | C7  | 8-bit non-sRGB layers skip colour conversion.                                                                                                                                                                                      | `VisionML.cpp:388-397`                     | Compare profile with sRGB before the raw fast path.                                                                                   |

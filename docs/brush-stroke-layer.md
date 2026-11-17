@@ -62,7 +62,19 @@ also checks when a file is opened. If they no longer match:
   thumbnail turns into a yellow warning sign.
 
 Undoing the edit that changed the pixels makes the layer match again; a
-message says so and the warning sign goes away.
+message says so and the warning sign goes away. Two other ways to get rid of
+the warning are in the **Layer** menu and in the layer's right-click menu in
+the Layers docker (they only apply to Brush Stroke Layers):
+
+- **Re-render Strokes** draws the remembered strokes again at the current
+  size, replacing the layer's content: the part of the layer that is not a
+  remembered stroke (a filter's result, the cut part of a clipped stroke) is
+  removed and the layer matches again. Undo restores the earlier pixels.
+- **Forget Recorded Strokes** keeps the pixels but drops the remembered
+  strokes. The layer then enlarges like a paint layer — but new strokes
+  painted on it are remembered again.
+
+Both are one undoable step.
 
 ## Saving
 

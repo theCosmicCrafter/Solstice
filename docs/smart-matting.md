@@ -47,12 +47,6 @@ selection:
   - **All Layers**: samples the composite image projection of all visible layers.
   - **Color Labeled Layers**: samples visible layers assigned specific color
     labels.
-    > [!WARNING]
-    > **Known issue:** in the current build, Color Labeled Layers mode fails to
-    > produce a selection because the layer merge runs asynchronously while the
-    > bounding area is inspected immediately on the GUI thread (defect C1 in the
-    > stabilization plan). Use **Current Layer** or **All Layers** mode while the
-    > fix is pending.
 
 ## Model selection and HR matting
 

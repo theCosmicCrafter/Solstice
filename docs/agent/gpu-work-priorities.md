@@ -590,6 +590,16 @@ HSL/HSV系、F16のSoft Light(Photoshop)など、GPU未対応のブレンドモ�
 - ビット一致が必要で、直後に半精度・整数への丸めがある積和を `roundedProduct()` に置き換えた（F16のlerp、
   F16 Alpha Darkenの色、Liquifyの座標と重み）。詳細は `gpu-engine.md` の「Precise contraction audit (phase 4.109)」。
 
+フェーズ4.110（2026年10月27日、優先度4の残り首位）: 透視変形（perspective transform）のGPU化。
+- `KisPerspectiveTransformWorker::runImpl`/`runPartialDst` の逐ピクセル3x3射影逆マップを
+  `perspective_transform.comp` に移植した。`QTransform::do_map()` をdoubleで再現し、
+  bilinear（`sampledOldRawData` 同等）とnearestの両サンプリングをCPUとビット一致させた。
+- `KisGpuPerspectiveWorker`（`canRun`: float64対応・RGBA F32/F16・LOD0・wrap-around不可・同一色空間）と
+  `KisGpuPerspectivePass`（行ごとの宛先スパンテーブル、失敗フラグでCPUフォールバック）を追加。
+- 進捗は `KisProgressUpdateHelper` のスコープで維持（GPU成功時はデストラクタが完了を報告）。
+- キルスイッチ: `KRITA_GPU_PERSPECTIVE=0`。ユニットテスト環境ではバックエンド未初期化のため
+  CPUパスのみが走り、GPU実機での視覚確認は手動マトリクスに残る。`libkritaimage`/`libkritagpu` クリーンビルド。
+
 ## 関連する付随作業
 
 - READMEの操作ベンチマーク表(投影・キャンバス・ミラー)はフェーズ4.42の

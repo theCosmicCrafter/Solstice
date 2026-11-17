@@ -31,10 +31,10 @@ shape together.
 - **Hard edge.** Pixels are counted as painted when their alpha is at
   least 50 %, so soft antialiased edges become a hard boundary — normal
   for vector output.
-- **Pixel-accurate outlines.** The path follows the raster edge
-  polygonally; it is not smoothed. For the cleanest results trace from a
-  high-resolution source, or simplify the resulting path with the shape
-  editing tools.
+- **Pixel-accurate outlines.** Outlines are simplified into Beziers via
+  `KisAlgebra2D::trySimplifyPath(outline, 1.0)`. For the cleanest results
+  trace from a high-resolution source, or further refine the resulting path
+  with the shape editing tools.
 - Empty or fully transparent layers produce a short notice and no new
   layer.
 

@@ -142,8 +142,33 @@ update possible.
   websockets @ `624a36cc` ships as source)
 - License: GPL-3.0
 - PyQt6 status: native — upstream migrated to PyQt6; vendored tree imports
-  PyQt6 directly, no shim needed
+  PyQt6 directly. On a Qt5 Solstice build (`HAVE_PYQT6` false) the
+  reverse shim `plugins/python/PyQt6/` (PyQt6 → PyQt5, only `QAction`
+  needs relocating) is installed so the plugin loads; on Qt6 builds it
+  is not installed.
 - Local patches:
+  - `__init__.py` — the Krita 6.x version gate also accepts the Qt5
+    Krita 5.3.x host when the reverse PyQt6 shim is present
+    (2026-11-16; v1.51 was the last release that targeted Krita 5)
+  - `util.py` `exclusive_poll_tick`, used by `document.py`
+    `KritaDocument._poll_tick` and `layer.py`
+    `LayerManager._update_tick` (2026-11-16) — every open document
+    owns a 20 ms poll timer and a 500 ms layer timer, and both call
+    `Document.activeNode()`, which pumps the event loop
+    (`forceDeliverAllSynchronizedEvents`). Each tick then fired the
+    other documents' timers nested inside itself, so nesting grew with
+    the number of open documents and about 23 documents overflowed the
+    GUI stack (0xC00000FD). The shared guard skips a nested tick.
+    Direct `update()` calls are not guarded. Keep both patches on
+    re-vendor.
+  - `document.py` `PoseLayers._timer` also wrapped in
+    `exclusive_poll_tick` (2026-11-16) — a module-level singleton with an
+    unconditional 500 ms timer calling `KritaDocument.active_instance()`;
+    same re-entrancy class, found by the resource-management audit.
+  - `style.py` `Styles.find_style_files` skips `.json` files under
+    hidden folders (2026-11-16). Before this, an editor's
+    `.vscode/settings.json` in the user styles folder loaded as a style
+    with no checkpoints, named "Default Style".
   - `settings.py` — default `server_url` is `127.0.0.1:8189`
     (ComfyUI Desktop) instead of upstream `127.0.0.1:8188`; new
     `civitai_lookup` (opt-in) and `show_legacy_styles` (default off)
@@ -167,9 +192,95 @@ update possible.
     split, ancillaries demoted to `optional`)
   - Bug fix: `Arch.sd35` referenced by `from_checkpoint_name` did not
     exist — model folders named `sd3.5/` crashed discovery
+  - Phase 7.10 model metadata (2026-10-26, `openfill-intake.md`):
+    `ModelResource.license` / `min_vram_gb` fields in
+    `backend/resources.py` (parsed + round-tripped via `as_dict`);
+    `presets/models.json` annotated — non-commercial flags on FLUX
+    dev/Kontext checkpoints, the Flux VAE and MAT inpaint,
+    `apache-2.0`/`mit`/`openrail` labels elsewhere; `ui/server.py`
+    renders `name · license` on package rows and disables
+    over-VRAM entries with a "Needs N GB VRAM" status fed by the
+    connected client's `device_info` (`PackageGroupWidget.device_vram`)
+  - Lora-Manager intake (2026-10-26): `optional_custom_nodes` gained
+    `ComfyUI-Lora-Manager` (willmiao, MIT, pinned commit
+    `1fb1d5bb` = v1.2.6) — its manager UI serves at `<server>/loras`
+    on the managed ComfyUI; `_install_custom_node` now runs
+    `pip install -r requirements.txt` for nodes that ship one (a
+    general installer improvement — previously only ComfyUI's own
+    requirements were installed); `backend/modelspec.py`
+    `extract_sidecar_metadata` reads LM's `<name>.metadata.json`
+    sidecars into `File.metadata` (`modelspec.title`/`base_model`,
+    `trigger_words`/`lora_triggers`, `civitai` block) so LM-managed
+    models show name/arch/triggers in the model browser with no
+    network lookup. Runtime verified 2026-10-27: node installed at
+    `D:\krita\ComfyUI\custom_nodes\ComfyUI-Lora-Manager` (pinned
+    1fb1d5bb), 16 deps in managed venv, import clean, `/loras`
+    serves HTTP 200 on :8188.
+  - Phase 8.3 installer hardening (2026-10-27): `_extract_archive`
+    zip-slip validation; `_verify_downloaded` inline sha256 check
+    after every model download + re-download (removes corrupt files
+    fast); `_write_metadata_sidecar` emits LM-compatible sidecars for
+    managed downloads (never overwrites existing). Verified upstream
+    already ships: Range-resume `.part` downloads, 3x retry, stall
+    timeout, `try_install` rollback, ComfyUI-GGUF node, GGUF catalog
+    entries.
+  - Phase 8.1 model wave (2026-10-27): cherry-picked upstream PR
+    #2641 (Flux.3 Klein: `Arch.flux3`, qwen3vl_4b clip wiring,
+    sampler + style, VAE mapping); 3 hunks hand-merged
+    (resources/workflow/samplers). PR's `tests/*` files absent
+    locally — not ported. Added catalog entries with HF-API-verified
+    sha256: Qwen 2.1 int8 + Turbo int8 checkpoints, `qwen3vl_8b` /
+    `qwen3vl_4b` encoders, `vae-default-qwen2`, `vae-default-flux3`;
+    styles `qwen-image-2[-turbo].json`. Flux3 checkpoint download
+    stays manual — BFL repo license-gated, no anonymous hash.
+    URL liveness sweep: all 77 existing file URLs return 200.
+  - MOSS Image (2026-10-26): cherry-picked upstream PR #2640 —
+    `Arch.moss`, `moss_image` clip type in workflow, MOSS samplers,
+    `styles/moss-image.json`, theme icons, `lora-edit-moss` catalog
+    entry, edit gating via `TextEncodeMOSSImageEdit` node +
+    edit-LoRA availability. Merge fixes applied locally:
+    `Arch.moss` added to `Arch.list()` (without it per-arch scans
+    silently skip VAE/encoder resolution), `ui/upscale.py` bad
+    `..backend.image` import corrected to `..image`, `qwen35formoss`
+    added to `qwen_35_9b` encoder patterns (matches the user's
+    original `qwen35ForMossImage_v10` file). Weights are the user's
+    own: `moss_image_sft_int8_convrot` + `qwen3.5_9b_w4a8_gptq`
+    copied F:→`D:\models`; ComfyUI core upgraded to commit
+    `b9b290e` (0.42.0-dev) which carries native `moss_image`/`flux3`
+    support (custom_nodes, user, input, output,
+    extra_model_paths.yaml preserved). `TextEncodeMOSSImageEdit` is
+    NOT in that core — edit mode stays gated off until a later
+    ComfyUI or a custom node provides it; t2i is unaffected.
+    kritamcp `ai_status`/`ai_*` now surface the real plugin import
+    error when `ai_diffusion` is absent from sys.modules instead of
+    a blanket "not enabled".
+  - Runtime verified (2026-10-27, external ComfyUI at D:\krita on
+    :8188, RTX 5090 32 GB): `ai_connect` → connected; 200 checkpoints
+    + 2420 loras indexed from D:\models junction; `/loras` HTTP 200
+    (LM node imported clean); `ai_generate` style "Qwen Image 2.1" →
+    job finished, `ai_apply` → generated layer on canvas. Same
+    session also verified: style "MOSS Image" → job finished,
+    3 results, generated layer applied; `ai_catalog` lists 22 arches
+    incl. Flux 3 + MOSS Image; `ai_install{packages}` targeted
+    downloads with `.part` Range-resume verified on a stalled
+    1.98 GB controlnet (resumed at byte offset). Note:
+    `server_state` stayed `update_required` (version-file mismatch)
+    in external mode — cosmetic; heavyweight `upgrade()` is the fix
+    if it ever blocks managed autostart.
+  - Native live engine (2026-11-16, megaplan Phase 3 — see
+    `docs/agent/native-live-engine.md`): NEW FILE `native_engine.py`
+    (ctypes bridge to `librediffusion.dll`, engine discovery, klein
+    stream wrapper, per-document `NativeLiveEngine`); `settings.py`
+    `live_engine` + `native_engine_dir` settings; `ui/settings.py`
+    combo + text row; `model/model.py` — `LiveWorkspace` owns the
+    engine, `_continue_generating` branches on `live_engine` with
+    one-shot error report + ComfyUI fallback, `toggle(False)` releases
+    the stream. Keep all four on re-vendor.
 - Default state: enabled
-- Last re-check: 2026-10-14 — vendored; server connect/generation needs a
-  real build + ComfyUI on :8189
+- Last re-check: 2026-10-27 — live-verified on Solstice-0.5.0 build;
+  external ComfyUI path exercised end-to-end (connect → generate →
+  apply). Managed-mode autostart still gated by `update_required`
+  until `upgrade()` runs.
 - Re-vendor trigger: upstream `v1.54.0` final (due ~end of Oct 2026;
   `v1.54.0-pre` shipped 2026-10-03 with the upstream Krita 6/Qt6
   migration and Qwen Image 2.1 support). Procedure: fast-forward
@@ -196,9 +307,57 @@ update possible.
     require `Authorization: Bearer`
   - companion change outside this repo: `krita-mcp/server.py` reads the
     token from `KRITAMCP_TOKEN` or kritarc and sends the header
+  - Phase 7.10 AI-generation actions (2026-10-26, `openfill-intake.md`):
+    `ai_status`, `ai_styles`, `ai_generate` (modes auto/fill/remove/
+    expand/create through `root.model_for_active_document()` →
+    `DocumentModel.generate()` in-process on the shared managed
+    ComfyUI), `ai_expand` (canvas grow + select-all + outpaint in one
+    call — Photoshop Generative Expand), `ai_jobs`, `ai_apply`
+    (apply any result as a layer), `ai_discard` (delete a variation),
+    `ai_cancel`. Async enqueue: `ai_generate` returns
+    `jobs_from_index`; callers poll `ai_jobs`. `apply:true` (default)
+    auto-applies result 0 on `job_finished` unless the user's
+    finished-action already does. Mutated model props are restored
+    after enqueue; the prompt stays for docker transparency.
+    Details: `docs/agent/mcp-bridge.md` §AI generation
 - Default state: enabled
 - Last re-check: 2026-10-14 — vendored; end-to-end MCP round-trip needs a
   real build + the external server running
+
+### lookfx — local source asset (planned feature port, Phase 11.5)
+
+- Source: `F:\lookfx` (user's own project; also `F:\lookfx-dist`,
+  `F:\lookfx-wt` worktree). Upstream license: see `F:\lookfx\LICENSE`
+- Not yet vendored. Target: halftone screens / paper substrates /
+  capillary bleed / plate misregistration / C-M-Y-K separations as a
+  Solstice generator layer + filter (Phase 11.5, megaplan).
+- Relevant code: `src/lookfx_core/` (effect.py, colorspace.py,
+  tensors.py, chain.py — torch GPU pipeline, chunk-invariant rendering,
+  in-memory texture cache patterns) and `src/cmykmagic/` (print presets,
+  paper substrates, ink params).
+- Port decision open: preferred native filter port; fallback embedded
+  python GPU worker.
+
+### flarecore — local source asset (planned feature port, Phase 11.5)
+
+- Source: `F:\AIPrograms\_Dev_Projects\flarecore`
+- Upstream: optical engine authored by cyco.creates — **Apache-2.0**
+- Not yet vendored. Target: lens-flare generator/filter (41 presets, 182
+  element textures under `src/flarecore/elements/`, depth-map occlusion,
+  auto light-source detection, multi-frame tracking, linear-space torch
+  render). Also the code reference for Harmonize (9.2) light inference.
+
+### cosmic_nodes_v2 — local source asset (reference/mining)
+
+- Source: `F:\cosmic_nodes_v2` (user's own 174-node ComfyUI pack;
+  worktrees `cosmic_nodes_v2-baseline`, `cosmic_nodes_v2-wip`)
+- Not vendored into Solstice. Relevant for phases 9-12 mining:
+  `nodes/hdr/` (HDR pipeline), `nodes/video/` (video gen helpers),
+  `nodes/lora/`, `nodes/prompt/` + `cosmic_prompt_server.py` (LLM prompt
+  building — useful for ideation-surface prompt mutation later),
+  `nodes/image/`, `nodes/save/` (ProRes/FFV1 writers).
+- License: see `F:\cosmic_nodes_v2\LICENSE`; `agpl_licensed/` subtree is
+  AGPL — keep anything ported OUT of that subtree.
 
 ## PyQt5 -> PyQt6 compatibility shim
 

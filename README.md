@@ -57,8 +57,11 @@ features Solstice adds are described in its [user guides](docs/README.md).
   Shortcut Composer, BuliNotes, BuliBrushSwitch, Timer Watch and the local
   MCP agent bridge ship enabled on first run; Blender Layer is bundled but
   off by default. These nine ship in addition to Krita's standard Python
-  plugins, which remain installed. These are in addition to Krita's standard bundled Python
-  plugins.
+  plugins, which remain installed.
+- **[AI Generative Fill](docs/generative-fill.md)**: select an area, choose
+  Select > AI Generative Fill, and the bundled AI Diffusion plugin fills it
+  as a new layer — content-aware with an empty prompt, or guided by the
+  docker's prompt.
 - **[Trace to Vector Layer](docs/trace-to-vector.md)**: turn a paint layer's
   alpha into a crisp vector shape with Layer > Convert, part of the
   vector-quality roadmap.
@@ -66,6 +69,9 @@ features Solstice adds are described in its [user guides](docs/README.md).
   filtered display above 200 % zoom (View menu and Display settings, on by
   default) on both canvas backends — no more hard pixels when inspecting
   artwork up close.
+- **[View-resolution vector layers](docs/canvas-display.md#view-resolution-vector-layers)**:
+  vector layers stay crisp at any zoom — their edges are re-rendered for
+  the screen at display resolution while keeping normal layer stacking.
 - **Sharper output defaults**: Lanczos3 for image downscaling, 300 ppi
   vector/SVG imports, and 90-quality WebP/HEIF exports.
 - **[Puppet Warp](docs/puppet-warp.md)**: pose and reshape artwork with movable

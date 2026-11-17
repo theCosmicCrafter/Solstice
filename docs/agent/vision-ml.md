@@ -31,7 +31,13 @@ Vision ML is a normal native Krita tool/filter plugin. Do not restore the Python
   CPU-only builds must remain functional and show the GPU backend as disabled.
 - The development machine has a copy-only LunarG Vulkan SDK 1.4.357.0 at
   `<krita-dev-root>\VulkanSDK\1.4.357.0`; it is intentionally absent from PATH
-  and the registry.
+  and the registry. It was provisioned on this machine on 2026-11-16 from the
+  sha256-pinned installer in `build-tools/github-actions/windows-dependencies.lock.json`
+  using the same headless `copy_only=1` mode as CI (`bootstrap-windows.py`).
+- `libs/gpu` now requires the GPU engine by default (`KRITA_GPU_ENGINE=ON`);
+  configure fails loudly without the SDK. Vision ML still degrades to the CPU
+  backend with a `WARNING` when Vulkan is absent — only possible under an
+  explicit `-DKRITA_GPU_ENGINE=OFF` build.
 - The installed Vulkan runtime has been verified on the NVIDIA RTX PRO 6000
   Blackwell with FP16, BF16, integer dot products, and NVIDIA cooperative
   matrices.

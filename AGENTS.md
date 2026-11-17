@@ -105,6 +105,14 @@ started.
 third-party plugins, the bundled agent bridge and the Smart Select native
 port into `plugins/visionml`. `docs/agent/plugin-intake.md`: per-plugin
 vendoring ledger (source, pin, patches, re-check cadence).
+`docs/agent/openfill-intake.md`: OpenFill survey and borrowed-UX work
+items (proposed phase 7.10). `docs/agent/lora-manager-intake.md`:
+ComfyUI-Lora-Manager survey — shipped metadata/sidecar/dedup quick wins
+plus the D:\models catalog audit (remaining menu: recipes, bulk sync).
+`docs/agent/phase11-implementation-plan.md`:
+research-backed build plan for the art-side native phase (spectral
+pigment mixing, wet-media engine, parametric strokes, LookFX/flarecore
+ports, docker QoL) — execute Phase 11 against that document.
 
 ### Vector-quality plan
 
@@ -118,6 +126,31 @@ brush-stroke layer, quality defaults/export, and AI/ML output quality.
 `docs/agent/stabilization-plan.md`: audit-derived defect list and revised
 Phase 6 / vector-quality open items (2026-10-15); where it conflicts with the
 two megaplans on an open item, it wins until merged back.
+
+### Rendering & art-engine plan
+
+`docs/agent/rendering-art-engine-megaplan.md`: draft roadmap (2026-11-15)
+for the `Solstice-1.1.1` selective foundation rebase, real-time AI canvas
+(`librediffusion`), segmentation/layered diffusion, and art-engine work
+(LookFX/Flarecore, viewport, Look Engine). Item status and provenance live
+in `docs/agent/integration-ledger.md`. It supersedes
+`phase11-implementation-plan.md` §11.5's external-worker approach.
+Phase documents: `foundation-rebase-inventory.md` (verified 1.1.1 diff
+inventory + merge order), `unified-mcp-design.md` (one `/mcp` surface),
+`librediffusion-intake.md` (API verification + AGPLv3 license finding),
+`local-assets.md` (wildcards/poses/LUT auto-discovery).
+
+### DevOps
+
+`docs/agent/devops.md` is the master DevOps index (topology, policy,
+first-run checklist). Focused docs: `devops-ci.md` (workflow inventory +
+sanity gate), `devops-environments.md` (toolchain pins, asset roots, env
+vars), `devops-dependencies.md` (dep lock/mirror, vendoring, licenses,
+model payloads), `devops-testing.md` (test pyramid, GPU rules),
+`devops-release.md` (release runbook, `package-local.ps1`, open
+decisions), `devops-security.md` (secrets, supply chain, compliance).
+Local toolchain manifest/verifier: `build-tools/toolchains/`; docs link
+check: `build-tools/github-actions/check-docs.py`.
 
 ### General development guides
 
@@ -198,7 +231,8 @@ Read these before adding or updating any feature:
   moves carry the strokes and a background record check warns when the
   pixels stop matching, done and manually checked 2026-10-13; scaling
   redraws all but the mismatching part, done and manually checked
-  2026-10-13):
+  2026-10-13; on-demand Re-render Strokes / Forget Recorded Strokes actions
+  (Layer menu + layer context menu) added 2026-10-28):
   `docs/agent/brush-stroke-layer-plan.md`
 - Photoshop brush (ABR) import improvements (phase 1, ABR tips saved with
   brush stroke layers, done and manually checked 2026-10-10; phase 2, new
@@ -222,6 +256,19 @@ Read these before adding or updating any feature:
   `docs/agent/trace-to-vector.md`
 - SVG export (vector layers → `<g>` groups via `kritasvgexport` impex
   filter): `docs/agent/svg-export.md`
+- View-resolution vector layers (D7: crisp vector edges at any zoom via a
+  compositing-aware re-composition decoration on both canvas backends):
+  `docs/agent/view-res-vectors.md`
+- AI Generative Fill (Select > AI Generative Fill; one-click selection
+  inpaint through the vendored ai_diffusion pipeline, result auto-applied
+  as a new layer): `docs/agent/generative-fill.md`
+- Spectral pigment mixing (Phase 11.1: `COMPOSITE_PIGMENT` Kubelka–Munk
+  composite op for RGB colorspaces — layer blend mode, brush Blending
+  Mode and Color Smudge color-rate mixing; CPU slice done):
+  `docs/agent/spectral-mixing.md`
+- Local asset roots (ai_diffusion: `__name__` prompt wildcards wired;
+  pose-image and LUT indexes with configurable roots, zero downloads):
+  `docs/agent/local-assets.md`
 
 Before changing a listed feature, read its complete agent document. When a new
 custom feature is added, create its `docs/agent/<feature>.md` technical document,

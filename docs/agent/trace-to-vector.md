@@ -14,19 +14,31 @@ document scaling. Menu: **Layer > Convert > Trace to Vector Layer**
 1. Takes the active node's projection (falls back to `paintDevice()` /
    `original()`), so group layers and layers with masks/filter layers
    trace their *visible* result.
-2. Builds a binarized `KisPixelSelection` from pixel alpha
-   (`opacityU8 >= 128`) — same iteration pattern as
-   `KisSelectionManager::selectOpaqueOnNode`, but hard-thresholded so
-   faint residue does not inflate the outline.
-3. Runs `KisUpdateOutlineJob` and reads `KisSelection::outlineCache()`
-   for a `QPainterPath`, then maps it image→document space and creates
-   a `KoPathShape` — identical to `KisSelectionToVectorActionFactory`.
-4. Fills the shape with the current **foreground color** (no stroke),
+2. Runs the trace inside a dedicated, non-undo stroke job
+   (`KisTraceScanStrokeStrategy` + `KisRunnableStrokeJobData`,
+   barrier+exclusive), so the pixel scan executes on a worker thread
+   instead of freezing the GUI. The GUI waits via
+   `blockUntilOperationsFinished()`, which keeps events flowing and shows
+   the standard cancellable busy dialog for scans longer than ~1 s. The
+   job calls `KisLayerManager::traceDeviceToPathShape()` — the static,
+   unit-tested core — which:
+   - builds a binarized `KisPixelSelection` from pixel alpha
+     (`opacityU8 >= 128`) — same iteration pattern as
+     `KisSelectionManager::selectOpaqueOnNode`, but hard-thresholded so
+     faint residue does not inflate the outline;
+   - recalculates the outline cache, maps the resulting `QPainterPath`
+     image→document space (`scale(1/xRes, 1/yRes)`, identical to
+     `KisSelectionToVectorActionFactory`), simplifies the staircase
+     outline, and returns a `KoPathShape` with `KoPathShapeId` and the
+     outline's fill rule.
+3. Fills the shape with the current **foreground color** (no stroke),
    adds a new `KisShapeLayer` ("Traced Layer") above the source layer via
    `addLayerCommon`, and parents the shape into it with
    `shapeController()->addShapeDirect(shape, layer.data())`.
-5. Both commands run inside one `KisProcessingApplicator` — a single
-   "Trace to Vector Layer" undo step.
+4. The layer-add and shape-add commands run inside one
+   `KisProcessingApplicator` — a single "Trace to Vector Layer" undo
+   step (the scan stroke has no undo facade and pushes nothing to the
+   undo stack).
 
 ## Touch points
 
@@ -41,6 +53,9 @@ document scaling. Menu: **Layer > Convert > Trace to Vector Layer**
 
 - Single-color trace: the whole outline gets the FG color. Multi-color
   posterized tracing (per-color paths) is not implemented.
+- The fill colour is quantized to 8-bit sRGB: it passes through
+  `QColor`/`KoColorBackground`, so wide-gamut or HDR foreground colours
+  are clamped.
 - Outline fidelity is the selection-outline algorithm's — pixel-accurate
   polygon outlines, not smoothed Bezier fitting. For clean results, trace
   at high resolution or simplify the resulting path with the shape tool.

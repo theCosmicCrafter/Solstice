@@ -37,6 +37,8 @@ Technical notes for developers are in [`agent`](agent/).
   background removal, run on your computer.
 - [Smart Matting Selection](smart-matting.md): soft-edged lasso selections
   using the BiRefNet matting model.
+- [AI Generative Fill](generative-fill.md): one-click AI fill of the
+  selection as a new layer, via the bundled AI Diffusion plugin.
 
 ## Workflow and interface
 

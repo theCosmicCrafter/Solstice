@@ -1271,6 +1271,11 @@ generation retain their earlier priority; existing phase numbers are unchanged.
 
 `kritagpu` is built only when CMake finds the Vulkan headers and `glslc`
 (the private SDK is passed as described in `docs/agent/vision-ml.md`).
+Since 2026-11-16 it is **required by default**: `libs/gpu/CMakeLists.txt`
+fails configure when the SDK is missing (`option(KRITA_GPU_ENGINE ON)`);
+an explicit `-DKRITA_GPU_ENGINE=OFF` is the only CPU-only opt-out. The
+runtime engine still degrades gracefully — without a verified Vulkan
+device every GPU path falls back to CPU.
 
 ```bat
 cmd.exe /d /s /c "call <krita-dev-root>\env.bat && cmake --build <krita-dev-root>\_build --target kritagpu KisGpuEngineTest KisGpuGLInteropTest -j 8"
@@ -1339,6 +1344,7 @@ cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P <krita-dev-root>\_build\libs\gpu\cmake_ins
 | `KisGpuGLInterop_p.h` (private) | GL_EXT_memory_object / GL_EXT_semaphore entry points and the device-UUID check shared by the interop classes. |
 | `KisGpuSeparableConvolutionPass.*` + `shaders/separable_convolution.comp` | Phase-4.98 separable convolution in bands: horizontal pass into a double intermediate, vertical pass with the FFT worker's write rules. |
 | `KisGpuMaskingCompositePass.*` + `shaders/masking_composite.comp` | Phase-4.101 masking brush composite: stroke pixels into the target with the mask composited into alpha, ten modes, CPU-exact. |
+| `KisGpuPerspectivePass.*` + `shaders/perspective_transform.comp` | Perspective transform: `QTransform::do_map()` 3x3 projective backward map over per-row destination spans, bilinear (`sampledOldRawData()`) or nearest sampling, CPU-exact; failure flag for out-of-grid samples. |
 
 ## Source map (`libs/image`)
 
@@ -1357,6 +1363,7 @@ cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P <krita-dev-root>\_build\libs\gpu\cmake_ins
 | `kis_updater_context.cpp` | Tile-aligned job exclusivity when `KisGpuMergeBatch::mayCompositeOnGpu`. |
 | `gpu/KisGpuConvolutionWorker.*` | Phase-4.98 Gaussian convolution: old-data snapshot, one GPU submission into a temporary device, CPU copy into the rect. Called by `KisGaussianKernel::applyGaussian()`. |
 | `gpu/KisGpuMaskingWorker.*` | Phase-4.101 masking brush composite for `KisPainterBasedStrokeStrategy::doMaskingBrushUpdates()`; `supports()` is also used by `KisBrushOp`. |
+| `gpu/KisGpuPerspectiveWorker.*` | GPU path of `KisPerspectiveTransformWorker`: both `runImpl()` (Transform Tool, OverwriteAll onto the cleared destination) and `runPartialDst()` (transform-mask affine updates, KeepUnwritten). One submission per call; `KRITA_GPU_PERSPECTIVE=0` forces the CPU. |
 
 ## Source map (`libs/ui`)
 
@@ -1394,9 +1401,10 @@ cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P <krita-dev-root>\_build\libs\gpu\cmake_ins
   accepted when they meet the feature requirements (discrete GPUs are
   preferred). Test: `KisGpuEngineTest::testSoftwareDevicesRefused`.
 - With the engine on, `KRITA_GPU_TRANSFORM=0`, `KRITA_GPU_LIQUIFY=0`,
-  `KRITA_GPU_PUPPET=0` and `KRITA_GPU_CONVOLUTION=0` keep the affine passes,
-  Liquify (and with it Puppet Warp, which shares the grid warp), Puppet Warp
-  alone and the Gaussian convolution on the CPU (development switches).
+  `KRITA_GPU_PUPPET=0`, `KRITA_GPU_CONVOLUTION=0` and `KRITA_GPU_PERSPECTIVE=0`
+  keep the affine passes, Liquify (and with it Puppet Warp, which shares the
+  grid warp), Puppet Warp alone, the Gaussian convolution and the perspective
+  transform worker on the CPU (development switches).
 - No `.kra` changes or persisted ids: `.kra` files stay readable by the CPU
   path and upstream Krita; GPU mode stores RGBA F32/F16 layers with the
   normal Krita color space ids. Saving works through the CPU path: the tile
