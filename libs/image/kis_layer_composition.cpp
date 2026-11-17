@@ -23,6 +23,7 @@
 #include <QDomDocument>
 #include <QMutexLocker>
 #include "commands/kis_node_property_list_command.h"
+#include "commands_new/KisLayerCollapseCommand.h"
 #include "kis_layer_properties_icons.h"
 #include "kis_command_utils.h"
 
@@ -291,8 +292,10 @@ KUndo2Command *KisLayerComposition::createApplyCommand(bool preserveMissing)
             command->addCommand(new KisNodePropertyListCommand(node, properties));
             changed = true;
         }
-        if (collapsed.contains(node->uuid()))
-            node->setCollapsed(collapsed.value(node->uuid()));
+        if (collapsed.contains(node->uuid()) && node->collapsed() != collapsed.value(node->uuid())) {
+            command->addCommand(new KisLayerCollapseCommand(node, collapsed.value(node->uuid())));
+            changed = true;
+        }
     });
     if (!changed) {
         delete command;

@@ -222,7 +222,7 @@ QVector<KisDustDetector::Component> KisDustDetector::detect(KisPaintDeviceSP ref
     QVector<QPoint> surroundings;
 
     for (int y = rect.top(); y <= rect.bottom(); ++y) {
-        if (y % 16 == 0 && cancelled(40 + 59 * (y - rect.y()) / rect.height())) {
+        if ((y == rect.top() || y % 16 == 0) && cancelled(40 + 59 * (y - rect.y()) / rect.height())) {
             return QVector<Component>();
         }
 
@@ -327,6 +327,9 @@ QVector<KisDustDetector::Component> KisDustDetector::detect(KisPaintDeviceSP ref
     }
 
     if (progress) {
+        if (progress->interrupted()) {
+            return QVector<Component>();
+        }
         progress->setProgress(100);
     }
 

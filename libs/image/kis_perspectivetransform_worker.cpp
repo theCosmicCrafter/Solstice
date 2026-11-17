@@ -166,6 +166,12 @@ bool buildRegionSpans(const QVector<QRect> &rects, KisGpuPerspectiveWorker::Regi
         return true;
     }
 
+    // Reject before allocating the per-row table: a tall region with few
+    // spans would otherwise grow far past the span cap intends.
+    if (qint64(bounds.height()) > (qint64(1) << 22)) {
+        return false;
+    }
+
     QVector<QVector<QPair<qint32, qint32>>> perRow(bounds.height());
     qint64 spanCount = 0;
     for (const QRect &rect : rects) {

@@ -572,7 +572,9 @@ void KisClippingTest::testToggleInheritAlphaTwiceOnClippedLayer()
     // Toggling inherit alpha twice on a clipped layer merges the two undo
     // commands. Their property lists must record that clipping went off,
     // or the merge asserts (Shift+G twice, 2026-10-27).
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
     QTest::failOnWarning(QRegularExpression(QStringLiteral("SAFE ASSERT")));
+#endif
 
     KisSurrogateUndoStore *undoStore = new KisSurrogateUndoStore();
     ClipScene scene(undoStore);

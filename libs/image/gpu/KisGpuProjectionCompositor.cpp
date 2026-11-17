@@ -687,8 +687,10 @@ bool KisGpuProjectionCompositor::applyCoverage(KisPaintDeviceSP device,
         return fail(QStringLiteral("device offset is not a multiple of 64"));
     }
 
-    // Pixels outside the extent are transparent and stay so.
-    const QRect touched = rect & device->extent();
+    // Pixels outside the extent are transparent and stay so, and only
+    // existing tiles may be touched: the bounding extent alone can cover
+    // positions that have no tile, which a ReadWrite access would create.
+    const KisRegion touched = rect & device->region();
     if (touched.isEmpty()) {
         return true;
     }
@@ -715,25 +717,43 @@ bool KisGpuProjectionCompositor::applyCoverage(KisPaintDeviceSP device,
     KisGpuCommandList &commands = work->commands;
     commands.begin();
 
-    KisGpuTileAccess target(device, touched, KisGpuTileAccess::ReadWrite);
-    KisGpuTileAccess::UploadArena uploads(
-        qMin<VkDeviceSize>(16 * 1024 * 1024, VkDeviceSize(target.tileCount()) * pixelSize * TileSize * TileSize * 2));
-    bool ok = target.prepare(commands, uploads, errorMessage);
-    if (ok) {
-        const QRect grid = target.tileGrid();
-        const QPoint origin = target.tileOrigin(grid.left(), grid.top());
-        KisGpuCoveragePass::Pass coveragePass;
-        coveragePass.tiles = target.addresses();
-        coveragePass.gridWidth = grid.width();
-        coveragePass.clip = touched.translated(-origin);
-        coveragePass.mask = coverage;
-        coveragePass.maskBounds = rect.translated(-origin);
-        commands.computeBarrier();
-        ok = pass->record(commands, coveragePass, errorMessage);
+    // One access per region fragment: a fragment rect is fully covered by
+    // tiles, so the grids create nothing.
+    struct Fragment {
+        QRect rect;
+        std::unique_ptr<KisGpuTileAccess> access;
+    };
+    std::vector<Fragment> fragments;
+    VkDeviceSize totalTiles = 0;
+    for (const QRect &part : touched.rects()) {
+        fragments.push_back(
+            Fragment{part, std::make_unique<KisGpuTileAccess>(device, part, KisGpuTileAccess::ReadWrite)});
+        totalTiles += VkDeviceSize(fragments.back().access->tileCount());
     }
+    KisGpuTileAccess::UploadArena uploads(
+        qMin<VkDeviceSize>(16 * 1024 * 1024, totalTiles * pixelSize * TileSize * TileSize * 2));
 
     QVector<KisGpuTileAccess *> accessList;
-    accessList << &target;
+    bool ok = true;
+    for (Fragment &fragment : fragments) {
+        accessList << fragment.access.get();
+        ok = fragment.access->prepare(commands, uploads, errorMessage);
+        if (ok) {
+            const QRect grid = fragment.access->tileGrid();
+            const QPoint origin = fragment.access->tileOrigin(grid.left(), grid.top());
+            KisGpuCoveragePass::Pass coveragePass;
+            coveragePass.tiles = fragment.access->addresses();
+            coveragePass.gridWidth = grid.width();
+            coveragePass.clip = fragment.rect.translated(-origin);
+            coveragePass.mask = coverage;
+            coveragePass.maskBounds = rect.translated(-origin);
+            commands.computeBarrier();
+            ok = pass->record(commands, coveragePass, errorMessage);
+        }
+        if (!ok)
+            break;
+    }
+
     if (ok) {
         work->lastUse = KisGpuTileAccess::submitAndFinish(commands, accessList);
         ok = work->lastUse != 0;

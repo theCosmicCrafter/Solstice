@@ -1274,7 +1274,9 @@ void KisGpuProjectionTest::testShiftedCopyMatchesCpu()
     KisPaintDeviceSP actual = new KisPaintDevice(cs);
     fillRandom(actual, QRect(0, 0, 640, 448), 62);
 
-    const QRect bounds(-128, -128, 1024, 768);
+    // Covers all three copy destinations plus a margin of unchanged pixels;
+    // the last copy reaches x=949.
+    const QRect bounds(-128, -128, 1152, 768);
     // Partly or wholly outside the source: those pixels become its default pixel.
     for (const QRect &rect : {QRect(20, 30, 250, 200), QRect(150, 100, 260, 300), QRect(900, 600, 50, 40)}) {
         KisPainter::copyAreaOptimized(rect.topLeft(), source, expected, rect.translated(-offset));

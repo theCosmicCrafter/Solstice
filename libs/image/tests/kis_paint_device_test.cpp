@@ -887,8 +887,7 @@ void KisPaintDeviceTest::testExactBoundsTileWise()
 
     int testedColorSpaces = 0;
     Q_FOREACH (const KoColorSpace *cs, colorSpaces) {
-        if (!cs)
-            continue;
+        QVERIFY2(cs, "a color space lookup in the test setup returned null");
         ++testedColorSpaces;
 
         KoColor opaque(Qt::red, cs);

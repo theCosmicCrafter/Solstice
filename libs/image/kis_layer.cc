@@ -539,7 +539,13 @@ void applyForMerge(KisLayer *layer, KisPainter *gc, const QRect &rect)
     }
 
     KisPaintDeviceSP device = layer->projection();
-    const QRect applyRect = rect & device->extent();
+    QRect applyRect = rect;
+    // Clearing composite ops keep working where the source is transparent:
+    // clip to the extent for the other ops only, like applyImpl() does.
+    if (layer->compositeOpId() != COMPOSITE_COPY && layer->compositeOpId() != COMPOSITE_DESTINATION_IN
+        && layer->compositeOpId() != COMPOSITE_DESTINATION_ATOP) {
+        applyRect &= device->extent();
+    }
     if (applyRect.isEmpty())
         return;
 
