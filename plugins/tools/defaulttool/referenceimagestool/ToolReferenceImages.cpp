@@ -358,7 +358,8 @@ QMenu* ToolReferenceImages::popupActionsMenu()
         transform->addAction(action("object_transform_reset"));
 
         auto *filterMenu = m_contextMenu->addMenu(i18n("Filter"));
-        const auto selected = koSelection()->selectedEditableShapes();
+        KoSelection *selection = koSelection();
+        const auto selected = selection ? selection->selectedEditableShapes() : QList<KoShape *>{};
         auto *reference = selected.size() == 1 ? dynamic_cast<KisReferenceImage *>(selected.first()) : nullptr;
         auto *kisCanvas = dynamic_cast<KisCanvas2 *>(canvas());
         populateReferenceImageFilterMenu(filterMenu, reference, canvas(), kisCanvas->viewManager());

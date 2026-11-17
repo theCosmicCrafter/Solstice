@@ -649,7 +649,8 @@ void KisToolMove::endStroke()
 
     // Solstice: a duplicate back where it started would only paste the copy
     // over its source (darkening semi-transparent pixels)
-    if (m_currentlyDuplicating && m_accumulatedOffset.isNull()) {
+    if (m_currentlyDuplicating
+        && (m_accumulatedOffset + m_dragPos - m_dragStart).isNull()) {
         cancelStroke();
         return;
     }

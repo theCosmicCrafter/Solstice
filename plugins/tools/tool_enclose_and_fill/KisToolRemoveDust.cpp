@@ -307,6 +307,9 @@ void KisToolRemoveDust::slotEnclosingMaskProduced(KisPixelSelectionSP enclosingM
     if (!node || !image || !kisCanvas || !enclosingMask) {
         return;
     }
+    if (m_action == Remove && !nodeEditable()) {
+        return;
+    }
 
     const bool select = m_action == Select;
     KisPaintDeviceSP target = select ? nullptr : node->paintDevice();
