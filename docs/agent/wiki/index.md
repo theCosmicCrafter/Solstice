@@ -82,6 +82,9 @@ matches the task.
   why `0.1.0-alpha` is shown while `6.0.5-prealpha` stays internal.
 - [Upstream: weekly review, selective cherry-picks](decisions/upstream-selective-intake.md):
   Hermes reports, the user decides, Claude cherry-picks; dry-run lessons.
+- [Hosted CI for gates only; GPU builds local](decisions/local-gpu-builds.md):
+  CI stays CPU/compile-gate; CUDA/TRT builds, GPU e2e and releases run on
+  the RTX 5090 box; no self-hosted runner.
 
 ### Pitfalls
 
@@ -98,6 +101,12 @@ matches the task.
   a non-const `begin()`/`rbegin()` detaches even a never-allocated list;
   a GUI-thread loop over `KisImage`'s filter stack lost a worker's filter
   (crash in `enableDirtyRequests()` during repeated `Node.save()`).
+- [`auto` and deduced lambda returns capture a dangling QStringBuilder](pitfalls/qstringbuilder-deduced-types.md):
+  under `QT_USE_QSTRINGBUILDER` a deduced type keeps a builder that
+  references dead temporaries (preview cache and Quick Color heap crashes).
+- [Calls that pump the event loop re-enter your timers](pitfalls/nested-event-pumps.md):
+  `Document.activeNode()` and clone locking run `processEvents()`; per-document
+  timers nested until the GUI stack overflowed.
 
 ### Benchmarks
 
