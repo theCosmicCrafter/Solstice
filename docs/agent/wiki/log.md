@@ -2062,3 +2062,31 @@ ame:weight)
   server_path/ComfyUI dirs — extra_model_paths.yaml entries are seen by
   ComfyUI but not by find_missing, so updater won't fight external
   libraries it can't scan.
+
+## CodeRabbit sweep + repackage (2026-11-.., commits 220dcab9..92e7b1a9)
+- Seven scoped `coderabbit --agent` reviews (~44 findings) verified against
+  the tree: ~30 real defects fixed in 7 commits, the rest scope-blind false
+  positives (3 "criticals" in plugins/tools referenced symbols living in
+  libs/) or intentional design (mimedata native-payload flatten = upstream
+  Krita interop behavior; vector transform order — Qt multiplies
+  right-to-left so the flagged order was already correct).
+- Notable real fixes: QuickAccess popup/main-dock profile clobbering
+  (dir-watch + mtime reload — QSaveFile atomic replace kills file-level
+  watches); GPU applyCoverage() created phantom tiles in extent gaps
+  (now iterates device->region() rects); COMPOSITE_COPY/DESTINATION_IN/
+  DESTINATION_ATOP must skip the extent clip (transparent source still
+  clears destination) in both merge helpers; palettedocker leaked 4
+  undo-stack connections per palette switch (bare disconnect(stack) was
+  a no-op — store QMetaObject::Connection handles).
+- Test battery on real GPU: KisGpuProjectionTest 930/930,
+  KisGpuProjectionStressTest 19/19, KisClippingTest 21/21, plus
+  dust/paint-device/QA/RestNote/brush suites all green. kis_clipboard_test
+  crash reproduced on pre-change binary — pre-existing QPA/environment
+  issue, not a regression.
+- Repackaged: Solstice-0.2.0-beta.4-windows-x64-qt6-local.zip (693 MiB,
+  8795 files) in C:\solstice-ci\packages with SHA256SUMS.txt; all 9 fixed
+  DLLs hash-verified byte-identical to the install tree; packaged build
+  boots, MCP serves 116 tools, RTX 5090 GPU engine healthy. Empty -dbg.zip
+  is expected (Release emits no .debug sections). Packager needs
+  MINGW_BIN_DIR_MAKE_EXE env var to find llvm-mingw; output dir lands in
+  cwd — run from repo root then move artifacts to packages/.
