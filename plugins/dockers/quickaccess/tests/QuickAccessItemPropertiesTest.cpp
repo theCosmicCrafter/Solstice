@@ -118,7 +118,7 @@ private Q_SLOTS:
             QCOMPARE(payload.value("script_path").toString(), QStringLiteral("original.py"));
         } else {
             QCOMPARE(payload.value("text").toString(), QStringLiteral("changed"));
-            QCOMPARE(payload.value("fontSize").toString(), QStringLiteral("27"));
+            QCOMPARE(payload.value("font_size").toString(), QStringLiteral("27"));
         }
     }
 
